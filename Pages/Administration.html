@@ -201,10 +201,17 @@
     <div class="card-header"><h3>Admin Staff Access Control</h3></div>
     <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;line-height:1.6;">
       Choose which pages Administrative Staff can access when they log in. All admin staff will always have access to their <strong>Dashboard</strong>, <strong>My Duties</strong>, <strong>LMS Chat</strong>, and <strong>My Profile</strong> pages. Toggle additional pages below.
+      A ticked page opens the same working page you have. Pick one person to give them ticks of their own; anybody without ticks of their own uses the default.
     </p>
+    <div class="form-group" style="max-width:460px;">
+      <label for="asAccessPerson">Whose access</label>
+      <select class="form-control" id="asAccessPerson" onchange="renderAdminStaffAccessGrid()"></select>
+      <div class="as-access-desc" id="asAccessPersonNote" style="margin-top:6px;"></div>
+    </div>
     <div class="as-access-grid" id="asAccessGrid"></div>
-    <div style="margin-top:20px;">
+    <div style="margin-top:20px;display:flex;gap:10px;flex-wrap:wrap;">
       <button class="btn btn-primary" onclick="saveAdminStaffAccess()">Save Access Settings</button>
+      <button class="btn btn-secondary" id="asAccessUseDefault" style="display:none;" onclick="adminStaffAccessUseDefault()">Use the default for this person</button>
     </div>
   </div>
 </div>

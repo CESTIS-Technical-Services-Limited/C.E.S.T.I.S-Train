@@ -601,6 +601,121 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       return null;
     }
 
+    /* May this person reset (set a new password or first-sign-in code for)
+       that account? An administrator: any account. Admin Staff: a TRAINEE's
+       account only — never a staff, instructor, board or administrator login —
+       and only while "Trainee Accounts" is ticked for them (actor.allowed).
+       The owner decided (30 October 2026): "Admin Staff may reset trainee
+       passwords". Nobody else, and never an account that is not there.
+         actor: { role, allowed }  target: the account
+       → null when allowed, else { code, message }. */
+    function resetRefusal(actor, target) {
+      actor = actor || {};
+      var who = String(actor.role || '').trim().toLowerCase();
+      var no = function (code, message) { return { code: code, message: message }; };
+      if (!target || typeof target !== 'object') return no('missing', 'That account is no longer there.');
+      if (who === 'admin') return null;
+      if (who !== 'adminstaff') return no('not-allowed', 'Only the office can reset a password.');
+      if (actor.allowed === false) return no('not-allowed', 'Resetting trainees\' passwords has not been turned on for you by the Administrator.');
+      var role = String(target.role || '').trim().toLowerCase();
+      if (role !== 'student') return no('role', 'Admin Staff can reset trainees\' passwords only. Ask an administrator to reset a staff password.');
+      return null;
+    }
+
+    /* ---- A trainee's personal details (office audit OF-3, OF-7) ----
+       Asked once — on the office's New trainee form, or by the trainee
+       registering from home — so the office only checks them instead of
+       typing them on the fee page (≈74 s a trainee; ≈31 min an intake of
+       25). The same rules on both, and at the trainee sign-in, which takes a
+       registration only when they hold:
+         gender         'Female' | 'Male' (as every form on the platform)
+         dob            a real date, YYYY-MM-DD, aged 12 to 100
+         trn            9 digits (spaces or dashes allowed), kept 123-456-789
+         address        5 to 200 characters
+         parentName / parentPhone       a parent or guardian: both or neither
+         emergencyName / emergencyPhone an emergency contact: both or neither
+       A name is 2 to 80 characters with a letter, no markup; a phone is
+       PHONE_RE. opts.require: the fields that must be given (HOME_REQUIRED
+       from home). → { ok, value } | { ok: false, field } */
+    var DETAIL_FIELDS = ['gender', 'dob', 'trn', 'address', 'parentName', 'parentPhone', 'emergencyName', 'emergencyPhone'];
+    var HOME_REQUIRED = ['gender', 'dob', 'address', 'emergencyName', 'emergencyPhone'];
+    function dtxt(v) { return String(v == null ? '' : v).replace(/\s+/g, ' ').trim(); }
+    function checkDetail(k, raw, nowMs) {
+      var v = dtxt(raw);
+      if (!v) return { empty: true };
+      if (k === 'gender') { var g = v.toLowerCase(); return g === 'female' ? { v: 'Female' } : g === 'male' ? { v: 'Male' } : { bad: true }; }
+      if (k === 'dob') {
+        var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
+        if (!m) return { bad: true };
+        var t = Date.UTC(+m[1], +m[2] - 1, +m[3]), d = new Date(t);
+        if (d.getUTCFullYear() !== +m[1] || d.getUTCMonth() !== +m[2] - 1 || d.getUTCDate() !== +m[3]) return { bad: true };
+        var age = ((typeof nowMs === 'number' ? nowMs : Date.now()) - t) / (365.25 * 86400000);
+        return age >= 12 && age <= 100 ? { v: v } : { bad: true };
+      }
+      if (k === 'trn') { var digits = v.replace(/[\s-]/g, ''); return /^\d{9}$/.test(digits) ? { v: digits.slice(0, 3) + '-' + digits.slice(3, 6) + '-' + digits.slice(6) } : { bad: true }; }
+      if (k === 'address') return v.length >= 5 && v.length <= 200 && !/[<>"\u0000-\u001f]/.test(v) ? { v: v } : { bad: true };
+      if (k === 'parentName' || k === 'emergencyName') return v.length >= 2 && v.length <= 80 && /[A-Za-z]/.test(v) && !/[<>"\u0000-\u001f]/.test(v) ? { v: v } : { bad: true };
+      if (k === 'parentPhone' || k === 'emergencyPhone') return PHONE_RE.test(v) ? { v: v } : { bad: true };
+      return { bad: true };
+    }
+    function checkDetails(form, opts) {
+      form = form && typeof form === 'object' ? form : {};
+      opts = opts || {};
+      var req = Array.isArray(opts.require) ? opts.require : [], out = {};
+      for (var i = 0; i < DETAIL_FIELDS.length; i++) {
+        var k = DETAIL_FIELDS[i], r = checkDetail(k, form[k], opts.nowMs);
+        if (r.bad) return { ok: false, field: k };
+        if (r.empty) { if (req.indexOf(k) !== -1) return { ok: false, field: k }; continue; }
+        out[k] = r.v;
+      }
+      // A name with no number to call, or a number with no name, is half a contact.
+      if (!!out.parentName !== !!out.parentPhone) return { ok: false, field: out.parentName ? 'parentPhone' : 'parentName' };
+      if (!!out.emergencyName !== !!out.emergencyPhone) return { ok: false, field: out.emergencyName ? 'emergencyPhone' : 'emergencyName' };
+      return { ok: true, value: out };
+    }
+    /* What a stored copy holds that is valid — read back from a registration,
+       never refused because of one bad field (nothing a trainee sent is lost
+       for it: the office simply types that one). */
+    function cleanDetails(d) {
+      var out = {};
+      if (!d || typeof d !== 'object') return out;
+      DETAIL_FIELDS.forEach(function (k) { var r = checkDetail(k, d[k]); if (r.v) out[k] = r.v; });
+      return out;
+    }
+
+    /* ---- First-sign-in codes (office audit OF-4) ----
+       When trainees are approved in one go (Approve All — an intake imported
+       from Excel arrives in the queue with no password), when the office
+       makes a trainee with no password typed, and when the office resets a
+       trainee's password, each trainee gets a random code to sign in with
+       ONCE: ten digits (easy to type on any phone, no capitals to get wrong).
+       The code is kept ONLY as its hash, exactly like a password (the account's
+       password IS the code's PBKDF2 check); it is printed on the trainee's
+       slip at that moment and never stored, synced or shown again.
+       The account carries a mark of WHICH password is a code —
+       firstSignInCode: { fp, at }, fp a fingerprint of the stored hash (not of
+       the code) — so the code is "in force" exactly while the password is
+       still that hash: the moment the trainee (or anybody) sets another
+       password, by any route, the mark no longer matches and needs no
+       clearing. While it is in force, signing in asks for her own password
+       first. */
+    var CODE_DIGITS = 10;
+    // randomBytes(n) -> n random bytes (crypto.getRandomValues on a page).
+    function makeSignInCode(randomBytes) {
+      var out = '';
+      while (out.length < CODE_DIGITS) {
+        var b = randomBytes(CODE_DIGITS * 2);
+        for (var i = 0; i < b.length && out.length < CODE_DIGITS; i++) if (b[i] < 250) out += String(b[i] % 10);   // no bias
+      }
+      return out;
+    }
+    function signInCodeFp(storedHash) { return Core.hashString('fsc|' + String(storedHash == null ? '' : storedHash)); }
+    function signInCodeMark(storedHash, nowIso) { return { fp: signInCodeFp(storedHash), at: String(nowIso || '') }; }
+    function firstCodeInForce(account) {
+      var m = account && account.firstSignInCode;
+      return !!(m && typeof m === 'object' && m.fp && account.password && m.fp === signInCodeFp(account.password));
+    }
+
     /* What Verify Users lists, and what Approve All / Reject All act on.
 
        It used to be every pending account PLUS every disabled one except
@@ -893,7 +1008,9 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       isPublishedDefault: isPublishedDefault, publishedDefaultLogin: publishedDefaultLogin, toolDefaultLogin: toolDefaultLogin,
       isPlaceholderRecoveryEmail: isPlaceholderRecoveryEmail,
       registrationRole: registrationRole, isPrivilegedSelfRegistration: isPrivilegedSelfRegistration,
-      isFullName: isFullName, officeCreateRefusal: officeCreateRefusal, PHONE_RE: PHONE_RE,
+      isFullName: isFullName, officeCreateRefusal: officeCreateRefusal, PHONE_RE: PHONE_RE, resetRefusal: resetRefusal,
+      traineeDetails: { FIELDS: DETAIL_FIELDS, HOME_REQUIRED: HOME_REQUIRED, check: checkDetails, clean: cleanDetails },
+      makeSignInCode: makeSignInCode, signInCodeMark: signInCodeMark, firstCodeInForce: firstCodeInForce, CODE_DIGITS: CODE_DIGITS,
       reviewQueue: reviewQueue, studentLinkFor: studentLinkFor,
       isBackfillStub: isBackfillStub, accountForTrainee: accountForTrainee, traineeHasAccount: traineeHasAccount,
       backfillStubFolds: backfillStubFolds,
@@ -1299,7 +1416,11 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
           autoMatch = typeof key === 'string' && key.trim() !== '' &&
             String(ans == null ? '' : ans).trim().toLowerCase() === key.trim().toLowerCase();
           isCorrect = autoMatch;
-          manual = true; // the instructor confirms every fill-in
+          // The expected answer word for word (case and the spaces around it
+          // aside) is marked right away; anything else waits for a person.
+          // The instructor used to confirm every fill-in, the 32 exact
+          // matches of a 20-trainee test included (owner's decision, IN-8).
+          manual = !autoMatch;
         } else {
           manual = true;
         }
@@ -2039,8 +2160,126 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       return text ? letter + '. ' + text : letter;
     }
 
+    /* A person's marks on the answers of one result that wait for marking —
+       the grading panel's "Save Grades" / "Save & next", and marking one
+       question across every trainee. marks = { <answer index>: { points,
+       feedback } }; an answer with no mark here is left waiting. Each mark is
+       held between 0 and the question's points. The result's totals, score,
+       pass and "awaiting marking" are then worked out again from every
+       answer, exactly as the panel always did (passMark: the exam's).
+       Answers already marked are never changed here.
+       -> { applied, pendingLeft, final } */
+    function applyManualMarks(result, marks, opts) {
+      opts = opts || {};
+      var by = opts.by || 'staff', at = opts.at || new Date().toISOString();
+      var applied = 0;
+      if (!result || !Array.isArray(result.answers)) return { applied: 0, pendingLeft: 0, final: false };
+      result.answers.forEach(function (a, idx) {
+        if (!a || !a.needsManualGrade || a.graded) return;
+        var m = marks ? marks[idx] : null;
+        if (!m || m.points == null || String(m.points).trim() === '') return;
+        var pts = Number(a.points) || 0;
+        var v = Number(String(m.points).trim());
+        if (!isFinite(v)) v = 0;
+        var awarded = round2(Math.min(Math.max(v, 0), pts));
+        a.awardedPoints = awarded;
+        a.earnedPoints = awarded;
+        a.isCorrect = awarded === pts;
+        a.graded = true;
+        a.gradedBy = by;
+        a.gradedAt = at;
+        a.feedback = m.feedback == null ? '' : String(m.feedback).trim();
+        applied++;
+      });
+      var earned = 0, correct = 0;
+      result.answers.forEach(function (a) { if (!a) return; earned += Number(a.earnedPoints) || 0; if (a.isCorrect) correct++; });
+      result.earnedPoints = round2(earned);
+      result.correctCount = correct;
+      result.score = result.totalPoints > 0 ? Math.round(earned / result.totalPoints * 100) : 0;
+      var pm = opts.passMark != null && opts.passMark !== '' && isFinite(Number(opts.passMark)) ? Number(opts.passMark) : 60;
+      result.passed = result.score >= pm;
+      var left = result.answers.filter(function (a) { return a && a.needsManualGrade && !a.graded; }).length;
+      result.needsReview = left > 0;
+      result.reviewComplete = left === 0;
+      result.pendingCount = left;
+      if (!left && applied) { result.markedBy = by; result.markedAt = at; }
+      return { applied: applied, pendingLeft: left, final: left === 0 };
+    }
+
+    /* Where one question of an exam waits for marking, trainee by trainee:
+       the answers are matched to the exam's question by id (a shuffled paper
+       lines up), an older result without ids by its place.
+       -> [{ resultId, studentId, studentName, index, answer }] for every
+          result (archived ones left out) whose answer to it waits. */
+    function pendingForQuestion(results, questionId, questionIndex) {
+      var out = [];
+      (results || []).forEach(function (r) {
+        if (!r || r.archived || !Array.isArray(r.answers)) return;
+        r.answers.forEach(function (a, k) {
+          if (!a || !a.needsManualGrade || a.graded) return;
+          var hit = a.questionId != null ? String(a.questionId) === String(questionId) : k === questionIndex;
+          if (hit) out.push({ resultId: r.id, studentId: r.studentId, studentName: r.studentName || '', index: k, answer: a });
+        });
+      });
+      return out;
+    }
+    /* The questions of an exam that still wait for marking, with how many. */
+    function questionsAwaiting(exam, results) {
+      var qs = (exam && Array.isArray(exam.questionData) ? exam.questionData : []).filter(function (q) { return q && q.type !== 'info'; });
+      return qs.map(function (q, n) {
+        return { id: q.id, number: n + 1, text: q.text || '', type: q.type, points: Number(q.points) || 0,
+          waiting: pendingForQuestion(results, q.id, n).length };
+      }).filter(function (x) { return x.waiting > 0; });
+    }
+    /* The next result of the same exam still awaiting marking after this one
+       (in the order given — the results table's), then from the top. */
+    function nextAwaiting(results, afterId) {
+      var list = (results || []).filter(function (r) { return r && !r.archived && Array.isArray(r.answers) && r.answers.some(function (a) { return a && a.needsManualGrade && !a.graded; }); });
+      if (!list.length) return null;
+      var at = -1;
+      (results || []).forEach(function (r, i) { if (r && r.id === afterId) at = i; });
+      var after = (results || []).slice(at + 1).filter(function (r) { return list.indexOf(r) !== -1 && r.id !== afterId; });
+      if (after.length) return after[0];
+      var rest = list.filter(function (r) { return r.id !== afterId; });
+      return rest.length ? rest[0] : null;
+    }
+
+    /* "Copy test": the same paper for the next intake — a new draft with a
+       new id, every question and its key copied (each question its own new
+       id), the settings kept, and nothing of the old sitting: no results,
+       not active, no pass rate, no release, no activation. The copy is the
+       author's own draft (by, byRole), dated when given (opts.date/time),
+       else as the original. */
+    function copyExam(exam, opts) {
+      opts = opts || {};
+      if (!exam) return null;
+      var id = opts.id || ('EXAM-' + Date.now().toString(36));
+      var c = JSON.parse(JSON.stringify(exam));
+      ['passRate', 'activatedAt', 'students', 'archivedAt', 'deleted', 'updatedAt', 'resultsCount', 'closedAt'].forEach(function (k) { delete c[k]; });
+      c.id = id;
+      c.title = opts.title || ('Copy of ' + (exam.title || 'test'));
+      c.status = 'upcoming';
+      c.answersRelease = exam.answersRelease === 'withheld' ? 'withheld' : 'after-close';
+      if (opts.date) c.date = opts.date;
+      if (opts.time) c.time = opts.time;
+      if (opts.course) c.course = opts.course;
+      if (opts.by != null) c.createdBy = opts.by;
+      if (opts.byRole) c.createdByRole = opts.byRole;
+      c.createdAt = opts.at || new Date().toISOString();
+      c.copiedFrom = exam.id;
+      c.questionData = (Array.isArray(exam.questionData) ? exam.questionData : []).map(function (q, i) {
+        var nq = JSON.parse(JSON.stringify(q));
+        nq.id = 'Q-' + id + '-' + (i + 1);
+        return nq;
+      });
+      c.questions = questionCount(c);
+      return c;
+    }
+
     return {
       optionLabel: optionLabel,
+      applyManualMarks: applyManualMarks, pendingForQuestion: pendingForQuestion, questionsAwaiting: questionsAwaiting,
+      nextAwaiting: nextAwaiting, copyExam: copyExam,
       DEFAULT_OFFSET: DEFAULT_OFFSET, offsetMinutes: offsetMinutes, centreTime: centreTime, centreParts: centreParts,
       defaultStart: defaultStart, windowOf: windowOf, hasQuestions: hasQuestions, statusAt: statusAt,
       sessionDeadline: sessionDeadline, publicQuestions: publicQuestions, mark: mark, keyProblems: keyProblems,
@@ -3176,7 +3415,9 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       'questionsPerPage', 'shuffleQuestions', 'shuffleOptions', 'answersRelease', 'status', 'activatedAt', 'allowFlag', 'instructions'];
     var VC_FIELDS = ['id', 'code', 'title', 'course', 'hostName', 'hostRole', 'startedAt', 'endedAt', 'locked', 'lobby', 'updatedAt'];
     var ROOM_FIELDS = ['id', 'name', 'icon', 'type', 'color', 'skillAreaId', 'createdAt', 'updatedAt'];
-    var PER_TRAINEE_MAPS = ['grades', 'gradeMeta', 'feedback', 'comments', 'marks'];
+    // feedbackAt: when each trainee's comment on an assignment was written
+    // (Core.coursework.recordGrade) — her own date only, like her mark.
+    var PER_TRAINEE_MAPS = ['grades', 'gradeMeta', 'feedback', 'feedbackAt', 'comments', 'marks'];
 
     /* System notices that name a trainee. A trainee sees one only when it
        names them; the score and mark notices never reach a trainee at all
@@ -3588,9 +3829,19 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       });
       return out;
     }
-    function noticeFor(n, t, ownNames) {
+    function noticeFor(n, t, ownNames, course, same) {
       if (Array.isArray(n.forUsers) && n.forUsers.length) return n.forUsers.map(str).indexOf(t.acct) !== -1;
       if (Array.isArray(n.forRoles) && n.forRoles.length && n.forRoles.indexOf('student') === -1) return false;
+      // A programme's notice (forCourse) reaches that programme's trainees
+      // only — the bell's own rule (Core.notify.reaches): a Plumbing trainee
+      // at home is not sent the Welding class's new assignment. "General"
+      // (or no programme) is for every trainee, as before.
+      if (n.forCourse != null && str(n.forCourse).trim() !== '') {
+        var fc = Core.normCourse(n.forCourse);
+        if (fc !== 'general' && fc !== 'all' && fc !== 'all programmes' && fc !== 'all courses') {
+          if (!course || !(Core.normCourse(course) === fc || (same && same(course, n.forCourse)))) return false;
+        }
+      }
       var text = str(n.text);
       if (STAFF_ONLY_NOTICES.some(function (re) { return re.test(text); })) return false;
       for (var i = 0; i < NAMED_NOTICES.length; i++) {
@@ -3625,6 +3876,9 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       d.voctrain_students = [copy(t.student)];
       var card = pick(t.account, USER_FIELDS);
       card.twoFactorEnabled = !!t.account.twoFactorEnabled;
+      // Her password is still the office's first-sign-in code: her device asks
+      // her own (OF-4). A flag only — never the code, never the mark.
+      if (Core.accountAccess.firstCodeInForce(t.account)) card.firstCode = true;
       card.emailOtpLogin = !!t.account.emailOtpLogin;
       d.voctrain_users = [card];
       d.voctrain_exams = ctx.L.voctrain_exams.filter(function (e) { return examForTrainee(ctx, e, t); }).map(examMeta);
@@ -3652,7 +3906,7 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       });
       d.voctrain_submissions = ownedOf(ctx, 'voctrain_submissions', t);
       d.voctrain_announcements = ctx.L.voctrain_announcements.filter(forStudent).map(function (a) { return cutReaders(a, readers); });
-      d.voctrain_notifications = ctx.L.voctrain_notifications.filter(function (n) { return noticeFor(n, t, own.names); }).map(function (n) {
+      d.voctrain_notifications = ctx.L.voctrain_notifications.filter(function (n) { return noticeFor(n, t, own.names, course, ctx.same); }).map(function (n) {
         var r = cutReaders(n, readers);
         if (Array.isArray(r.forUsers)) r.forUsers = cutList(r.forUsers, readers);
         return r;
@@ -4798,11 +5052,15 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
 
     /* What the registration form sends, checked: the full name (first and
        last — Core.accountAccess.isFullName, the rule of every account form),
-       a programme from the catalogue, an optional phone, and the password as
+       a programme from the catalogue, an optional phone, the password as
        the dashboard stores one (pbkdf2$<iterations>$<salt>$<hash>, worked out
        on the trainee's device with a fresh salt — the password itself never
-       travels). → { ok, value } | { ok: false, field } */
-    function checkRegistration(form, programmes) {
+       travels), and her personal details (Core.accountAccess.traineeDetails:
+       gender, date of birth, address and an emergency contact required; TRN
+       and a parent or guardian when she has them — office audit OF-3), so
+       the office only checks them. opts.nowMs: today, for the age.
+       → { ok, value } | { ok: false, field } */
+    function checkRegistration(form, programmes, opts) {
       form = isObj(form) ? form : {};
       var name = cleanName(form.name);
       if (!name || name.length > REG_NAME_MAX || /[<>"\u0000-\u001f]/.test(name) || !Core.accountAccess.isFullName(name)) return { ok: false, field: 'name' };
@@ -4812,7 +5070,10 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       if (phone && !Core.accountAccess.PHONE_RE.test(phone)) return { ok: false, field: 'phone' };
       var pw = str(form.password), m = STORED_PW_RE.exec(pw);
       if (!m || Number(m[1]) < 100000 || Number(m[1]) > 1000000) return { ok: false, field: 'password' };
-      var value = { name: name, programme: programme, phone: phone, password: pw };
+      var TD = Core.accountAccess.traineeDetails;
+      var det = TD.check(form, { require: TD.HOME_REQUIRED, nowMs: opts && typeof opts.nowMs === 'number' ? opts.nowMs : undefined });
+      if (!det.ok) return { ok: false, field: det.field };
+      var value = { name: name, programme: programme, phone: phone, password: pw, details: det.value };
       // The sign-in link she registered from (https only, with the gate's address): the approval email carries it.
       var link = str(form.link).trim();
       if (link && REG_LINK_RE.test(link)) value.link = link;
@@ -4829,6 +5090,7 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
         googleVerified: true, registeredVia: 'home-registration', status: 'pending', createdAt: iso(o.nowMs) };
       if (v.phone) out.phone = str(v.phone);
       if (v.link) out.link = str(v.link);
+      if (isObj(v.details) && Object.keys(v.details).length) out.details = copy(v.details);
       if (o.folder && o.folder.id) { out.folderId = str(o.folder.id); out.folderName = str(o.folder.name); }
       return out;
     }
@@ -4873,6 +5135,10 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
         programme: str(r.programme).trim(), status: 'pending', createdAt: day || str(r.createdAt).slice(0, 10), registeredVia: 'home-registration',
         googleVerified: true, registeredAt: str(r.createdAt), updatedAt: str(r.createdAt) };
       if (r.phone && Core.accountAccess.PHONE_RE.test(str(r.phone).trim())) acct.phone = str(r.phone).trim();
+      // Her personal details, kept on the waiting account for the office to
+      // check; on approval they reach her trainee and fee records (blanks only).
+      var det = Core.accountAccess.traineeDetails.clean(r.details);
+      if (Object.keys(det).length) acct.details = det;
       if (r.folderId) acct.gateFolderId = str(r.folderId);
       return { action: 'add', account: acct };
     }
@@ -5091,7 +5357,7 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
      The rules above name them only on the staff side (building slices,
      collecting inboxes), which the gate never runs. Touching one throws,
      so a rule that starts to need it fails loudly instead of quietly. */
-  ["Transcript","certs","chat","chatSync","comms","courseDuration","coursework","deriveQuarter","dropTombstonedStudents","feeRecordRank","feeTwinIndex","isSnapshotableKey","keepsOwnId","migrateToStableIds","pageCloud","pendingUpload","relinkDependentData","sync"].forEach(function (name) {
+  ["Transcript","certs","chat","chatSync","comms","courseDuration","coursework","deriveQuarter","dropTombstonedStudents","feeRecordRank","feeTwinIndex","isSnapshotableKey","keepsOwnId","migrateToStableIds","notify","pageCloud","pendingUpload","relinkDependentData","sync"].forEach(function (name) {
     Object.defineProperty(Core, name, { configurable: true, enumerable: false, get: function () {
       throw new Error('Core.' + name + ' is not in the gate\'s paste: rebuild it with node trainee-gate/build-paste.js --full');
     } });
@@ -5183,7 +5449,8 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
                                 → {received} | {fileId, size, name, done:true}  (a file sent in parts)
      catalogue                  {} → {programmes:[name]}           (no sign-in: what a new trainee may register for)
      register.start             {accessToken} → {state:'new', email, programmes} | {state:'submitted', email, programme, submittedAt}
-     register.submit            {accessToken, name, programme, phone?, password:'pbkdf2$…'} → {state:'submitted', …}
+     register.submit            {accessToken, name, programme, phone?, password:'pbkdf2$…', gender, dob, trn?, address,
+                                 parentName?, parentPhone?, emergencyName, emergencyPhone} → {state:'submitted', …}
                                 (registration from home, DESIGN.md §17: an email-account token
                                  only; refused: has-account | pending | rejected | disabled |
                                  not-open | bad-form {field} | too-many | ask-office)
@@ -5838,7 +6105,8 @@ function gateAuthEmail(G, req) {
    request the gate then:
      - keeps the registration: Registrations/CESTISREG.<account id>.json
        (Core.gate.reg.build: name, address, programme, phone, the password
-       as the dashboard stores one — worked out on the trainee's device);
+       as the dashboard stores one — worked out on the trainee's device —
+       and her personal details, Core.accountAccess.traineeDetails);
      - makes the trainee's own folder: Trainees/"<Name> (<student ID>)",
        described "cestis-trainee acct=<account id> v=1 registration=pending"
        (the student ID the dashboard will give them: Core.gate.reg.studentId).
@@ -5907,7 +6175,8 @@ function gateRegisterSubmit(G, req) {
   if (w.out) { if (w.out.state === 'submitted') w.out.already = true; return w.out; }
   var programmes = gateCatalogueNames(G);
   if (!programmes.length) return { ok: false, error: 'not-open' };
-  var chk = G.gate.reg.check({ name: req.name, programme: req.programme, phone: req.phone, password: req.password, link: req.link }, programmes);
+  // The whole form: the shared rules read only the fields they know (Core.gate.reg.check).
+  var chk = G.gate.reg.check(req, programmes, { nowMs: G.now });
   if (!chk.ok) return { ok: false, error: 'bad-form', field: chk.field };
   var akey = 'rga:' + gateAcctKey(G, w.acct), hkey = 'rgh:' + Math.floor(G.now / 3600000), skey = 'rg6:' + Math.floor(G.now / 21600000);
   if (gateCountOf(G, akey) >= GATE_REG.PER_ADDRESS_PER_HOUR || gateCountOf(G, hkey) >= GATE_REG.PER_HOUR || gateCountOf(G, skey) >= GATE_REG.PER_6H) {

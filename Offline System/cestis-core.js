@@ -1781,6 +1781,10 @@
   var DEVICE_ONLY_KEYS = ['isLoggedIn', 'loggedInUser', 'cestisCurrentUser', 'cestiCurrentUser',
     'cestisAttendanceCurrentUser', 'cestisTimeDarkMode', 'cestisTheme', 'firstTimeSyncDismissed', 'cestisFirstTimeDismissed',
     'postLoginSyncCompleted', 'cloudSyncCompleted', 'cestisAutoSyncEnabled',
+    // Which menu groups are open on THIS screen (the office's sidebar).
+    'cestisNavOpen',
+    // This computer's own letters on a receipt number (Core.receiptNumbers).
+    'cestisReceiptDevice',
     // "this device holds work not yet uploaded" — true of THIS device only —
     // and its note of what it last put in the Main copy.
     'cestisPendingUpload', 'cestisUnsyncedOnSignOut', 'cestisLastUploadHash',
@@ -1790,7 +1794,10 @@
     // work held here until they sign in.
     'cestisGateNs', 'cestisGateMode', 'cestisGateToken', 'cestisGateSessionKey', 'cestisGateAddress',
     'cestisDeviceKind', 'cestisGatePublished', 'cestisGatePublishQueue', 'cestisGateCollected',
-    'cestisGateUnassigned', 'cestisGateQuarantine', 'cestisStudentIdMoves'];
+    'cestisGateUnassigned', 'cestisGateQuarantine', 'cestisStudentIdMoves',
+    // A test being built, kept on this computer until it is saved (index.html
+    // examDraftSave): a half-built test and its answers go nowhere else.
+    'cestisExamBuilderDraft'];
 
   Core._parseArr = function (raw) {
     try { var v = JSON.parse(raw || 'null'); return Array.isArray(v) ? v : []; }
@@ -8085,6 +8092,39 @@
       return (requests || []).filter(function (r) { return r && (r.status === 'pending' || r.status === 'processing') ; }).length;
     };
 
+    /* ---- Requests that run themselves (office audit OF-9, management M12) ---- */
+    // A request that still asks for the office's work, or the trainee's visit.
+    T.isOpenRequest = function (r) { return !!r && (r.status === 'pending' || r.status === 'processing' || r.status === 'ready'); };
+    // Does it include a certificate?
+    T.wantsCertificate = function (r) { return !!r && (r.type === 'certificate' || r.type === 'both'); };
+    /* What the trainee is told in her bell when her request moves on (none
+       for a move back to "pending"). */
+    T.requestNotice = function (r, status) {
+      if (!r) return '';
+      var what = r.type === 'both' ? 'transcript and certificate' : r.type === 'certificate' ? 'certificate' : 'transcript';
+      var note = String(r.adminNote || '').trim();
+      switch (status) {
+        case 'processing': return 'Your ' + what + ' request is being prepared by the office.';
+        case 'ready': return 'Your ' + what + (r.type === 'both' ? ' are' : ' is') + ' ready. Collect ' + (r.type === 'both' ? 'them' : 'it') + ' at the office.';
+        case 'collected': return 'Your ' + what + ' request is complete: collected at the office.';
+        case 'declined': return 'Your ' + what + ' request was declined' + (note ? ': ' + note : '') + '. Ask the office if you have a question.';
+        default: return '';
+      }
+    };
+    /* A certificate handed over (Certificates → Mark Collected): the
+       trainee's open requests that include a certificate are collected too,
+       so the two records can never disagree. Returns { list, changed }. */
+    T.collectCertificateRequests = function (requests, studentId, actor, nowIso) {
+      var now = nowIso || new Date().toISOString(), changed = [];
+      var list = (Array.isArray(requests) ? requests : []).map(function (r) {
+        if (!r || String(r.studentId) !== String(studentId) || !T.wantsCertificate(r) || !T.isOpenRequest(r)) return r;
+        var hit = Object.assign({}, r, { status: 'collected', handledBy: actor || '', handledAt: now, updatedAt: now });
+        changed.push(hit);
+        return hit;
+      });
+      return { list: list, changed: changed };
+    };
+
     return T;
   })();
 
@@ -8683,6 +8723,121 @@
       return null;
     }
 
+    /* May this person reset (set a new password or first-sign-in code for)
+       that account? An administrator: any account. Admin Staff: a TRAINEE's
+       account only — never a staff, instructor, board or administrator login —
+       and only while "Trainee Accounts" is ticked for them (actor.allowed).
+       The owner decided (30 October 2026): "Admin Staff may reset trainee
+       passwords". Nobody else, and never an account that is not there.
+         actor: { role, allowed }  target: the account
+       → null when allowed, else { code, message }. */
+    function resetRefusal(actor, target) {
+      actor = actor || {};
+      var who = String(actor.role || '').trim().toLowerCase();
+      var no = function (code, message) { return { code: code, message: message }; };
+      if (!target || typeof target !== 'object') return no('missing', 'That account is no longer there.');
+      if (who === 'admin') return null;
+      if (who !== 'adminstaff') return no('not-allowed', 'Only the office can reset a password.');
+      if (actor.allowed === false) return no('not-allowed', 'Resetting trainees\' passwords has not been turned on for you by the Administrator.');
+      var role = String(target.role || '').trim().toLowerCase();
+      if (role !== 'student') return no('role', 'Admin Staff can reset trainees\' passwords only. Ask an administrator to reset a staff password.');
+      return null;
+    }
+
+    /* ---- A trainee's personal details (office audit OF-3, OF-7) ----
+       Asked once — on the office's New trainee form, or by the trainee
+       registering from home — so the office only checks them instead of
+       typing them on the fee page (≈74 s a trainee; ≈31 min an intake of
+       25). The same rules on both, and at the trainee sign-in, which takes a
+       registration only when they hold:
+         gender         'Female' | 'Male' (as every form on the platform)
+         dob            a real date, YYYY-MM-DD, aged 12 to 100
+         trn            9 digits (spaces or dashes allowed), kept 123-456-789
+         address        5 to 200 characters
+         parentName / parentPhone       a parent or guardian: both or neither
+         emergencyName / emergencyPhone an emergency contact: both or neither
+       A name is 2 to 80 characters with a letter, no markup; a phone is
+       PHONE_RE. opts.require: the fields that must be given (HOME_REQUIRED
+       from home). → { ok, value } | { ok: false, field } */
+    var DETAIL_FIELDS = ['gender', 'dob', 'trn', 'address', 'parentName', 'parentPhone', 'emergencyName', 'emergencyPhone'];
+    var HOME_REQUIRED = ['gender', 'dob', 'address', 'emergencyName', 'emergencyPhone'];
+    function dtxt(v) { return String(v == null ? '' : v).replace(/\s+/g, ' ').trim(); }
+    function checkDetail(k, raw, nowMs) {
+      var v = dtxt(raw);
+      if (!v) return { empty: true };
+      if (k === 'gender') { var g = v.toLowerCase(); return g === 'female' ? { v: 'Female' } : g === 'male' ? { v: 'Male' } : { bad: true }; }
+      if (k === 'dob') {
+        var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
+        if (!m) return { bad: true };
+        var t = Date.UTC(+m[1], +m[2] - 1, +m[3]), d = new Date(t);
+        if (d.getUTCFullYear() !== +m[1] || d.getUTCMonth() !== +m[2] - 1 || d.getUTCDate() !== +m[3]) return { bad: true };
+        var age = ((typeof nowMs === 'number' ? nowMs : Date.now()) - t) / (365.25 * 86400000);
+        return age >= 12 && age <= 100 ? { v: v } : { bad: true };
+      }
+      if (k === 'trn') { var digits = v.replace(/[\s-]/g, ''); return /^\d{9}$/.test(digits) ? { v: digits.slice(0, 3) + '-' + digits.slice(3, 6) + '-' + digits.slice(6) } : { bad: true }; }
+      if (k === 'address') return v.length >= 5 && v.length <= 200 && !/[<>"\u0000-\u001f]/.test(v) ? { v: v } : { bad: true };
+      if (k === 'parentName' || k === 'emergencyName') return v.length >= 2 && v.length <= 80 && /[A-Za-z]/.test(v) && !/[<>"\u0000-\u001f]/.test(v) ? { v: v } : { bad: true };
+      if (k === 'parentPhone' || k === 'emergencyPhone') return PHONE_RE.test(v) ? { v: v } : { bad: true };
+      return { bad: true };
+    }
+    function checkDetails(form, opts) {
+      form = form && typeof form === 'object' ? form : {};
+      opts = opts || {};
+      var req = Array.isArray(opts.require) ? opts.require : [], out = {};
+      for (var i = 0; i < DETAIL_FIELDS.length; i++) {
+        var k = DETAIL_FIELDS[i], r = checkDetail(k, form[k], opts.nowMs);
+        if (r.bad) return { ok: false, field: k };
+        if (r.empty) { if (req.indexOf(k) !== -1) return { ok: false, field: k }; continue; }
+        out[k] = r.v;
+      }
+      // A name with no number to call, or a number with no name, is half a contact.
+      if (!!out.parentName !== !!out.parentPhone) return { ok: false, field: out.parentName ? 'parentPhone' : 'parentName' };
+      if (!!out.emergencyName !== !!out.emergencyPhone) return { ok: false, field: out.emergencyName ? 'emergencyPhone' : 'emergencyName' };
+      return { ok: true, value: out };
+    }
+    /* What a stored copy holds that is valid — read back from a registration,
+       never refused because of one bad field (nothing a trainee sent is lost
+       for it: the office simply types that one). */
+    function cleanDetails(d) {
+      var out = {};
+      if (!d || typeof d !== 'object') return out;
+      DETAIL_FIELDS.forEach(function (k) { var r = checkDetail(k, d[k]); if (r.v) out[k] = r.v; });
+      return out;
+    }
+
+    /* ---- First-sign-in codes (office audit OF-4) ----
+       When trainees are approved in one go (Approve All — an intake imported
+       from Excel arrives in the queue with no password), when the office
+       makes a trainee with no password typed, and when the office resets a
+       trainee's password, each trainee gets a random code to sign in with
+       ONCE: ten digits (easy to type on any phone, no capitals to get wrong).
+       The code is kept ONLY as its hash, exactly like a password (the account's
+       password IS the code's PBKDF2 check); it is printed on the trainee's
+       slip at that moment and never stored, synced or shown again.
+       The account carries a mark of WHICH password is a code —
+       firstSignInCode: { fp, at }, fp a fingerprint of the stored hash (not of
+       the code) — so the code is "in force" exactly while the password is
+       still that hash: the moment the trainee (or anybody) sets another
+       password, by any route, the mark no longer matches and needs no
+       clearing. While it is in force, signing in asks for her own password
+       first. */
+    var CODE_DIGITS = 10;
+    // randomBytes(n) -> n random bytes (crypto.getRandomValues on a page).
+    function makeSignInCode(randomBytes) {
+      var out = '';
+      while (out.length < CODE_DIGITS) {
+        var b = randomBytes(CODE_DIGITS * 2);
+        for (var i = 0; i < b.length && out.length < CODE_DIGITS; i++) if (b[i] < 250) out += String(b[i] % 10);   // no bias
+      }
+      return out;
+    }
+    function signInCodeFp(storedHash) { return Core.hashString('fsc|' + String(storedHash == null ? '' : storedHash)); }
+    function signInCodeMark(storedHash, nowIso) { return { fp: signInCodeFp(storedHash), at: String(nowIso || '') }; }
+    function firstCodeInForce(account) {
+      var m = account && account.firstSignInCode;
+      return !!(m && typeof m === 'object' && m.fp && account.password && m.fp === signInCodeFp(account.password));
+    }
+
     /* What Verify Users lists, and what Approve All / Reject All act on.
 
        It used to be every pending account PLUS every disabled one except
@@ -8975,7 +9130,9 @@
       isPublishedDefault: isPublishedDefault, publishedDefaultLogin: publishedDefaultLogin, toolDefaultLogin: toolDefaultLogin,
       isPlaceholderRecoveryEmail: isPlaceholderRecoveryEmail,
       registrationRole: registrationRole, isPrivilegedSelfRegistration: isPrivilegedSelfRegistration,
-      isFullName: isFullName, officeCreateRefusal: officeCreateRefusal, PHONE_RE: PHONE_RE,
+      isFullName: isFullName, officeCreateRefusal: officeCreateRefusal, PHONE_RE: PHONE_RE, resetRefusal: resetRefusal,
+      traineeDetails: { FIELDS: DETAIL_FIELDS, HOME_REQUIRED: HOME_REQUIRED, check: checkDetails, clean: cleanDetails },
+      makeSignInCode: makeSignInCode, signInCodeMark: signInCodeMark, firstCodeInForce: firstCodeInForce, CODE_DIGITS: CODE_DIGITS,
       reviewQueue: reviewQueue, studentLinkFor: studentLinkFor,
       isBackfillStub: isBackfillStub, accountForTrainee: accountForTrainee, traineeHasAccount: traineeHasAccount,
       backfillStubFolds: backfillStubFolds,
@@ -10255,7 +10412,11 @@
                          whole from both sides.
          notifications — who has read / cleared it, person by person. */
     var RECORD_MAPS = {
-      assignments: { perEntry: { grades: 'gradeMeta.gradedAt' }, unionStamps: ['gradeLog'] },
+      // The comment that goes with a mark (feedback {trainee: text}) is dated
+      // by its own stamp (feedbackAt {trainee: ISO}): two instructors
+      // commenting on two trainees both keep theirs; the newer edit of one
+      // trainee's comment wins.
+      assignments: { perEntry: { grades: 'gradeMeta.gradedAt', feedback: 'feedbackAt' }, unionStamps: ['gradeLog'] },
       notifications: { unionStamps: ['readBy', 'clearedBy'] },
       // A sitting's attendance register (Core.invigilation): two invigilators
       // noting different trainees, or one signing off while the other notes,
@@ -11189,6 +11350,12 @@
       // write two whole lists, and the later one erased the other's grade.
       // Removing a manual grade is a record too (Transcript.removeManualGrade).
       { key: 'voctrain_transcriptGrades', type: 'list', id: byId, stamps: ['updatedAt'] },
+      // Unit results an instructor proposes and the office decides
+      // (Core.unitProposals): each proposal its own record, on every path
+      // (`always`) — an instructor proposes on her device while the office
+      // decides on another, and one whole list winning would erase the
+      // other side's proposals or decisions.
+      { key: 'voctrain_unitProposals', type: 'list', studentField: 'studentId', id: byId, stamps: ['updatedAt', 'decidedAt', 'proposedAt'], always: true },
       { key: 'voctrain_unitCatalogs', type: 'list', id: byId, stamps: ['updatedAt'] },
       { key: 'voctrain_transcriptProfiles', type: 'map', stamps: ['updatedAt', 'lastModified'] },
       // The virement register: per request; a decision beats "Pending"; a
@@ -11253,7 +11420,7 @@
        switched over.) Two offices grading, handling requests or ruling at
        once each wrote their whole list, and the later upload erased the
        other's work. */
-    var DRIVE_RECORD_KEYS = ['voctrain_transcriptGrades', 'voctrain_unitCatalogs', 'voctrain_transcriptProfiles',
+    var DRIVE_RECORD_KEYS = ['voctrain_transcriptGrades', 'voctrain_unitCatalogs', 'voctrain_transcriptProfiles', 'voctrain_unitProposals',
       'voctrain_certTranscriptRequests', 'cesti_virements', 'cestis_cmc_rulings', 'cestiSchoolFeeStudents'];
 
     function parseJson(raw) { try { return JSON.parse(raw); } catch (e) { return undefined; } }
@@ -11786,7 +11953,7 @@
       {
         file: 'CESTIS_Transcript_Grades.json',
         page: 'Transcript / Grades',
-        keys: ['voctrain_transcriptGrades', 'voctrain_unitCatalogs', 'voctrain_transcriptProfiles']
+        keys: ['voctrain_transcriptGrades', 'voctrain_unitCatalogs', 'voctrain_transcriptProfiles', 'voctrain_unitProposals']
       },
       {
         file: 'CESTIS_Transcript_Requests.json',
@@ -12582,7 +12749,11 @@
           autoMatch = typeof key === 'string' && key.trim() !== '' &&
             String(ans == null ? '' : ans).trim().toLowerCase() === key.trim().toLowerCase();
           isCorrect = autoMatch;
-          manual = true; // the instructor confirms every fill-in
+          // The expected answer word for word (case and the spaces around it
+          // aside) is marked right away; anything else waits for a person.
+          // The instructor used to confirm every fill-in, the 32 exact
+          // matches of a 20-trainee test included (owner's decision, IN-8).
+          manual = !autoMatch;
         } else {
           manual = true;
         }
@@ -13322,8 +13493,126 @@
       return text ? letter + '. ' + text : letter;
     }
 
+    /* A person's marks on the answers of one result that wait for marking —
+       the grading panel's "Save Grades" / "Save & next", and marking one
+       question across every trainee. marks = { <answer index>: { points,
+       feedback } }; an answer with no mark here is left waiting. Each mark is
+       held between 0 and the question's points. The result's totals, score,
+       pass and "awaiting marking" are then worked out again from every
+       answer, exactly as the panel always did (passMark: the exam's).
+       Answers already marked are never changed here.
+       -> { applied, pendingLeft, final } */
+    function applyManualMarks(result, marks, opts) {
+      opts = opts || {};
+      var by = opts.by || 'staff', at = opts.at || new Date().toISOString();
+      var applied = 0;
+      if (!result || !Array.isArray(result.answers)) return { applied: 0, pendingLeft: 0, final: false };
+      result.answers.forEach(function (a, idx) {
+        if (!a || !a.needsManualGrade || a.graded) return;
+        var m = marks ? marks[idx] : null;
+        if (!m || m.points == null || String(m.points).trim() === '') return;
+        var pts = Number(a.points) || 0;
+        var v = Number(String(m.points).trim());
+        if (!isFinite(v)) v = 0;
+        var awarded = round2(Math.min(Math.max(v, 0), pts));
+        a.awardedPoints = awarded;
+        a.earnedPoints = awarded;
+        a.isCorrect = awarded === pts;
+        a.graded = true;
+        a.gradedBy = by;
+        a.gradedAt = at;
+        a.feedback = m.feedback == null ? '' : String(m.feedback).trim();
+        applied++;
+      });
+      var earned = 0, correct = 0;
+      result.answers.forEach(function (a) { if (!a) return; earned += Number(a.earnedPoints) || 0; if (a.isCorrect) correct++; });
+      result.earnedPoints = round2(earned);
+      result.correctCount = correct;
+      result.score = result.totalPoints > 0 ? Math.round(earned / result.totalPoints * 100) : 0;
+      var pm = opts.passMark != null && opts.passMark !== '' && isFinite(Number(opts.passMark)) ? Number(opts.passMark) : 60;
+      result.passed = result.score >= pm;
+      var left = result.answers.filter(function (a) { return a && a.needsManualGrade && !a.graded; }).length;
+      result.needsReview = left > 0;
+      result.reviewComplete = left === 0;
+      result.pendingCount = left;
+      if (!left && applied) { result.markedBy = by; result.markedAt = at; }
+      return { applied: applied, pendingLeft: left, final: left === 0 };
+    }
+
+    /* Where one question of an exam waits for marking, trainee by trainee:
+       the answers are matched to the exam's question by id (a shuffled paper
+       lines up), an older result without ids by its place.
+       -> [{ resultId, studentId, studentName, index, answer }] for every
+          result (archived ones left out) whose answer to it waits. */
+    function pendingForQuestion(results, questionId, questionIndex) {
+      var out = [];
+      (results || []).forEach(function (r) {
+        if (!r || r.archived || !Array.isArray(r.answers)) return;
+        r.answers.forEach(function (a, k) {
+          if (!a || !a.needsManualGrade || a.graded) return;
+          var hit = a.questionId != null ? String(a.questionId) === String(questionId) : k === questionIndex;
+          if (hit) out.push({ resultId: r.id, studentId: r.studentId, studentName: r.studentName || '', index: k, answer: a });
+        });
+      });
+      return out;
+    }
+    /* The questions of an exam that still wait for marking, with how many. */
+    function questionsAwaiting(exam, results) {
+      var qs = (exam && Array.isArray(exam.questionData) ? exam.questionData : []).filter(function (q) { return q && q.type !== 'info'; });
+      return qs.map(function (q, n) {
+        return { id: q.id, number: n + 1, text: q.text || '', type: q.type, points: Number(q.points) || 0,
+          waiting: pendingForQuestion(results, q.id, n).length };
+      }).filter(function (x) { return x.waiting > 0; });
+    }
+    /* The next result of the same exam still awaiting marking after this one
+       (in the order given — the results table's), then from the top. */
+    function nextAwaiting(results, afterId) {
+      var list = (results || []).filter(function (r) { return r && !r.archived && Array.isArray(r.answers) && r.answers.some(function (a) { return a && a.needsManualGrade && !a.graded; }); });
+      if (!list.length) return null;
+      var at = -1;
+      (results || []).forEach(function (r, i) { if (r && r.id === afterId) at = i; });
+      var after = (results || []).slice(at + 1).filter(function (r) { return list.indexOf(r) !== -1 && r.id !== afterId; });
+      if (after.length) return after[0];
+      var rest = list.filter(function (r) { return r.id !== afterId; });
+      return rest.length ? rest[0] : null;
+    }
+
+    /* "Copy test": the same paper for the next intake — a new draft with a
+       new id, every question and its key copied (each question its own new
+       id), the settings kept, and nothing of the old sitting: no results,
+       not active, no pass rate, no release, no activation. The copy is the
+       author's own draft (by, byRole), dated when given (opts.date/time),
+       else as the original. */
+    function copyExam(exam, opts) {
+      opts = opts || {};
+      if (!exam) return null;
+      var id = opts.id || ('EXAM-' + Date.now().toString(36));
+      var c = JSON.parse(JSON.stringify(exam));
+      ['passRate', 'activatedAt', 'students', 'archivedAt', 'deleted', 'updatedAt', 'resultsCount', 'closedAt'].forEach(function (k) { delete c[k]; });
+      c.id = id;
+      c.title = opts.title || ('Copy of ' + (exam.title || 'test'));
+      c.status = 'upcoming';
+      c.answersRelease = exam.answersRelease === 'withheld' ? 'withheld' : 'after-close';
+      if (opts.date) c.date = opts.date;
+      if (opts.time) c.time = opts.time;
+      if (opts.course) c.course = opts.course;
+      if (opts.by != null) c.createdBy = opts.by;
+      if (opts.byRole) c.createdByRole = opts.byRole;
+      c.createdAt = opts.at || new Date().toISOString();
+      c.copiedFrom = exam.id;
+      c.questionData = (Array.isArray(exam.questionData) ? exam.questionData : []).map(function (q, i) {
+        var nq = JSON.parse(JSON.stringify(q));
+        nq.id = 'Q-' + id + '-' + (i + 1);
+        return nq;
+      });
+      c.questions = questionCount(c);
+      return c;
+    }
+
     return {
       optionLabel: optionLabel,
+      applyManualMarks: applyManualMarks, pendingForQuestion: pendingForQuestion, questionsAwaiting: questionsAwaiting,
+      nextAwaiting: nextAwaiting, copyExam: copyExam,
       DEFAULT_OFFSET: DEFAULT_OFFSET, offsetMinutes: offsetMinutes, centreTime: centreTime, centreParts: centreParts,
       defaultStart: defaultStart, windowOf: windowOf, hasQuestions: hasQuestions, statusAt: statusAt,
       sessionDeadline: sessionDeadline, publicQuestions: publicQuestions, mark: mark, keyProblems: keyProblems,
@@ -14023,21 +14312,92 @@
 
     // A changed mark is recorded, not just overwritten: who, when, and what it
     // was before. HEART/NSTA moderation asks exactly that.
-    function recordGrade(assignment, studentId, points, by, nowIso) {
+    // A written comment can go with a mark (audit IN-4: remote trainees got
+    // "85/100" and nothing else). `feedback` (optional): the comment as it
+    // should now read — '' clears it; leave it out to keep the one there.
+    // A comment changed on its own is recorded like a changed mark. The
+    // comments live in assignment.feedback { trainee: text },
+    // dated by feedbackAt { trainee: ISO } (so two people's comments merge
+    // trainee by trainee), and every change is a line of the grade history
+    // (gradeLog) with what it replaced.
+    function recordGrade(assignment, studentId, points, by, nowIso, feedback) {
       if (!assignment || studentId == null) return { changed: false };
       if (!assignment.grades) assignment.grades = {};
       var prev = assignment.grades[studentId];
       var prevVal = gradeValue(prev);
       var newVal = gradeValue(points);
       if (newVal == null) return { changed: false };
-      if (prevVal === newVal) return { changed: false, previous: prevVal };
+      var fbGiven = feedback !== undefined && feedback !== null;
+      var fbMap = assignment.feedback && typeof assignment.feedback === 'object' && !Array.isArray(assignment.feedback) ? assignment.feedback : null;
+      var prevFb = fbMap && fbMap[studentId] != null ? String(fbMap[studentId]) : '';
+      var newFb = fbGiven ? String(feedback).trim() : prevFb;
+      var markChanged = prevVal !== newVal, fbChanged = fbGiven && newFb !== prevFb;
+      if (!markChanged && !fbChanged) return { changed: false, previous: prevVal };
       var at = nowIso || new Date().toISOString();
       assignment.grades[studentId] = newVal;
+      if (fbChanged) {
+        if (!fbMap) assignment.feedback = fbMap = {};
+        fbMap[studentId] = newFb;
+        if (!assignment.feedbackAt || typeof assignment.feedbackAt !== 'object' || Array.isArray(assignment.feedbackAt)) assignment.feedbackAt = {};
+        assignment.feedbackAt[studentId] = at;
+      }
       if (!Array.isArray(assignment.gradeLog)) assignment.gradeLog = [];
-      assignment.gradeLog.push({ studentId: studentId, points: newVal, previous: prevVal, gradedBy: by || '', gradedAt: at });
+      var line = { studentId: studentId, points: newVal, previous: prevVal, gradedBy: by || '', gradedAt: at };
+      if (fbChanged) { line.feedback = newFb; line.previousFeedback = prevFb; }
+      assignment.gradeLog.push(line);
       if (!assignment.gradeMeta || typeof assignment.gradeMeta !== 'object') assignment.gradeMeta = {};
       assignment.gradeMeta[studentId] = { gradedBy: by || '', gradedAt: at };
-      return { changed: true, previous: prevVal };
+      return { changed: true, previous: prevVal, markChanged: markChanged, feedbackChanged: fbChanged };
+    }
+    // A trainee's comment from her instructor on one assignment ('' none).
+    function feedbackFor(assignment, studentId) {
+      var m = assignment && assignment.feedback;
+      return m && typeof m === 'object' && m[studentId] != null ? String(m[studentId]) : '';
+    }
+    // The history of one trainee's mark, oldest first.
+    function gradeHistory(assignment, studentId) {
+      return (assignment && Array.isArray(assignment.gradeLog) ? assignment.gradeLog : []).filter(function (g) { return g && g.studentId === studentId; })
+        .slice().sort(function (a, b) { return String(a.gradedAt || '') < String(b.gradedAt || '') ? -1 : 1; });
+    }
+    /* Who has not handed an assignment in: the trainees of its programme who
+       are in training (Core.centreFigures.isActive), with no submission and
+       no mark (work handed in on paper and marked counts as in). An
+       assignment that asks for no upload has nobody "not submitted".
+       -> [student] by name */
+    function notSubmitted(assignment, students, subs, sameProgramme) {
+      if (!assignment || assignment.requireSubmission === false) return [];
+      var same = sameProgramme || function (a, b) { return Core.normCourse(a) === Core.normCourse(b); };
+      var handed = {};
+      latestPerStudent(subs, assignment.id).forEach(function (s) { handed[s.studentId] = 1; });
+      return (students || []).filter(function (s) {
+        if (!s || !Core.centreFigures.isActive(s) || !s.course || !assignment.course) return false;
+        if (!(s.course === assignment.course || same(s.course, assignment.course))) return false;
+        if (handed[s.id]) return false;
+        return gradeValue(assignment.grades ? assignment.grades[s.id] : null) == null;
+      }).sort(function (a, b) { return String(a.name || '').localeCompare(String(b.name || '')); });
+    }
+    /* The marking order: work still to mark first, then the newest. For the
+       submissions of one assignment (each its latest attempt) ... */
+    function markingOrder(assignment, subs) {
+      return (subs || []).slice().sort(function (a, b) {
+        var ma = gradeValue(assignment && assignment.grades ? assignment.grades[a.studentId] : null) != null ? 1 : 0;
+        var mb = gradeValue(assignment && assignment.grades ? assignment.grades[b.studentId] : null) != null ? 1 : 0;
+        if (ma !== mb) return ma - mb;
+        return subTime(b) - subTime(a);
+      });
+    }
+    /* ... and for the assignments: those with work waiting first, then the
+       newest (by due date, then when set). */
+    function assignmentOrder(assignments, subs) {
+      var waiting = function (a) {
+        return latestPerStudent(subs, a.id).some(function (s) { return gradeValue(a.grades ? a.grades[s.studentId] : null) == null; }) ? 1 : 0;
+      };
+      return (assignments || []).slice().sort(function (a, b) {
+        var wa = waiting(a), wb = waiting(b);
+        if (wa !== wb) return wb - wa;
+        var da = String(a.dueDate || '') + String(a.createdAt || ''), db = String(b.dueDate || '') + String(b.createdAt || '');
+        return da < db ? 1 : da > db ? -1 : 0;
+      });
     }
 
     function pairOf(subs, assignmentId, studentId) {
@@ -14107,7 +14467,9 @@
       gradeValue: gradeValue, percentOf: percentOf, weightOf: weightOf, weightedAverage: weightedAverage,
       gpaFromPercent: gpaFromPercent, effectiveGpa: effectiveGpa, studentSummary: studentSummary,
       gradebook: gradebook, gradebookCsv: gradebookCsv,
-      recordGrade: recordGrade, submissionHistory: submissionHistory, latestSubmission: latestSubmission,
+      recordGrade: recordGrade, feedbackFor: feedbackFor, gradeHistory: gradeHistory, notSubmitted: notSubmitted,
+      markingOrder: markingOrder, assignmentOrder: assignmentOrder,
+      submissionHistory: submissionHistory, latestSubmission: latestSubmission,
       latestPerStudent: latestPerStudent, canSubmit: canSubmit, oversizeFiles: oversizeFiles,
       resourceVisible: resourceVisible
     };
@@ -14205,9 +14567,720 @@
       if (!f || f.rate == null) return '— (' + (none || 'none yet') + ')';
       return f.rate + '% of ' + f.of + ' ' + noun;
     }
+
+    /* ---- School fees: billed, collected and owed (audit M2, M7) ----------
+       The board saw no fee money at all — three widgets labelled "fees"
+       counted certificates — and nobody saw what trainees of earlier years
+       still owe ($140,000 from 10 trainees in the audit's Centre). These are
+       the School Fee dashboard's own rules, written once, so the board, the
+       administrator's dashboard and Reports say what that page says:
+
+         a fee account's YEAR is the financial year (Apr–Mar) its enrolment
+         date falls in, or its created date if it has none; an account with
+         no usable date belongs to every year, so nobody is hidden;
+         billed     the tuition of that year's accounts;
+         collected  the payments DATED in that year (an undated one: every year);
+         owed       those accounts' balances as at today — tuition less every
+                    payment recorded against them, whenever it was made.
+
+       Earlier years are their own line — accounts of a year BEFORE this one
+       that still owe something — and are never added into `owed`. An account
+       with no tuition and nothing paid has not been priced: it is counted in
+       `unpriced`, never as owing nothing. Nothing here writes. */
+    function cents(n) { return Math.round((Number(n) || 0) * 100) / 100; }
+    function num(v) { var n = parseFloat(v); return isFinite(n) ? n : 0; }
+    function fyStart(fy) { var y = parseInt(String(fy || '').split('/')[0], 10); return isFinite(y) ? y : null; }
+    // The financial year a fee account belongs to; null when it has no usable date.
+    function feeYearOf(f) {
+      var q = Core.deriveQuarter(f && f.enrollmentDate) || Core.deriveQuarter(f && f.createdAt);
+      return q ? q.fy : null;
+    }
+    // A programme's name without its intake key, and the key it is grouped by.
+    function bareProgramme(name) {
+      var s = String(name == null ? '' : name).trim();
+      try { if (Core.enrolment && Core.enrolment.parseCentreLabel) s = Core.enrolment.parseCentreLabel(s).name || s; } catch (e) {}
+      return String(s).trim();
+    }
+    function programmeOfFee(f) { return bareProgramme(f && (f.skillArea || f.course)); }
+    function paidByAccount(payments) {
+      var paid = {};
+      list(payments).forEach(function (p) { var k = String(p.studentId); paid[k] = (paid[k] || 0) + num(p.amount); });
+      return paid;
+    }
+    function feeRow(name) {
+      return { programme: name || 'No programme recorded', billed: 0, collected: 0, owed: 0, accounts: 0, debtors: 0, unpriced: 0 };
+    }
+    function roundRow(r) { r.billed = cents(r.billed); r.collected = cents(r.collected); r.owed = cents(r.owed); return r; }
+
+    /* fees(feeAccounts, payments, opts) — one financial year, by programme.
+       opts: { fy: '2026/2027' (default: the year today falls in), now,
+               programmeOf(account) -> the programme it is shown under }
+       -> { fy, label, billed, collected, owed, accounts, debtors, unpriced,
+            byProgramme: [{ programme, billed, collected, owed, accounts, debtors, unpriced }],
+            earlier: { owed, trainees, byProgramme: [{ programme, owed, trainees }] } } */
+    function fees(feeAccounts, payments, opts) {
+      opts = opts || {};
+      var fy = opts.fy || (Core.currentQuarter(opts.now ? new Date(opts.now) : undefined) || {}).fy;
+      var nameOf = typeof opts.programmeOf === 'function' ? opts.programmeOf : programmeOfFee;
+      var accts = list(feeAccounts), pays = list(payments), paid = paidByAccount(pays), byId = {};
+      var rows = {}, order = [], early = {}, eorder = [], y0 = fyStart(fy);
+      function rowFor(map, ord, name) {
+        var k = Core.normCourse(name) || '~';
+        if (!map[k]) { map[k] = feeRow(name); ord.push(k); }
+        return map[k];
+      }
+      var out = { fy: fy, label: 'FY ' + fy, billed: 0, collected: 0, owed: 0, accounts: 0, debtors: 0, unpriced: 0,
+        byProgramme: [], earlier: { owed: 0, trainees: 0, byProgramme: [] } };
+      accts.forEach(function (f) {
+        if (f.id != null) byId[String(f.id)] = f;
+        var tuition = num(f.tuitionFee), got = paid[String(f.id)] || 0, bal = tuition - got;
+        var y = feeYearOf(f);
+        if (y == null || y === fy) {
+          var r = rowFor(rows, order, nameOf(f));
+          out.accounts++; r.accounts++;
+          out.billed += tuition; r.billed += tuition;
+          out.owed += bal; r.owed += bal;              // as the School Fee page totals its balances
+          if (bal > 0) { out.debtors++; r.debtors++; }
+          if (tuition <= 0 && got <= 0) { out.unpriced++; r.unpriced++; }
+        } else if (y0 != null && fyStart(y) < y0 && bal > 0) {
+          var e = rowFor(early, eorder, nameOf(f));
+          out.earlier.owed += bal; out.earlier.trainees++;
+          e.owed += bal; e.debtors++;
+        }
+      });
+      pays.forEach(function (p) {
+        var q = Core.deriveQuarter(p.date);
+        if (q && q.fy !== fy) return;
+        var owner = byId[String(p.studentId)];
+        var r = rowFor(rows, order, owner ? nameOf(owner) : bareProgramme(p.skillArea || p.course));
+        out.collected += num(p.amount); r.collected += num(p.amount);
+      });
+      var byBilled = function (a, b) { return (b.billed - a.billed) || (b.collected - a.collected) || a.programme.localeCompare(b.programme); };
+      out.byProgramme = order.map(function (k) { return roundRow(rows[k]); }).sort(byBilled);
+      out.earlier.byProgramme = eorder.map(function (k) { var e = early[k]; return { programme: e.programme, owed: cents(e.owed), trainees: e.debtors }; })
+        .sort(function (a, b) { return (b.owed - a.owed) || a.programme.localeCompare(b.programme); });
+      out.billed = cents(out.billed); out.collected = cents(out.collected); out.owed = cents(out.owed);
+      out.earlier.owed = cents(out.earlier.owed);
+      return out;
+    }
+
+    /* feeAccountsSummary(accounts, payments, opts) — the fees of a chosen set
+       of accounts (a programme return's intake): billed is their tuition, owed
+       their balances as at today, and collected their payments dated from..to
+       (inclusive, YYYY-MM-DD). With no dates, every payment counts; with dates,
+       an undated payment cannot be placed in the period and is counted in
+       `undated` instead.
+       -> { billed, collected, owed, accounts, debtors, unpriced, undated } */
+    function feeAccountsSummary(accounts, payments, opts) {
+      opts = opts || {};
+      var accts = list(accounts), ids = {};
+      accts.forEach(function (f) { if (f.id != null) ids[String(f.id)] = 1; });
+      var mine = list(payments).filter(function (p) { return ids[String(p.studentId)]; });
+      var paid = paidByAccount(mine), out = feeRow('');
+      out.undated = 0;
+      accts.forEach(function (f) {
+        var tuition = num(f.tuitionFee), got = paid[String(f.id)] || 0, bal = tuition - got;
+        out.accounts++; out.billed += tuition; out.owed += bal;
+        if (bal > 0) out.debtors++;
+        if (tuition <= 0 && got <= 0) out.unpriced++;
+      });
+      var ranged = !!(opts.from || opts.to);
+      mine.forEach(function (p) {
+        var d = String(p.date || '').slice(0, 10);
+        if (ranged) {
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) { out.undated++; return; }
+          if ((opts.from && d < opts.from) || (opts.to && d > opts.to)) return;
+        }
+        out.collected += num(p.amount);
+      });
+      delete out.programme;
+      return roundRow(out);
+    }
+
+    /* The School Fee books as that page reads them — the fee roll and the
+       payments, less what has been deleted (a trainee removed on either page,
+       a payment deleted), with the page's own guard that a sweep which would
+       remove EVERY account is a fault and is not applied. Reads through
+       get(key); writes nothing, so a reader (the board) can use it.
+       -> { accounts, payments } */
+    function feeBooks(get) {
+      function arr(k) { try { var v = JSON.parse(get(k) || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } }
+      var feeDel = {}, lmsDel = {}, payDel = {};
+      arr('cestiSchoolFeeDeletedLmsIds').forEach(function (id) { if (id) feeDel[id] = 1; });
+      arr('voctrain_deletedStudentIds').forEach(function (id) { if (id) lmsDel[id] = 1; });
+      arr('cestiSchoolFeeDeletedPaymentIds').forEach(function (id) { if (id) payDel[id] = 1; });
+      var all = list(arr('cestiSchoolFeeStudents'));
+      var kept = all.filter(function (s) {
+        var sid = null;
+        try { sid = Core.stableStudentId({ name: s.name, course: s.skillArea }); } catch (e) { sid = null; }
+        if (feeDel[s.id] || (s.lmsId && feeDel[s.lmsId]) || feeDel['SF-' + s.id]) return false;
+        if (lmsDel[s.id] || (s.lmsId && lmsDel[s.lmsId]) || lmsDel['SF-' + s.id] || (sid && lmsDel[sid])) return false;
+        return true;
+      });
+      if (all.length && !kept.length) kept = all;
+      return { accounts: kept, payments: list(arr('cestiSchoolFeePayments')).filter(function (p) { return !payDel[p.id]; }) };
+    }
+
+    /* Jamaican dollars as the Centre writes them: "$1,785,000", cents only
+       when there are some ("$1,234.50"). */
+    function moneyText(n) {
+      var v = cents(n), neg = v < 0;
+      v = Math.abs(v);
+      var whole = Math.floor(v), c = Math.round((v - whole) * 100);
+      if (c === 100) { whole++; c = 0; }
+      return (neg ? '-' : '') + '$' + String(whole).replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (c ? '.' + (c < 10 ? '0' : '') + c : '');
+    }
+    /* "Earlier years still owing: $140,000 (10 trainees)" — one sentence,
+       said the same way on every screen that shows it. */
+    function earlierText(e) {
+      if (!e || !e.trainees) return 'Earlier years still owing: nothing';
+      return 'Earlier years still owing: ' + moneyText(e.owed) + ' (' + e.trainees + ' trainee' + (e.trainees === 1 ? '' : 's') + ')';
+    }
+
+    /* ---- The Programme return (audit M8) ---------------------------------
+       The quarterly figures a board or a regulator asks for, per programme
+       and intake, were assembled by hand from three or more screens. This
+       puts them in one table by the rules above — never rival ones — each
+       rate with what it is a rate of:
+
+         applicants        testing or interview: not admitted yet
+         enrolled          admitted: everyone on the intake's roll who is not an applicant
+         active            in training now (isActive)
+         completed         finished the course: an ENDED intake's admitted trainees,
+                           dropouts left out (a running intake has completed nobody)
+         certified, NYC    certified or collected; Not Yet Competent
+         dropouts          Incomplete, or marked dropout on the enrolment register
+         completion        completion(): certified of an ended intake's admitted trainees
+         attendance        attendance(): over ACTIVE trainees, each one's rate from
+                           the register marks DATED in the period
+         test pass rate    examPass(): over MARKED results dated in the period
+         fees              feeAccountsSummary(): billed and owed (as at today) for
+                           the intake's fee accounts; collected = payments dated
+                           in the period
+       Enrolment and stages are as they stand today (the records keep no
+       history of a stage); everything dated is limited to the period.
+       Gender and age band break the same counts down; a gender or a date of
+       birth nobody recorded is its own row, "Not recorded" — never guessed.
+
+       opts: { intakes: [{ label, dates, roll: [trainee] }], register, results,
+               feeAccounts, payments, endedOf(trainee), from, to ('YYYY-MM-DD'
+               or ''), asAt ('YYYY-MM-DD', today: ages are as at the period's
+               end, or this if that is sooner), attOf(trainee) (the attendance figure
+               to use when there is no period; default: the whole register) }
+       -> { rows: [row], total: row, genders: [group], ages: [group], unmatchedAccounts } */
+    var GROUP_KEYS = ['applicants', 'enrolled', 'active', 'completed', 'certified', 'nyc', 'dropouts'];
+    var AGE_BANDS = ['Under 18', '18–24', '25–34', '35–44', '45 and over', 'Not recorded'];
+    function genderOf(s) {
+      var g = String((s && s.gender) || '').trim();
+      if (!g) return 'Not recorded';
+      var l = g.toLowerCase();
+      if (l === 'f' || l === 'female' || l === 'woman') return 'Female';
+      if (l === 'm' || l === 'male' || l === 'man') return 'Male';
+      return g.charAt(0).toUpperCase() + g.slice(1);
+    }
+    function ageOn(dob, on) {
+      var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(dob || '')), o = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(on || ''));
+      if (!m || !o) return null;
+      var a = +o[1] - +m[1];
+      if (+o[2] < +m[2] || (+o[2] === +m[2] && +o[3] < +m[3])) a--;
+      return a >= 0 && a < 120 ? a : null;
+    }
+    function ageBand(s, on) {
+      var a = ageOn(s && (s.dob || s.dateOfBirth), on);
+      return a == null ? 'Not recorded' : a < 18 ? 'Under 18' : a <= 24 ? '18–24' : a <= 34 ? '25–34' : a <= 44 ? '35–44' : '45 and over';
+    }
+    function dated(d, from, to) {
+      d = String(d || '').slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return !from && !to;
+      return (!from || d >= from) && (!to || d <= to);
+    }
+    function programmeReturn(opts) {
+      opts = opts || {};
+      var from = opts.from || '', to = opts.to || '';
+      var endedOf = typeof opts.endedOf === 'function' ? opts.endedOf : function () { return false; };
+      var ranged = !!(from || to), attOf = opts.attOf;
+      if (ranged || typeof attOf !== 'function') {
+        var rates = Core.attendance.ratesByStudent(list(opts.register), { from: from || undefined, to: to || undefined });
+        attOf = function (s) { var r = s && rates[s.id]; return r && r.pct != null ? r.pct : null; };
+      }
+      var results = list(opts.results).filter(function (r) { return dated(r.date || r.submittedAt, from, to); });
+      // Each fee account belongs to the trainee it is the twin of (Core.isFeeTwin).
+      var everyone = [];
+      list(opts.intakes).forEach(function (ik) { list(ik.roll).forEach(function (s) { everyone.push(s); }); });
+      var twins = Core.twinIndex(everyone), accountsOf = {}, unmatched = 0;
+      list(opts.feeAccounts).forEach(function (f) {
+        var s = twins.find(f);
+        if (!s) { unmatched++; return; }
+        (accountsOf[s.id] = accountsOf[s.id] || []).push(f);
+      });
+      // Ages as at the period's end — or today, while the period is still running.
+      var asAt = (to && (!opts.asAt || to < opts.asAt)) ? to : (opts.asAt || to || '');
+      function rowFor(label, dates, roll) {
+        var ended = roll.filter(function (s) { return !isApplicant(s) && endedOf(s); });
+        var accts = [];
+        roll.forEach(function (s) { (accountsOf[s.id] || []).forEach(function (f) { accts.push(f); }); });
+        return {
+          intake: label, dates: dates || '',
+          onRoll: roll.length,
+          applicants: roll.filter(isApplicant).length,
+          enrolled: roll.filter(function (s) { return !isApplicant(s); }).length,
+          active: roll.filter(isActive).length,
+          completed: ended.filter(function (s) { return !isDropout(s); }).length,
+          certified: roll.filter(isCertified).length,
+          nyc: roll.filter(function (s) { return stageOf(s) === 'nyc'; }).length,
+          dropouts: roll.filter(isDropout).length,
+          completion: completion(roll, endedOf),
+          dropout: dropout(roll, endedOf),
+          attendance: attendance(roll, attOf),
+          pass: examPass(results, { studentIds: roll.map(function (s) { return s.id; }) }),
+          fees: feeAccountsSummary(accts, opts.payments, { from: from, to: to })
+        };
+      }
+      var rows = list(opts.intakes).map(function (ik) { return rowFor(ik.label, ik.dates, list(ik.roll)); });
+      var total = rowFor('All intakes on this return', '', everyone);
+      function breakdown(keyOf, order) {
+        var groups = {};
+        everyone.forEach(function (s) {
+          var k = keyOf(s), g = groups[k];
+          if (!g) { g = groups[k] = { group: k }; GROUP_KEYS.forEach(function (n) { g[n] = 0; }); }
+          if (isApplicant(s)) { g.applicants++; return; }
+          g.enrolled++;
+          if (isActive(s)) g.active++;
+          if (endedOf(s) && !isDropout(s)) g.completed++;
+          if (isCertified(s)) g.certified++;
+          if (stageOf(s) === 'nyc') g.nyc++;
+          if (isDropout(s)) g.dropouts++;
+        });
+        return Object.keys(groups).sort(function (a, b) {
+          var ia = order.indexOf(a), ib = order.indexOf(b);
+          if (ia === -1) ia = order.length - 1.5; if (ib === -1) ib = order.length - 1.5;
+          return (ia - ib) || a.localeCompare(b);
+        }).map(function (k) { return groups[k]; });
+      }
+      return {
+        from: from, to: to, asAt: asAt, rows: rows, total: total,
+        genders: breakdown(genderOf, ['Female', 'Male', 'Not recorded']),
+        ages: breakdown(function (s) { return ageBand(s, asAt); }, AGE_BANDS),
+        unmatchedAccounts: unmatched
+      };
+    }
+
     return { isApplicant: isApplicant, isActive: isActive, isDropout: isDropout, isCertified: isCertified,
       enrolment: enrolment, attendance: attendance, completion: completion, dropout: dropout, examPass: examPass,
-      instructorCount: instructorCount, rateText: rateText };
+      instructorCount: instructorCount, rateText: rateText,
+      fees: fees, feeAccountsSummary: feeAccountsSummary, feeBooks: feeBooks, feeYearOf: feeYearOf,
+      moneyText: moneyText, earlierText: earlierText,
+      programmeReturn: programmeReturn, genderOf: genderOf, ageBand: ageBand, AGE_BANDS: AGE_BANDS };
+  })();
+
+  // ===================== NEEDS ATTENTION: who is struggling, most urgent first =====================
+  // The dashboard said "5 students below 70% attendance" and nothing else: no
+  // names, no "last seen", no phone. Finding who was struggling meant opening
+  // every trainee's grades one by one (audit IN-3), and the office learnt
+  // nobody's name from the alert at all (M3: nine trainees unseen for two
+  // weeks or more, three since the start of the month). This is the list
+  // behind it — for an instructor her own programme's trainees, for the office
+  // every trainee — built only from figures the system already works out:
+  // the dated register (Core.attendance), marked results (Core.exams.isFinal),
+  // the assignments' own marks and due dates (Core.coursework), never a
+  // hand-typed GPA.
+  Core.attention = (function () {
+    var PASS_DEFAULT = 60;          // the transcript's own default pass mark
+    var LOW_ATTENDANCE = 70;        // the Centre's attendance rule (certificates, the dashboard)
+    var RUN_ALERT = 3;              // absences in a row worth a call
+    var RECENT_DAYS = 28;           // "recent" marked results
+    function num(v) { if (v == null || v === '') return null; var n = Number(String(v).replace('%', '').trim()); return isFinite(n) ? n : null; }
+    function dayOf(iso) {
+      var t = Date.parse(iso || '');
+      if (isNaN(t)) return '';
+      return Core.attendance.localDate(new Date(t));
+    }
+    /* Attendance facts of one trainee from the register (already narrowed to
+       her): the rate (present + late over sessions held), the last day she
+       attended, and how many held sessions in a row, counting back from the
+       most recent, she was absent. Excused, no-class, unmarked and
+       unconfirmed marks are not held sessions and do not break a run. */
+    function attendanceFacts(records, today) {
+      var A = Core.attendance;
+      var held = (records || []).filter(function (r) {
+        if (!r || r.unconfirmed || !A.isDate(r.date) || (today && r.date > today)) return false;
+        var st = A.normStatus(r.status);
+        return st === 'present' || st === 'late' || st === 'absent';
+      }).sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : 0; });
+      var sum = A.summarize(held);
+      var last = '', run = 0, counting = true;
+      held.forEach(function (r) {
+        var st = A.normStatus(r.status);
+        if (st === 'absent') { if (counting) run++; }
+        else { counting = false; if (!last || r.date > last) last = r.date; }
+      });
+      return { pct: sum.pct, held: sum.held, lastAttended: last, absentRun: run, lastHeld: held.length ? held[0].date : '' };
+    }
+    /* opts: { students, register, today, endedOf(s), results, exams,
+                assignments, submissions, sameProgramme(a, b), feeOf(s),
+                recentDays, nowMs }
+       -> rows, most urgent first: { student, id, name, course, phone,
+            pct, held, lastAttended, daysSinceAttended, absentRun,
+            belowPass: [{ kind, title, pct, passMark, date }],
+            missing: [{ id, title, dueDate }], average, gpa (from the marks),
+            owed (office only: a number, or 'unpriced'), reasons: [..], urgency } */
+    function list(opts) {
+      opts = opts || {};
+      var A = Core.attendance, CW = Core.coursework, F = Core.centreFigures;
+      var today = A.isDate(opts.today) ? opts.today : A.localDate();
+      var nowMs = opts.nowMs || Date.now();
+      var recent = A.addDays(today, -(opts.recentDays || RECENT_DAYS));
+      var same = opts.sameProgramme || function (a, b) { return Core.normCourse(a) === Core.normCourse(b); };
+      var byStudent = {};
+      (opts.register || []).forEach(function (r) { if (r && r.studentId != null) (byStudent[r.studentId] = byStudent[r.studentId] || []).push(r); });
+      var examById = {};
+      (opts.exams || []).forEach(function (e) { if (e && e.id != null) examById[String(e.id)] = e; });
+      var rows = [];
+      (opts.students || []).forEach(function (s) {
+        // In training now, and in an intake that is still running: applicants
+        // (testing, interview), graduates, dropouts and ended intakes are not
+        // "struggling" — they are not here.
+        if (!s || !F.isActive(s) || (typeof opts.endedOf === 'function' && opts.endedOf(s))) return;
+        var mine = function (c) { return !!c && !!s.course && (c === s.course || same(s.course, c)); };
+        var att = attendanceFacts(byStudent[s.id], today);
+        var pct = att.pct != null ? att.pct : num(s.attendance);
+        var row = { student: s, id: s.id, name: s.name || s.id, course: s.course || '', phone: s.phone || s.contact || s.telephone || '',
+          pct: pct, held: att.held, lastAttended: att.lastAttended, absentRun: att.absentRun, daysSinceAttended: null,
+          belowPass: [], missing: [], reasons: [] };
+        if (att.lastAttended) {
+          row.daysSinceAttended = Math.round((Date.parse(today + 'T00:00:00Z') - Date.parse(att.lastAttended + 'T00:00:00Z')) / 86400000);
+        }
+        // Marked results below the pass mark, recent ones: an exam's final
+        // result (its own pass mark), an assignment's mark (the default 60%).
+        var latest = {};
+        (opts.results || []).forEach(function (r) {
+          if (!r || r.studentId !== s.id || !Core.exams.isFinal(r)) return;
+          var k = String(r.examId || r.examTitle || r.id), t = Date.parse(r.markedAt || r.submittedAt || '') || 0;
+          if (!latest[k] || t >= latest[k].t) latest[k] = { r: r, t: t };
+        });
+        Object.keys(latest).forEach(function (k) {
+          var r = latest[k].r, e = examById[String(r.examId)] || null;
+          var d = dayOf(r.submittedAt || r.markedAt);
+          if (!d || d < recent) return;
+          var pm = e && num(e.passMark) != null ? num(e.passMark) : PASS_DEFAULT;
+          var sc = num(r.score);
+          if (sc != null && sc < pm) row.belowPass.push({ kind: 'exam', title: (e && e.title) || r.examTitle || 'Exam', pct: Math.round(sc), passMark: pm, date: d });
+        });
+        var mineAsg = (opts.assignments || []).filter(function (a) { return a && mine(a.course); });
+        mineAsg.forEach(function (a) {
+          var g = CW.gradeValue(a.grades ? a.grades[s.id] : null);
+          var meta = a.gradeMeta && a.gradeMeta[s.id];
+          if (g != null) {
+            var p = CW.percentOf(g, a.maxPoints), d = dayOf(meta && meta.gradedAt) || a.dueDate || '';
+            if (p != null && p < PASS_DEFAULT && d && d >= recent) row.belowPass.push({ kind: 'assignment', title: a.title || 'Assignment', pct: Math.round(p), passMark: PASS_DEFAULT, date: d });
+            return;
+          }
+          if (a.requireSubmission === false || !CW.isPastDue(a.dueDate, nowMs)) return;
+          var sub = CW.latestSubmission(opts.submissions || [], a.id, s.id);
+          if (!sub) row.missing.push({ id: a.id, title: a.title || 'Assignment', dueDate: a.dueDate || '' });
+        });
+        row.belowPass.sort(function (x, y) { return x.date < y.date ? 1 : x.date > y.date ? -1 : 0; });
+        row.missing.sort(function (x, y) { return String(x.dueDate) < String(y.dueDate) ? -1 : 1; });
+        var sumry = CW.studentSummary(s.id, { assignments: mineAsg, examResults: (opts.results || []).filter(function (r) { return Core.exams.isFinal(r); }) });
+        row.average = sumry.percent; row.gpa = sumry.gpa;
+        if (typeof opts.feeOf === 'function') { var o = opts.feeOf(s); if (o != null) row.owed = o; }
+        // Why she is listed.
+        if (pct != null && pct < LOW_ATTENDANCE) row.reasons.push('attendance');
+        if (att.absentRun >= RUN_ALERT) row.reasons.push('absent-run');
+        if (row.belowPass.length) row.reasons.push('results');
+        if (row.missing.length) row.reasons.push('missing-work');
+        if (!row.reasons.length) return;
+        // Most urgent first: a trainee who has stopped coming outranks one
+        // whose rate is low, who outranks one with a weak mark or work
+        // outstanding; each counts more the worse it is.
+        row.urgency = (att.absentRun >= RUN_ALERT ? 100 : 0) + att.absentRun * 8 +
+          (pct != null && pct < LOW_ATTENDANCE ? 40 + (LOW_ATTENDANCE - pct) : 0) +
+          row.belowPass.length * 12 + row.missing.length * 8;
+        rows.push(row);
+      });
+      rows.sort(function (a, b) { return (b.urgency - a.urgency) || String(a.name).localeCompare(String(b.name)); });
+      return rows;
+    }
+    /* The plain words for why a trainee is listed. */
+    function reasonText(row) {
+      var out = [];
+      if (row.absentRun >= RUN_ALERT) out.push('absent ' + row.absentRun + ' classes in a row');
+      if (row.pct != null && row.pct < LOW_ATTENDANCE) out.push('attendance ' + row.pct + '%');
+      if (row.belowPass.length) out.push(row.belowPass.length + ' recent mark' + (row.belowPass.length === 1 ? '' : 's') + ' below the pass mark');
+      if (row.missing.length) out.push(row.missing.length + ' piece' + (row.missing.length === 1 ? '' : 's') + ' of work not handed in');
+      return out.join(' · ');
+    }
+    /* What a trainee owes on her School Fee record (office only): the record
+       is found the fee page's own way (Core.feeMirrorTarget); paid is the sum
+       of her payments, else the record's own total. A record with no fee set
+       and nothing paid owes an unknown amount: 'unpriced'. null: no record. */
+    function owedFrom(student, feeStudents, payments, index) {
+      if (!student || !Array.isArray(feeStudents) || !feeStudents.length) return null;
+      var t = Core.feeMirrorTarget(student, feeStudents, index ? { index: index } : null);
+      if (!t || t.action !== 'link' || !t.match) return null;
+      var f = t.match, paid = 0, any = false;
+      (payments || []).forEach(function (p) { if (p && p.studentId === f.id) { paid += parseFloat(p.amount) || 0; any = true; } });
+      if (!any) paid = parseFloat(f.totalPaid) || 0;
+      var fee = parseFloat(f.tuitionFee) || 0;
+      if (fee <= 0 && paid <= 0) return 'unpriced';
+      return Math.max(0, Math.round((fee - paid) * 100) / 100);
+    }
+    return { list: list, attendanceFacts: attendanceFacts, reasonText: reasonText, owedFrom: owedFrom,
+      LOW_ATTENDANCE: LOW_ATTENDANCE, RUN_ALERT: RUN_ALERT, RECENT_DAYS: RECENT_DAYS, PASS_DEFAULT: PASS_DEFAULT };
+  })();
+
+  // ===================== UNIT RESULTS PROPOSED BY AN INSTRUCTOR, CONFIRMED BY THE OFFICE =====================
+  // An instructor saw her trainees' unit results on Trainee Grades and could
+  // change nothing; the office re-typed every competency result she gave on
+  // paper (about a minute per trainee per unit — audit IN-13). Now she
+  // PROPOSES a unit result; the office sees "Proposed by <instructor>" and
+  // confirms it (or changes it, or declines it). A proposal is never a grade:
+  // the transcript, the certificate checks and every figure read only the
+  // official grades (Core.Transcript), which only the office's confirmation
+  // writes. Proposals are their own records ('voctrain_unitProposals'),
+  // merged record by record on every path, newest edit winning.
+  Core.unitProposals = (function () {
+    var KEY = 'voctrain_unitProposals';
+    function T() { return Core.Transcript; }
+    function later(now, prev) { return Core.sync && Core.sync.laterStamp ? Core.sync.laterStamp(now, prev) : now; }
+    /* A grade as the transcript keeps it: 0-100, or 'Competent' / 'NYC';
+       null for anything else. */
+    function normalise(v) {
+      if (v == null) return null;
+      var s = String(v).trim();
+      if (s === '') return null;
+      if (T().isNumericGrade(s)) { var n = Number(s.replace('%', '').trim()); return n >= 0 && n <= 100 ? n : null; }
+      var c = T().competencyOf(s);
+      return c === 'competent' ? 'Competent' : c === 'nyc' ? 'NYC' : null;
+    }
+    function idOf(studentId, qualId, unitCode, byId) {
+      return 'UP-' + Core.hashString(String(studentId) + '|' + String(qualId) + '|' + String(unitCode) + '|' + String(byId || ''));
+    }
+    function copy(r) { return JSON.parse(JSON.stringify(r)); }
+    /* p = { studentId, studentName, course, qualId, unitCode, unitName, grade,
+             date, note, by, byId, at }. One live proposal per instructor per
+       unit: proposing again replaces hers, the earlier one kept in history.
+       -> { list, record } or { list, error } (nothing changed). */
+    function propose(list, p) {
+      list = Array.isArray(list) ? list.slice() : [];
+      p = p || {};
+      if (!p.studentId || !p.qualId || !p.unitCode) return { list: list, error: 'missing' };
+      var g = normalise(p.grade);
+      if (g == null) return { list: list, error: 'grade' };
+      var at = p.at || new Date().toISOString();
+      var id = idOf(p.studentId, p.qualId, p.unitCode, p.byId || p.by);
+      var idx = -1;
+      list.forEach(function (r, i) { if (r && r.id === id) idx = i; });
+      var prev = idx === -1 ? null : list[idx];
+      var hist = prev && Array.isArray(prev.history) ? prev.history.slice() : [];
+      if (prev) hist.push({ grade: prev.grade, date: prev.date || '', note: prev.note || '', status: prev.status, at: prev.updatedAt || prev.proposedAt || '', by: prev.decidedBy || prev.proposedBy || '' });
+      var rec = { id: id, studentId: p.studentId, studentName: p.studentName || '', course: p.course || '', qualId: p.qualId,
+        unitCode: p.unitCode, unitName: p.unitName || '', grade: g, date: p.date || '', note: String(p.note || '').trim(),
+        proposedBy: p.by || '', proposedById: p.byId || '', proposedAt: at, status: 'proposed',
+        updatedAt: prev ? later(at, prev.updatedAt) : at };
+      if (hist.length) rec.history = hist;
+      if (idx === -1) list.push(rec); else list[idx] = rec;
+      return { list: list, record: rec };
+    }
+    /* The office's decision on one proposal: 'confirmed' (the grade as
+       proposed), 'changed' (another grade: d.officialGrade) or 'declined';
+       the instructor may 'withdrawn' her own. Only a proposal still waiting
+       can be decided. -> { list, record } or { list, error } */
+    function decide(list, id, d) {
+      list = Array.isArray(list) ? list.slice() : [];
+      d = d || {};
+      var idx = -1;
+      list.forEach(function (r, i) { if (r && r.id === id) idx = i; });
+      if (idx === -1) return { list: list, error: 'missing' };
+      var cur = list[idx];
+      if (cur.status !== 'proposed') return { list: list, error: 'decided' };
+      var ok = { confirmed: 1, changed: 1, declined: 1, withdrawn: 1 };
+      if (!ok[d.decision]) return { list: list, error: 'decision' };
+      var at = d.at || new Date().toISOString();
+      var rec = copy(cur);
+      rec.status = d.decision;
+      rec.decidedBy = d.by || '';
+      rec.decidedAt = at;
+      if (d.decision === 'confirmed') rec.officialGrade = cur.grade;
+      if (d.decision === 'changed') {
+        var g = normalise(d.officialGrade);
+        if (g == null) return { list: list, error: 'grade' };
+        rec.officialGrade = g;
+      }
+      if (d.note) rec.decisionNote = String(d.note).trim();
+      rec.updatedAt = later(at, cur.updatedAt);
+      list[idx] = rec;
+      return { list: list, record: rec };
+    }
+    function waiting(list, opts) {
+      opts = opts || {};
+      return (Array.isArray(list) ? list : []).filter(function (r) {
+        return r && r.status === 'proposed' && (!opts.studentId || r.studentId === opts.studentId) && (!opts.qualId || r.qualId === opts.qualId);
+      }).sort(function (a, b) { return String(a.proposedAt || '') < String(b.proposedAt || '') ? -1 : 1; });
+    }
+    /* The newest proposal (any state) for one unit of one trainee. */
+    function latestFor(list, studentId, qualId, unitCode) {
+      var best = null;
+      (Array.isArray(list) ? list : []).forEach(function (r) {
+        if (!r || r.studentId !== studentId || r.qualId !== qualId || r.unitCode !== unitCode) return;
+        if (!best || String(r.updatedAt || '') > String(best.updatedAt || '')) best = r;
+      });
+      return best;
+    }
+    return { KEY: KEY, normalise: normalise, idOf: idOf, propose: propose, decide: decide, waiting: waiting, latestFor: latestFor };
+  })();
+
+  // ===================== THE OFFICE'S VIEW OF THE WORK: marking backlog, registers not taken =====================
+  // The marking backlog was a bare count ("35 pending"): nothing said that 31
+  // of them were over a week old, that one programme's 16 had waited 14 days,
+  // or that 13 pieces past their due date had never been handed in (audit
+  // M6). And nothing flagged a class whose register was never taken: a Solar
+  // register blank for two days showed only as empty cells in a weekly grid
+  // (M11).
+  Core.officeWatch = (function () {
+    var DAY = 86400000;
+    function ms(v) { var t = Date.parse(v || ''); return isNaN(t) ? null : t; }
+    /* opts: { assignments, submissions, results, exams, students,
+               sameProgramme, ownerOfExam(exam) -> name, nowMs }
+       -> { waiting, oldestAt, oldestDays, items: [{ kind, id, title, course,
+            owner, waiting, oldestAt }], byOwner: [{ owner, waiting,
+            oldestDays, items }], pastDueMissing, missingBy: [{ id, title,
+            course, owner, dueDate, trainees: [names] }] } */
+    function backlog(opts) {
+      opts = opts || {};
+      var CW = Core.coursework, now = opts.nowMs || Date.now();
+      var items = [];
+      (opts.assignments || []).forEach(function (a) {
+        if (!a) return;
+        var subs = CW.latestPerStudent(opts.submissions || [], a.id).filter(function (s) {
+          return CW.gradeValue(a.grades ? a.grades[s.studentId] : null) == null;
+        });
+        if (!subs.length) return;
+        var oldest = subs.reduce(function (m, s) { var t = ms(s.submittedAt); return t != null && (m == null || t < m) ? t : m; }, null);
+        items.push({ kind: 'assignment', id: a.id, title: a.title || 'Assignment', course: a.course || '', owner: a.createdBy || 'Unknown', waiting: subs.length, oldestMs: oldest });
+      });
+      var examById = {};
+      (opts.exams || []).forEach(function (e) { if (e && e.id != null) examById[String(e.id)] = e; });
+      var byExam = {};
+      (opts.results || []).forEach(function (r) {
+        if (!r || r.archived || !Array.isArray(r.answers)) return;
+        if (!r.answers.some(function (x) { return x && x.needsManualGrade && !x.graded; })) return;
+        var k = String(r.examId || r.examTitle || '');
+        (byExam[k] = byExam[k] || []).push(r);
+      });
+      Object.keys(byExam).forEach(function (k) {
+        var e = examById[k] || { id: k, title: byExam[k][0].examTitle || 'Exam' };
+        var oldest = byExam[k].reduce(function (m, r) { var t = ms(r.submittedAt); return t != null && (m == null || t < m) ? t : m; }, null);
+        var owner = typeof opts.ownerOfExam === 'function' ? opts.ownerOfExam(e) : (e.createdBy || 'Unknown');
+        items.push({ kind: 'exam', id: e.id, title: e.title || 'Exam', course: e.course || '', owner: owner || 'Unknown', waiting: byExam[k].length, oldestMs: oldest });
+      });
+      var days = function (t) { return t == null ? null : Math.max(0, Math.floor((now - t) / DAY)); };
+      items.forEach(function (it) { it.oldestDays = days(it.oldestMs); it.oldestAt = it.oldestMs == null ? '' : new Date(it.oldestMs).toISOString(); });
+      items.sort(function (a, b) { return (a.oldestMs == null ? Infinity : a.oldestMs) - (b.oldestMs == null ? Infinity : b.oldestMs); });
+      var owners = {};
+      items.forEach(function (it) {
+        var o = owners[it.owner] = owners[it.owner] || { owner: it.owner, waiting: 0, oldestMs: null, items: [] };
+        o.waiting += it.waiting; o.items.push(it);
+        if (it.oldestMs != null && (o.oldestMs == null || it.oldestMs < o.oldestMs)) o.oldestMs = it.oldestMs;
+      });
+      var byOwner = Object.keys(owners).map(function (k) { var o = owners[k]; o.oldestDays = days(o.oldestMs); return o; })
+        .sort(function (a, b) { return (b.oldestDays || 0) - (a.oldestDays || 0) || b.waiting - a.waiting; });
+      var oldestMs = items.length ? items[0].oldestMs : null;
+      // Work past its due date that was never handed in.
+      var missingBy = [], missingN = 0;
+      (opts.assignments || []).forEach(function (a) {
+        if (!a || !CW.isPastDue(a.dueDate, now)) return;
+        var who = CW.notSubmitted(a, opts.students || [], opts.submissions || [], opts.sameProgramme);
+        if (!who.length) return;
+        missingN += who.length;
+        missingBy.push({ id: a.id, title: a.title || 'Assignment', course: a.course || '', owner: a.createdBy || '', dueDate: a.dueDate || '', trainees: who.map(function (s) { return s.name; }) });
+      });
+      missingBy.sort(function (a, b) { return String(a.dueDate) < String(b.dueDate) ? -1 : 1; });
+      return { waiting: items.reduce(function (n, it) { return n + it.waiting; }, 0), oldestAt: oldestMs == null ? '' : new Date(oldestMs).toISOString(),
+        oldestDays: days(oldestMs), items: items, byOwner: byOwner, pastDueMissing: missingN, missingBy: missingBy };
+    }
+    /* The school day before `today` (Friday for a Monday). */
+    function previousSchoolDay(today) {
+      var A = Core.attendance, d = A.addDays(today, -1);
+      while (A.weekday(d) === 0 || A.weekday(d) === 6) d = A.addDays(d, -1);
+      return d;
+    }
+    /* The classes scheduled on `day` whose register has no mark at all for
+       that day: no trainee of the class's programme is marked present, late,
+       absent, excused or "no class" on it. A cancelled class is not
+       expected to have one, nor a programme with nobody in training.
+       -> [{ session, course, instructor, trainees }] */
+    function registersNotTaken(opts) {
+      opts = opts || {};
+      var day = opts.day, same = opts.sameProgramme || function (a, b) { return Core.normCourse(a) === Core.normCourse(b); };
+      var marked = {};
+      (opts.register || []).forEach(function (r) {
+        if (!r || r.date !== day || r.unconfirmed) return;
+        if (Core.attendance.normStatus(r.status) === '') return;
+        marked[String(r.studentId)] = true;
+      });
+      var out = [], seen = {};
+      (opts.sessions || []).forEach(function (s) {
+        if (!s || s.date !== day || s.status === 'cancelled' || !s.course) return;
+        var roll = (opts.students || []).filter(function (t) { return t && Core.centreFigures.isActive(t) && t.course && (t.course === s.course || same(t.course, s.course)); });
+        if (!roll.length) return;
+        if (roll.some(function (t) { return marked[String(t.id)]; })) return;
+        var key = Core.normCourse(s.course) + '|' + (s.time || '') + '|' + (s.name || '');
+        if (seen[key]) return;
+        seen[key] = true;
+        out.push({ session: s, course: s.course, instructor: s.createdBy || '', trainees: roll.length });
+      });
+      return out.sort(function (a, b) { return String(a.session.time || '') < String(b.session.time || '') ? -1 : 1; });
+    }
+    return { backlog: backlog, previousSchoolDay: previousSchoolDay, registersNotTaken: registersNotTaken };
+  })();
+
+  // ===================== THE CLASS LIST: upcoming and past, repeating weekly =====================
+  // After a term an instructor's class list was 125 cards in the order they
+  // were made, the next class at number 121, with no status, no Edit and no
+  // way to set a class every week (audit IN-14).
+  Core.classSchedule = (function () {
+    var A = function () { return Core.attendance; };
+    var MAX_REPEAT = 52;
+    /* Every week from `start` (that day of the week) up to and including
+       `until`; at most 52. A blank or earlier `until` is the one class. */
+    function weeklyDates(start, until, max) {
+      var a = A();
+      if (!a.isDate(start)) return [];
+      var out = [start], cap = Math.max(1, Math.min(max || MAX_REPEAT, MAX_REPEAT));
+      if (!a.isDate(until) || until <= start) return out;
+      var d = start;
+      while (out.length < cap) { d = a.addDays(d, 7); if (d > until) break; out.push(d); }
+      return out;
+    }
+    function when(s) { return String(s && s.date || '') + ' ' + String(s && s.time || ''); }
+    /* A class's state: 'live', 'completed', 'scheduled' (still to come, or
+       today and not yet over), or 'past' (its day has gone and it was never
+       run as a live class — a workshop session, say). */
+    function statusOf(s, today) {
+      if (!s) return 'scheduled';
+      if (s.status === 'live') return 'live';
+      if (s.status === 'completed') return 'completed';
+      if (s.status === 'cancelled') return 'cancelled';
+      return s.date && today && s.date < today ? 'past' : 'scheduled';
+    }
+    /* Upcoming (live first, then soonest) and Past (most recent first). */
+    function split(sessions, today) {
+      var up = [], past = [];
+      (sessions || []).forEach(function (s) {
+        if (!s) return;
+        var st = statusOf(s, today);
+        if (st === 'live' || st === 'scheduled') up.push(s); else past.push(s);
+      });
+      up.sort(function (a, b) {
+        var la = statusOf(a, today) === 'live' ? 0 : 1, lb = statusOf(b, today) === 'live' ? 0 : 1;
+        if (la !== lb) return la - lb;
+        return when(a) < when(b) ? -1 : when(a) > when(b) ? 1 : 0;
+      });
+      past.sort(function (a, b) { return when(a) < when(b) ? 1 : when(a) > when(b) ? -1 : 0; });
+      return { upcoming: up, past: past };
+    }
+    return { weeklyDates: weeklyDates, statusOf: statusOf, split: split, MAX_REPEAT: MAX_REPEAT };
   })();
 
   // ===================== A TRAINEE'S CONTACT DETAILS FROM THEIR ACCOUNT =====================
@@ -14234,7 +15307,29 @@
       });
       return out;
     }
-    return { fillFromAccount: fillFromAccount, FEE_FIELDS: { email: 'email', phone: 'contact' } };
+    /* Her personal details (Core.accountAccess.traineeDetails) onto a record,
+       filling ONLY what is blank. kind 'trainee': the trainee record (gender,
+       dob, trn, address); 'fee': the fee record (gender, dateOfBirth,
+       nationalId, address, parentName, parentContact, emergencyContactName,
+       emergencyContact). Returns the record fields it filled. */
+    var DETAIL_MAP = {
+      trainee: { gender: 'gender', dob: 'dob', trn: 'trn', address: 'address' },
+      fee: { gender: 'gender', dob: 'dateOfBirth', trn: 'nationalId', address: 'address', parentName: 'parentName', parentPhone: 'parentContact',
+        emergencyName: 'emergencyContactName', emergencyPhone: 'emergencyContact' }
+    };
+    function fillDetails(record, details, kind) {
+      var out = [];
+      if (!record || !details || typeof details !== 'object') return out;
+      var map = DETAIL_MAP[kind === 'fee' ? 'fee' : 'trainee'];
+      Object.keys(map).forEach(function (k) {
+        var to = map[k], v = details[k];
+        if (blank(v) || !blank(record[to])) return;
+        record[to] = String(v).trim();
+        out.push(to);
+      });
+      return out;
+    }
+    return { fillFromAccount: fillFromAccount, fillDetails: fillDetails, DETAIL_MAP: DETAIL_MAP, FEE_FIELDS: { email: 'email', phone: 'contact' } };
   })();
 
   // ===================== RECEIPT NUMBERS: a number already given =====================
@@ -14261,7 +15356,245 @@
     function question(number, p) {
       return 'Receipt ' + String(number).trim() + ' is already used for ' + (p.studentName || 'another payment') + (p.date ? ' on ' + p.date : '') + '. Use it again?';
     }
-    return { usedBy: usedBy, question: question };
+
+    /* ---- Automatic numbers (office audit OF-5; the owner's format, 30 Oct 2026) ----
+       R-2026/27-0001: "R-", the financial year as School Fee defines it (April
+       to March — Core.deriveQuarter: "2026/2027" is written "2026/27"), then a
+       4-digit sequence that starts again each financial year. The next number
+       is one past the highest of that year in the payments this device holds
+       (the merged copy: every office computer's payments it has received),
+       whatever their suffix — a number typed from a paper receipt book in the
+       same form counts too. A number is never one already used.
+
+       Two office computers must never give the same number. When this device
+       could not check the other computers' payments just now, or holds a
+       payment of its own not yet sent, the number carries this computer's own
+       two letters ("R-2026/27-0042-K7"): it can then never equal a number
+       another computer gives. Receipts already given are never renumbered. */
+    var AUTO_RE = /^R-(\d{4})\/(\d{2})-(\d{1,6})(?:-([A-Z0-9]{1,4}))?$/i;
+    var SUFFIX_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';   // no I, O, 0, 1: read aloud without doubt
+    var CHECK_MAX_AGE_MS = 2 * 60 * 1000;
+    function fyTag(fy) {
+      var m = /^(\d{4})\/(\d{4})$/.exec(String(fy == null ? '' : fy).trim());
+      return m ? m[1] + '/' + m[2].slice(2) : '';
+    }
+    function fyOfDate(date) {
+      var d = String(date == null ? '' : date).trim() || new Date().toISOString().slice(0, 10);
+      var q = null;
+      try { q = Core.deriveQuarter(d); } catch (e) { q = null; }
+      return q && q.fy ? q.fy : '';
+    }
+    function parse(number) {
+      var m = AUTO_RE.exec(String(number == null ? '' : number).trim());
+      return m ? { fy: m[1] + '/' + m[2], seq: parseInt(m[3], 10), suffix: (m[4] || '').toUpperCase() } : null;
+    }
+    function format(tag, seq, suffix) {
+      var n = String(seq);
+      while (n.length < 4) n = '0' + n;
+      return 'R-' + tag + '-' + n + (suffix ? '-' + String(suffix).toUpperCase() : '');
+    }
+    /* The next number for a payment dated `date` ('' = today).
+       opts: { suffix } — this computer's letters, when needsSuffix() says so. */
+    function nextNumber(payments, date, opts) {
+      opts = opts || {};
+      var tag = fyTag(fyOfDate(date));
+      if (!tag) return '';
+      var list = Array.isArray(payments) ? payments : [];
+      var max = 0;
+      list.forEach(function (p) {
+        var x = parse(p && p.receiptNumber);
+        if (x && x.fy === tag && x.seq > max) max = x.seq;
+      });
+      var n = format(tag, max + 1, opts.suffix || '');
+      for (var guard = 0; usedBy(list, n, null) && guard < 10000; guard++) n = format(tag, max + 2 + guard, opts.suffix || '');
+      return n;
+    }
+    /* Must this computer's number carry its letters?
+       state: { checkedAt: ms of the last successful check of the other
+       computers' payments, nowMs, unsent: a payment of this computer's not
+       yet sent, maxAgeMs } */
+    function needsSuffix(state) {
+      if (!state || state.unsent) return true;
+      var now = typeof state.nowMs === 'number' ? state.nowMs : Date.now();
+      var at = Number(state.checkedAt) || 0;
+      if (!at) return true;
+      var age = now - at;
+      return age < -60000 || age > (state.maxAgeMs || CHECK_MAX_AGE_MS);
+    }
+    /* This computer's two letters: the ones it already has, or new ones.
+       random() -> [0,1). */
+    function deviceSuffix(stored, random) {
+      var s = String(stored == null ? '' : stored).trim().toUpperCase();
+      if (/^[A-HJ-NP-Z2-9]{2}$/.test(s)) return s;
+      var r = typeof random === 'function' ? random : Math.random;
+      return SUFFIX_CHARS.charAt(Math.floor(r() * SUFFIX_CHARS.length) % SUFFIX_CHARS.length) +
+        SUFFIX_CHARS.charAt(Math.floor(r() * SUFFIX_CHARS.length) % SUFFIX_CHARS.length);
+    }
+    return { usedBy: usedBy, question: question, fyTag: fyTag, fyOfDate: fyOfDate, parse: parse, format: format,
+      nextNumber: nextNumber, needsSuffix: needsSuffix, deviceSuffix: deviceSuffix, CHECK_MAX_AGE_MS: CHECK_MAX_AGE_MS };
+  })();
+
+  // ===================== ADMIN STAFF ACCESS, PERSON BY PERSON =====================
+  // One set of ticks used to apply to every Admin Staff member (office audit
+  // OF-2). Ticks are now kept per person, inside the same Administrator's grid
+  // ('voctrain_adminStaffAccess'), under `people`:
+  //   { attendance: true, …, updatedAt, people: { 'USR-sbrown': { attendance:
+  //     true, …, updatedAt }, 'USR-ngordon': { useDefault: true, updatedAt } } }
+  // The grid's own ticks stay what they were — the DEFAULT for anybody with no
+  // ticks of their own — so nobody loses access they had (an additive change).
+  // Each person's entry is merged on its own, newest edit winning; an entry is
+  // never dropped because a copy lacks it ("use the default" is itself an
+  // entry, so going back to the default travels like any other edit).
+  Core.staffAccess = (function () {
+    function isObj(v) { return v !== null && typeof v === 'object' && !Array.isArray(v); }
+    function msOf(v) { var t = Date.parse(v || ''); return isNaN(t) ? 0 : t; }
+    /* The person's own entry, when they have ticks of their own. */
+    function ownTicks(grid, userId) {
+      var e = isObj(grid) && isObj(grid.people) && userId != null ? grid.people[String(userId)] : null;
+      return isObj(e) && e.useDefault !== true ? e : null;
+    }
+    /* The sections one Admin Staff member may use: the defaults, then the
+       grid's ticks (everybody's default), then their own ticks if they have
+       their own. Only the known keys (those in `defaults`) are answered. */
+    function forPerson(grid, defaults, userId) {
+      var out = {};
+      Object.keys(defaults || {}).forEach(function (k) { out[k] = !!defaults[k]; });
+      if (isObj(grid)) Object.keys(out).forEach(function (k) { if (k in grid) out[k] = !!grid[k]; });
+      var own = ownTicks(grid, userId);
+      if (own) Object.keys(out).forEach(function (k) { if (k in own) out[k] = !!own[k]; });
+      return out;
+    }
+    /* Merge another copy's people into ours, person by person, newest edit
+       winning. Never removes an entry; ignores a `people` that is not an
+       object (an older version's copy). Returns { people, changed }. */
+    function mergePeople(mine, theirs) {
+      var out = {}, changed = false;
+      if (isObj(mine)) Object.keys(mine).forEach(function (id) { if (isObj(mine[id])) out[id] = mine[id]; });
+      if (isObj(theirs)) Object.keys(theirs).forEach(function (id) {
+        var t = theirs[id];
+        if (!isObj(t)) return;
+        var m = out[id];
+        if (!m || msOf(t.updatedAt) > msOf(m.updatedAt)) {
+          if (!m || JSON.stringify(m) !== JSON.stringify(t)) changed = true;
+          out[id] = JSON.parse(JSON.stringify(t));
+        }
+      });
+      return { people: out, changed: changed };
+    }
+    /* A person's own ticks (every known key written), or back to the
+       default ({ useDefault: true }). Returns the new entry. */
+    function entry(ticks, defaults, nowIso) {
+      var e = {};
+      Object.keys(defaults || {}).forEach(function (k) { e[k] = !!(ticks && ticks[k]); });
+      e.updatedAt = nowIso || new Date().toISOString();
+      return e;
+    }
+    function defaultEntry(nowIso) { return { useDefault: true, updatedAt: nowIso || new Date().toISOString() }; }
+    return { forPerson: forPerson, ownTicks: ownTicks, mergePeople: mergePeople, entry: entry, defaultEntry: defaultEntry };
+  })();
+
+  // ===================== THE OFFICE'S DAY: what is waiting =====================
+  // The office's work was invisible on both office dashboards: 12 home
+  // registrations and 6 certificate/transcript requests waiting showed no sign
+  // on the first screen (office audit OF-1, management M10). These are the
+  // counts the "Office today" box shows; the page decides which lines the
+  // person signed in may act on, and where each one opens.
+  Core.officeToday = (function () {
+    var DAY = 86400000;
+    // Trainees still with the Centre: the details are needed for the
+    // registers, the fee record and the certificate.
+    var ENROLLED = { testing: 1, interview: 1, training: 1 };
+    function blank(v) { return v == null || String(v).trim() === ''; }
+    function msOf(v) { var t = Date.parse(v || ''); return isNaN(t) ? 0 : t; }
+    function nameKey(v) { return String(v == null ? '' : v).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim(); }
+
+    /* Whole days from `fromIso` to `nowMs` (0 the same day). */
+    function daysWaiting(fromIso, nowMs) {
+      var t = msOf(fromIso);
+      if (!t) return 0;
+      var now = typeof nowMs === 'number' ? nowMs : Date.now();
+      return Math.max(0, Math.floor((now - t) / DAY));
+    }
+    /* "3 days waiting", "1 day waiting", "since today". */
+    function waitingText(days) {
+      if (!days) return 'since today';
+      return days + ' day' + (days === 1 ? '' : 's') + ' waiting';
+    }
+
+    /* Which of the four details a trainee's records lack: telephone, email,
+       date of birth, gender. A detail typed on the fee record (or the
+       trainee's profile) counts — the office typed it once. */
+    function missingDetails(student, fee, profile) {
+      var s = student || {}, f = fee || {}, p = profile || {};
+      var out = [];
+      if (blank(s.phone) && blank(f.contact) && blank(p.phone)) out.push('telephone');
+      if (blank(s.email) && blank(f.email) && blank(p.email)) out.push('email');
+      if (blank(s.dob) && blank(f.dateOfBirth)) out.push('date of birth');
+      if (blank(s.gender) && blank(f.gender)) out.push('gender');
+      return out;
+    }
+    /* Trainees still with the Centre whose records lack any of the four.
+       feeOf(student) -> its fee record or null; profileOf(student) -> its
+       profile or null. -> [{ student, missing: [...] }] */
+    function recordsMissingDetails(students, feeOf, profileOf) {
+      var out = [];
+      (Array.isArray(students) ? students : []).forEach(function (s) {
+        if (!s || !ENROLLED[s.stage || 'training']) return;
+        var miss = missingDetails(s, feeOf ? feeOf(s) : null, profileOf ? profileOf(s) : null);
+        if (miss.length) out.push({ student: s, missing: miss });
+      });
+      return out;
+    }
+
+    /* The requests waiting for the office (pending or processing — the same
+       rule as the menu's count), oldest first. -> { count, oldestDays, oldest } */
+    function openRequests(requests, nowMs) {
+      var open = (Array.isArray(requests) ? requests : []).filter(function (r) {
+        return r && (r.status === 'pending' || r.status === 'processing');
+      }).sort(function (a, b) { return msOf(a.requestedAt) - msOf(b.requestedAt); });
+      return { count: open.length, oldest: open[0] || null, oldestDays: open.length ? daysWaiting(open[0].requestedAt, nowMs) : 0, list: open };
+    }
+
+    /* Certified trainees whose certificate has not been handed over yet. */
+    function certificatesToHandOut(students) {
+      return (Array.isArray(students) ? students : []).filter(function (s) {
+        return s && s.stage === 'certified' && !s.certCollected;
+      });
+    }
+
+    /* Programmes taking trainees that have no fee set (no entry with a total
+       above 0 under the programme's name, written any way, or under one of
+       its intakes' labels — "02. Cosmetology"). */
+    function programmesWithoutFee(programmes, feeStructure) {
+      var priced = {};
+      Object.keys(feeStructure || {}).forEach(function (k) {
+        var e = feeStructure[k];
+        if (!e || !(parseFloat(e.total) > 0)) return;
+        priced[nameKey(k)] = 1;
+        var m = /^(\d{1,4})\s*[.)]\s*(.+)$/.exec(String(k).trim());
+        if (m) priced[nameKey(m[2])] = 1;
+      });
+      var seen = {};
+      return (Array.isArray(programmes) ? programmes : []).filter(function (p) {
+        var k = nameKey(p);
+        if (!k || seen[k]) return false;
+        seen[k] = 1;
+        var m = /^(\d{1,4})\s*[.)]\s*(.+)$/.exec(String(p).trim());
+        return !priced[k] && !(m && priced[nameKey(m[2])]);
+      });
+    }
+
+    /* "Akeem Williams, Brianna Grant and 3 more" */
+    function someNames(names, max) {
+      var list = (names || []).filter(Boolean);
+      max = max || 3;
+      if (list.length <= max) return list.length > 1 ? list.slice(0, -1).join(', ') + ' and ' + list[list.length - 1] : (list[0] || '');
+      return list.slice(0, max).join(', ') + ' and ' + (list.length - max) + ' more';
+    }
+
+    return { daysWaiting: daysWaiting, waitingText: waitingText, missingDetails: missingDetails,
+      recordsMissingDetails: recordsMissingDetails, openRequests: openRequests,
+      certificatesToHandOut: certificatesToHandOut, programmesWithoutFee: programmesWithoutFee, someNames: someNames };
   })();
 
   // ===================== COMMUNICATIONS: announcements, agenda, bell =====================
@@ -15332,7 +16665,9 @@
       'questionsPerPage', 'shuffleQuestions', 'shuffleOptions', 'answersRelease', 'status', 'activatedAt', 'allowFlag', 'instructions'];
     var VC_FIELDS = ['id', 'code', 'title', 'course', 'hostName', 'hostRole', 'startedAt', 'endedAt', 'locked', 'lobby', 'updatedAt'];
     var ROOM_FIELDS = ['id', 'name', 'icon', 'type', 'color', 'skillAreaId', 'createdAt', 'updatedAt'];
-    var PER_TRAINEE_MAPS = ['grades', 'gradeMeta', 'feedback', 'comments', 'marks'];
+    // feedbackAt: when each trainee's comment on an assignment was written
+    // (Core.coursework.recordGrade) — her own date only, like her mark.
+    var PER_TRAINEE_MAPS = ['grades', 'gradeMeta', 'feedback', 'feedbackAt', 'comments', 'marks'];
 
     /* System notices that name a trainee. A trainee sees one only when it
        names them; the score and mark notices never reach a trainee at all
@@ -15744,9 +17079,19 @@
       });
       return out;
     }
-    function noticeFor(n, t, ownNames) {
+    function noticeFor(n, t, ownNames, course, same) {
       if (Array.isArray(n.forUsers) && n.forUsers.length) return n.forUsers.map(str).indexOf(t.acct) !== -1;
       if (Array.isArray(n.forRoles) && n.forRoles.length && n.forRoles.indexOf('student') === -1) return false;
+      // A programme's notice (forCourse) reaches that programme's trainees
+      // only — the bell's own rule (Core.notify.reaches): a Plumbing trainee
+      // at home is not sent the Welding class's new assignment. "General"
+      // (or no programme) is for every trainee, as before.
+      if (n.forCourse != null && str(n.forCourse).trim() !== '') {
+        var fc = Core.normCourse(n.forCourse);
+        if (fc !== 'general' && fc !== 'all' && fc !== 'all programmes' && fc !== 'all courses') {
+          if (!course || !(Core.normCourse(course) === fc || (same && same(course, n.forCourse)))) return false;
+        }
+      }
       var text = str(n.text);
       if (STAFF_ONLY_NOTICES.some(function (re) { return re.test(text); })) return false;
       for (var i = 0; i < NAMED_NOTICES.length; i++) {
@@ -15781,6 +17126,9 @@
       d.voctrain_students = [copy(t.student)];
       var card = pick(t.account, USER_FIELDS);
       card.twoFactorEnabled = !!t.account.twoFactorEnabled;
+      // Her password is still the office's first-sign-in code: her device asks
+      // her own (OF-4). A flag only — never the code, never the mark.
+      if (Core.accountAccess.firstCodeInForce(t.account)) card.firstCode = true;
       card.emailOtpLogin = !!t.account.emailOtpLogin;
       d.voctrain_users = [card];
       d.voctrain_exams = ctx.L.voctrain_exams.filter(function (e) { return examForTrainee(ctx, e, t); }).map(examMeta);
@@ -15808,7 +17156,7 @@
       });
       d.voctrain_submissions = ownedOf(ctx, 'voctrain_submissions', t);
       d.voctrain_announcements = ctx.L.voctrain_announcements.filter(forStudent).map(function (a) { return cutReaders(a, readers); });
-      d.voctrain_notifications = ctx.L.voctrain_notifications.filter(function (n) { return noticeFor(n, t, own.names); }).map(function (n) {
+      d.voctrain_notifications = ctx.L.voctrain_notifications.filter(function (n) { return noticeFor(n, t, own.names, course, ctx.same); }).map(function (n) {
         var r = cutReaders(n, readers);
         if (Array.isArray(r.forUsers)) r.forUsers = cutList(r.forUsers, readers);
         return r;
@@ -16954,11 +18302,15 @@
 
     /* What the registration form sends, checked: the full name (first and
        last — Core.accountAccess.isFullName, the rule of every account form),
-       a programme from the catalogue, an optional phone, and the password as
+       a programme from the catalogue, an optional phone, the password as
        the dashboard stores one (pbkdf2$<iterations>$<salt>$<hash>, worked out
        on the trainee's device with a fresh salt — the password itself never
-       travels). → { ok, value } | { ok: false, field } */
-    function checkRegistration(form, programmes) {
+       travels), and her personal details (Core.accountAccess.traineeDetails:
+       gender, date of birth, address and an emergency contact required; TRN
+       and a parent or guardian when she has them — office audit OF-3), so
+       the office only checks them. opts.nowMs: today, for the age.
+       → { ok, value } | { ok: false, field } */
+    function checkRegistration(form, programmes, opts) {
       form = isObj(form) ? form : {};
       var name = cleanName(form.name);
       if (!name || name.length > REG_NAME_MAX || /[<>"\u0000-\u001f]/.test(name) || !Core.accountAccess.isFullName(name)) return { ok: false, field: 'name' };
@@ -16968,7 +18320,10 @@
       if (phone && !Core.accountAccess.PHONE_RE.test(phone)) return { ok: false, field: 'phone' };
       var pw = str(form.password), m = STORED_PW_RE.exec(pw);
       if (!m || Number(m[1]) < 100000 || Number(m[1]) > 1000000) return { ok: false, field: 'password' };
-      var value = { name: name, programme: programme, phone: phone, password: pw };
+      var TD = Core.accountAccess.traineeDetails;
+      var det = TD.check(form, { require: TD.HOME_REQUIRED, nowMs: opts && typeof opts.nowMs === 'number' ? opts.nowMs : undefined });
+      if (!det.ok) return { ok: false, field: det.field };
+      var value = { name: name, programme: programme, phone: phone, password: pw, details: det.value };
       // The sign-in link she registered from (https only, with the gate's address): the approval email carries it.
       var link = str(form.link).trim();
       if (link && REG_LINK_RE.test(link)) value.link = link;
@@ -16985,6 +18340,7 @@
         googleVerified: true, registeredVia: 'home-registration', status: 'pending', createdAt: iso(o.nowMs) };
       if (v.phone) out.phone = str(v.phone);
       if (v.link) out.link = str(v.link);
+      if (isObj(v.details) && Object.keys(v.details).length) out.details = copy(v.details);
       if (o.folder && o.folder.id) { out.folderId = str(o.folder.id); out.folderName = str(o.folder.name); }
       return out;
     }
@@ -17029,6 +18385,10 @@
         programme: str(r.programme).trim(), status: 'pending', createdAt: day || str(r.createdAt).slice(0, 10), registeredVia: 'home-registration',
         googleVerified: true, registeredAt: str(r.createdAt), updatedAt: str(r.createdAt) };
       if (r.phone && Core.accountAccess.PHONE_RE.test(str(r.phone).trim())) acct.phone = str(r.phone).trim();
+      // Her personal details, kept on the waiting account for the office to
+      // check; on approval they reach her trainee and fee records (blanks only).
+      var det = Core.accountAccess.traineeDetails.clean(r.details);
+      if (Object.keys(det).length) acct.details = det;
       if (r.folderId) acct.gateFolderId = str(r.folderId);
       return { action: 'add', account: acct };
     }

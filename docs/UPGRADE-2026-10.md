@@ -88,7 +88,7 @@ shown to the owner in screenshots first, and merged only once approved or decide
 | **Duplicate "Disabled" accounts** | A cleared office PC no longer creates second and third accounts from the fee roll and chat roster. Provable leftovers fold into the real account, with a deletion record so they cannot come back; anything unsure stays for the administrator. | `tests/backfill-stub-fold.test.js` |
 | **"Set a new password"** | The cursor no longer jumps back from "Confirm password" (an intermittent "Passwords do not match" for a first administrator). | `tests/force-change-pw-focus.test.js` |
 | **A test that follows the trainee** | Answers are saved on the device and in the shared copy. Kicked out, crashed or disconnected, the trainee signs in and presses "Continue your attempt"; at another Centre PC too. The original clock stands, the newest answer per question wins, a submitted test cannot be reopened, and there is exactly one result per attempt. A trainee taking a test is not signed out part-way; a test whose time ran out is submitted at the next sign-in. | `tests/exam-attempt-travel.test.js`, `tests/browser/exam-resume.js` |
-| **Shared files' version tags** | Every page asks for the current shared code files. As of 30 October 2026: `cestis-core.js?v=20261030c`, `cmc-portal.js?v=20261029b`, `cestis-gate-client.js?v=20261030b`, `cestis-page-cloud.js?v=20261030c`, `cestis-form-modal.js?v=20261028d`. | — |
+| **Shared files' version tags** | Every page asks for the current shared code files. As of 30 October 2026: `cestis-core.js?v=20261030d`, `cmc-portal.js?v=20261030d`, `cestis-gate-client.js?v=20261030d`, `cestis-page-cloud.js?v=20261030d`, `cestis-form-modal.js?v=20261028d`. | — |
 
 **Decisions the owner made in this round:**
 - Trainees register at the Centre (or the office creates their account). A trainee's own phone
@@ -117,6 +117,9 @@ saw screenshots.
 | **Live classes on less data (owner approved 30 Oct)** | Trainees start muted with the camera off; a muted microphone sends nothing; a trainee's camera goes to the instructor only; the instructor's picture budget is shared fairly as people join and leave; recordings at about 550 kbit/s; Large Class is put first above 6 trainees only once the Centre has its own video server. Measured, class of 6: a trainee's upload 553 → 6 kbit/s. | `tests/vc-room.test.js`, `tests/vc-page.test.js`, `tests/browser/vc-room.js` |
 | **Home study (owner approved 30 Oct)** | A trainee's link opens on her own form; "Your class is live — Join class" and "Test open now — Start test" at the top of her home screen (her phone checks every minute around class time); My Progress shows her real figures; photos made about 0.4 MB on the phone and sent in parts that survive a dropped signal; My Fees and Change Password at home; her certificate downloads at home once approved; she is told when to expect approval and emailed when approved; the bell's glow stops after three pulses. The trainee sign-in program is version 3 (paste the latest when setting it up). | `tests/home-study.test.js`, `tests/browser/home-study.js`, `docs/trainee-gate/DESIGN.md` §18 |
 | **Sync that rests, and chat that is never emptied** | An untouched office PC stops saving and uploading (≈2.9 GB a day → ≈2.4 MB); a big chat history or fee roll is no longer emptied at start-up; a change uploads the Main copy only, the extra copies every 30 minutes, at sign-out, or at once while Main fails; sign-in skips bytes it already has (month 10: 771 → 134 MB downloaded); the Centre network sends only changed keys, compresses its history and accepts files up to 512 MiB; the Cashbook checks before downloading; a new attendance mark no longer reads the whole register. | `tests/sync-idle-quiet.test.js`, `tests/chat-history-not-emptied.test.js`, `tests/backup-copy-cadence.test.js`, `tests/lan-partial-save.test.js`, `tests/browser/sync-quiet.js`, `tests/browser/backup-copies.js` |
+| **Real figures for the board and the regulator (group E, owner approved)** | The board sees the fee money: billed, collected and owed by programme for the financial year, read only, in "$" (was "D"); three "fee" widgets that counted certificates now show money. "Earlier years still owing: $X (n trainees)" sits beside Outstanding on School Fee, the administrator's dashboard and the board's screens, never added into it. Reports has an intake and a period filter and a one-click **Programme return** (CSV and PDF). Measured on the audit's Centre: $1,785,000 billed / $909,000 collected / $876,000 owed, $140,000 from 10 earlier-year trainees — every figure equal to the hand count. | `tests/board-figures.test.js`, `tests/browser/board-figures.js` |
+| **Group B: instructors teach, not type (owner approved)** | **Needs Attention** for instructors (their programme) and the office (everyone, with what each owes; the dashboard's "below 70% attendance" opens it): last attended, absences in a row, attendance, recent marks below the pass mark, work not handed in, phone, Message. **Coursework**: a comment with each mark (the trainee sees it on My Assignments, at home too), "Not submitted (n)" with Remind, Edit with the mark's history, work to mark first. **Tests**: Copy for the next intake; the builder keeps its draft on the computer ("Continue building"); Import Exam for instructors (own programme); exact fill-ins marked at once; Save & next; Mark by question. **Classes**: Upcoming / Past, a state on each, Edit, repeat weekly. **Message** on My Students. Instructors **upload files** for their own programme, and **propose unit results** the office confirms. The office sees the **marking backlog** (how old, on whom, work never handed in) and **registers not taken** on the last school day. New assignments, deleted ones and exams opening reach only the programme's trainees. | `tests/needs-attention.test.js`, `tests/coursework-feedback.test.js`, `tests/exam-reuse.test.js`, `tests/exam-marking-speed.test.js`, `tests/class-list.test.js`, `tests/message-trainee.test.js`, `tests/instructor-uploads.test.js`, `tests/unit-proposals.test.js`, `tests/office-watch.test.js`, `tests/notice-audience.test.js`, `tests/browser/instructor-tools.js` |
+| **The office runs itself (owner approved 30 Oct, group A)** | "Office today" on both office dashboards; Admin Staff get the Administrator's working pages for the sections ticked, ticks per person; Admin Staff reset trainees' passwords; one New trainee form; home registration asks date of birth, gender, TRN, address, parent/guardian and emergency contact; first-sign-in codes and one sign-in slip per trainee; automatic receipt numbers R-2026/27-0001; requests with Open transcript / Certify / Mark collected and the trainee told; Student Progress moves several at once; announcements to one programme; School Fee covered only after 5 idle minutes; details save when a programme has no fee. | `tests/office-today.test.js`, `admin-staff-working-pages`, `new-trainee-form`, `sign-in-slips`, `fee-receipt-numbers`, `requests-run-themselves`, `student-progress-bulk`, `office-announcement-programme`, `fee-idle-cover`, `fee-unpriced-details`; `tests/browser/office-group-a.js` |
 
 **Decisions the owner made in this round (29–30 October 2026):**
 - Groups A–F of the audit's recommendations approved: the office (A), instructors (B), trainees at
@@ -204,6 +207,55 @@ saw screenshots.
   - Recordings attach to their class session.
 - **Class sessions** move scheduled → live → completed, so *Live Now* and *Past Recordings*
   work.
+
+### The office runs itself (owner's decision, group A)
+Measured in real browsers with the audit's own scripts, before and after.
+- **Office today** (both office dashboards): registrations waiting, certificate/transcript
+  requests waiting (with the oldest one's wait), trainees' records missing a telephone, email,
+  date of birth or gender, certificates to hand out, programmes with no fee set — each line one
+  click from its page, shown only to somebody who may act on it. The Administrator's open menu
+  groups are remembered on that computer. A new Admin Staff member with no duties is no longer
+  told "0% — Needs Improvement".
+- **Admin Staff do the work they are given.** A ticked section opens the Administrator's own
+  working page (Attendance, Announcements, Calendar, Certificates, Online Exams, Resources,
+  Reports, Training Centres); every action checks the tick. Deleting a training centre,
+  recovering from backups, Settings, account deletion and the trainee sign-in setup stay the
+  Administrator's. **Ticks are kept per person**: Settings → Admin Staff Access → "Whose
+  access". The grid's own ticks are the default for anybody without ticks of their own, so
+  nobody lost access. **Admin Staff reset trainees' passwords** (Trainee Accounts → "A trainee
+  cannot sign in?"), never a staff, instructor or administrator password.
+- **One New trainee form** behind every add-trainee button (the dashboard's Add Student, Student
+  Progress's + Add Student, + Add Trainee Account, Settings → Create User for a trainee): the
+  sign-in, trainee record and fee record together, with gender and optional details. The **home
+  registration form** also asks date of birth, gender, TRN (optional), home address, a parent or
+  guardian (optional) and an emergency contact; Verify Users shows them, and approval puts them
+  on her trainee and fee records (blanks only). The trainee sign-in checks them with the same
+  rules (`CESTISCore.accountAccess.traineeDetails`); `trainee-gate/Gate.gs` now passes the
+  whole form to the check (one line). The gate has not been set up, so nothing is pasted twice.
+- **First-sign-in codes and sign-in slips.** Approve All (an intake imported from Excel), a New
+  trainee with no password typed, and a trainee's password reset each give a random 10-digit
+  code, kept only as its hash, like a password. The office prints ONE slip per trainee (name,
+  username, code, the trainee sign-in link and, once the trainee sign-in is on, its QR code,
+  and three steps) — only at that moment: the codes are forgotten when the dialog closes. At
+  first sign-in she must choose her own password (on an office computer at once; at home through
+  the trainee sign-in's password change).
+- **Receipt numbers** are filled in: `R-2026/27-0001` — the financial year as School Fee
+  defines it (April–March), then a 4-digit sequence per year, one past the highest number this
+  computer holds from every office computer. A number typed from a paper receipt book is kept
+  (and still asked about when already used). When the other office computers' payments could
+  not be checked in the last two minutes, or this computer has a payment not yet sent, the
+  number carries this computer's two letters (`R-2026/27-0042-K7`), so two computers can never
+  give the same number. Receipts already given are never renumbered.
+- **Requests run themselves**: oldest first with "N days waiting"; Open transcript, Certify and
+  Mark collected on each row; one collected mark updates the request and the Certificates page;
+  the trainee is told in her own bell each time her request moves on.
+- **Student Progress** moves several trainees at once (tick boxes, "Move selected to…", one
+  combined certificate checklist). **Announcements** can go to one programme's trainees. **School
+  Fee** is covered only after 5 minutes without use, and saves a trainee's details when her
+  programme has no fee set yet ("set it under Fee Structure").
+- Checklist for the Centre: give each Admin Staff member their own ticks if they differ (Settings
+  → Admin Staff Access → Whose access); print slips when approving an imported intake; tell the
+  office that receipt numbers are now automatic (paper receipt books still work).
 
 ### Live classes on less mobile data (owner's decision, group D)
 Measured first, in headless Chromium with fake cameras and a speech-like fake microphone: an
@@ -387,6 +439,44 @@ instructor and 6 trainees on phone settings, every connection's bytes read from 
 - **External systems** open in their own tab. There is no advice to click past certificate
   warnings.
 
+### Figures for the board and the regulator (owner's decision, group E)
+- **One rule for fee money** (`CESTISCore.centreFigures.fees`), the School Fee page's own:
+  - an account belongs to the financial year (April–March) of its enrolment date, or of the day
+    it was created; an account with no date at all is counted in every year, so nobody is hidden;
+  - **billed**: the tuition of that year's accounts; **owed**: their balances as at today
+    (tuition less every payment recorded for them); **collected**: payments dated in that year;
+  - **earlier years**: accounts of an earlier year that still owe — a separate line, never
+    added into owed;
+  - an account with no fee set and nothing paid is "no fee set yet", never "owes nothing".
+- **The board's money view.** The CMC board's dashboard, Financial Overview and Oversight Portal
+  show billed, collected and owed by programme for the present financial year, with the earlier
+  years beside Owed.
+  - Why the board had no fee figures: the School Fee books were never on the list of books the
+    board's page reads (`CMC_SHARED_FILES` in `cmc-portal.js`). Nothing decided it; they were
+    simply left off, and three widgets labelled as fees were filled with certificate counts.
+  - How it reads them now: exactly like the Cashbook and the other books — the School Fee file
+    is in the board's `reads`, never in its `writes` (which name only the virement register).
+    `CMC_FEE_KEYS` names the fee keys the board may never write. A board member's session also
+    no longer runs the LMS-to-fee mirror, so it never creates or edits a fee record. The browser
+    suite checks the fee roll and payments are byte-identical after every board page.
+  - Money is written "$1,785,000" everywhere on the board's screens (it was "D1785000").
+  - "Fee Completion" (a certificate rate) is now **School Fees Owed**; "Fee Collection Status"
+    (certified against everyone else) is now a doughnut of money collected and owed; "School
+    Fees Details" (a roster of stages and GPAs) is now the money by programme. The roster moved
+    to the Completion card, where it belongs. Programme Breakdown's completion uses the one rule
+    (over ended intakes, with its denominator).
+- **Earlier years still owing** appears under School Fee's Total Outstanding (not under "Every
+  year", which already includes it), on the administrator's dashboard (a new School Fees card)
+  and on the board's screens.
+- **The Programme return** (Reports, top of the page). Choose an intake and a period (a
+  quarter, a whole financial year, or all dates; the present quarter by default), then
+  Download CSV or Download PDF. A plain heading says which intake and period it covers and the
+  day the figures are as at. Per programme and intake: applicants, enrolled (admitted), active,
+  completed, certified, Not Yet Competent, Incomplete/dropouts, completion, attendance, test
+  pass rate, and fees billed, collected in the period and owed — by the Centre's counting rules,
+  each rate with what it is a rate of — and the same counts by gender and by age band, with
+  "Not recorded" as its own row. It is called a "Programme return"; it is not any agency's form.
+
 ### Finance and HR apps
 - **Every "Sync", "Connect" and "Cloud Sync Required" path merges record by record** instead of
   replacing whole datasets. This covers the Cashbook, School Fee, Clock-in and Payslip.
@@ -519,6 +609,12 @@ These need a real server, or a decision by the Centre. They are documented, not 
   Now, so anyone at that PC could open the Centre's files in another tab. Until the trainee
   gate's "shared computer" setting arrives, staff should sign that account out of the browser
   after use.
+- **Uploading a resource file** (the Resource Manager's upload, now also the instructor's
+  "+ Upload File") needs sync turned on on that PC. On the Centre's own network without it,
+  "+ Add Link" still works.
+- **The test builder's draft** is kept on the computer it was built on (on purpose: a half-built
+  test and its answers go nowhere else). Building on one PC and finishing on another means
+  saving it first.
 - **A trainee's own phone away from the Centre** cannot sync (the owner chose registration at
   the Centre for now). The trainee gate is what will let trainees sign in from home.
 - **A test moving between devices:** a PC that loses power suddenly may hold up to its last
@@ -538,6 +634,16 @@ These need a real server, or a decision by the Centre. They are documented, not 
   automatically.
 - **Clocks.** A device whose clock is wrong by more than a day, with no way to reach Google or
   the Centre server, still has its clock trusted for its own view.
+- **The Programme return for a past quarter** shows enrolment and stages as they stand today:
+  the records keep no history of when a trainee's stage changed. Attendance, marked test results
+  and payments are limited to the period. Attendance follows the one rule (trainees in
+  training), so an intake that has ended shows no attendance figure.
+- **The administrator's School Fees card** reads the fee books this computer holds. They are
+  brought up to date whenever School Fee is opened on it. (The board's screens fetch them in the
+  background, the way they fetch the Cashbook.)
+- **Trainees with no fee record yet.** When the trainee roll is loaded, the dashboard creates a
+  placeholder fee record (no fee set) for any trainee School Fee does not have — applicants
+  included, as before. They count as accounts with "no fee set yet", never as money owed.
 
 ---
 

@@ -159,7 +159,15 @@ console.log('Old papers and old results mark exactly as on the integration head 
     { type: 'tf', text: 'Legacy, no id', points: 1 }], 'the trainee\'s copy of an old paper is unchanged');
   // Captured from the integration head's CESTISCore.exams.mark for this paper and these answers.
   const HEAD = {"gradedResults":[{"questionId":"L1","questionText":"Earth wire colour?","type":"mcq","studentAnswer":2,"correctAnswer":2,"isCorrect":true,"needsManualGrade":false,"points":1,"earnedPoints":1,"awardedPoints":1,"graded":true,"gradedBy":"auto","autoMatch":null},{"questionId":"L2","questionText":"Mains is 110 V","type":"tf","studentAnswer":false,"correctAnswer":true,"isCorrect":false,"needsManualGrade":false,"points":1,"earnedPoints":0,"awardedPoints":0,"graded":true,"gradedBy":"auto","autoMatch":null},{"questionId":"L3","questionText":"A ____ protects a circuit","type":"fill","studentAnswer":" fuse ","correctAnswer":"Fuse","isCorrect":null,"needsManualGrade":true,"points":2,"earnedPoints":0,"awardedPoints":null,"graded":false,"gradedBy":null,"autoMatch":true},{"questionId":"L4","questionText":"Explain earthing","type":"short","studentAnswer":"Because...","correctAnswer":"Model","isCorrect":null,"needsManualGrade":true,"points":4,"earnedPoints":0,"awardedPoints":null,"graded":false,"gradedBy":null,"autoMatch":null},{"questionId":"L5","questionText":"No key","type":"mcq","studentAnswer":0,"correctAnswer":null,"isCorrect":null,"needsManualGrade":true,"points":1,"earnedPoints":0,"awardedPoints":null,"graded":false,"gradedBy":null,"autoMatch":null},{"questionText":"Legacy, no id","type":"tf","studentAnswer":false,"correctAnswer":null,"isCorrect":null,"needsManualGrade":true,"points":1,"earnedPoints":0,"awardedPoints":null,"graded":false,"gradedBy":null,"autoMatch":null}],"totalPoints":10,"earnedPoints":1,"correctCount":1,"manualCount":4};
-  assertEq(E.mark(pub, [2, false, ' fuse ', 'Because...', 0, false], qd), HEAD, 'byte for byte the same marking');
+  // One deliberate change since that head (the owner's decision, audit IN-8):
+  // a fill-in answered with the expected word exactly (case and surrounding
+  // spaces aside — ' fuse ' for 'Fuse') is marked right away instead of
+  // waiting for the instructor. Every other entry is byte for byte the same.
+  const NOW = JSON.parse(JSON.stringify(HEAD));
+  Object.assign(NOW.gradedResults[2], { isCorrect: true, needsManualGrade: false, earnedPoints: 2, awardedPoints: 2, graded: true, gradedBy: 'auto' });
+  Object.assign(NOW, { earnedPoints: 3, correctCount: 2, manualCount: 3 });
+  assertEq(E.mark(pub, [2, false, ' fuse ', 'Because...', 0, false], qd), NOW, 'the same marking, but for the exact fill-in now marked right away');
+  assertEq(E.mark(pub, [2, false, 'a fuse', 'Because...', 0, false], qd).gradedResults[2], Object.assign({}, HEAD.gradedResults[2], { studentAnswer: 'a fuse', autoMatch: false }), 'a fill-in that is not the expected word still waits for a person, as before');
   assertEq(E.keyProblems(qd), [5], 'and the same unkeyed question is reported');
   // An old result (no startedAt, no fraction) still reads.
   const old = { submittedAt: '2026-10-16T15:30:00.000Z', timeTaken: 1500, answers: HEAD.gradedResults };

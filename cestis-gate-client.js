@@ -748,7 +748,10 @@
       return call(b, 'register.start', { accessToken: str(accessToken) });
     });
   }
-  // o: { accessToken, name, programme, phone, password } → {state:'submitted', …} | {ok:false, error, field?}
+  // o: { accessToken, name, programme, phone, password, and her personal details:
+  //      gender, dob, trn, address, parentName, parentPhone, emergencyName, emergencyPhone }
+  //   → {state:'submitted', …} | {ok:false, error, field?}
+  var REG_DETAIL_FIELDS = ['gender', 'dob', 'trn', 'address', 'parentName', 'parentPhone', 'emergencyName', 'emergencyPhone'];
   function registerSubmit(o) {
     o = o || {};
     return withBase(function (b) {
@@ -758,7 +761,9 @@
         // The sign-in link she registered from: the office's approval email carries it (gate version 3).
         var link = '';
         try { if (root.location && /^https:$/.test(root.location.protocol)) link = root.location.origin + root.location.pathname + '#gate=' + G.b64url(G.utf8(b.url)); } catch (e) { link = ''; }
-        return call(b, 'register.submit', { accessToken: str(o.accessToken), name: str(o.name), programme: str(o.programme), phone: str(o.phone), password: pw, link: link });
+        var body = { accessToken: str(o.accessToken), name: str(o.name), programme: str(o.programme), phone: str(o.phone), password: pw, link: link };
+        REG_DETAIL_FIELDS.forEach(function (k) { if (o[k] != null && str(o[k]).trim()) body[k] = str(o[k]).trim(); });
+        return call(b, 'register.submit', body);
       });
     });
   }

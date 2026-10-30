@@ -198,12 +198,14 @@ console.log('Administration: centre ids, transfers, access grid, documents, exte
   assert(tr.indexOf("var mine = !!movedIds[String(u.studentDataId)];") !== -1 && tr.indexOf('if (!mine && !linked)') !== -1,
     'a transfer moves the moved trainee\'s account; a name match only for an unlinked account on the FROM programme');
 
-  const acc = { adminStaffAccessSettings: { exams: false }, document: { getElementById: () => ({ checked: false }) } };
+  const acc = { adminStaffAccessSettings: { exams: false }, document: { getElementById: () => ({ checked: false, value: '' }) },
+    // The draft starts from the ticks of whoever the grid is showing (OF-2: per person).
+    asAccessFor: function () { return Object.assign({}, acc.adminStaffAccessSettings); } };
   vm.createContext(acc);
-  vm.runInContext('var asAccessDraft = null;\n' + extractFunction(IX, 'toggleAsAccess'), acc);
+  vm.runInContext('var asAccessDraft = null;\n' + extractFunction(IX, 'adminStaffAccessPerson') + '\n' + extractFunction(IX, 'toggleAsAccess'), acc);
   vm.runInContext("toggleAsAccess('exams')", acc);
   assertEq(acc.adminStaffAccessSettings.exams, false, 'ticking a box in the access grid changes nothing until Save');
-  assert(/function saveAdminStaffAccess\(\) \{\s*if\(asAccessDraft\)/.test(IX), 'Save applies the draft');
+  assert(/function saveAdminStaffAccess\(\) \{[\s\S]{0,200}?if\(asAccessDraft\)/.test(IX), 'Save applies the draft');
 
   const mc = extractFunction(IX, 'markCollected');
   assert(/function markCollected\(id\)/.test(mc) && /markCollected\(\$\{jsArg\(s\.id\)\}\)/.test(IX), 'Mark Collected acts on a record id');
@@ -267,8 +269,8 @@ console.log('The Transcript page: header, columns, start-up, instructor plans, r
   assertEq(vm.runInContext('instructorStudents().map(function(s){return s.id;})', isb), ['A', 'C'], 'the instructor\'s trainees: their programmes, or named on the record');
   assertEq(vm.runInContext('insQualFor(db.students[0]).id', isb), 'QUAL-EIM-L3', 'the Level 3 trainee is graded on the Level 3 plan');
 
-  assert(/writes: _tgTrainee \? \['voctrain_certTranscriptRequests'\] : \[\]/.test(TG) && /concat\(_tgTrainee \? \['voctrain_certTranscriptRequests'\] : \[\]\)/.test(TG),
-    'a trainee\'s request goes to the administration\'s request file, and status changes come back');
+  assert(/writes: _tgTrainee \? \['voctrain_certTranscriptRequests'\] : _tgInstructor \? \['voctrain_unitProposals'\] : \[\]/.test(TG) && /concat\(_tgTrainee \? \['voctrain_certTranscriptRequests'\] : \[\]\)/.test(TG),
+    'a trainee\'s request goes to the administration\'s request file, and status changes come back (an instructor\'s proposed unit results go the same way: audit IN-13)');
   const rd = extractFunction(TG, 'requestDoc');
   assert(rd.indexOf('T.mergeRequestLists(') !== -1 && rd.indexOf('CESTISPageCloud.saveShared(') !== -1, 'added to the stored queue, then sent');
   assert(extractFunction(TG, 'renderGradeRows').indexOf('captureDirtyGrades()') !== -1 &&

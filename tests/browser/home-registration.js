@@ -245,6 +245,8 @@ const GSI_STUB = `(function(){
   await sp.fill('#atPhone', OFFICE_NEW.phone);
   await sp.selectOption('#atProgramme', OFFICE_NEW.prog);
   await sp.fill('#atPassword', OFFICE_NEW.pass);
+  // The New trainee form asks her gender (OF-7).
+  await sp.selectOption('#atGender', 'Female');
   await shotBoth(sp, '08-admin-staff-add-trainee-desktop', { desktop: true });
   // Not on a Settings → Users form either: the rule refuses Admin Staff a staff role whatever calls it.
   const staffRole = await sp.evaluate(() => CESTISCore.accountAccess.officeCreateRefusal({ role: currentRole }, { role: 'admin', name: 'Neville Shaw', username: 'nshaw', password: 'Admin-2026!' }, userAccounts));
@@ -326,6 +328,15 @@ const GSI_STUB = `(function(){
   await hp.fill('#grPhone', NEW.phone);
   await hp.fill('#grPassword', 'short');
   await hp.fill('#grPassword2', 'short');
+  // Her personal details are asked too (OF-3): without them nothing is sent.
+  await hp.click('#grSend');
+  ok(/choose Female or Male/.test(await hp.evaluate(() => document.getElementById('grSay').textContent)), 'her gender is asked before anything is sent');
+  await hp.selectOption('#grGender', 'Female');
+  await hp.fill('#grDob', '2005-02-14');
+  await hp.fill('#grTrn', '123 456 789');
+  await hp.fill('#grAddress', '4 Hope Road, Kingston 6');
+  await hp.fill('#grEmergencyName', 'Paulette Barrett');
+  await hp.fill('#grEmergencyPhone', '876-555-0145');
   await hp.click('#grSend');
   ok(/at least 6 characters/.test(await hp.evaluate(() => document.getElementById('grSay').textContent)), 'a weak password is said in the form, nothing sent');
   await hp.fill('#grPassword', NEW.pass);
@@ -372,6 +383,7 @@ const GSI_STUB = `(function(){
   await op.waitForSelector('#verifyUsersTableBody .vu-home-note', { timeout: 15000 });
   const row = await op.evaluate(() => Array.from(document.querySelectorAll('#verifyUsersTableBody tr')).map(r => r.innerText.replace(/\s+/g, ' ')).find(t => /Shantelle Barrett/.test(t)) || '');
   ok(/Registered from home · email account verified/.test(row) && /shantelle\.barrett@gmail\.com/.test(row) && /876-555-0147/.test(row), 'Verify Users: "Registered from home · email account verified" (' + row.slice(0, 140) + ')');
+  ok(/Born 2005-02-14/.test(row) && /TRN 123-456-789/.test(row) && /Emergency: Paulette Barrett 876-555-0145/.test(row), 'and her personal details, for the office to check (OF-3)');
   ok(await op.evaluate(() => (document.getElementById('pendingUsersBadge') || {}).textContent === '1'), 'and the sidebar counts it');
   await shotBoth(op, '05-verify-users-home-registration-phone', { phone: true, scrollTo: '#verifyUsersTableBody' });
   // On a phone the table scrolls sideways inside its card (the name column stays): its Activate and Reject.
@@ -399,6 +411,14 @@ const GSI_STUB = `(function(){
   // enrolment register shows them (it read "— — —").
   const regContact = await until(() => op.evaluate(sid => { const s = students.find(x => x.id === sid); return s && s.phone ? { email: s.email, phone: s.phone } : null; }, regSid), 10000);
   ok(regContact && regContact.email === NEW.email && regContact.phone === NEW.phone, 'approved: her email and phone are on her trainee record (' + JSON.stringify(regContact) + ')');
+  // What she gave at home, on her trainee record and her fee record (OF-3).
+  const regDetails = await until(() => op.evaluate(sid => {
+    const s = students.find(x => x.id === sid);
+    let fee = null; try { fee = JSON.parse(CESTISStore.getItem('cestiSchoolFeeStudents') || '[]').find(f => f.lmsId === sid) || null; } catch (e) {}
+    return s && fee && fee.emergencyContact ? { gender: s.gender, dob: s.dob, trn: s.trn, address: s.address, feeDob: fee.dateOfBirth, emergency: fee.emergencyContactName + ' ' + fee.emergencyContact } : null;
+  }, regSid), 10000);
+  ok(regDetails && regDetails.gender === 'Female' && regDetails.dob === '2005-02-14' && regDetails.trn === '123-456-789' && regDetails.feeDob === '2005-02-14' &&
+    regDetails.emergency === 'Paulette Barrett 876-555-0145', 'approved: what she gave at home is on her trainee and fee records (' + JSON.stringify(regDetails) + ')');
   await op.evaluate(sid => { showPage('enrolment-registers'); const s = students.find(x => x.id === sid); const c = s && studentCentreRecord(s); if (c) enrolToggleRoster(c.id); }, regSid);
   const regRow = await until(() => op.evaluate(n => { const r = Array.from(document.querySelectorAll('#enrolmentRegistersContent tr')).find(tr => tr.innerText.indexOf(n) !== -1); return r ? r.innerText.replace(/\s+/g, ' ') : null; }, NEW.name), 10000);
   ok(regRow && regRow.indexOf(NEW.phone) !== -1 && regRow.indexOf(NEW.email) !== -1, 'and the enrolment register row shows them (' + regRow + ')');
