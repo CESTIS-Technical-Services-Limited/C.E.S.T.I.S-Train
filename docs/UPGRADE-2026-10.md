@@ -116,6 +116,7 @@ saw screenshots.
 | **Audit fixes (PR #349)** | Every trainee reaches a small-room live class; the idle lock leaves a class or an open sitting alone and accepts a trainee's password at home; pass rates from marked results; one counting rule per figure with its denominator; dropouts stay Incomplete; the full gradebook; no default answer key; no false "uploaded"; notices to their programme; contact details carried to the trainee and fee records; a warning before a receipt number is reused. | `tests/vc-small-room-joiners.test.js`, `tests/centre-figures.test.js`, `tests/pass-rate-from-marks.test.js` and the other tests named in each commit |
 | **Live classes on less data (owner approved 30 Oct)** | Trainees start muted with the camera off; a muted microphone sends nothing; a trainee's camera goes to the instructor only; the instructor's picture budget is shared fairly as people join and leave; recordings at about 550 kbit/s; Large Class is put first above 6 trainees only once the Centre has its own video server. Measured, class of 6: a trainee's upload 553 → 6 kbit/s. | `tests/vc-room.test.js`, `tests/vc-page.test.js`, `tests/browser/vc-room.js` |
 | **Home study (owner approved 30 Oct)** | A trainee's link opens on her own form; "Your class is live — Join class" and "Test open now — Start test" at the top of her home screen (her phone checks every minute around class time); My Progress shows her real figures; photos made about 0.4 MB on the phone and sent in parts that survive a dropped signal; My Fees and Change Password at home; her certificate downloads at home once approved; she is told when to expect approval and emailed when approved; the bell's glow stops after three pulses. The trainee sign-in program is version 3 (paste the latest when setting it up). | `tests/home-study.test.js`, `tests/browser/home-study.js`, `docs/trainee-gate/DESIGN.md` §18 |
+| **Records safe for years (group F, safety and visibility)** | A dated **weekly backup** of the whole-Centre backup, made by itself (a copy where it is kept — no upload), the newest 12 kept, older ones to the trash (only files this system made; nothing deleted); **Last backup** and a prompt at 7 days in the Administrator's sync panel; **Restore from a Weekly Backup** with a preview, add-only; the last Export recorded; **storage** used and free with a warning from 80%; **"Storage is full — tell the administrator"** for everyone (work kept, resent every 2 minutes); each staff computer's last save; one **System health** card on the Administrator's dashboard (and a daily-at-most bell for trainee sign-in); the setup sheet's console checks as **buttons**; a **Reconnect** button when the hourly sign-in renewal is blocked; the Centre's network keeps one copy a week of every file for 12 weeks. The owner's page: `docs/RUNNING-THE-CENTRE.md`. | `tests/records-safe-core.test.js`, `tests/records-safe-page.test.js`, `tests/browser/records-safe.js`, `tests/browser/sign-in-renewal.js`, `tests/browser/gate-checks.js`, `Offline System/tests/offline-store.test.js` |
 | **Sync that rests, and chat that is never emptied** | An untouched office PC stops saving and uploading (≈2.9 GB a day → ≈2.4 MB); a big chat history or fee roll is no longer emptied at start-up; a change uploads the Main copy only, the extra copies every 30 minutes, at sign-out, or at once while Main fails; sign-in skips bytes it already has (month 10: 771 → 134 MB downloaded); the Centre network sends only changed keys, compresses its history and accepts files up to 512 MiB; the Cashbook checks before downloading; a new attendance mark no longer reads the whole register. | `tests/sync-idle-quiet.test.js`, `tests/chat-history-not-emptied.test.js`, `tests/backup-copy-cadence.test.js`, `tests/lan-partial-save.test.js`, `tests/browser/sync-quiet.js`, `tests/browser/backup-copies.js` |
 
 **Decisions the owner made in this round (29–30 October 2026):**
@@ -412,6 +413,33 @@ instructor and 6 trainees on phone settings, every connection's bytes read from 
   - Its own edits are re-dated to the correct time instead of being lost.
   - A warning shows when a device's clock disagrees with Google's.
 - **Restores.** Importing a backup pauses auto-save, so the restore is not undone.
+- **Kept safe for years (group F, 30 October).**
+  - **Weekly backups.** Once per ISO week the first administrator or office PC that saves online
+    copies the whole-Centre backup (the master snapshot, with its checksum and counts) into a
+    *Backups* folder beside the backup folders, as `CESTIS-backup-<year>-W<week>.json`, by a copy
+    made where it is kept (no upload); if a copy cannot be made, it uploads the snapshot it builds.
+    Each PC looks for this week's file first (a file of that name counts as done), and a second
+    made in the same moment goes to the trash. The newest 12 weeks are kept; older ones go to the
+    trash — only files whose name matches and that carry the mark set when they were made
+    (`appProperties cestisBackup=weekly`). Nothing is ever deleted. The folder's id is kept in the
+    Centre's settings (`backupsFolderId`).
+  - **Restore from a Weekly Backup** (Administrator, sync menu or the health card): pick a week,
+    see what it would add, then add it. It is the master backup's own add-only merge
+    (`CESTISCore.reconcileSnapshot`): newer work is never overwritten, deletions stay deleted.
+  - **Storage.** The Administrator sees the account's storage, used and free, with a warning from
+    80% ("Clear out old class recordings, or empty the trash."). A save refused because the
+    account is full (403 `storageQuotaExceeded`, from the dashboard, a sibling page or the trainee
+    sign-in's staff side) says **"Storage is full — tell the administrator"** to everyone and what
+    to do to the Administrator; the work stays on the computer and the backup is resent every
+    2 minutes (not every 5 seconds), and at once when the storage figure shows room.
+  - **Each staff computer's last save** travels with the backup (`deviceSaves`, newest per
+    computer; dated only when a real change goes up, and left out of the "has anything changed?"
+    check, so an idle PC still rests).
+  - **Reconnect.** When the hourly renewal of the sync sign-in is blocked by the browser (it runs
+    from a timer, never a click), or has run out, a small **Reconnect** button beside the sync
+    control renews it from the press. Signing in itself is unchanged.
+  - **The Centre's network** keeps one dated copy of every file a week, for 12 weeks
+    (`data/.weekly`), besides its last 40 versions.
 - **Sync cost (29 October).**
   - An untouched dashboard no longer saves or uploads anything; an edit made at any moment,
     during an upload too, still goes up on the next 5-second tick.
@@ -476,6 +504,9 @@ instructor and 6 trainees on phone settings, every connection's bytes read from 
 ---
 
 ## Keeping it healthy (minimum maintenance)
+
+- **For the owner:** the daily, weekly, monthly, termly and yearly jobs, and what to do when
+  something goes wrong, are on one page: [`docs/RUNNING-THE-CENTRE.md`](RUNNING-THE-CENTRE.md).
 
 - **Before every change is published, run:**
   ```

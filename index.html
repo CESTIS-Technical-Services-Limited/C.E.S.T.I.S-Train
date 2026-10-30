@@ -35054,7 +35054,7 @@ function showCloudNotification(type, title, message, showConnect, autoDismissSec
       '<button class="cloud-notify-close" onclick="dismissCloudNotification()">&times;</button>' +
     '</div>' +
     '<div class="cloud-notify-actions">' +
-      (showConnect ? '<button class="btn btn-success" onclick="dismissCloudNotification();cestisReconnectFromClick()">Reconnect Now</button>' : '') +
+      (showConnect ? '<button class="btn btn-success" onclick="dismissCloudNotification();reconnectCloudSync()">Reconnect Now</button>' : '') +
       '<button class="btn btn-secondary" onclick="dismissCloudNotification()">Dismiss</button>' +
     '</div>' +
     (autoDismissSec ? '<div class="cloud-notify-timer" style="animation:notifyCountdown ' + autoDismissSec + 's linear forwards"></div>' : '');

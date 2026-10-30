@@ -234,6 +234,18 @@ assert(!/F12|console|```js/.test(sec3), 'the setup sheet\'s live checks paste no
 const gs = fs.readFileSync(path.join(ROOT, 'trainee-gate', 'Gate.gs'), 'utf8');
 assert(/var GATE_VERSION = 3;/.test(gs) && /'diag\.echo': gateDiagEcho, 'diag\.tokeninfo': gateDiagTokenInfo/.test(gs), 'the gate itself is unchanged: version 3, its own diag checks');
 
+console.log('Running the Centre: one plain page (OPS-3, OPS-13)');
+const run = fs.readFileSync(path.join(ROOT, 'docs', 'RUNNING-THE-CENTRE.md'), 'utf8');
+['## Every day', '## Every week', '## Every month', '## Every term', '## Every year', '## When something goes wrong', '## Who owns what'].forEach(h =>
+  assert(run.indexOf(h) !== -1, 'RUNNING-THE-CENTRE.md has "' + h + '"'));
+['office computer signed in', 'System health', 'USB stick', 'class recordings', 'Academic Year', 'cert-keys.json', 'payroll rates', 'EmailJS', 'TURN',
+ 'lost, stolen or broken', 'Google account is lost', 'folder was deleted', 'Trash', 'within 30 days', 'Restore from a Weekly Backup', 'Trainee sign-in stops working',
+ 'Two people', '2-Step Verification', 'recovery phone', '"In production", not "Testing"'].forEach(w =>
+  assert(run.indexOf(w) !== -1, 'it covers "' + w + '"'));
+const readme = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8');
+assert(/\[`docs\/RUNNING-THE-CENTRE\.md`\]\(docs\/RUNNING-THE-CENTRE\.md\)/.test(readme.slice(0, 600)), 'README points to it first');
+assert(/Setting up MegaData \(operator checklist\) — NOT IN USE/.test(readme) && !/126 Node suites/.test(readme), 'README: the broker checklist marked "not in use"; the old counts gone');
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(1); });
