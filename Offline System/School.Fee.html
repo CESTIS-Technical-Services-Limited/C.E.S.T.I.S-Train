@@ -115,18 +115,56 @@
 })();
 </script>
 
-<script src="vendor/xlsx-0.18.5.full.min.js"></script>
-<script>window.XLSX||(document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js">\x3C/script>'))</script>
-<script>window.XLSX||(document.write('<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js">\x3C/script>'))</script>
-    <script src="vendor/chart-3.9.1.min.js"></script>
-<script>window.Chart||(document.write('<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js">\x3C/script>'))</script>
-<script>window.Chart||(document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js">\x3C/script>'))</script>
-    <script src="vendor/jspdf-2.5.1.umd.min.js"></script>
-<script>window.jspdf||(document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js">\x3C/script>'))</script>
-<script>window.jspdf||(document.write('<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js">\x3C/script>'))</script>
-    <script src="vendor/jspdf.plugin.autotable-3.5.31.min.js"></script>
-<script>(window.jspdf&&window.jspdf.jsPDF&&window.jspdf.jsPDF.API&&window.jspdf.jsPDF.API.autoTable)||(document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js">\x3C/script>'))</script>
-<script>(window.jspdf&&window.jspdf.jsPDF&&window.jspdf.jsPDF.API&&window.jspdf.jsPDF.API.autoTable)||(document.write('<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.5.31/dist/jspdf.plugin.autotable.min.js">\x3C/script>'))</script>
+<!-- The spreadsheet (xlsx), chart and PDF libraries (about 1.5 MB, 500 KB on the
+     wire) are fetched the first time they are needed, not before the page can be
+     used: the dashboard's two charts ask for Chart when they are drawn, the Excel
+     import and exports ask for XLSX, and the PDF report and receipts ask for jsPDF
+     with its table plug-in. This site's copy first, then the two CDNs each used
+     to fall back to. A failure is not remembered, so asking again tries again. -->
+<script>
+(function feeVendorLoader() {
+  var LIBS = {
+    XLSX: { have: function () { return !!window.XLSX; },
+      tries: ['vendor/xlsx-0.18.5.full.min.js', 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js', 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js'] },
+    Chart: { have: function () { return !!window.Chart; },
+      tries: ['vendor/chart-3.9.1.min.js', 'https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js', 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js'] },
+    jspdf: { have: function () { return !!(window.jspdf && window.jspdf.jsPDF); },
+      tries: ['vendor/jspdf-2.5.1.umd.min.js', 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js', 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js'] },
+    autoTable: { have: function () { return !!(window.jspdf && window.jspdf.jsPDF && window.jspdf.jsPDF.API && window.jspdf.jsPDF.API.autoTable); },
+      tries: ['vendor/jspdf.plugin.autotable-3.5.31.min.js', 'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js', 'https://cdn.jsdelivr.net/npm/jspdf-autotable@3.5.31/dist/jspdf.plugin.autotable.min.js'] }
+  };
+  function one(name) {
+    var lib = LIBS[name];
+    if (lib.have()) return Promise.resolve();
+    if (lib.promise) return lib.promise;
+    lib.promise = new Promise(function (resolve, reject) {
+      (function next(i) {
+        if (lib.have()) return resolve();
+        if (i >= lib.tries.length) { lib.promise = null; return reject(new Error(name + ' could not be loaded')); }
+        var el = document.createElement('script');
+        el.src = lib.tries[i]; el.async = true;
+        el.onload = function () { next(lib.have() ? i : i + 1); };
+        el.onerror = function () { next(i + 1); };
+        (document.head || document.documentElement).appendChild(el);
+      })(0);
+    });
+    return lib.promise;
+  }
+  // 'jspdf' brings its table plug-in too (every PDF here draws tables).
+  window.feeNeedLib = function (name) {
+    return name === 'jspdf' ? one('jspdf').then(function () { return one('autoTable'); }) : one(name);
+  };
+  // Run `again` once the library has arrived; true when it is here already.
+  window.feeWithLib = function (name, again) {
+    var here = name === 'jspdf' ? LIBS.jspdf.have() && LIBS.autoTable.have() : LIBS[name].have();
+    if (here) return true;
+    window.feeNeedLib(name).then(again, function () {
+      alert('This needs a connection the first time it is used. Check the connection and try again.');
+    });
+    return false;
+  };
+})();
+</script>
 
     <!-- Google Identity Services for Drive Integration.
          MUST stay async. These two were the only synchronous third-party scripts
@@ -10373,7 +10411,11 @@
             // page init BEFORE mountSchoolFeeQuarterBar() and the other control
             // wiring, so an uncaught error here would abort init and leave the
             // quarterly payment filter (and more) dead. Charts are non-critical.
-            if (typeof Chart === 'undefined') return;
+            if (typeof Chart === 'undefined') {
+                // Chart arrives the first time the charts are drawn; draw them then.
+                if (window.feeNeedLib && _feeModuleActive('dashboard')) feeNeedLib('Chart').then(function () { initializeCharts(); }, function () {});
+                return;
+            }
             // Building a chart is the single most expensive thing on the page,
             // and every recorded payment, edit and delete used to destroy and
             // rebuild both of them — while the user was looking at the Payments
@@ -10902,6 +10944,7 @@
 
         // Professional Report PDF Export
         function exportReportToPDF() {
+            if (!feeWithLib('jspdf', function () { exportReportToPDF(); })) return;
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
             const pageWidth = doc.internal.pageSize.getWidth();
@@ -11280,6 +11323,7 @@
 
         // Export to PDF
         function exportToPDF() {
+            if (!feeWithLib('jspdf', function () { exportToPDF(); })) return;
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
             
@@ -11324,6 +11368,7 @@
 
         // Generate Professional Payment Receipt PDF
         function generateReceipt(payment, student) {
+            if (!feeWithLib('jspdf', function () { generateReceipt(payment, student); })) return;
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
             const pageWidth = doc.internal.pageSize.getWidth();
@@ -11565,6 +11610,7 @@
 
         // Export to Excel
         function exportToExcel() {
+            if (!feeWithLib('XLSX', function () { exportToExcel(); })) return;
             // The Reports tab's export is the year's group it is showing; the
             // whole roll is still one click away under Import/Export.
             const group = feeReportStudents();
@@ -11598,6 +11644,7 @@
 
         // Import/Export Functions
         function handleImportFile(e) {
+            if (!feeWithLib('XLSX', function () { handleImportFile(e); })) return;
             const file = e.target.files[0];
             if (!file) return;
             
@@ -11713,6 +11760,7 @@
         }
 
         function exportAllData(type) {
+            if (!feeWithLib('XLSX', function () { exportAllData(type); })) return;
             const wb = XLSX.utils.book_new();
             
             if (type === 'students' || type === 'complete') {

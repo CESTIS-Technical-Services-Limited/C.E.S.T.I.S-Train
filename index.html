@@ -9,9 +9,55 @@
      so the operating pages' books reach its dashboards without anyone syncing. -->
 <script src="cestis-page-cloud.js?v=6e14079c"></script>
 <script src="cestis-gate-client.js?v=e98c2d11" defer></script>
-<script src="staff-appraisals.js?v=017111e8"></script>
-<script src="cmc-portal.js?v=65318ed9"></script>
-<script src="cert-template-seed.js?v=3081872c"></script>
+<!-- The staff and board modules: Staff Appraisals, the CMC Board's portal and
+     the certificate designs' seed (about 255 KB, 61 KB on the wire). A trainee's
+     phone never runs them, so they are not downloaded on a trainee's sign-in link
+     (#gate=) or in a trainee's own session (the gate's store). Everywhere else
+     they load right here, before the page, exactly as they always have.
+     cestisStaffModules.load() fetches them when they are wanted after all: a
+     member of staff signing in on such a phone (enterApp), or a sync that has to
+     carry the appraisals (the backup builders and merges wait for it, so a backup
+     never goes up without them). -->
+<script>
+(function () {
+  var FILES = ['staff-appraisals.js?v=017111e8', 'cmc-portal.js?v=65318ed9', 'cert-template-seed.js?v=3081872c'];
+  var GLOBALS = ['sappCloudExport', 'CESTISCmc', 'CESTISCertSeed'];
+  var trainee = false;
+  try { trainee = /^g[0-9]{1,3}$/.test(localStorage.getItem('cestisGateNs') || '') || /(?:^#|[#&])gate=/.test(location.hash || ''); } catch (e) {}
+  function have() { return GLOBALS.every(function (g) { return !!window[g]; }); }
+  var pending = null;
+  window.cestisStaffModules = {
+    skipped: trainee,
+    // Here and working. (Also false where they failed to download, so a sync
+    // waits for them rather than sending a backup without the appraisals.)
+    ready: function () { return have(); },
+    load: function () {
+      if (have()) return Promise.resolve();
+      if (pending) return pending;
+      pending = FILES.reduce(function (chain, f, i) {
+        return chain.then(function () {
+          if (window[GLOBALS[i]]) return;
+          return new Promise(function (resolve, reject) {
+            var el = document.createElement('script');
+            el.src = f; el.async = false;
+            el.onload = resolve;
+            el.onerror = function () { reject(new Error(f + ' could not be loaded')); };
+            (document.head || document.documentElement).appendChild(el);
+          });
+        });
+      }, Promise.resolve()).then(function () { if (!have()) throw new Error('the staff modules did not load'); })
+        .catch(function (e) { pending = null; throw e; });
+      return pending;
+    }
+  };
+  // Written as ordinary script tags, so they load (and run) before the rest of
+  // the page exactly as the three tags here used to. (The tag name is built so
+  // the service worker's first-visit list does not take these files: a
+  // trainee's phone must not download them in the background either.)
+  var tag = 'script';
+  if (!trainee) document.write(FILES.map(function (f) { return '<' + tag + ' src="' + f + '"></' + tag + '>'; }).join(''));
+})();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <!-- Installable, with an icon, and able to open with no connection (sw.js). -->
 <link rel="manifest" href="manifest.json">
@@ -13567,6 +13613,15 @@ function updateTopbarWho() {
   box.classList.add('on');
 }
 function enterApp(role) {
+  // The staff and board modules are not downloaded on a trainee's phone (see
+  // cestisStaffModules in <head>): a member of staff signing in there gets
+  // them first, then the portal opens as usual.
+  if (role !== 'student' && window.cestisStaffModules && cestisStaffModules.skipped && !cestisStaffModules.ready() && !cestisStaffModules.tried) {
+    cestisStaffModules.tried = true;
+    var _enterAgain = function() { enterApp(role); };
+    cestisStaffModules.load().then(_enterAgain, _enterAgain);   // if they cannot arrive, it opens as a failed download always did
+    return;
+  }
   try {
     // The portal opened is the one the signed-in account holds. enterApp()
     // trusted its argument, so one console call opened the Administrator
@@ -13897,7 +13952,7 @@ async function submitRegistration() {
   var role = CESTISCore.accountAccess.registrationRole(document.getElementById('regRole').value);
 
   if(!name || name.length < 2) { alert('Please enter your full name.'); return; }
-  if(typeof sappIsFullName === 'function' && !sappIsFullName(name)) { alert('Please enter your FULL name — first name AND last name (e.g. "John Smith").'); return; }
+  if(!CESTISCore.accountAccess.isFullName(name)) { alert('Please enter your FULL name — first name AND last name (e.g. "John Smith").'); return; }
   // No name has angle brackets; markup in a name was the way script reached admin pages.
   if(/[<>]/.test(name) || /[<>"]/.test(email)) { alert('Names and email addresses cannot contain < > or " characters.'); return; }
   if(!email || !email.includes('@')) { alert('Please enter a valid email address.'); return; }
@@ -37725,6 +37780,10 @@ async function syncFromCloud() {
 // FEATURE 3: MERGE FROM CLOUD
 // ============================================
 async function mergeFromCloud() {
+  // The appraisals travel with every backup: wait for their module where it was left out.
+  if (window.cestisStaffModules && !cestisStaffModules.ready()) {
+    try { await cestisStaffModules.load(); } catch (e) { showToast('Could not sync — try again or ask the office.', 'error'); return; }
+  }
   // Revalidate token from localStorage in case page was restored from bfcache or tab was backgrounded
   revalidateCloudSync();
   if (!isCloudConnected || !googleAccessToken) {
@@ -38685,6 +38744,10 @@ async function findPerUserBackupFile() {
 
 async function savePerUserBackup() {
   if (!isCloudConnected || !googleAccessToken || !currentLoggedInUser) return;
+  // The appraisals travel with every backup: wait for their module where it was left out.
+  if (window.cestisStaffModules && !cestisStaffModules.ready()) {
+    try { await cestisStaffModules.load(); } catch (e) { return; }
+  }
   var fileName = getPerUserBackupFileName();
   if (!fileName) return;
   try {
@@ -39255,6 +39318,10 @@ function pullAllowsUpload() {
 // through here, so there is exactly one set of merge rules.
 var _mergeBackupFailed = false;
 async function mergeBackupData(backupData) {
+  // The appraisals travel with every backup: wait for their module where it was left out.
+  if (window.cestisStaffModules && !cestisStaffModules.ready()) {
+    try { await cestisStaffModules.load(); } catch (e) { _mergeBackupFailed = true; return false; }
+  }
   _mergeBackupFailed = false;
   try {
     if (!backupData || !backupData.data) {
@@ -40318,6 +40385,10 @@ async function autoSaveToAllFolders() {
   // landing page (a pre-login merge, a registration) before this device has
   // pulled, and nothing goes up from a store that has just been wiped.
   if (_sessionWiped || !currentRole) return;
+  // The appraisals travel with every backup: wait for their module where it was left out.
+  if (window.cestisStaffModules && !cestisStaffModules.ready()) {
+    try { await cestisStaffModules.load(); } catch (e) { return; }
+  }
 
   _isAutoSaving = true;
   _lastAutoSaveResult = { uploaded: false, reason: 'not-run' };
