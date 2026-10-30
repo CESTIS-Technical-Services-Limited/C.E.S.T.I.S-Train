@@ -55,9 +55,8 @@ What you need:
 8. Back in the dashboard card, paste it into **Address** and press **Check**. The first check makes
    the program create its folders, its secret and `CESTIS_GATE.json`. Expect **"Ready — version 3"**
    and the number of trainee accounts.
-   - *If the card is not there yet:* paste the address into a new browser tab and add `?op=selfcheck`
-     to the end. You should see a page of ✓ lines: *Secret made*, *Folders present*, *Accounts list
-     found (N trainee accounts …)*.
+   - The card's **Open the full check page** button (under *Checks after setup*) opens a page of ✓
+     lines: *Secret made*, *Folders present*, *Accounts list found (N trainee accounts …)*.
    - "Accounts list not found yet" means no staff member has signed in on the dashboard since the
      accounts list was introduced. Sign in on the dashboard once, wait a minute, check again.
 9. Press **Turn on**. Print the trainees' QR code, or show it on the lab screens.
@@ -87,7 +86,7 @@ Now run the **live checks** (section 3) once.
 2. Open **https://script.google.com** (signed in as the Centre) → click **CESTIS Trainee Gate**.
 3. Click in the code → **Ctrl+A** → **Ctrl+V** → **Ctrl+S**.
 4. **Deploy → Manage deployments → ✏ (Edit) → Version: New version → Deploy.**
-5. Open the address with `?op=selfcheck` — the first line shows the new version.
+5. Press **Open the full check page** on the dashboard card — the first line shows the new version.
 
 Never use **Deploy → New deployment** for an upgrade: that makes a **new address**, and every
 trainee's link and QR code would have to be shared again. (The old address keeps working until it is
@@ -101,9 +100,14 @@ These check the things that cannot be tested before the program runs in the Cent
 Each says what to do and what to do if it fails. Nothing here touches anybody's records. Write the
 results down and send them to whoever maintains the dashboard.
 
-*"The address"* below means the Web app URL from step 7. For the checks in the browser console:
-open the dashboard's own site in Chrome, press **F12**, click **Console**, paste the line, press
-**Enter**. Put the address between the quotes at the start.
+**No code to paste.** Checks 2, 3, 4 and 5 are buttons on the dashboard card: **Settings → Trainee
+Sign-in from Anywhere → Checks after setup**. Press each one once, on the office PC, signed in as an
+administrator with sync turned on. Each button writes its answer under the buttons, starting with
+✓ (good), ✗ (needs fixing, with what to do) or • (look again shortly). The card uses the address you
+pasted in step 8. Checks 1, 6 and 7 are done in the program's editor and on its check page, as
+below.
+
+*"The address"* below means the Web app URL from step 7.
 
 ### Live check 1 — the program is accepted, and how long a cold start takes
 
@@ -125,49 +129,32 @@ open the dashboard's own site in Chrome, press **F12**, click **Console**, paste
 
 ### Live check 2 — the dashboard's site may call the program (CORS, plain-text POST)
 
-- **Do (console):**
-  ```js
-  var GATE = 'https://script.google.com/macros/s/…/exec';
-  fetch(GATE, { method: 'POST', body: JSON.stringify({ op: 'health' }) })
-    .then(r => r.json()).then(j => console.log('OK', j)).catch(e => console.log('FAILED', e));
-  ```
-- **Expect:** `OK {ok: true, service: "cestis-trainee-gate", version: 3, …}`. (A text body is sent
-  as `text/plain`, so the browser asks no permission first.)
-- **If FAILED with "CORS" or "blocked":** check that step 5 said **Who has access: Anyone**, and
+- **Do:** press **This page can reach it**.
+- **Expect:** *✓ Live check 2: this page can reach trainee sign-in — version 3.* (Behind it, the
+  program answers `{ok: true, service: "cestis-trainee-gate", version: 3, …}`. The button sends a
+  text body, `text/plain`, so the browser asks no permission first.)
+- **If it says ✗:** check that step 5 said **Who has access: Anyone**, and
   that the address ends in `/exec` (not `/dev`). Fix with **Deploy → Manage deployments → ✏ → Who
   has access: Anyone → Deploy**, then try again. If it still fails, stop here and tell the maintainer —
   until this works the program cannot be used, and nothing changes for anybody.
 
 ### Live check 3 — a 7 MB request arrives whole (a 5 MB upload is about 6.7 MB on the way)
 
-- **Do (console, after check 2):**
-  ```js
-  var body = JSON.stringify({ op: 'diag.echo', pad: 'x'.repeat(7 * 1024 * 1024) });
-  fetch(GATE, { method: 'POST', body }).then(r => r.json())
-    .then(j => console.log(j.chars === body.length ? 'OK: 7 MB arrived whole' : 'FAILED', j))
-    .catch(e => console.log('FAILED', e));
-  ```
-- **Expect:** `OK: 7 MB arrived whole`.
-- **If FAILED:** try `4 * 1024 * 1024`, then `2 * 1024 * 1024`, and note the largest that passes.
-  The maintainer then lowers the upload limit to fit (or sends files in parts). Until then, ask
-  trainees to keep files small.
+- **Do (after check 2):** press **A large file arrives whole**. It takes up to a minute.
+- **Expect:** *✓ Live check 3: a 7 MB request arrived whole, so a 5 MB file can be sent.*
+- **If it says the largest that arrived whole was 4 MB or 2 MB (amber), or ✗:** the button has
+  already tried the smaller sizes for you; note what it says. The maintainer then lowers the upload
+  limit to fit (or sends files in parts). Until then, ask trainees to keep files small. *"Too many
+  checks in a minute"* means wait a minute and press again.
 
 ### Live check 4 — Google's token check names the dashboard (`aud`)
 
-- **Do (console, on the dashboard's sign-in page):**
-  ```js
-  google.accounts.oauth2.initTokenClient({ client_id: GOOGLE_DRIVE_CONFIG.CLIENT_ID,
-    scope: 'https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile',
-    callback: function (t) {
-      fetch(GATE, { method: 'POST', body: JSON.stringify({ op: 'diag.tokeninfo', accessToken: t.access_token }) })
-        .then(r => r.json()).then(j => console.log(j));
-    } }).requestAccessToken();
-  ```
-  Choose any email account (yours is fine). Only field names and yes/no answers come back — never the
-  address.
-- **Expect:** `audIsOurs: true`, `emailVerified: true`, `hasEmailScope: true`, and `fields` listing
-  `aud`.
-- **If `audIsOurs` is false:** the program checks against the dashboard's own sign-in client. If the
+- **Do:** press **Email sign-in is accepted**. A sign-in window opens: choose any email account
+  (yours is fine). Only field names and yes/no answers come back to the card — never the address.
+- **Expect:** *✓ Live check 4: email sign-in is accepted, and checked as this site's own.* (Behind
+  it: `audIsOurs`, `emailVerified` and `hasEmailScope` all true, and `aud` among the fields.)
+- **If the window was closed or blocked:** press the button again (it opens from your press).
+- **If it says the sign-in names another site (`audIsOurs` false):** the program checks against the dashboard's own sign-in client. If the
   site uses another one, add it in the editor: **Project Settings (⚙) → Script properties → Add
   script property** → `GOOGLE_CLIENT_ID` = the client id → **Save**. If `aud` is not in `fields` at
   all, tell the maintainer (email sign-in and registration from home through this program stay
@@ -175,15 +162,12 @@ open the dashboard's own site in Chrome, press **F12**, click **Console**, paste
 
 ### Live check 5 — a file is found by the start of its name
 
-- **Do:** open the address with `?op=selfcheck` and find the *Name search* line. Then, on the
-  **office PC** where the dashboard is signed in and synced, in the console:
-  ```js
-  fetch('https://www.googleapis.com/drive/v3/files?fields=files(id,name)&q=' +
-    encodeURIComponent("name contains 'CESTISSMOKE' and trashed = false"),
-    { headers: { Authorization: 'Bearer ' + googleAccessToken } }).then(r => r.json()).then(j => console.log(j));
-  ```
-- **Expect:** *✓ Name search finds a file by the start of its name*, and the console lists one file,
-  `CESTISSMOKE.name-check.json`. (A new file can take a few minutes to be found; look again.)
+- **Do:** press **Open the full check page** (it opens the address with `?op=selfcheck` in a new
+  tab) and find the *Name search* line. Then, back on the card, press **Files are found by name**.
+- **Expect:** *✓ Name search finds a file by the start of its name* on the check page, and *✓ Live
+  check 5: files are found by the start of their name* on the card (it found
+  `CESTISSMOKE.name-check.json`). A new file can take a few minutes to be found: if the card says
+  *not found yet*, press again in a few minutes.
 - **If either fails after 30 minutes:** tell the maintainer. The office PCs will then look in each
   trainee's folder instead of searching (slower, but it works).
 
@@ -197,7 +181,7 @@ open the dashboard's own site in Chrome, press **F12**, click **Console**, paste
 
 ### Live check 7 — a folder is found by the words in its description
 
-- **Do:** open the address with `?op=selfcheck` and find the *Description search* line.
+- **Do:** press **Open the full check page** and find the *Description search* line.
 - **Expect:** *✓ Description search finds a folder by its description*. Just after setup it may say
   "not found yet (made N min ago)" — look again after 10 minutes.
 - **If it still says ✗ after 30 minutes:** the program still finds a folder it made itself, or one
