@@ -153,16 +153,24 @@ function page(opts) {
     setCmcChair() { return ''; }
   };
   vm.createContext(sb);
+  // Admin Staff's ticks are read person by person (asAccessForMe, OF-2).
+  vm.runInContext(extractStatement('var AS_ACCESS_DEFAULTS = {', '};') + ';\n' + ['adminStaffAccessDefaults', 'asAccessFor', 'asAccessForMe'].map(extractFunction).join('\n'), sb);
+  // The New trainee form's detail boxes (OF-7); filling the records is tested in tests/new-trainee-form.test.js.
+  vm.runInContext(extractStatement('var AT_DETAIL_IDS = {', '};') + ';\nfunction applyTraineeDetails(s, d) { applied.push([s && s.id, d]); return true; }\nvar applied = [];', sb);
   vm.runInContext(FUNCS.map(extractFunction).join('\n\n'), sb);
   return sb;
 }
 (async function () {
   console.log('\nAdmin Staff add a trainee\'s account in the office: active at once, and who made and approved it is written down');
-  let P = page({ fields: { atName: 'Tameka  Richards', atEmail: 'tameka.r@example.com', atPhone: '876-555-0101', atProgramme: 'Welding & Fabrication', atPassword: 'Tameka-2026', atUsername: '' } });
+  let P = page({ fields: { atName: 'Tameka  Richards', atEmail: 'tameka.r@example.com', atPhone: '876-555-0101', atProgramme: 'Welding & Fabrication', atPassword: 'Tameka-2026', atUsername: '', atGender: 'Female' } });
   P.openAddTraineeAccount();
   assertEq(P.opened, ['addTraineeModal'], 'the form opens');
   assert(/Welding &amp; Fabrication|Welding & Fabrication/.test(P.els.atProgramme.innerHTML) && /Cosmetology/.test(P.els.atProgramme.innerHTML), 'offering the programmes taking trainees');
   P.fields.atName = 'Tameka  Richards'; P.fields.atEmail = 'tameka.r@example.com'; P.fields.atPhone = '876-555-0101'; P.fields.atProgramme = 'Welding & Fabrication'; P.fields.atPassword = 'Tameka-2026';
+  P.fields.atGender = '';
+  await P.createTraineeAccount();
+  assertEq([P.userAccounts.length, /gender/.test(P.els.atSaid.textContent)], [0, true], 'the New trainee form asks for gender (OF-7)');
+  P.fields.atGender = 'Female';
   await P.createTraineeAccount();
   const a = P.userAccounts[0];
   assertEq([a.role, a.status, a.name, a.username, a.email, a.phone, a.programme, a.registeredVia], ['student', 'active', 'Tameka Richards', 'tameka.r', 'tameka.r@example.com', '876-555-0101', 'Welding & Fabrication', 'admin-created'],
@@ -178,15 +186,15 @@ function page(opts) {
   await P.createTraineeAccount();
   assertEq([P.userAccounts.length, P.els.atSaid.hidden, /email already exists/.test(P.els.atSaid.textContent)], [1, false, true], 'the same email in another case: refused, said in the form');
   P.fields.atEmail = 'other@example.com'; P.fields.atProgramme = 'Cosmetology';
-  P = page({ blocked: { Cosmetology: 'The course "Cosmetology" ENDED on 2026-06-30.' }, fields: { atName: 'Kemar Johnson', atEmail: '', atPassword: 'Kemar-2026', atProgramme: 'Cosmetology' } });
+  P = page({ blocked: { Cosmetology: 'The course "Cosmetology" ENDED on 2026-06-30.' }, fields: { atName: 'Kemar Johnson', atEmail: '', atPassword: 'Kemar-2026', atProgramme: 'Cosmetology', atGender: 'Male' } });
   P.openAddTraineeAccount();
   assert(!/Cosmetology/.test(P.els.atProgramme.innerHTML), 'a programme that has ended is not offered');
-  P.fields.atName = 'Kemar Johnson'; P.fields.atPassword = 'Kemar-2026'; P.fields.atProgramme = 'Cosmetology';
+  P.fields.atName = 'Kemar Johnson'; P.fields.atPassword = 'Kemar-2026'; P.fields.atProgramme = 'Cosmetology'; P.fields.atGender = 'Male';
   await P.createTraineeAccount();
   assertEq([P.userAccounts.length, /ENDED/.test(P.els.atSaid.textContent)], [0, true], 'and if picked anyway, refused');
 
   console.log('Admin Staff with "Trainee Accounts" switched off make nothing');
-  P = page({ access: { traineeaccounts: false }, fields: { atName: 'Kemar Johnson', atPassword: 'Kemar-2026', atProgramme: 'Welding & Fabrication' } });
+  P = page({ access: { traineeaccounts: false }, fields: { atName: 'Kemar Johnson', atPassword: 'Kemar-2026', atProgramme: 'Welding & Fabrication', atGender: 'Male' } });
   P.openAddTraineeAccount();
   assertEq([P.opened.length, P.toasts.length], [0, 1], 'the form does not open; they are told why');
   await P.createTraineeAccount();

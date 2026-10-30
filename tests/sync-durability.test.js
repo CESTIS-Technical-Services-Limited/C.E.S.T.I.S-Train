@@ -671,8 +671,10 @@ console.log('A page never uploads over its Drive file after failing to read it')
       // definition the Centre's network and its server merge by too.
       assert(merge.indexOf("CESTISCore.sync.mapRules('assignments'") !== -1, 'assignment grades merge trainee by trainee');
       assert(merge.indexOf("CESTISCore.sync.mapRules('notifications'") !== -1, 'notifications merge per person');
-      assertEq(JSON.stringify(core.sync.RECORD_MAPS.assignments), JSON.stringify({ perEntry: { grades: 'gradeMeta.gradedAt' }, unionStamps: ['gradeLog'] }),
-        'grades are dated per trainee and the grade history is kept whole');
+      // (The comment that goes with a mark — feedback, dated by feedbackAt —
+      // merges trainee by trainee the same way: audit IN-4.)
+      assertEq(JSON.stringify(core.sync.RECORD_MAPS.assignments), JSON.stringify({ perEntry: { grades: 'gradeMeta.gradedAt', feedback: 'feedbackAt' }, unionStamps: ['gradeLog'] }),
+        'grades and their comments are dated per trainee and the grade history is kept whole');
       assertEq(JSON.stringify(core.sync.RECORD_MAPS.notifications), JSON.stringify({ unionStamps: ['readBy', 'clearedBy'] }), 'read and cleared per person');
       assert(merge.indexOf('mergeIncomingTombstoneLists(backupData.data)') !== -1, 'the trainee, centre and account deletion lists travel in the backup');
       assert(merge.indexOf('CESTISCore.calendarEventKey') !== -1, 'calendar events by id');

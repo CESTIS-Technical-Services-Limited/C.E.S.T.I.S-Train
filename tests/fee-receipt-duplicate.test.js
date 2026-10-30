@@ -61,7 +61,9 @@ function feePage(answer, form) {
     asked: [], saves: 0, receipts: 0,
     alert() {}, feeCourseDurationInfo: () => null, feePaymentStatus: () => 'Partial Payment',
     generateReceipt() { sb.receipts++; }, clearTraineeSearch() {}, renderChosenTrainee() {}, feeRecordYearNote: () => '',
-    renderPaymentsTable() {}, renderStudentsTable() {}, updateDashboard() {}, feeToastWithYearNote() {}, closeModal() {}, showToast() {}
+    renderPaymentsTable() {}, renderStudentsTable() {}, updateDashboard() {}, feeToastWithYearNote() {}, closeModal() {}, showToast() {},
+    // Automatic receipt numbers (OF-5): nothing checked with the other computers here.
+    feeSuggestReceipt() {}, feeNextReceiptNumber: date => Core.receiptNumbers.nextNumber(sb.payments, date, { suffix: 'K7' })
   };
   sb.saveData = () => { sb.saves++; };
   sb.confirm = m => { sb.asked.push(m); return answer; };
@@ -90,7 +92,8 @@ console.log('Recording a payment with a number already used');
   assert(sb.asked.length === 0 && sb.payments.length === 3, 'a new number: no question, recorded');
   const sb2 = feePage(false, { receipt: '' });
   sb2.recordPayment();
-  assert(sb2.asked.length === 0 && sb2.payments.length === 3 && sb2.payments[2].receiptNumber === '', 'a blank number: no question, as before');
+  // (Since OF-5's automatic numbers: a blank number gets the next one, never "".)
+  assert(sb2.asked.length === 0 && sb2.payments.length === 3 && sb2.payments[2].receiptNumber === 'R-2026/27-0001-K7', 'a blank number: no question, and the next automatic number: ' + sb2.payments[2].receiptNumber);
 }
 
 console.log('Editing a payment to a number another one carries');

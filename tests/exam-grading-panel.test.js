@@ -78,7 +78,9 @@ function setup() {
     saves: 0, toasts: [],
     saveState() { ctx.saves++; }, showToast(m) { ctx.toasts.push(m); },
     addNotification() {}, addNotificationForUser() {}, examTraineeUserId() { return null; }, viewExamResults() {},
-    CESTISCore: { exams: { passRateOf: () => null } },
+    // The real marking rules (CESTISCore.exams.applyManualMarks / nextAwaiting),
+    // with the pass rate left out of this stand-in.
+    CESTISCore: { exams: Object.assign({}, require('../cestis-core.js').exams, { passRateOf: () => null }) },
     currentInstructor: { id: 'INS-1', name: 'Ian Instructor' }, currentRole: 'instructor', currentLoggedInUser: { id: 'USR-INS-1' },
     exams: [{ id: 'EX-1', title: 'Unit 1 Test', passMark: 60, status: 'active' }],
     students: [{ id: 'S-1', name: 'Ama Mensah', score: '' }],
@@ -95,8 +97,9 @@ function setup() {
   };
   ctx.window = ctx;
   vm.createContext(ctx);
-  vm.runInContext('var gradingResultId = null;\n' +
-    ['openGradingPanel', 'closeGradingPanel', 'setGradePoints', 'updateGradingPreview', 'submitGrading', 'notifyMarkingAudience', 'examTypeLabel']
+  vm.runInContext('var gradingResultId = null; var questionMarking = null;\n' +
+    ['openGradingPanel', 'closeGradingPanel', 'setGradePoints', 'updateGradingPreview', 'submitGrading', 'notifyMarkingAudience', 'examTypeLabel',
+     'examGraderName', 'examRecordManualMarks']
       .map(n => extractFunction(INDEX, n)).join('\n'), ctx);
   return { ctx, page };
 }

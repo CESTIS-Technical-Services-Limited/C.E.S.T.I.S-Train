@@ -120,6 +120,9 @@ assertEq(AA.registrationRole(' INSTRUCTOR '), 'instructor', 'whatever its case')
       saveState: function () {}, renderVerifyUsersPage: function () {}, refreshStudentDependentViews: function () {},
       showToast: function () {}, addNotification: function () {}, openResetPassword: function () {} };
     vm.createContext(sb2);
+    // Admin Staff's ticks are read person by person (asAccessForMe, OF-2).
+    var _defs = SRC.slice(SRC.indexOf('var AS_ACCESS_DEFAULTS = {'), SRC.indexOf('};', SRC.indexOf('var AS_ACCESS_DEFAULTS = {')) + 2);
+    vm.runInContext(_defs + '\n' + ['adminStaffAccessDefaults', 'asAccessFor', 'asAccessForMe'].map(function (n) { return extractFunction(SRC, n); }).join('\n'), sb2);
     vm.runInContext(['approveAllPending', 'rejectAllPending', 'approveUser', 'accountReviewAllowed', 'stampReviewer'].map(function (n) { return extractFunction(SRC, n); }).join('\n'), sb2);
     vm.runInContext(fn, sb2);
     return { list: sb2.userAccounts, notes: notes };

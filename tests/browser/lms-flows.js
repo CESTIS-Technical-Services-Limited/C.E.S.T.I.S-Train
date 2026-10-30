@@ -313,6 +313,21 @@ let today = '', weekend = false, signedUrl = '', certNo = '';
     for (const [who, role] of [[INS, 'instructor'], [AMA, 'student'], [SHANTE, 'student'], [KOFI, 'student']]) {
       await A.click('button:has-text("+ Create User")');
       await A.fill('#newUserName', who.name);
+      if (role === 'student') {
+        // A trainee is added with the New trainee form (office audit OF-7): choosing
+        // Student hands over what was typed; the form makes the sign-in, the trainee
+        // record and the fee record together, and asks her gender.
+        await A.fill('#newUserUsername', who.user);
+        await A.fill('#newUserEmail', who.email);
+        await A.selectOption('#newUserRole', role);
+        await A.waitForSelector('#addTraineeModal.active', { timeout: 5000 });
+        await A.selectOption('#atGender', who === KOFI ? 'Male' : 'Female');
+        await A.selectOption('#atProgramme', PROG);
+        await A.fill('#atPassword', who.pass);
+        await A.click('#atCreateBtn');
+        await A.waitForTimeout(800);
+        continue;
+      }
       await A.selectOption('#newUserRole', role);
       await A.fill('#newUserUsername', who.user);
       await A.fill('#newUserPassword', who.pass);
@@ -495,7 +510,9 @@ let today = '', weekend = false, signedUrl = '', certNo = '';
     {
       await nav(I, 'i-resources');
       const before = await I.evaluate(() => instructorResources.length);
-      await I.click('#page-i-resources button:has-text("+ Upload Resource")');
+      // (The link form is "+ Add Link"; "+ Upload File" is the Resource
+      // Manager's upload, for the instructor's own programme — audit IN-9.)
+      await I.click('#page-i-resources button:has-text("+ Add Link")');
       await I.fill('#resName', 'Plasma cutter safety guide');
       await I.click('#uploadResourceModal button:has-text("Upload Resource")');
       await I.waitForTimeout(400);
@@ -523,6 +540,8 @@ let today = '', weekend = false, signedUrl = '', certNo = '';
   /* ================================================================ 4a */
   let deadline = 0;
   await step('4a', 'Exam: MCQ + true/false + essay, open now; sat by two trainees, one resuming after a refresh', async () => {
+    // Step 3's warning (it stays 20 seconds) must not cover the builder's buttons.
+    await I.evaluate(() => document.querySelectorAll('#toastContainer > *').forEach(t => t.remove()));
     await nav(I, 'i-exams');
     await I.click('#page-i-exams button:has-text("+ Create Exam")');
     // The settings page opens on General; Expand all shows Timing, Grade,

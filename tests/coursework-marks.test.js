@@ -179,7 +179,7 @@ PAGES.forEach(function (page) {
     const sb = {
       CESTISCore: page.core, instructorAssignments: [asg], students: [{ id: 'S1', name: 'Ann' }],
       currentLoggedInUser: { name: 'Ina' }, currentInstructor: null, currentRole: 'instructor',
-      document: { getElementById: () => input }, toasts: [],
+      document: { getElementById: id => (/^fb-/.test(id) ? null : input) }, toasts: [],
       showToast(t) { sb.toasts.push(t); }, saveState() { sb.saved = (sb.saved || 0) + 1; }, scheduleDebouncedCloudSave() {}, saveAssignmentsToDrive() {},
       addNotification(t, ty, ic, roles) { sb.roles = roles; }, renderInstructorGradebook() {}, refreshContentDependentViews() {}
     };
