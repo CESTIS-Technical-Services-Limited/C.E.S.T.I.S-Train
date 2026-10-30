@@ -152,7 +152,7 @@ const STORED = 'pbkdf2$210000$' + '0a'.repeat(16) + '$' + '1b'.repeat(32);
 const Core = require('../cestis-core.js');
 const fakes = require('./gate-appsscript-fakes.js');
 const GATE_URL = 'https://script.google.com/macros/s/FAKE/exec';
-const CLIENT_ID = '302497466088-0b619cqa9qno2c606k4rqp742lebc5o8.apps.googleusercontent.com';
+const CLIENT_ID = require('../cestis-config.js').googleClientId;   // the Centre's sign-in client (cestis-config.js)
 function clientIn(opts) {
   // A browser-shaped window of its own for the client (its own storage and fetch).
   const ls = new Map();

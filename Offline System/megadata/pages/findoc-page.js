@@ -16,7 +16,8 @@
     { re: /Finance\.Purchase\.Order\.html/i, page: 'Finance.Purchase.Order', kind: 'po', storageKey: 'cestis_finance_pos' }
   ];
 
-  window.addEventListener('DOMContentLoaded', function () {
+  // Loaded on demand (megadata/loader.js) after the page was read: start at once.
+  (document.readyState === 'loading' ? function (f) { window.addEventListener('DOMContentLoaded', f); } : function (f) { f(); })(function () {
     var MG = window.MegaData;
     if (!MG || !MG.pageBoot || !MG.fdPlan) return;
     var here = String(window.location.pathname || '');

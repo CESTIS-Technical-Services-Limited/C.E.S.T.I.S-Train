@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<script src="cestis-core.js?v=20261030d"></script>
+<script src="cestis-config.js?v=284ebb2a"></script>
+<script src="cestis-core.js?v=a38ff14d"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Certificate / Transcript Requests — C.E.S.T.I.S</title>
 <style>
@@ -346,19 +347,10 @@ document.addEventListener('DOMContentLoaded', function () {
 <!-- MegaData (pilot page): shim telemetry in legacy mode; DAL primary with a
      legacy mirror once the broker is configured and bootstrap is sealed.
      docs/02-MEGADATA-ARCHITECTURE.md §12/§14, docs/04 §8. -->
-<script src="megadata/schemas.js?v=1"></script>
-<script src="megadata/projections.js?v=1"></script>
-<script src="megadata/dal.js?v=1"></script>
-<script src="megadata/adapter-idb.js?v=1"></script>
-<script src="megadata/broker-client.js?v=1"></script>
-<script src="megadata/enforcement-shim.js?v=1"></script>
-<script src="megadata/browser-sync.js?v=1"></script>
-<script src="megadata/page-boot.js?v=1"></script>
-<script src="megadata/pages/ctr-model.js?v=1"></script>
-<script src="megadata/pages/ctr-page.js?v=1"></script>
+<script src="megadata/loader.js?v=8323d60e" data-megadata="megadata/schemas.js?v=587d1f90 megadata/projections.js?v=fab3751c megadata/dal.js?v=bfa8a7f0 megadata/adapter-idb.js?v=ed376ed4 megadata/broker-client.js?v=fe421bad megadata/enforcement-shim.js?v=822fd59a megadata/browser-sync.js?v=a8f6fc04 megadata/page-boot.js?v=cc05f2e4 megadata/pages/ctr-model.js?v=6d93c575 megadata/pages/ctr-page.js?v=b4f65850"></script>
 
 <!-- Per-page Google Drive save path (own file in the shared backup folder) -->
-<script src="cestis-page-cloud.js?v=20261030d"></script>
+<script src="cestis-page-cloud.js?v=6e14079c"></script>
 <script>
 CESTISPageCloud.init({
   page: 'Certificate / Transcript Requests',

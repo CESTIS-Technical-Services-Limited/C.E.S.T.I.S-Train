@@ -75,6 +75,6 @@ These are real but lower-severity or architectural; left as-is to avoid destabil
 3. **No third-party script is a network dependency** — every library is vendored and pinned, with two CDN fallbacks; full offline operation verified for all 22 pages.
 4. **Off-device + Google-independent backups both exist** — Google Drive sync **and** a local JSON export that now covers *all* modules (LMS + finance + cashbook + virement + payroll).
 5. **Credentials are hardened** — PBKDF2 per-user salting, no published default that grants access, forced first-run change, 2FA that survives sync, and brute-force-capped OTP.
-6. **Regression safety** — 83 Node unit tests plus a headless page-load harness that catches runtime-only breakage.
+6. **Regression safety** — every Node suite runs with `npm test` (which prints how many there are), the real-browser suites in `tests/browser/`, and the same checks on GitHub for every change (`.github/workflows/checks.yml`). *(Updated 30 October 2026: this line used to give a hand-written count, long out of date.)*
 
 *The main cross-device lost-update window (section 3) is now closed by version-gated pull-before-write. Remaining residuals are lower-severity (non-student delete propagation, `Date.now()` ids, sibling plaintext passwords, silent token refresh) and are tracked above.*

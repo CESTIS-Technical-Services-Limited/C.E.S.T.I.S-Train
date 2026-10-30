@@ -2,11 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<script src="cestis-core.js?v=20261030d"></script>
-<script src="transcript-assets.js?v=20260711b"></script>
-<script src="vendor/jspdf-2.5.1.umd.min.js"></script>
-<script>window.jspdf||(document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js">\x3C/script>'))</script>
-<script>window.jspdf||(document.write('<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js">\x3C/script>'))</script>
+<script src="cestis-config.js?v=284ebb2a"></script>
+<script src="cestis-core.js?v=a38ff14d"></script>
+<script src="transcript-assets.js?v=b9294324"></script>
+<!-- jsPDF (364 KB) is fetched the first time a PDF is wanted: see pdfLib() below. -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Transcript / Grades — C.E.S.T.I.S</title>
 <style>
@@ -510,6 +509,34 @@ function renderTranscriptPreviewHTML(student, qual) {
 /* ============================================================================
    PDF GENERATION
    ============================================================================ */
+/* jsPDF, fetched the first time a PDF is wanted (most visits never print one):
+   this site's copy first, then the two CDNs it used to fall back to. A failure
+   is not remembered, so asking again tries again. */
+var _pdfLibLoading = null;
+function pdfLib() {
+  if (window.jspdf && window.jspdf.jsPDF) return Promise.resolve(window.jspdf);
+  if (_pdfLibLoading) return _pdfLibLoading;
+  var tries = ['vendor/jspdf-2.5.1.umd.min.js', 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+    'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js'];
+  _pdfLibLoading = new Promise(function (resolve, reject) {
+    (function next(i) {
+      if (window.jspdf && window.jspdf.jsPDF) return resolve(window.jspdf);
+      if (i >= tries.length) { _pdfLibLoading = null; return reject(new Error('jsPDF could not be loaded')); }
+      var el = document.createElement('script');
+      el.src = tries[i]; el.async = true;
+      el.onload = function () { next(window.jspdf && window.jspdf.jsPDF ? i : i + 1); };
+      el.onerror = function () { next(i + 1); };
+      (document.head || document.documentElement).appendChild(el);
+    })(0);
+  });
+  return _pdfLibLoading;
+}
+/* Run a PDF builder now if jsPDF is here, or once it has arrived. True when it ran now. */
+function withPdfLib(run) {
+  if (window.jspdf && window.jspdf.jsPDF) return true;
+  pdfLib().then(run, function () { toast('PDF library not loaded', 'err'); });
+  return false;
+}
 function pdfDoc(format, orientation) {
   var JS = window.jspdf && window.jspdf.jsPDF;
   if (!JS) { toast('PDF library not loaded', 'err'); return null; }
@@ -595,6 +622,7 @@ function trPdfTableHeader(doc, y) {
 }
 
 function generateTranscriptPDF(student, qual) {
+  if (!withPdfLib(function () { generateTranscriptPDF(student, qual); })) return;
   var doc = pdfDoc([TR_PAGE_W, TR_PAGE_H]);
   if (!doc) return;
   var info = headerInfo(student);
@@ -638,6 +666,7 @@ function generateTranscriptPDF(student, qual) {
 
 /* ---- Grade Results Sheet PDF (professional A4, with instructor name) ---- */
 function generateGradeSheetPDF(student, qual) {
+  if (!withPdfLib(function () { generateGradeSheetPDF(student, qual); })) return;
   var doc = pdfDoc('a4');
   if (!doc) return;
   var W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
@@ -1754,7 +1783,7 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 <!-- Per-page Google Drive save path (own file in the shared backup folder) -->
-<script src="cestis-page-cloud.js?v=20261030d"></script>
+<script src="cestis-page-cloud.js?v=6e14079c"></script>
 <script>
 // Staff own this page's file: they pull it and push their edits. Anybody else
 // — a trainee, an instructor — only READS the grades and catalogues they are
@@ -1793,17 +1822,6 @@ CESTISPageCloud.init(_tgStaff ? {
   onRestore: function () { try { if (_tgSignedIn) { loadAll(); renderForRole(); } } catch (e) {} }
 });
 </script>
-<script src="megadata/schemas.js?v=1"></script>
-<script src="megadata/projections.js?v=1"></script>
-<script src="megadata/dal.js?v=1"></script>
-<script src="megadata/adapter-idb.js?v=1"></script>
-<script src="megadata/broker-client.js?v=1"></script>
-<script src="megadata/enforcement-shim.js?v=1"></script>
-<script src="megadata/browser-sync.js?v=1"></script>
-<script src="megadata/page-boot.js?v=1"></script>
-<script src="megadata/pages/roster-model.js?v=1"></script>
-<script src="megadata/pages/docsync-model.js?v=1"></script>
-<script src="megadata/pages/tg-model.js?v=1"></script>
-<script src="megadata/pages/tg-page.js?v=1"></script>
+<script src="megadata/loader.js?v=8323d60e" data-megadata="megadata/schemas.js?v=587d1f90 megadata/projections.js?v=fab3751c megadata/dal.js?v=bfa8a7f0 megadata/adapter-idb.js?v=ed376ed4 megadata/broker-client.js?v=fe421bad megadata/enforcement-shim.js?v=822fd59a megadata/browser-sync.js?v=a8f6fc04 megadata/page-boot.js?v=cc05f2e4 megadata/pages/roster-model.js?v=9d3cd451 megadata/pages/docsync-model.js?v=1013d84b megadata/pages/tg-model.js?v=71473da7 megadata/pages/tg-page.js?v=9a4740b6"></script>
 </body>
 </html>
