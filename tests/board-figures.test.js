@@ -322,5 +322,168 @@ console.log('The administrator\'s dashboard: School Fees, with the earlier years
     'and kept current: when the roll changes and whenever the dashboard is opened');
 }
 
+/* =====================================================================
+   4. M8 — the Programme return
+   ===================================================================== */
+// The register exactly as the attendance page writes it.
+const REG = [];
+{ const idx = {}; D.att.forEach(r => Core.attendance.mark(REG, { studentId: r.studentId, date: r.date, status: r.status, by: 'INS', byName: 'Instructor', source: 'register', at: r.date + 'T16:00:00.000Z' }, idx)); }
+const endedOf = s => { const c = Object.values(D.CENTRES).find(x => x.name === s.course); return !!(c && c.end && c.end < T.TODAY); };
+const PROGS = Object.keys(D.CENTRES).map(k => D.CENTRES[k].name);
+function compareRow(where, row, t) {
+  const pairs = [['applicants', row.applicants, t.applicants], ['enrolled', row.enrolled, t.enrolled], ['active', row.active, t.active],
+    ['completed', row.completed, t.completed], ['certified', row.certified, t.certified], ['NYC', row.nyc, t.nyc], ['dropouts', row.dropouts, t.dropouts],
+    ['completion %', row.completion.rate, t.completion.rate], ['completion of', row.completion.of, t.completion.of],
+    ['attendance %', row.attendance.rate, t.attendance.rate], ['attendance of', row.attendance.of, t.attendance.of],
+    ['pass %', row.pass.rate, t.pass.rate], ['marked', row.pass.of, t.pass.of], ['awaiting', row.pass.awaiting, t.pass.awaiting],
+    ['billed', row.fees.billed, t.billed], ['collected', row.fees.collected, t.collected], ['owed', row.fees.owed, t.owed]];
+  const bad = pairs.filter(p => p[1] !== p[2]);
+  assert(!bad.length, where + ': ' + (bad.length ? bad.map(p => p[0] + ' shown ' + p[1] + ', truth ' + p[2]).join('; ')
+    : 'enrolled ' + row.enrolled + ', active ' + row.active + ', completion ' + row.completion.rate + ', attendance ' + row.attendance.rate +
+      ', pass ' + row.pass.rate + ' of ' + row.pass.of + ', ' + $(row.fees.billed) + ' / ' + $(row.fees.collected) + ' / ' + $(row.fees.owed) + ' — all = hand count'));
+}
+function sumGroups(tr, names, field) {
+  const out = {};
+  names.forEach(n => { const g = tr[n][field]; Object.keys(g).forEach(k => { const o = out[k] = out[k] || {}; Object.keys(g[k]).forEach(c => { o[c] = (o[c] || 0) + g[k][c]; }); }); });
+  return out;
+}
+function compareGroups(where, shown, truth) {
+  const keys = Object.keys(truth);
+  assertEq(shown.length, keys.length, where + ': one row per group (' + keys.join(', ') + ')');
+  keys.forEach(k => {
+    const s = shown.find(g => g.group === k) || {};
+    const bad = ['applicants', 'enrolled', 'active', 'completed', 'certified', 'nyc', 'dropouts'].filter(c => s[c] !== truth[k][c]);
+    assert(!bad.length, where + ' "' + k + '": ' + (bad.length ? bad.map(c => c + ' shown ' + s[c] + ', truth ' + truth[k][c]).join('; ') : 'enrolled ' + s.enrolled + ', applicants ' + s.applicants + ' = hand count'));
+  });
+}
+
+console.log('The return\'s rule (CESTISCore.centreFigures.programmeReturn) against the hand count');
+[['all dates', '', '', T.returnAll, PROGS, T.TODAY], ['Q3 Oct–Dec 2026', '2026-10-01', '2026-12-31', T.returnQ3, PROGS, T.TODAY],
+ ['Q2 Jul–Sep 2026', '2026-07-01', '2026-09-30', T.returnQ2, PROGS, '2026-09-30']].forEach(([name, from, to, tr, progs]) => {
+  const r = F.programmeReturn({ intakes: progs.map(p => ({ label: p, roll: D.students.filter(s => s.course === p) })),
+    register: REG, results: D.results, feeAccounts: D.feeStudents, payments: D.payments, endedOf, from, to, asAt: T.TODAY });
+  r.rows.forEach(row => compareRow(name + ' · ' + row.intake, row, tr[row.intake]));
+  compareGroups(name + ' · by gender', r.genders, sumGroups(tr, progs, 'genders'));
+  compareGroups(name + ' · by age band', r.ages, sumGroups(tr, progs, 'ages'));
+  assertEq(r.total.enrolled, progs.reduce((a, p) => a + tr[p].enrolled, 0), name + ' · total enrolled');
+  assertEq(r.total.fees.collected, progs.reduce((a, p) => a + tr[p].collected, 0), name + ' · total collected ' + $(r.total.fees.collected));
+  assertEq(r.unmatchedAccounts, 0, name + ' · every fee account belongs to a trainee on the return');
+});
+{
+  const r = F.programmeReturn({ intakes: [{ label: 'X', roll: [{ id: 'a', stage: 'training', gender: 'F' }, { id: 'b', stage: 'training', gender: ' ' },
+    { id: 'c', stage: 'testing', gender: 'Other' }, { id: 'd', stage: 'training', gender: 'male', dob: 'not a date' }] }], asAt: '2026-10-28' });
+  assertEq(r.genders.map(g => g.group).join(','), 'Female,Male,Other,Not recorded', 'gender as recorded (F → Female), and "Not recorded" for a blank — never guessed');
+  assertEq(r.ages.map(g => g.group + ':' + (g.enrolled + g.applicants)).join(','), 'Not recorded:4', 'no usable date of birth: "Not recorded"');
+  assert(r.rows[0].attendance.rate === null && r.rows[0].pass.rate === null && r.rows[0].completion.rate === null, 'nothing to divide: no rate (not 0%)');
+}
+
+console.log('Reports: the Programme return as the administrator sees and downloads it (index.html)');
+{
+  const els = {};
+  const skillAreas = Core.freshSkillAreas();
+  const byId = {}; Object.keys(D.CENTRES).forEach(k => { byId[D.CENTRES[k].id] = D.CENTRES[k]; });
+  skillAreas.forEach(a => { const c = byId[a.id]; if (c && c.start) { a.startDate = c.start; a.endDate = c.end; } });
+  const sb = {
+    CESTISCore: Core, console, JSON, Math, Object, Array, String, Number, Date, parseFloat, parseInt, isFinite, Map, Set,
+    students: D.students, skillAreas, examResults: D.results, attendanceRegister: REG, attendanceRecords: [],
+    instructorData: [], userAccounts: [],
+    CESTISStore: { getItem: k => (k in STORE ? STORE[k] : null), setItem() { throw new Error('the return wrote to the store'); } },
+    localDateStr: () => T.TODAY, studentCourseStatus: s => (endedOf(s) ? 'ended' : 'active'),
+    escapeHtml: s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'),
+    escapeAttr: s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;'),
+    showToast() {},
+    document: { getElementById: id => (els[id] = els[id] || { innerHTML: '', value: '' }) }
+  };
+  sb.window = sb;
+  vm.createContext(sb);
+  const block = INDEX.slice(INDEX.indexOf('/* ============================== THE PROGRAMME RETURN (audit M8)'), INDEX.indexOf('/* Redraw every panel on Reports & Analytics.'));
+  assert(block.length > 5000, '(the Programme return block of index.html is found)');
+  vm.runInContext(['centreRollTally', 'reportProgrammeRolls', 'attendancePctByStudent', 'centreFigureSet'].map(n => fnOf(INDEX, n)).join('\n') + '\n' + block, sb);
+  const strip = s => String(s).replace(/^\d+\.\s*/, '');
+
+  // The period choices and the default.
+  const periods = sb.programmeReturnPeriods(T.TODAY);
+  assertEq(sb.programmeReturnDefaultPeriod(), 'q:2026/2027:3', 'the quarter today falls in is the default');
+  assert(periods[0].value === 'q:2026/2027:3' && /Q3 · Oct–Dec 2026 \(to date\)/.test(periods[0].label), 'and comes first: "Q3 · Oct–Dec 2026 (to date)"');
+  assert(periods.some(p => p.value === 'fy:2026/2027') && periods.some(p => p.value === 'q:2025/2026:3') && periods[periods.length - 1].value === 'all',
+    'every quarter and whole year back to the earliest intake, and "All dates"');
+  assert(!periods.some(p => p.value === 'q:2026/2027:4'), 'no quarter that has not started');
+
+  // Default: all intakes, this quarter.
+  sb.renderProgrammeReturn();
+  assertEq(els.prHeading.innerHTML.split('<div')[0], 'Programme return — All intakes — 1 Oct – 31 Dec 2026 (Q3, FY 2026/2027), to date', 'a plain heading names the intake and the period');
+  assert(/Figures as at 28 Oct 2026\./.test(els.prHeading.innerHTML), 'and the day the figures are as at');
+  assert(/<option value="all">All intakes<\/option>/.test(els.prIntake.innerHTML) && /<option value="3"[^>]*>03\. Cosmetology \(Sep 2025 – Jul 2026\)<\/option>/.test(els.prIntake.innerHTML),
+    'the intake filter lists each intake with its dates');
+  assert(/<optgroup label="FY 2026\/2027">/.test(els.prPeriod.innerHTML) && /value="q:2026\/2027:3" selected/.test(els.prPeriod.innerHTML), 'the period filter, by financial year, with this quarter chosen');
+  let d = sb.programmeReturnData();
+  assertEq(d.r.rows.length, 4, 'this quarter: the four intakes that ran in it');
+  assert(d.left.length === 1 && /Cosmetology \(Sep 2025 – Jul 2026\)/.test(d.left[0]), 'Cosmetology (ended July) is left out — and named');
+  d.r.rows.forEach(row => compareRow('on screen, Q3 · ' + strip(row.intake), row, T.returnQ3[strip(row.intake)]));
+  const body = els.prBody.innerHTML;
+  assert(/80%<span class="pr-of">of 25 active<\/span>/.test(body) && /74%<span class="pr-of">of 31 marked · 12 awaiting marking<\/span>/.test(body),
+    'Welding: attendance 80% of 25 active, pass 74% of 31 marked · 12 awaiting (hand count: ' + T.returnQ3['Welding & Fabrication'].attendance.rate + '%, ' + T.returnQ3['Welding & Fabrication'].pass.rate + '%)');
+  assert(/\$271,000/.test(body) && /\$304,000<span class="pr-of">18 owing/.test(body), 'Welding: $271,000 collected in the quarter, $304,000 owed (18 owing)');
+  assert(/class="pr-section">By gender</.test(body) && /class="pr-section">By age band \(as at 28 Oct 2026\)</.test(body), 'breakdowns by gender and by age band');
+  assert(/<td>Not recorded<\/td>/.test(body), '"Not recorded" is its own row');
+  assert(/Not on this return \(did not run in this period\): 03\. Cosmetology/.test(body), 'the left-out intake is named under the table');
+
+  // All dates: all five.
+  sb.programmeReturnChoose('period', 'all');
+  d = sb.programmeReturnData();
+  assertEq(d.r.rows.length, 5, 'all dates: every intake');
+  d.r.rows.forEach(row => compareRow('on screen, all dates · ' + strip(row.intake), row, T.returnAll[strip(row.intake)]));
+  assert(/Programme return — All intakes — all dates/.test(els.prHeading.innerHTML), 'heading: all dates');
+
+  // One intake.
+  sb.programmeReturnChoose('intake', '3');
+  sb.programmeReturnChoose('period', 'q:2026/2027:2');
+  d = sb.programmeReturnData();
+  assert(d.r.rows.length === 1 && strip(d.r.rows[0].intake) === 'Cosmetology', 'one intake chosen: just that one');
+  compareRow('on screen, Q2 · Cosmetology', d.r.rows[0], T.returnQ2.Cosmetology);
+  assert(/Programme return — 03\. Cosmetology \(Sep 2025 – Jul 2026\) — 1 Jul – 30 Sep 2026 \(Q2, FY 2026\/2027\)$/.test(els.prHeading.innerHTML.split('<div')[0]), 'heading names the intake and the quarter');
+
+  // The CSV.
+  sb.programmeReturnChoose('intake', 'all');
+  sb.programmeReturnChoose('period', 'q:2026/2027:3');
+  d = sb.programmeReturnData();
+  const csv = sb.programmeReturnCsv(d).split('\r\n');
+  assertEq(csv[0], 'Programme return', 'CSV: titled');
+  assertEq(csv[1], 'Intake,All intakes', 'CSV: the intake');
+  assertEq(csv[2], 'Period,"1 Oct – 31 Dec 2026 (Q3, FY 2026/2027), to date"', 'CSV: the period');
+  assertEq(csv[3], 'Figures as at,28 Oct 2026', 'CSV: as at');
+  const hdr = csv[6].split(',');
+  assert(hdr[0] === 'Programme / intake' && hdr.indexOf('Attendance over (active trainees with register marks)') !== -1 && hdr.indexOf('Marked test results') !== -1 &&
+    hdr.indexOf('Completion over (admitted trainees of an ended intake)') !== -1, 'CSV: each rate has its denominator in a column of its own');
+  const w = csv.find(l => /^01\. Welding/.test(l)).split(',');
+  const col = name => w[hdr.indexOf(name)];
+  const tw = T.returnQ3['Welding & Fabrication'];
+  assert(col('Enrolled') === String(tw.enrolled) && col('Attendance %') === String(tw.attendance.rate) && col('Attendance over (active trainees with register marks)') === String(tw.attendance.of) &&
+    col('Test pass rate %') === String(tw.pass.rate) && col('Marked test results') === String(tw.pass.of) && col('Awaiting marking') === String(tw.pass.awaiting) &&
+    col('Fees billed (JMD)') === String(tw.billed) && col('Fees collected in period (JMD)') === String(tw.collected) && col('Fees owed as at today (JMD)') === String(tw.owed),
+    'CSV Welding row = hand count: ' + [tw.enrolled, tw.attendance.rate + '% of ' + tw.attendance.of, tw.pass.rate + '% of ' + tw.pass.of, tw.billed, tw.collected, tw.owed].join(' / '));
+  assert(csv.some(l => l === 'By gender,Applicants,Enrolled,Active (in training),Completed,Certified,Not Yet Competent,Incomplete / dropouts') &&
+    csv.some(l => /^Not recorded,/.test(l)), 'CSV: the gender breakdown, "Not recorded" included');
+  assert(csv.some(l => /^By age band \(as at 28 Oct 2026\),/.test(l)), 'CSV: the age-band breakdown');
+  assertEq(sb.programmeReturnFileName(d, 'csv'), 'programme-return_all-intakes_FY2026-2027-Q3.csv', 'a file name that says what it is');
+  const evil = sb.programmeReturnCsv(Object.assign({}, d, { intakeLabel: '=HYPERLINK("x")' })).split('\r\n')[1];
+  assertEq(evil, 'Intake,"\'=HYPERLINK(""x"")"', 'a cell that would run as a spreadsheet formula is made text');
+
+  // The PDF, made with the Centre's own copy of jsPDF.
+  sb.window.jspdf = require('../vendor/jspdf-2.5.1.umd.min.js');
+  const pdf = sb.programmeReturnPdf(d).output();
+  assert(/\(Programme return\) Tj/.test(pdf), 'PDF: titled');
+  assert(pdf.indexOf('(All intakes - 1 Oct - 31 Dec 2026 \\(Q3, FY 2026/2027\\), to date) Tj') !== -1, 'PDF: the plain heading (intake and period)');
+  ['($271,000) Tj', '(80% of 25 active) Tj', '($304,000 \\(18 owing\\)) Tj', '(Not recorded) Tj', '(18-24) Tj'].forEach(t =>
+    assert(pdf.indexOf(t) !== -1, 'PDF shows ' + t.replace(/\\/g, '').replace(/ Tj$/, '')));
+  assert(!/\(- no /.test(pdf), 'PDF: a rate with nothing to divide is written as its reason, not as "- ..."');
+
+  // Wiring: on Reports, redrawn with it, nothing named after a regulator's form.
+  assert(/id="programmeReturnCard"[\s\S]{0,900}id="prIntake"[\s\S]{0,300}id="prPeriod"/.test(INDEX), 'Reports carries the intake and period filters');
+  assert(/onclick="exportProgrammeReturnCSV\(\)">Download CSV</.test(INDEX) && /onclick="exportProgrammeReturnPDF\(\)">Download PDF</.test(INDEX), 'one click each for CSV and PDF');
+  assert(/'renderProgrammeReturn'/.test(fnOf(INDEX, 'refreshReportsAnalytics')), 'redrawn with the rest of Reports');
+  assert(!/HEART|NSTA|NCTVET|TVET/i.test(block.replace(/\/\*[\s\S]*?\*\//g, '')), 'it names no regulator\'s form');
+}
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);

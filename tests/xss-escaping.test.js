@@ -681,7 +681,7 @@ console.log('No raw user field is concatenated into the fixed renderers again');
   const RAW = new RegExp("(?:\\+\\s*\\(?|\\$\\{\\s*\\(?)[A-Za-z_$][\\w$]*(?:\\.[A-Za-z_$][\\w$]*)*\\.(?:" + FIELDS + ")\\b(?!\\s*\\()(?=\\s*(?:\\+|\\}|\\|\\||\\)))", 'g');
   const RENDERERS = ['toggleNotifications', 'renderSupportMessagesPage', 'viewSupportMessage', 'renderAttendancePage',
     'renderInstructorAttendance', 'cmcBuildAttendanceDetail', 'cmcBuildFeesDetail', 'cmcBuildCompletionDetail', 'cmcBuildFeeTable',
-    'cmcFeeKpiInner', 'cmcFinFeeKpiInner', 'dashFeesCardInner', 'renderCerts', 'renderCertDownloadMgmt',
+    'cmcFeeKpiInner', 'cmcFinFeeKpiInner', 'dashFeesCardInner', 'renderProgrammeReturn', 'renderCerts', 'renderCertDownloadMgmt',
     'renderCertDlLog', 'openBulkCertApproveModal', 'lmsChatRenderMessages', 'lmsChatRenderRoomList', 'lmsChatRenderInfoPanel',
     'lmsChatManageMembers', 'lmsChatShowIncomingCallNotif', 'renderAnnouncements', 'renderInstructorAnnouncements', 'adrOpenTaskDetail',
     'renderCalendarEventList', 'renderInstructorGradebook', 'renderStudentAssignmentsPage', 'renderStudentAssignments',

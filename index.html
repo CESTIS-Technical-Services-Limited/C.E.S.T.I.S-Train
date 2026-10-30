@@ -1902,6 +1902,21 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
   padding:24px 14px; text-align:center; font-size:13px; color:var(--text-muted);
 }
 
+/* The Programme return on Reports: its two choices, a plain heading, the table. */
+.pr-card .card-header { flex-wrap:wrap; gap:10px; }
+.pr-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.pr-filters { display:flex; flex-wrap:wrap; gap:12px 18px; margin-bottom:12px; }
+.pr-filter { display:flex; flex-direction:column; gap:4px; font-size:12px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; min-width:220px; flex:1 1 220px; max-width:420px; }
+.pr-filter .form-control { text-transform:none; letter-spacing:normal; font-weight:500; }
+.pr-heading { font-size:15px; font-weight:700; color:var(--text-primary); margin:6px 0 4px; line-height:1.4; }
+.pr-sub { font-size:12px; color:var(--text-muted); margin-bottom:12px; line-height:1.5; font-weight:400; }
+.pr-table td, .pr-table th { white-space:nowrap; text-align:right; }
+.pr-table td:first-child, .pr-table th:first-child { text-align:left; white-space:normal; min-width:160px; }
+.pr-table .pr-of { display:block; font-size:12px; color:var(--text-muted); font-weight:400; }
+.pr-table tr.pr-total td { font-weight:700; border-top:2px solid var(--border-light); }
+.pr-section { font-size:13px; font-weight:700; color:var(--text-secondary); margin:18px 0 6px; }
+.pr-note { font-size:12px; color:var(--text-muted); margin-top:10px; line-height:1.5; }
+
 /* School fees on the administrator's dashboard: three money figures, and the
    earlier years' arrears right under Outstanding (never added into it). */
 .dash-fees-card { margin-bottom:24px; }
@@ -15190,6 +15205,22 @@ function buildAdminPages() {
   </div>
 
   <section class="page" id="page-reports">
+    <!-- The Programme return (audit M8): choose an intake and a period, then
+         download it as a spreadsheet (CSV) or a PDF. Drawn by renderProgrammeReturn(). -->
+    <div class="card pr-card" id="programmeReturnCard">
+      <div class="card-header"><h3>Programme return</h3>
+        <div class="pr-actions">
+          <button type="button" class="btn btn-primary btn-sm" onclick="exportProgrammeReturnCSV()">Download CSV</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="exportProgrammeReturnPDF()">Download PDF</button>
+        </div>
+      </div>
+      <div class="pr-filters">
+        <label class="pr-filter"><span>Intake</span><select class="form-control" id="prIntake" onchange="programmeReturnChoose('intake', this.value)"></select></label>
+        <label class="pr-filter"><span>Period</span><select class="form-control" id="prPeriod" onchange="programmeReturnChoose('period', this.value)"></select></label>
+      </div>
+      <div id="prHeading" class="pr-heading"></div>
+      <div id="prBody"></div>
+    </div>
     <div class="stats-grid" id="reportStats"></div>
     <div class="grid-2col">
       <div class="card"><div class="card-header"><h3>Student Stage Distribution</h3><button class="btn-export" onclick="exportReportCSV()">\uD83D\uDCC4 Export</button></div><div id="donutChartContainer" style="display:flex;align-items:center;gap:24px;justify-content:center;"></div></div>
@@ -31585,6 +31616,308 @@ function renderCertStats() {
   `;
 }
 
+/* ============================== THE PROGRAMME RETURN (audit M8) ==============================
+   The figures a board or a regulator asks for each quarter, per programme and
+   intake, were assembled by hand from three or more screens: Reports had no
+   intake or date filter and Export Report carried four columns. This is one
+   table, chosen by intake and period and downloaded in one click as a
+   spreadsheet (CSV) or a PDF, by the Centre's own counting rules
+   (CESTISCore.centreFigures.programmeReturn), every rate with what it is a
+   rate of. A plain heading says which intake and period it covers.
+   It is called a "Programme return": it is not any particular agency's form. */
+var _prChoice = { intake: 'all', period: '' };          // '' = the quarter today falls in
+var PR_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function prDay(d) {
+  var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(d || ''));
+  return m ? (+m[3]) + ' ' + PR_MONTHS[+m[2] - 1] + ' ' + m[1] : '';
+}
+function prMonth(d) {
+  var m = /^(\d{4})-(\d{2})/.exec(String(d || ''));
+  return m ? PR_MONTHS[+m[2] - 1] + ' ' + m[1] : '';
+}
+function prRange(from, to) {
+  var a = prDay(from), b = prDay(to);
+  if (a.slice(-4) === b.slice(-4)) a = a.slice(0, -5);
+  return a + ' – ' + b;
+}
+/* The periods a return can cover: each quarter and each whole financial year,
+   from the earliest intake on record (at most six years back) to today, and
+   "All dates". The quarter today falls in comes first and is the default. */
+function programmeReturnPeriods(todayStr) {
+  var today = todayStr || localDateStr();
+  var cur = CESTISCore.currentQuarter(new Date(today + 'T12:00:00'));
+  var y0 = parseInt(cur.fy, 10), minY = y0;
+  (typeof skillAreas !== 'undefined' && Array.isArray(skillAreas) ? skillAreas : []).forEach(function (sk) {
+    var q = CESTISCore.deriveQuarter(sk && sk.startDate);
+    if (q && parseInt(q.fy, 10) < minY) minY = parseInt(q.fy, 10);
+  });
+  minY = Math.max(minY, y0 - 5);
+  var out = [];
+  for (var y = y0; y >= minY; y--) {
+    var fy = y + '/' + (y + 1), group = 'FY ' + fy;
+    for (var q = 4; q >= 1; q--) {
+      var b = CESTISCore.attendance.quarterBounds(fy, q), meta = CESTISCore.getQuarterMeta(q);
+      if (!b || b.start > today) continue;
+      var running = b.end >= today;
+      out.push({ value: 'q:' + fy + ':' + q, group: group, from: b.start, to: b.end, running: running,
+        label: meta.label + ' · ' + meta.months + ' ' + CESTISCore.quarterCalendarYear(fy, q) + (running ? ' (to date)' : ''),
+        heading: prRange(b.start, b.end) + ' (' + meta.label + ', FY ' + fy + ')' + (running ? ', to date' : '') });
+    }
+    var fs = y + '-04-01', fe = (y + 1) + '-03-31', fr = fe >= today;
+    out.push({ value: 'fy:' + fy, group: group, from: fs, to: fe, running: fr,
+      label: 'The whole year, FY ' + fy + (fr ? ' (to date)' : ''), heading: 'FY ' + fy + ', ' + prRange(fs, fe) + (fr ? ', to date' : '') });
+  }
+  out.push({ value: 'all', group: 'Other', from: '', to: '', running: true, label: 'All dates', heading: 'all dates' });
+  return out;
+}
+function programmeReturnDefaultPeriod() {
+  var cur = CESTISCore.currentQuarter(new Date(localDateStr() + 'T12:00:00'));
+  return 'q:' + cur.fy + ':' + cur.q;
+}
+function prIntakeDates(sk) {
+  if (!sk || (!sk.startDate && !sk.endDate)) return 'no dates set';
+  return (prMonth(sk.startDate) || '…') + ' – ' + (prMonth(sk.endDate) || '…');
+}
+function programmeReturnChoose(field, value) {
+  _prChoice[field] = String(value == null ? '' : value);
+  renderProgrammeReturn();
+}
+/* Everything the return shows, for the current choices. */
+function programmeReturnData() {
+  var F = CESTISCore.centreFigures;
+  var periods = programmeReturnPeriods();
+  var per = periods.find(function (p) { return p.value === (_prChoice.period || programmeReturnDefaultPeriod()); }) ||
+    periods.find(function (p) { return p.value === programmeReturnDefaultPeriod(); }) || periods[periods.length - 1];
+  var progs = reportProgrammeRolls();
+  var picked = _prChoice.intake === 'all' ? null : progs.find(function (p) { return String(p.centre.id) === _prChoice.intake; });
+  if (_prChoice.intake !== 'all' && !picked) _prChoice.intake = 'all';
+  var chosen = picked ? [picked] : progs.slice();
+  // With every intake chosen, one that did not run in the period is left out —
+  // and named, so nobody wonders where it went. An intake with no dates set is
+  // never left out.
+  var left = [];
+  if (!picked && (per.from || per.to)) {
+    chosen = chosen.filter(function (p) {
+      var s = p.centre.startDate || '', e = p.centre.endDate || '';
+      var ran = (!s || !per.to || s <= per.to) && (!e || !per.from || e >= per.from);
+      if (!ran) left.push(p.full + ' (' + prIntakeDates(p.centre) + ')');
+      return ran;
+    });
+  }
+  var fig = centreFigureSet();
+  var books = { accounts: [], payments: [] };
+  try { books = F.feeBooks(function (k) { return CESTISStore.getItem(k); }); } catch (e) {}
+  var asAt = localDateStr();
+  var r = F.programmeReturn({
+    intakes: chosen.map(function (p) { return { label: p.full, dates: prIntakeDates(p.centre), roll: p.roll }; }),
+    register: Array.isArray(attendanceRegister) ? attendanceRegister : [],
+    results: typeof examResults !== 'undefined' ? examResults : [],
+    feeAccounts: books.accounts, payments: books.payments,
+    endedOf: fig.endedOf, attOf: fig.attOf, from: per.from, to: per.to, asAt: asAt
+  });
+  var intakeLabel = picked ? picked.full + ' (' + prIntakeDates(picked.centre) + ')' : 'All intakes';
+  var rule = 'Enrolment and stages are as they stand on ' + prDay(asAt) + '; attendance, marked test results and fee payments are those dated in ' +
+    (per.from ? 'the period' : 'any period') + '. Ages are as at ' + prDay(r.asAt) + '.';
+  return {
+    period: per, periods: periods, progs: progs, left: left, r: r, asAt: asAt, intakeLabel: intakeLabel,
+    heading: 'Programme return — ' + intakeLabel + ' — ' + per.heading,
+    rule: rule, sub: 'Figures as at ' + prDay(asAt) + '. ' + rule
+  };
+}
+/* A rate and what it is a rate of, for the screen and the files alike. */
+function prRates(row) {
+  var c = row.completion, a = row.attendance, p = row.pass;
+  return {
+    completion: c.rate == null ? '—' : c.rate + '%', completionOf: c.rate == null ? 'no ended intake' : 'of ' + c.of + ' in ended intake',
+    attendance: a.rate == null ? '—' : a.rate + '%', attendanceOf: a.rate == null ? 'no active trainee marked' : 'of ' + a.of + ' active',
+    pass: p.rate == null ? '—' : p.rate + '%', passOf: (p.rate == null ? 'no marked results' : 'of ' + p.of + ' marked') + (p.awaiting ? ' · ' + p.awaiting + ' awaiting marking' : '')
+  };
+}
+var PR_COUNTS = [['applicants', 'Applicants'], ['enrolled', 'Enrolled'], ['active', 'Active (in training)'], ['completed', 'Completed'],
+  ['certified', 'Certified'], ['nyc', 'Not Yet Competent'], ['dropouts', 'Incomplete / dropouts']];
+function renderProgrammeReturn() {
+  var card = document.getElementById('programmeReturnCard');
+  if (!card) return;
+  var d = programmeReturnData(), m = CESTISCore.centreFigures.moneyText;
+  var iSel = document.getElementById('prIntake'), pSel = document.getElementById('prPeriod');
+  if (iSel) {
+    iSel.innerHTML = '<option value="all">All intakes</option>' + d.progs.map(function (p) {
+      return '<option value="' + escapeAttr(String(p.centre.id)) + '"' + (String(p.centre.id) === _prChoice.intake ? ' selected' : '') + '>' +
+        escapeHtml(p.full + ' (' + prIntakeDates(p.centre) + ')') + '</option>';
+    }).join('');
+    if (_prChoice.intake === 'all') iSel.value = 'all';
+  }
+  if (pSel) {
+    var groups = [], html = '';
+    d.periods.forEach(function (p) { if (groups.indexOf(p.group) === -1) groups.push(p.group); });
+    groups.forEach(function (g) {
+      html += '<optgroup label="' + escapeAttr(g) + '">' + d.periods.filter(function (p) { return p.group === g; }).map(function (p) {
+        return '<option value="' + escapeAttr(p.value) + '"' + (p.value === d.period.value ? ' selected' : '') + '>' + escapeHtml(p.label) + '</option>';
+      }).join('') + '</optgroup>';
+    });
+    pSel.innerHTML = html;
+  }
+  var head = document.getElementById('prHeading');
+  if (head) head.innerHTML = escapeHtml(d.heading) + '<div class="pr-sub">' + escapeHtml(d.sub) + '</div>';
+  var body = document.getElementById('prBody');
+  if (!body) return;
+  if (!d.r.rows.length) {
+    body.innerHTML = '<p class="pr-note">No intake has trainees in this period.' + (d.left.length ? ' Not on this return (did not run in this period): ' + escapeHtml(d.left.join('; ')) + '.' : '') + '</p>';
+    return;
+  }
+  var cell = function (v, of) { return '<td>' + escapeHtml(v) + (of ? '<span class="pr-of">' + escapeHtml(of) + '</span>' : '') + '</td>'; };
+  var rowHtml = function (row, total) {
+    var t = prRates(row);
+    return '<tr' + (total ? ' class="pr-total"' : '') + '><td>' + escapeHtml(row.intake) + (row.dates ? '<span class="pr-of" style="text-align:left;">' + escapeHtml(row.dates) + '</span>' : '') + '</td>' +
+      PR_COUNTS.map(function (c) { return '<td>' + row[c[0]] + '</td>'; }).join('') +
+      cell(t.completion, t.completionOf) + cell(t.attendance, t.attendanceOf) + cell(t.pass, t.passOf) +
+      cell(m(row.fees.billed), row.fees.accounts ? row.fees.accounts + ' fee account' + (row.fees.accounts === 1 ? '' : 's') : 'no fee accounts') +
+      cell(m(row.fees.collected), '') + cell(m(row.fees.owed), row.fees.debtors + ' owing') + '</tr>';
+  };
+  var h = '<div class="table-wrapper"><table class="tbl-phone pr-table"><thead><tr><th>Programme / intake</th>' +
+    PR_COUNTS.map(function (c) { return '<th>' + c[1] + '</th>'; }).join('') +
+    '<th>Completion</th><th>Attendance</th><th>Test pass rate</th><th>Fees billed</th><th>Collected' + (d.period.from ? ' in period' : '') + '</th><th>Owed (as at today)</th></tr></thead><tbody>' +
+    d.r.rows.map(function (row) { return rowHtml(row, false); }).join('') +
+    (d.r.rows.length > 1 ? rowHtml(d.r.total, true) : '') + '</tbody></table></div>';
+  var groupTable = function (title, groups) {
+    return '<div class="pr-section">' + escapeHtml(title) + '</div><div class="table-wrapper"><table class="tbl-phone pr-table"><thead><tr><th>' + escapeHtml(title.split(' (')[0]) + '</th>' +
+      PR_COUNTS.map(function (c) { return '<th>' + c[1] + '</th>'; }).join('') + '</tr></thead><tbody>' +
+      groups.map(function (g) { return '<tr><td>' + escapeHtml(g.group) + '</td>' + PR_COUNTS.map(function (c) { return '<td>' + g[c[0]] + '</td>'; }).join('') + '</tr>'; }).join('') +
+      '</tbody></table></div>';
+  };
+  h += groupTable('By gender', d.r.genders) + groupTable('By age band (as at ' + prDay(d.r.asAt) + ')', d.r.ages);
+  h += '<div class="pr-note">Completion: certified, of the admitted trainees of an intake that has ended. Attendance: over trainees in training, from the register marks dated in the period. ' +
+    'Test pass rate: marked results dated in the period (work awaiting marking is not counted as a fail). Enrolled: admitted trainees (applicants are counted separately). ' +
+    'Owed: tuition less every payment, as at today. A gender or date of birth nobody recorded is counted as "Not recorded".' +
+    (d.left.length ? '<br>Not on this return (did not run in this period): ' + escapeHtml(d.left.join('; ')) + '.' : '') + '</div>';
+  body.innerHTML = h;
+}
+/* The return as lines of a spreadsheet: a heading block, the main table, the
+   two breakdowns and the notes. Names are typed by people, so every text cell
+   is formula-safe (CESTISCore.attendance.csvCell). */
+function programmeReturnCsv(d) {
+  var c = function (v) { return typeof v === 'number' ? String(v) : CESTISCore.attendance.csvCell(v); };
+  var line = function (cells) { return cells.map(c).join(','); };
+  var rateNum = function (f) { return f.rate == null ? '' : f.rate; };
+  var lines = [line(['Programme return']), line(['Intake', d.intakeLabel]), line(['Period', d.period.heading]),
+    line(['Figures as at', prDay(d.asAt)]), line(['Note', d.rule]), ''];
+  lines.push(line(['Programme / intake', 'Intake dates'].concat(PR_COUNTS.map(function (k) { return k[1]; }),
+    ['Completion %', 'Completion over (admitted trainees of an ended intake)', 'Dropout %', 'Dropout over (admitted trainees of an ended intake)',
+     'Attendance %', 'Attendance over (active trainees with register marks)', 'Test pass rate %', 'Marked test results', 'Awaiting marking',
+     'Fees billed (JMD)', 'Fees collected' + (d.period.from ? ' in period' : '') + ' (JMD)', 'Fees owed as at today (JMD)', 'Trainees owing', 'Fee accounts'])));
+  var rowLine = function (row) {
+    return line([row.intake, row.dates].concat(PR_COUNTS.map(function (k) { return row[k[0]]; }),
+      [rateNum(row.completion), row.completion.of, rateNum(row.dropout), row.dropout.of, rateNum(row.attendance), row.attendance.of,
+       rateNum(row.pass), row.pass.of, row.pass.awaiting, row.fees.billed, row.fees.collected, row.fees.owed, row.fees.debtors, row.fees.accounts]));
+  };
+  d.r.rows.forEach(function (row) { lines.push(rowLine(row)); });
+  lines.push(rowLine(d.r.total));
+  [['By gender', d.r.genders], ['By age band (as at ' + prDay(d.r.asAt) + ')', d.r.ages]].forEach(function (b) {
+    lines.push('');
+    lines.push(line([b[0]].concat(PR_COUNTS.map(function (k) { return k[1]; }))));
+    b[1].forEach(function (g) { lines.push(line([g.group].concat(PR_COUNTS.map(function (k) { return g[k[0]]; })))); });
+  });
+  if (d.left.length) { lines.push(''); lines.push(line(['Not on this return (did not run in this period)', d.left.join('; ')])); }
+  return lines.join('\r\n') + '\r\n';
+}
+function programmeReturnFileName(d, ext) {
+  var who = d.intakeLabel === 'All intakes' ? 'all-intakes' : d.intakeLabel.replace(/\s*\(.*$/, '');
+  var when = d.period.value === 'all' ? 'all-dates' : d.period.value.replace(/^q:/, 'FY').replace(/^fy:/, 'FY').replace(/\//g, '-').replace(/:(\d)$/, '-Q$1');
+  return ('programme-return_' + who + '_' + when).replace(/[^A-Za-z0-9_.-]+/g, '-').replace(/-+/g, '-') + '.' + ext;
+}
+function prDownload(blob, name) {
+  var url = URL.createObjectURL(blob), a = document.createElement('a');
+  a.href = url; a.download = name; a.style.display = 'none';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+}
+function exportProgrammeReturnCSV() {
+  var d = programmeReturnData();
+  // The byte-order mark lets a spreadsheet read the dashes and accents as written.
+  prDownload(new Blob(['\ufeff' + programmeReturnCsv(d)], { type: 'text/csv;charset=utf-8;' }), programmeReturnFileName(d, 'csv'));
+  showToast('Programme return downloaded (spreadsheet).');
+}
+function exportProgrammeReturnPDF() {
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    showToast('Preparing the PDF…');
+    cestisNeedLib('jspdf').then(function () { exportProgrammeReturnPDF(); }, function () { showToast('The PDF could not be prepared. Try again in a moment.'); });
+    return;
+  }
+  var d = programmeReturnData();
+  try { programmeReturnPdf(d).save(programmeReturnFileName(d, 'pdf')); showToast('Programme return downloaded (PDF).'); }
+  catch (e) { console.error('[ProgrammeReturn] PDF failed', e); showToast('The PDF could not be made.'); }
+}
+/* The same return on landscape A4 pages, drawn with jsPDF's plain fonts (so
+   the few typographic dashes are written as plain ones). */
+function programmeReturnPdf(d) {
+  var doc = new window.jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  var W = 297, H = 210, L = 10, y = 14, m = CESTISCore.centreFigures.moneyText;
+  var plain = function (s) { return String(s == null ? '' : s).replace(/[\u2013\u2014]/g, '-').replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"').replace(/\u2026/g, '...'); };
+  var page = 1;
+  var footer = function () { doc.setFontSize(7); doc.setTextColor(120); doc.text(plain('Programme return - ' + d.intakeLabel + ' - ' + d.period.heading + ' - page ' + page), L, H - 6); doc.setTextColor(0); };
+  var newPage = function () { footer(); doc.addPage(); page++; y = 14; };
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(14);
+  doc.text('Programme return', L, y); y += 7;
+  doc.setFontSize(10);
+  doc.splitTextToSize(plain(d.intakeLabel + ' - ' + d.period.heading), W - 2 * L).forEach(function (t) { doc.text(t, L, y); y += 5; });
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+  doc.splitTextToSize(plain(d.sub), W - 2 * L).forEach(function (t) { doc.text(t, L, y); y += 4; });
+  y += 2;
+  function table(cols, rows, boldLast) {
+    var x0 = L, lineH = 3.4;
+    var drawRow = function (cells, bold, shade) {
+      var wrapped = cells.map(function (v, i) { return doc.splitTextToSize(plain(v), cols[i].w - 2); });
+      var hgt = Math.max.apply(null, wrapped.map(function (w) { return w.length; })) * lineH + 2;
+      if (y + hgt > H - 12) { newPage(); }
+      if (shade) { doc.setFillColor(232, 238, 246); doc.rect(x0, y - 3, cols.reduce(function (a, c) { return a + c.w; }, 0), hgt, 'F'); }
+      doc.setFont('helvetica', bold ? 'bold' : 'normal');
+      var x = x0;
+      wrapped.forEach(function (w, i) {
+        w.forEach(function (t, j) {
+          if (cols[i].right) doc.text(t, x + cols[i].w - 1, y + j * lineH, { align: 'right' }); else doc.text(t, x + 1, y + j * lineH);
+        });
+        x += cols[i].w;
+      });
+      y += hgt;
+      doc.setDrawColor(210); doc.line(x0, y - 3, x, y - 3);
+    };
+    doc.setFontSize(7);
+    drawRow(cols.map(function (c) { return c.t; }), true, true);
+    rows.forEach(function (r, i) { drawRow(r, boldLast && i === rows.length - 1, false); });
+    y += 3;
+  }
+  // 277 mm across: the width of landscape A4 inside its margins.
+  var cols = [{ t: 'Programme / intake', w: 40 }].concat(PR_COUNTS.map(function (k) { return { t: k[1], w: 13, right: true }; }),
+    [{ t: 'Completion', w: 22, right: true }, { t: 'Attendance', w: 24, right: true }, { t: 'Test pass rate', w: 28, right: true },
+     { t: 'Fees billed', w: 22, right: true }, { t: 'Collected' + (d.period.from ? ' in period' : ''), w: 22, right: true }, { t: 'Owed (as at today)', w: 28, right: true }]);
+  // A rate with nothing to divide is written as the reason alone: the "—" of
+  // the screen would print as a plain dash and read like a minus sign.
+  var rate = function (v, of) { return v === '—' ? of : v + ' ' + of; };
+  var rowCells = function (row) {
+    var t = prRates(row);
+    return [row.intake + (row.dates ? ' (' + row.dates + ')' : '')].concat(PR_COUNTS.map(function (k) { return String(row[k[0]]); }),
+      [rate(t.completion, t.completionOf), rate(t.attendance, t.attendanceOf), rate(t.pass, t.passOf),
+       m(row.fees.billed), m(row.fees.collected), m(row.fees.owed) + ' (' + row.fees.debtors + ' owing)']);
+  };
+  var rows = d.r.rows.map(rowCells);
+  if (d.r.rows.length > 1) rows.push(rowCells(d.r.total));
+  table(cols, rows, d.r.rows.length > 1);
+  var gcols = function (title) { return [{ t: title, w: 42 }].concat(PR_COUNTS.map(function (k) { return { t: k[1], w: 22, right: true }; })); };
+  [['By gender', d.r.genders], ['By age band (as at ' + prDay(d.r.asAt) + ')', d.r.ages]].forEach(function (b) {
+    if (y + 20 > H - 12) newPage();
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.text(plain(b[0]), L, y); y += 5;
+    table(gcols(b[0].split(' (')[0]), b[1].map(function (g) { return [g.group].concat(PR_COUNTS.map(function (k) { return String(g[k[0]]); })); }), false);
+  });
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7);
+  var notes = 'Completion: certified, of the admitted trainees of an intake that has ended. Attendance: over trainees in training, from the register marks dated in the period. ' +
+    'Test pass rate: marked results dated in the period (work awaiting marking is not counted as a fail). Enrolled: admitted trainees (applicants are counted separately). ' +
+    'Owed: tuition less every payment, as at today. A gender or date of birth nobody recorded is counted as "Not recorded".' +
+    (d.left.length ? ' Not on this return (did not run in this period): ' + d.left.join('; ') + '.' : '');
+  doc.splitTextToSize(plain(notes), W - 2 * L).forEach(function (t) { if (y > H - 12) newPage(); doc.text(t, L, y); y += 3.5; });
+  footer();
+  return doc;
+}
+
 /* Redraw every panel on Reports & Analytics.
 
    All seven used to be called once, at the tail of buildAdminPages(), and never
@@ -31597,7 +31930,7 @@ function renderCertStats() {
    Each renderer guards on its own missing DOM, so this is a safe no-op for a
    role whose pages do not include Reports. */
 function refreshReportsAnalytics() {
-  ['renderReportStats', 'renderDonutChart', 'renderPassRates', 'renderEnrollmentBars',
+  ['renderProgrammeReturn', 'renderReportStats', 'renderDonutChart', 'renderPassRates', 'renderEnrollmentBars',
    'renderGaugeChart', 'renderAttendanceHeatmap', 'renderGenderDist',
    'renderCertStats'].forEach(function (name) {
     try {

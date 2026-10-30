@@ -310,7 +310,8 @@ function returnTruth(from, to, asAt) {
   return out;
 }
 T.returnAll = returnTruth('', '', TODAY);
-T.returnQ3 = returnTruth('2026-10-01', '2026-12-31', '2026-12-31');      // FY 2026/2027 Q3, Oct–Dec 2026
+T.returnQ3 = returnTruth('2026-10-01', '2026-12-31', TODAY);      // FY 2026/2027 Q3, Oct–Dec 2026 (still running: ages as at today)
+T.returnQ2 = returnTruth('2026-07-01', '2026-09-30', '2026-09-30'); // FY 2026/2027 Q2, Jul–Sep 2026 (over)
 T.TODAY = TODAY;
 
 students.forEach(s => { delete s._k; delete s._i; });
