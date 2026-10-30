@@ -4274,6 +4274,10 @@
                         trainee's exam result still in the exam outbox
          signinExpired  (staff) the sync sign-in this computer had has run out
          canConnect     the panel below the answer holds a Turn On Sync button
+         canRenew       (staff) the sync sign-in could not renew itself: the
+                        Reconnect button beside the chip renews it from a press
+         storageFull    (staff) a save was refused: the Centre's storage is full
+         isAdmin        the administrator is told what to do about it
        }
        Returns { state: 'saved'|'waiting'|'offline'|'attention', tone:
        'ok'|'warn'|'bad', icon: 'check'|'sync', label, chip (the label's
@@ -4331,8 +4335,26 @@
                   (s.pending ? 'Your changes' + since + ' are kept on this computer only and have not synced.'
                              : 'This computer is not syncing at the moment.'),
           advice: [!s.canConnect ? 'Ask the office to set up syncing on this computer.'
+                   : s.signinExpired && s.canRenew ? 'Press Reconnect (beside this) to renew it with one press, or ask the office.'
                    : s.signinExpired ? 'Press Turn On Sync below to sign in again, or ask the office.'
                    : 'Press Turn On Sync below, or ask the office to set up syncing on this computer.', keepNote] };
+      } else if (s.storageFull) {
+        /* A save was refused because the Centre's account has no room left
+           (OPS-2). It used to look like any other failure ("Sync needs
+           attention"), so nobody knew to tell the one person who can fix
+           it. Everybody is told to tell the administrator; the
+           administrator is told what to do. The work stays on this
+           computer either way, and goes up by itself once there is room. */
+        var kept = s.pending ? 'Your changes' + since + ' are kept on this computer.' : 'Anything you change is kept on this computer.';
+        out = s.isAdmin
+          ? { state: 'storage-full', tone: 'bad', label: 'Storage is full — make room to keep saving',
+              detail: 'Saving has stopped because there is no room left in the Centre’s account. ' + kept,
+              advice: ['Clear out old class recordings, or empty the trash, in the Centre’s account.',
+                       'Saving starts again by itself once there is room — nothing is lost meanwhile.', keepNote] }
+          : { state: 'storage-full', tone: 'bad', label: 'Storage is full — tell the administrator',
+              detail: 'Saving has stopped: there is no room left to save. ' + kept,
+              advice: ['Tell the administrator that storage is full.',
+                       'Keep working — your changes are sent by themselves once there is room.', keepNote] };
       } else if (s.pending) {
         var failing = (s.failures || 0) >= 1;
         out = { state: 'waiting', tone: failing ? 'bad' : 'warn', label: 'Changes waiting to sync',
@@ -4353,7 +4375,12 @@
       out.lastSaved = last;
       // A sign-in about to end: say so while there is still time to renew it.
       if (!s.lan && s.connected && s.tokenExpiresAt && s.tokenExpiresAt - now < 10 * 60000 && s.tokenExpiresAt > now) {
-        out.advice = out.advice.concat(['Syncing on this computer must be renewed by ' + hhmm(s.tokenExpiresAt) + ' — ask the office before then.']);
+        out.advice = out.advice.concat([s.canRenew ? 'Syncing on this computer must be renewed by ' + hhmm(s.tokenExpiresAt) + ' — press Reconnect (beside this) now.'
+          : 'Syncing on this computer must be renewed by ' + hhmm(s.tokenExpiresAt) + ' — ask the office before then.']);
+        if (out.tone === 'ok') out.tone = 'warn';
+      } else if (!s.lan && s.connected && s.canRenew) {
+        // It could not renew itself in the background (OPS-11): one press does it.
+        out.advice = out.advice.concat(['Syncing could not renew itself. Press Reconnect (beside this) to keep it going.']);
         if (out.tone === 'ok') out.tone = 'warn';
       }
       return out;
