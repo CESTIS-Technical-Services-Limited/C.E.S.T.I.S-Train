@@ -537,8 +537,11 @@ await section('Integration clean-ups', async () => {
   assertEq((core.match(/Core\.html = \(function/g) || []).length, 1, 'Core.html is defined once (it was defined twice, byte for byte)');
   assert(!/function renderStudents\(/.test(SRC) && !/renderStudents\(/.test(SRC), 'the dead renderStudents (a table that no longer exists, buttons for removed handlers) is gone');
   const pkg = JSON.parse(read('package.json'));
-  assert(/tests\/megadata-bat-lint\.test\.js/.test(pkg.scripts.test), 'megadata-bat-lint runs with npm test');
-  assert(/review-security\.test\.js/.test(pkg.scripts.test), 'and so does this test');
+  // `npm test` runs tools/run-tests.js; its SUITES list is what runs.
+  const suites = require('../tools/run-tests.js').SUITES.join(' ');
+  assert(pkg.scripts.test === 'node tools/run-tests.js', 'npm test runs every suite through tools/run-tests.js');
+  assert(/tests\/megadata-bat-lint\.test\.js/.test(suites), 'megadata-bat-lint runs with npm test');
+  assert(/review-security\.test\.js/.test(suites), 'and so does this test');
   assert(/transcripts-admin\.js/.test(pkg.scripts['test:browser:transcripts'] || ''), 'the transcripts browser test has an npm script');
   assert(/security-regressions\.js/.test(pkg.scripts['test:browser:security'] || ''), 'and so does the security browser test');
 });

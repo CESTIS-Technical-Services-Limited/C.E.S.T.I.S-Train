@@ -67,8 +67,11 @@ offPkg.scripts.test.split('&&').map(s => s.trim().replace(/^node /, '')).forEach
   assert(fs.existsSync(path.join(ROOT, 'Offline System', t)), 'the offline package.json\'s test ' + t + ' exists');
 });
 const rootPkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+// `npm test` runs tools/run-tests.js, whose SUITES list is the one to check.
+const rootSuites = require('../tools/run-tests.js').SUITES;
+assert(rootPkg.scripts.test === 'node tools/run-tests.js', '`npm test` runs every suite through tools/run-tests.js');
 offTests.forEach(t => {
-  assert(rootPkg.scripts.test.indexOf('Offline System/tests/' + t) !== -1, 'and the root `npm test` runs ' + t);
+  assert(rootSuites.indexOf('Offline System/tests/' + t) !== -1, 'and the root `npm test` runs ' + t);
 });
 assert(rootPkg.scripts['build:offline'] === 'node tools/build-offline.js', '`npm run build:offline` regenerates the folder');
 
