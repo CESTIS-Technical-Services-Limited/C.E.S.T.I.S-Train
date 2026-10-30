@@ -103,7 +103,10 @@ called ".history" with one folder per file, holding the last 40 versions of it,
 named by date and time. If a file is ever damaged or a bad save gets through,
 stop the server, copy the version you want from data/.history/<file>/ back over
 data/<file>, and start the server again. (On Windows, turn on "Hidden items"
-in File Explorer's View menu to see the folder.)
+in File Explorer's View menu to see the folder.) The newest 3 versions are
+ordinary .json files. The older ones are compressed to save space (they end in
+".json.gz"): to use one, right-click it and choose "Extract All" (or open it
+with 7-Zip), then copy the .json file that comes out back over data/<file>.
 
 HOW SAVES ARE COMBINED. Several devices saving at once is normal in a class.
 The server merges every save into what it already holds, by the same rules

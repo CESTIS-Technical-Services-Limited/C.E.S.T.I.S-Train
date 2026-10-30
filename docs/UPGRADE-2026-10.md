@@ -88,7 +88,7 @@ shown to the owner in screenshots first, and merged only once approved or decide
 | **Duplicate "Disabled" accounts** | A cleared office PC no longer creates second and third accounts from the fee roll and chat roster. Provable leftovers fold into the real account, with a deletion record so they cannot come back; anything unsure stays for the administrator. | `tests/backfill-stub-fold.test.js` |
 | **"Set a new password"** | The cursor no longer jumps back from "Confirm password" (an intermittent "Passwords do not match" for a first administrator). | `tests/force-change-pw-focus.test.js` |
 | **A test that follows the trainee** | Answers are saved on the device and in the shared copy. Kicked out, crashed or disconnected, the trainee signs in and presses "Continue your attempt"; at another Centre PC too. The original clock stands, the newest answer per question wins, a submitted test cannot be reopened, and there is exactly one result per attempt. A trainee taking a test is not signed out part-way; a test whose time ran out is submitted at the next sign-in. | `tests/exam-attempt-travel.test.js`, `tests/browser/exam-resume.js` |
-| **Shared files' version tags** | Every page asks for the current shared code files. As of 30 October 2026: `cestis-core.js?v=20261030b`, `cmc-portal.js?v=20261029b`, `cestis-gate-client.js?v=20261030b`, `cestis-page-cloud.js?v=20261028e`, `cestis-form-modal.js?v=20261028d`. | — |
+| **Shared files' version tags** | Every page asks for the current shared code files. As of 30 October 2026: `cestis-core.js?v=20261030c`, `cmc-portal.js?v=20261029b`, `cestis-gate-client.js?v=20261030b`, `cestis-page-cloud.js?v=20261030c`, `cestis-form-modal.js?v=20261028d`. | — |
 
 **Decisions the owner made in this round:**
 - Trainees register at the Centre (or the office creates their account). A trainee's own phone
@@ -116,6 +116,7 @@ saw screenshots.
 | **Audit fixes (PR #349)** | Every trainee reaches a small-room live class; the idle lock leaves a class or an open sitting alone and accepts a trainee's password at home; pass rates from marked results; one counting rule per figure with its denominator; dropouts stay Incomplete; the full gradebook; no default answer key; no false "uploaded"; notices to their programme; contact details carried to the trainee and fee records; a warning before a receipt number is reused. | `tests/vc-small-room-joiners.test.js`, `tests/centre-figures.test.js`, `tests/pass-rate-from-marks.test.js` and the other tests named in each commit |
 | **Live classes on less data (owner approved 30 Oct)** | Trainees start muted with the camera off; a muted microphone sends nothing; a trainee's camera goes to the instructor only; the instructor's picture budget is shared fairly as people join and leave; recordings at about 550 kbit/s; Large Class is put first above 6 trainees only once the Centre has its own video server. Measured, class of 6: a trainee's upload 553 → 6 kbit/s. | `tests/vc-room.test.js`, `tests/vc-page.test.js`, `tests/browser/vc-room.js` |
 | **Home study (owner approved 30 Oct)** | A trainee's link opens on her own form; "Your class is live — Join class" and "Test open now — Start test" at the top of her home screen (her phone checks every minute around class time); My Progress shows her real figures; photos made about 0.4 MB on the phone and sent in parts that survive a dropped signal; My Fees and Change Password at home; her certificate downloads at home once approved; she is told when to expect approval and emailed when approved; the bell's glow stops after three pulses. The trainee sign-in program is version 3 (paste the latest when setting it up). | `tests/home-study.test.js`, `tests/browser/home-study.js`, `docs/trainee-gate/DESIGN.md` §18 |
+| **Sync that rests, and chat that is never emptied** | An untouched office PC stops saving and uploading (≈2.9 GB a day → ≈2.4 MB); a big chat history or fee roll is no longer emptied at start-up; a change uploads the Main copy only, the extra copies every 30 minutes, at sign-out, or at once while Main fails; sign-in skips bytes it already has (month 10: 771 → 134 MB downloaded); the Centre network sends only changed keys, compresses its history and accepts files up to 512 MiB; the Cashbook checks before downloading; a new attendance mark no longer reads the whole register. | `tests/sync-idle-quiet.test.js`, `tests/chat-history-not-emptied.test.js`, `tests/backup-copy-cadence.test.js`, `tests/lan-partial-save.test.js`, `tests/browser/sync-quiet.js`, `tests/browser/backup-copies.js` |
 
 **Decisions the owner made in this round (29–30 October 2026):**
 - Groups A–F of the audit's recommendations approved: the office (A), instructors (B), trainees at
@@ -411,6 +412,23 @@ instructor and 6 trainees on phone settings, every connection's bytes read from 
   - Its own edits are re-dated to the correct time instead of being lost.
   - A warning shows when a device's clock disagrees with Google's.
 - **Restores.** Importing a backup pauses auto-save, so the restore is not undone.
+- **Sync cost (29 October).**
+  - An untouched dashboard no longer saves or uploads anything; an edit made at any moment,
+    during an upload too, still goes up on the next 5-second tick.
+  - A change uploads the Main backup copy only. The four other folder copies, the per-person
+    copy and the master snapshot go up together at most every 30 minutes while the Main copy
+    is ahead of them, at sign-out, and at once (at most every 5 minutes) while the Main copy
+    cannot be written. Every reader still reads all of them, newest record winning.
+  - Sign-in and Sync Now download each distinct copy once: a copy whose bytes (Drive's MD5)
+    this device has already merged is not downloaded again.
+  - The first save after a sign-in sends nothing only when the Main copy still has the exact
+    bytes this device last put there (same MD5) and the device would send exactly that data
+    (same hash). Each device keeps that note for itself (`cestisLastUploadHash`); it never
+    travels. A device upgraded from an older build has no note, so it uploads once, as before.
+  - The chat file is uploaded only when the chat changed; the Cashbook checks its file's
+    version before downloading it.
+  - A PC's chat history, notifications and School Fee roll are read again once the browser's
+    database is open; nothing is written over them before that.
 
 ### The Offline System
 - **Generated from the main files.** `Offline System/` is produced by
@@ -422,7 +440,10 @@ instructor and 6 trainees on phone settings, every connection's bytes read from 
   no longer wipe the Centre's records.
 - **The local server.**
   - Each save is written safely and merged with what the server already holds.
-  - The last 40 versions of every data file are kept in `data/.history`.
+  - The last 40 versions of every data file are kept in `data/.history`: the newest 3 as plain
+    `.json`, older ones compressed (`.json.gz`; extract one before copying it back).
+  - A save sends only the keys that changed; the server merges them into its file. It takes
+    saves up to 512 MiB.
   - It tells a missing file apart from one it could not read.
 - **Offline gates.** The Cashbook and certificate downloads work offline, with the Centre's
   server acting as the central store.

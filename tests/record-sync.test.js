@@ -199,7 +199,7 @@ PAGES.forEach(function (page) {
   assert(auto.indexOf('var buildPayload = function()') !== -1 && auto.indexOf('let backupData = buildPayload();') !== -1, w + ': the payload can be rebuilt');
   assert(auto.indexOf('if (await mainMovedSincePull()) { backupData = buildPayload(); }') !== -1, w + ': the Main version is re-read right before the write and the payload rebuilt on a change');
   const moved = extractFunction(src, 'mainMovedSincePull', w);
-  assert(moved.indexOf('?fields=version') !== -1 && moved.indexOf('await silentMergeFromBackup(fileId)') !== -1, w + ': a moved file is merged in before the save');
+  assert(moved.indexOf('?fields=version') !== -1 && moved.indexOf('await silentMergeFromBackup(fileId') !== -1, w + ': a moved file is merged in before the save');
   const save = extractFunction(src, 'silentSaveToFolder', w);
   assert(save.indexOf('Number(pResult.version) - Number(prevVer) > 1') !== -1 && save.indexOf('recoverOvertakenWrite(') !== -1, w + ': a version jump of more than one is recovered');
   const rec = extractFunction(src, 'recoverOvertakenWrite', w);
