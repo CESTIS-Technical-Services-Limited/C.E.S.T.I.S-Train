@@ -21039,9 +21039,15 @@ function renderInstructorGradebook() {
   }
 
   var html = '';
-  myAssignments.forEach(function(a) {
-    // The latest attempt per trainee; earlier attempts are listed under it.
-    var subs = CESTISCore.coursework.latestPerStudent(assignmentSubmissions, a.id);
+  var CWk = CESTISCore.coursework;
+  // Work still to mark first, then the newest (audit IN-4): the assignment
+  // waiting to be marked used to be the tenth card down.
+  CWk.assignmentOrder(myAssignments, assignmentSubmissions).forEach(function(a) {
+    // The latest attempt per trainee — still to mark first, then the newest;
+    // earlier attempts are listed under it.
+    var subs = CWk.markingOrder(a, CWk.latestPerStudent(assignmentSubmissions, a.id));
+    var toMark = subs.filter(function(sb) { return CWk.gradeValue(a.grades ? a.grades[sb.studentId] : null) == null; }).length;
+    var missing = CWk.notSubmitted(a, students, assignmentSubmissions, instructorCourseMatch);
     var isPastDue = CESTISCore.coursework.isPastDue(a.dueDate); // due = by the end of that day, here (not UTC midnight)
     var statusBadge = isPastDue ? '<span class="badge badge-red">Past Due</span>' : '<span class="badge badge-green">Active</span>';
     var attachCount = (a.attachments && a.attachments.length) || 0;
@@ -21053,6 +21059,7 @@ function renderInstructorGradebook() {
         '</div>' +
         '<div style="display:flex;gap:6px;align-items:center;">' + statusBadge +
           '<span class="badge badge-blue">' + subs.length + ' submission' + (subs.length!==1?'s':'') + '</span>' +
+          (toMark ? '<span class="badge badge-amber">' + toMark + ' to mark</span>' : '') +
           '<button class="btn btn-sm btn-danger" onclick="deleteAssignment('+jsArg(a.id)+')">Delete</button>' +
         '</div>' +
       '</div>';
@@ -21092,12 +21099,26 @@ function renderInstructorGradebook() {
         var gradeHtml = '';
         var curGrade = a.grades ? CESTISCore.coursework.gradeValue(a.grades[sub.studentId]) : null;
         var meta = (a.gradeMeta && a.gradeMeta[sub.studentId]) || null;
-        // A mark can be changed; the change is recorded (who, when, what it was).
-        var gradeInput = '<input type="number" class="form-control gb-grade-input" style="width:60px;height:28px;font-size:12px;display:inline-block;" placeholder="—" min="0" max="' + escapeHtml(a.maxPoints) + '" id="grade-' + escapeHtml(a.id) + '-' + escapeHtml(sub.studentId) + '"' + (curGrade != null ? ' value="' + escapeAttr(curGrade) + '"' : '') + '>' +
-          '<button class="btn btn-sm btn-primary gb-grade-btn" style="padding:2px 8px;font-size:11px;margin-left:4px;" onclick="gradeSubmission('+jsArg(a.id)+','+jsArg(sub.studentId)+')">' + (curGrade != null ? 'Update' : 'Grade') + '</button>';
+        var curFb = CWk.feedbackFor(a, sub.studentId);
+        var rowKey = escapeHtml(a.id) + '-' + escapeHtml(sub.studentId);
+        // The mark and a written comment for the trainee, saved together. A
+        // mark can be changed (Edit); the change is recorded — who, when, and
+        // what the mark and comment were before.
+        var gradeInput = '<input type="number" class="form-control gb-grade-input" style="width:60px;height:28px;font-size:12px;display:inline-block;" placeholder="—" aria-label="Mark out of ' + escapeAttr(a.maxPoints) + '" min="0" max="' + escapeHtml(a.maxPoints) + '" id="grade-' + rowKey + '"' + (curGrade != null ? ' value="' + escapeAttr(curGrade) + '"' : '') + '>' +
+          '<button class="btn btn-sm btn-primary gb-grade-btn" style="padding:2px 8px;font-size:11px;margin-left:4px;" onclick="gradeSubmission('+jsArg(a.id)+','+jsArg(sub.studentId)+')">' + (curGrade != null ? 'Save change' : 'Grade') + '</button>' +
+          '<textarea class="form-control gb-feedback-input" id="fb-' + rowKey + '" rows="2" maxlength="2000" placeholder="Comment for the trainee (optional) — she sees it on My Assignments" aria-label="Comment for the trainee" style="margin-top:6px;font-size:12px;min-height:44px;">' + escapeHtml(curFb) + '</textarea>';
         if (curGrade != null) {
           var resub = meta && meta.resubmittedAt;
-          gradeHtml = '<span class="badge ' + (resub ? 'badge-amber' : 'badge-green') + '" title="' + escapeAttr(meta && meta.gradedAt ? 'Marked ' + new Date(meta.gradedAt).toLocaleString() + (meta.gradedBy ? ' by ' + meta.gradedBy : '') : '') + '">' + escapeHtml(curGrade) + '/' + escapeHtml(a.maxPoints) + (resub ? ' · resubmitted' : '') + '</span> ' + gradeInput;
+          var hist = CWk.gradeHistory(a, sub.studentId);
+          var changes = hist.filter(function(h) { return h.previous != null || h.previousFeedback != null; });
+          var histText = changes.length ? 'Changed ' + changes.length + ' time' + (changes.length !== 1 ? 's' : '') + ': ' + hist.map(function(h) {
+            return (h.points != null ? h.points : '') + (h.gradedBy ? ' (' + h.gradedBy + (h.gradedAt ? ', ' + new Date(h.gradedAt).toLocaleDateString() : '') + ')' : '');
+          }).join(' → ') : '';
+          gradeHtml = '<span class="badge ' + (resub ? 'badge-amber' : 'badge-green') + '" title="' + escapeAttr(meta && meta.gradedAt ? 'Marked ' + new Date(meta.gradedAt).toLocaleString() + (meta.gradedBy ? ' by ' + meta.gradedBy : '') : '') + '">' + escapeHtml(curGrade) + '/' + escapeHtml(a.maxPoints) + (resub ? ' · resubmitted' : '') + '</span> ' +
+            '<button class="btn btn-sm btn-secondary gb-edit-btn" style="padding:2px 8px;font-size:12px;" onclick="gbToggleEdit(this)" aria-expanded="false">Edit</button>' +
+            (curFb ? '<div class="gb-feedback-shown" style="font-size:12px;color:var(--text-secondary);margin-top:4px;">💬 ' + escapeHtml(curFb) + '</div>' : '') +
+            (histText ? '<div class="gb-history" style="font-size:12px;color:var(--text-muted);margin-top:2px;">' + escapeHtml(histText) + '</div>' : '') +
+            '<div class="gb-editor" hidden style="margin-top:6px;">' + gradeInput + '</div>';
         } else {
           gradeHtml = gradeInput;
         }
@@ -21121,11 +21142,23 @@ function renderInstructorGradebook() {
         if (sub.comment) {
           html += '<span style="font-size:11px;color:var(--text-muted);" title="' + escapeHtml(sub.comment) + '">💬</span>';
         }
-        html += '<div>' + gradeHtml + '</div></div>';
+        html += '<div class="gb-mark-cell" style="min-width:260px;">' + gradeHtml + '</div></div>';
       });
       html += '</div>';
     } else if (a.requireSubmission) {
       html += '<div style="padding:12px 16px;text-align:center;color:var(--text-muted);font-size:12px;">No submissions yet</div>';
+    }
+    // Who has not handed it in, with a reminder each (audit IN-4: chasing the
+    // four who had not took 2-3 minutes an assignment, and no screen named them).
+    if (missing.length) {
+      var due = a.dueDate ? ' (due ' + a.dueDate + ')' : '';
+      html += '<details class="gb-missing" style="padding:8px 16px 12px;border-top:1px solid var(--border);"' + (isPastDue ? ' open' : '') + '>' +
+        '<summary style="cursor:pointer;font-size:12px;font-weight:600;color:' + (isPastDue ? 'var(--red)' : 'var(--text-secondary)') + ';">Not submitted (' + missing.length + ')</summary>' +
+        missing.map(function(st) {
+          var draft = ['Hi ', String(st.name || '').split(' ')[0], ', I have not received "', a.title, '"', due, ' yet. Please upload it on My Assignments, or tell me if you need more time.'].join('');
+          return '<div class="gb-missing-row" style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12px;"><span style="flex:1;">' + escapeHtml(st.name) + '</span>' +
+            '<button class="btn btn-sm btn-secondary" onclick="openDirectChatWithTrainee(' + jsArg(st.id) + ',' + jsArg(draft) + ')">💬 ' + (isPastDue ? 'Remind' : 'Message') + '</button></div>';
+        }).join('') + '</details>';
     }
 
     html += '</div>';
@@ -21143,21 +21176,37 @@ function gradeSubmission(assignmentId, studentId) {
   if (!a) return;
   if (!isFinite(score) || score < 0 || score > a.maxPoints) { showToast('Enter a valid score (0-' + a.maxPoints + ')'); return; }
   var by = (currentLoggedInUser && currentLoggedInUser.name) || (currentInstructor && currentInstructor.name) || (currentRole === 'admin' ? 'Administrator' : 'Instructor');
+  // The comment that goes with the mark (she sees it on My Assignments).
+  var fbEl = document.getElementById('fb-' + assignmentId + '-' + studentId);
+  var feedback = fbEl && typeof fbEl.value === 'string' ? fbEl.value : null;
   // Recorded, not just overwritten: when, by whom, and what it was before.
-  var res = CESTISCore.coursework.recordGrade(a, studentId, score, by, new Date().toISOString());
+  var res = CESTISCore.coursework.recordGrade(a, studentId, score, by, new Date().toISOString(), feedback);
   if (!res.changed) { showToast('That mark is already recorded'); return; }
   if (a.gradeMeta && a.gradeMeta[studentId]) delete a.gradeMeta[studentId].resubmittedAt;
   saveState();
   if(typeof scheduleDebouncedCloudSave === 'function') scheduleDebouncedCloudSave();
   saveAssignmentsToDrive();
   var st = students.find(function(s) { return s.id === studentId; });
-  showToast((res.previous != null ? 'Mark changed for ' : 'Graded ') + (st ? st.name : studentId) + ': ' + score + '/' + a.maxPoints + (res.previous != null ? ' (was ' + res.previous + ')' : ''));
+  if (res.markChanged === false) showToast('Comment saved for ' + (st ? st.name : studentId));
+  else showToast((res.previous != null ? 'Mark changed for ' : 'Graded ') + (st ? st.name : studentId) + ': ' + score + '/' + a.maxPoints + (res.previous != null ? ' (was ' + res.previous + ')' : '') + (res.feedbackChanged ? ', with a comment' : ''));
   // Staff only, like exam scores: a trainee's mark is not news for the whole
   // class. The trainee sees it on My Assignments.
   var _mk = notifyMarkingAudience();
   addNotification((st ? st.name : 'Student') + ' graded ' + score + '/' + a.maxPoints + ' on "' + a.title + '"', 'grade', null, _mk.roles, null, _mk.aud);
   renderInstructorGradebook();
   refreshContentDependentViews();
+}
+
+// "Edit" on a marked submission: shows the mark and comment boxes (hidden so
+// a mark is not changed by a stray keystroke).
+function gbToggleEdit(btn) {
+  var cell = btn && btn.closest ? btn.closest('.gb-mark-cell') : null;
+  var ed = cell && cell.querySelector('.gb-editor');
+  if (!ed) return;
+  ed.hidden = !ed.hidden;
+  btn.setAttribute('aria-expanded', ed.hidden ? 'false' : 'true');
+  btn.textContent = ed.hidden ? 'Edit' : 'Cancel edit';
+  if (!ed.hidden) { var inp = ed.querySelector('.gb-grade-input'); if (inp) { try { inp.focus(); } catch (e) {} } }
 }
 
 function deleteAssignment(id) {
@@ -21689,6 +21738,15 @@ function renderStudentAssignmentsPage() {
         html += '<div style="font-size:11px;color:var(--text-muted);margin-top:4px;">💬 ' + escapeHtml(mySub.comment) + '</div>';
       }
       html += '</div>';
+    }
+
+    // The instructor's comment on her mark (Core.coursework.recordGrade). At
+    // home it arrives through the trainee gate with her own mark only.
+    var myFb = myGrade !== null ? CESTISCore.coursework.feedbackFor(a, s.id) : '';
+    if (myFb) {
+      html += '<div class="s-assign-feedback" style="padding:10px 16px;border-bottom:1px solid var(--border);">' +
+        '<div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:4px;">💬 Your instructor\'s comment</div>' +
+        '<div style="font-size:13px;color:var(--text-primary);white-space:pre-wrap;">' + escapeHtml(myFb) + '</div></div>';
     }
 
     // Action buttons

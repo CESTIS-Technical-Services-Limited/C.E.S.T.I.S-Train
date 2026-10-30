@@ -10087,7 +10087,11 @@
                          whole from both sides.
          notifications — who has read / cleared it, person by person. */
     var RECORD_MAPS = {
-      assignments: { perEntry: { grades: 'gradeMeta.gradedAt' }, unionStamps: ['gradeLog'] },
+      // The comment that goes with a mark (feedback {trainee: text}) is dated
+      // by its own stamp (feedbackAt {trainee: ISO}): two instructors
+      // commenting on two trainees both keep theirs; the newer edit of one
+      // trainee's comment wins.
+      assignments: { perEntry: { grades: 'gradeMeta.gradedAt', feedback: 'feedbackAt' }, unionStamps: ['gradeLog'] },
       notifications: { unionStamps: ['readBy', 'clearedBy'] },
       // A sitting's attendance register (Core.invigilation): two invigilators
       // noting different trainees, or one signing off while the other notes,
@@ -13966,21 +13970,92 @@
 
     // A changed mark is recorded, not just overwritten: who, when, and what it
     // was before. HEART/NSTA moderation asks exactly that.
-    function recordGrade(assignment, studentId, points, by, nowIso) {
+    // A written comment can go with a mark (audit IN-4: remote trainees got
+    // "85/100" and nothing else). `feedback` (optional): the comment as it
+    // should now read — '' clears it; leave it out to keep the one there.
+    // A comment changed on its own is recorded like a changed mark. The
+    // comments live in assignment.feedback { trainee: text },
+    // dated by feedbackAt { trainee: ISO } (so two people's comments merge
+    // trainee by trainee), and every change is a line of the grade history
+    // (gradeLog) with what it replaced.
+    function recordGrade(assignment, studentId, points, by, nowIso, feedback) {
       if (!assignment || studentId == null) return { changed: false };
       if (!assignment.grades) assignment.grades = {};
       var prev = assignment.grades[studentId];
       var prevVal = gradeValue(prev);
       var newVal = gradeValue(points);
       if (newVal == null) return { changed: false };
-      if (prevVal === newVal) return { changed: false, previous: prevVal };
+      var fbGiven = feedback !== undefined && feedback !== null;
+      var fbMap = assignment.feedback && typeof assignment.feedback === 'object' && !Array.isArray(assignment.feedback) ? assignment.feedback : null;
+      var prevFb = fbMap && fbMap[studentId] != null ? String(fbMap[studentId]) : '';
+      var newFb = fbGiven ? String(feedback).trim() : prevFb;
+      var markChanged = prevVal !== newVal, fbChanged = fbGiven && newFb !== prevFb;
+      if (!markChanged && !fbChanged) return { changed: false, previous: prevVal };
       var at = nowIso || new Date().toISOString();
       assignment.grades[studentId] = newVal;
+      if (fbChanged) {
+        if (!fbMap) assignment.feedback = fbMap = {};
+        fbMap[studentId] = newFb;
+        if (!assignment.feedbackAt || typeof assignment.feedbackAt !== 'object' || Array.isArray(assignment.feedbackAt)) assignment.feedbackAt = {};
+        assignment.feedbackAt[studentId] = at;
+      }
       if (!Array.isArray(assignment.gradeLog)) assignment.gradeLog = [];
-      assignment.gradeLog.push({ studentId: studentId, points: newVal, previous: prevVal, gradedBy: by || '', gradedAt: at });
+      var line = { studentId: studentId, points: newVal, previous: prevVal, gradedBy: by || '', gradedAt: at };
+      if (fbChanged) { line.feedback = newFb; line.previousFeedback = prevFb; }
+      assignment.gradeLog.push(line);
       if (!assignment.gradeMeta || typeof assignment.gradeMeta !== 'object') assignment.gradeMeta = {};
       assignment.gradeMeta[studentId] = { gradedBy: by || '', gradedAt: at };
-      return { changed: true, previous: prevVal };
+      return { changed: true, previous: prevVal, markChanged: markChanged, feedbackChanged: fbChanged };
+    }
+    // A trainee's comment from her instructor on one assignment ('' none).
+    function feedbackFor(assignment, studentId) {
+      var m = assignment && assignment.feedback;
+      return m && typeof m === 'object' && m[studentId] != null ? String(m[studentId]) : '';
+    }
+    // The history of one trainee's mark, oldest first.
+    function gradeHistory(assignment, studentId) {
+      return (assignment && Array.isArray(assignment.gradeLog) ? assignment.gradeLog : []).filter(function (g) { return g && g.studentId === studentId; })
+        .slice().sort(function (a, b) { return String(a.gradedAt || '') < String(b.gradedAt || '') ? -1 : 1; });
+    }
+    /* Who has not handed an assignment in: the trainees of its programme who
+       are in training (Core.centreFigures.isActive), with no submission and
+       no mark (work handed in on paper and marked counts as in). An
+       assignment that asks for no upload has nobody "not submitted".
+       -> [student] by name */
+    function notSubmitted(assignment, students, subs, sameProgramme) {
+      if (!assignment || assignment.requireSubmission === false) return [];
+      var same = sameProgramme || function (a, b) { return Core.normCourse(a) === Core.normCourse(b); };
+      var handed = {};
+      latestPerStudent(subs, assignment.id).forEach(function (s) { handed[s.studentId] = 1; });
+      return (students || []).filter(function (s) {
+        if (!s || !Core.centreFigures.isActive(s) || !s.course || !assignment.course) return false;
+        if (!(s.course === assignment.course || same(s.course, assignment.course))) return false;
+        if (handed[s.id]) return false;
+        return gradeValue(assignment.grades ? assignment.grades[s.id] : null) == null;
+      }).sort(function (a, b) { return String(a.name || '').localeCompare(String(b.name || '')); });
+    }
+    /* The marking order: work still to mark first, then the newest. For the
+       submissions of one assignment (each its latest attempt) ... */
+    function markingOrder(assignment, subs) {
+      return (subs || []).slice().sort(function (a, b) {
+        var ma = gradeValue(assignment && assignment.grades ? assignment.grades[a.studentId] : null) != null ? 1 : 0;
+        var mb = gradeValue(assignment && assignment.grades ? assignment.grades[b.studentId] : null) != null ? 1 : 0;
+        if (ma !== mb) return ma - mb;
+        return subTime(b) - subTime(a);
+      });
+    }
+    /* ... and for the assignments: those with work waiting first, then the
+       newest (by due date, then when set). */
+    function assignmentOrder(assignments, subs) {
+      var waiting = function (a) {
+        return latestPerStudent(subs, a.id).some(function (s) { return gradeValue(a.grades ? a.grades[s.studentId] : null) == null; }) ? 1 : 0;
+      };
+      return (assignments || []).slice().sort(function (a, b) {
+        var wa = waiting(a), wb = waiting(b);
+        if (wa !== wb) return wb - wa;
+        var da = String(a.dueDate || '') + String(a.createdAt || ''), db = String(b.dueDate || '') + String(b.createdAt || '');
+        return da < db ? 1 : da > db ? -1 : 0;
+      });
     }
 
     function pairOf(subs, assignmentId, studentId) {
@@ -14050,7 +14125,9 @@
       gradeValue: gradeValue, percentOf: percentOf, weightOf: weightOf, weightedAverage: weightedAverage,
       gpaFromPercent: gpaFromPercent, effectiveGpa: effectiveGpa, studentSummary: studentSummary,
       gradebook: gradebook, gradebookCsv: gradebookCsv,
-      recordGrade: recordGrade, submissionHistory: submissionHistory, latestSubmission: latestSubmission,
+      recordGrade: recordGrade, feedbackFor: feedbackFor, gradeHistory: gradeHistory, notSubmitted: notSubmitted,
+      markingOrder: markingOrder, assignmentOrder: assignmentOrder,
+      submissionHistory: submissionHistory, latestSubmission: latestSubmission,
       latestPerStudent: latestPerStudent, canSubmit: canSubmit, oversizeFiles: oversizeFiles,
       resourceVisible: resourceVisible
     };
@@ -15373,7 +15450,9 @@
       'questionsPerPage', 'shuffleQuestions', 'shuffleOptions', 'answersRelease', 'status', 'activatedAt', 'allowFlag', 'instructions'];
     var VC_FIELDS = ['id', 'code', 'title', 'course', 'hostName', 'hostRole', 'startedAt', 'endedAt', 'locked', 'lobby', 'updatedAt'];
     var ROOM_FIELDS = ['id', 'name', 'icon', 'type', 'color', 'skillAreaId', 'createdAt', 'updatedAt'];
-    var PER_TRAINEE_MAPS = ['grades', 'gradeMeta', 'feedback', 'comments', 'marks'];
+    // feedbackAt: when each trainee's comment on an assignment was written
+    // (Core.coursework.recordGrade) — her own date only, like her mark.
+    var PER_TRAINEE_MAPS = ['grades', 'gradeMeta', 'feedback', 'feedbackAt', 'comments', 'marks'];
 
     /* System notices that name a trainee. A trainee sees one only when it
        names them; the score and mark notices never reach a trainee at all

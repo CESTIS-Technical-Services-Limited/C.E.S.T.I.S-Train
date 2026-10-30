@@ -3295,7 +3295,9 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       'questionsPerPage', 'shuffleQuestions', 'shuffleOptions', 'answersRelease', 'status', 'activatedAt', 'allowFlag', 'instructions'];
     var VC_FIELDS = ['id', 'code', 'title', 'course', 'hostName', 'hostRole', 'startedAt', 'endedAt', 'locked', 'lobby', 'updatedAt'];
     var ROOM_FIELDS = ['id', 'name', 'icon', 'type', 'color', 'skillAreaId', 'createdAt', 'updatedAt'];
-    var PER_TRAINEE_MAPS = ['grades', 'gradeMeta', 'feedback', 'comments', 'marks'];
+    // feedbackAt: when each trainee's comment on an assignment was written
+    // (Core.coursework.recordGrade) — her own date only, like her mark.
+    var PER_TRAINEE_MAPS = ['grades', 'gradeMeta', 'feedback', 'feedbackAt', 'comments', 'marks'];
 
     /* System notices that name a trainee. A trainee sees one only when it
        names them; the score and mark notices never reach a trainee at all

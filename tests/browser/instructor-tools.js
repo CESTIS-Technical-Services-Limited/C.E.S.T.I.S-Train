@@ -385,6 +385,54 @@ const NOT_HANDED_IN = ['Leon Stewart', 'Kerry-Ann Palmer', 'Marlon Wright', 'Sas
     await I.evaluate(() => closeGradingPanel());
   });
 
+  /* -------------------------------------------------------- coursework */
+  await section('coursework', 'Marking Week 10: a comment with the mark, Not submitted, Edit, the trainee sees it', async () => {
+    await go(I, 'i-gradebook');
+    await I.evaluate(() => renderInstructorGradebook());
+    const first = await I.evaluate(() => { const c = document.querySelector('#iCustomAssignmentsList > .card'); return c ? c.querySelector('h3').innerText : ''; });
+    ok(/Week 10/.test(first), 'the assignment with work to mark is the first card (' + first + ')');
+    const card = I.locator('#iCustomAssignmentsList > .card', { hasText: 'Week 10' });
+    ok(/16 submissions/.test(await card.innerText()) && /16 to mark/.test(await card.innerText()), 'it says 16 submissions, 16 to mark');
+    const missing = await card.locator('.gb-missing-row').allInnerTexts();
+    ok(missing.length === 4 && NOT_HANDED_IN.every(n => missing.some(m => m.indexOf(n) !== -1)), 'Not submitted (4) names the four who have not handed it in (' + missing.map(m => m.split('\n')[0]).join(', ') + ')');
+    await shot(I, 'b2-gradebook-week10', { focus: '#iCustomAssignmentsList > .card' });
+    const tameka = idOf('Tameka Richards');
+    await I.fill('#grade-ASN-WK10-' + tameka, '78');
+    await I.fill('#fb-ASN-WK10-' + tameka, 'Clean cuts and a clear write-up. Next time, measure the kerf width and say why it changed.');
+    await I.locator('#grade-ASN-WK10-' + tameka + ' + button').click();
+    await I.waitForTimeout(600);
+    const saved = await I.evaluate(id => { const a = instructorAssignments.find(x => x.id === 'ASN-WK10'); return { g: a.grades[id], f: (a.feedback || {})[id], at: (a.feedbackAt || {})[id] }; }, tameka);
+    ok(saved.g === 78 && /measure the kerf width/.test(saved.f || '') && !!saved.at, 'the mark and the comment are saved together');
+    await I.evaluate(() => renderInstructorGradebook());
+    const row = I.locator('#iCustomAssignmentsList > .card', { hasText: 'Week 10' }).locator('.gb-sub-row', { hasText: 'Tameka Richards' });
+    ok(/78\/100/.test(await row.innerText()) && /measure the kerf width/.test(await row.innerText()), 'her row now shows 78/100 and the comment');
+    ok(!(await row.locator('.gb-editor').isVisible()), 'the boxes are hidden until Edit');
+    await row.locator('.gb-edit-btn').click();
+    ok(await row.locator('.gb-editor').isVisible(), 'Edit shows them');
+    await row.locator('.gb-grade-input').fill('80');
+    await row.locator('.gb-grade-btn').click();
+    await I.waitForTimeout(500);
+    const hist = await I.evaluate(id => CESTISCore.coursework.gradeHistory(instructorAssignments.find(x => x.id === 'ASN-WK10'), id).map(h => h.previous + '>' + h.points).join(','), tameka);
+    ok(hist === 'null>78,78>80', 'the change keeps its history (' + hist + ')');
+    await I.evaluate(() => renderInstructorGradebook());
+    await shot(I, 'b2-gradebook-marked-with-comment', { focus: '#iCustomAssignmentsList > .card .gb-sub-row' });
+    // Remind one of the four.
+    await I.locator('#iCustomAssignmentsList > .card', { hasText: 'Week 10' }).locator('.gb-missing-row', { hasText: 'Sasha Walker' }).locator('button').click();
+    const draft = await until(() => I.evaluate(() => { const i = document.getElementById('instructorChatInput'); return i && document.getElementById('page-i-lms-chat').classList.contains('active') ? i.value : null; }), 10000);
+    ok(!!draft && /^Hi Sasha, I have not received "Week 10 — Cutting & gouging report" \(due \d{4}-\d\d-\d\d\) yet\./.test(draft), 'Remind opens her chat with the reminder typed (' + String(draft).slice(0, 70) + ')');
+    await push(I);
+    // The trainee, on her phone at home.
+    const ph = await computer({ phone: true });
+    const T = await open(ph, 'trainee phone', true);
+    ok(await signIn(T, 'w1'), 'Tameka signs in on her phone');
+    await refresh(T);
+    await go(T, 's-assignments');
+    const seen = await until(async () => { await T.evaluate(() => { try { renderStudentAssignmentsPage(); } catch (e) {} }); return /measure the kerf width/.test(await txt(T, '#page-s-assignments')); }, 20000, 1500);
+    ok(!!seen, 'on My Assignments she sees her mark and her instructor\'s comment');
+    await shot(T, 'b2-trainee-my-assignments-comment', { focus: '.s-assign-feedback' });
+    await ph.close();
+  });
+
   /* ----------------------------------------------------------- notices */
   await section('notices', 'A Welding assignment reaches Welding trainees, not Plumbing', async () => {
     await go(I, 'i-gradebook');
