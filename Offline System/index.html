@@ -20825,7 +20825,8 @@ function createAssignment() {
 
     closeModal('createAssignmentModal');
     showToast('Assignment "' + title + '" created successfully');
-    addNotification('New assignment: "' + title + '" for ' + assignment.course + ' — Due: ' + dueDate, 'exam', null, ['admin','instructor','student']);
+    // To the programme's own trainees (staff as before): CESTISCore.notify.reaches.
+    addNotification('New assignment: "' + title + '" for ' + assignment.course + ' — Due: ' + dueDate, 'exam', null, ['admin','instructor','student'], null, assignment.course ? { forCourse: assignment.course } : null);
 
     // Reset form
     document.getElementById('assignTitle').value = '';
@@ -20991,7 +20992,7 @@ function deleteAssignment(id) {
   syncTombstoneRemoved('assignmentSubmissions', assignmentSubmissions, assignmentSubmissions = assignmentSubmissions.filter(function(s) { return s.assignmentId !== id; }));
   saveState();
   showToast('Assignment deleted');
-  if (a) addNotification('Assignment "' + a.title + '" was deleted', 'exam', null, ['admin','instructor','student']);
+  if (a) addNotification('Assignment "' + a.title + '" was deleted', 'exam', null, ['admin','instructor','student'], null, a.course ? { forCourse: a.course } : null);
   renderInstructorGradebook();
   refreshContentDependentViews();
 }
@@ -27892,7 +27893,7 @@ function activateExam(idx) {
   saveState();
   if(e.status !== 'active') { showToast('"' + e.title + '" could not be opened. Check its date, time and duration.', 'warning'); return; }
   showToast('Exam "'+e.title+'" is now ACTIVE!');
-  addNotification('Exam activated: "' + e.title + '" — students can now take this exam', 'exam', null, ['admin','instructor','student']);
+  addNotification('Exam activated: "' + e.title + '" — students can now take this exam', 'exam', null, ['admin','instructor','student'], null, e.course ? { forCourse: e.course } : null);
 }
 
 function completeExam(idx) {

@@ -3707,9 +3707,19 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       });
       return out;
     }
-    function noticeFor(n, t, ownNames) {
+    function noticeFor(n, t, ownNames, course, same) {
       if (Array.isArray(n.forUsers) && n.forUsers.length) return n.forUsers.map(str).indexOf(t.acct) !== -1;
       if (Array.isArray(n.forRoles) && n.forRoles.length && n.forRoles.indexOf('student') === -1) return false;
+      // A programme's notice (forCourse) reaches that programme's trainees
+      // only — the bell's own rule (Core.notify.reaches): a Plumbing trainee
+      // at home is not sent the Welding class's new assignment. "General"
+      // (or no programme) is for every trainee, as before.
+      if (n.forCourse != null && str(n.forCourse).trim() !== '') {
+        var fc = Core.normCourse(n.forCourse);
+        if (fc !== 'general' && fc !== 'all' && fc !== 'all programmes' && fc !== 'all courses') {
+          if (!course || !(Core.normCourse(course) === fc || (same && same(course, n.forCourse)))) return false;
+        }
+      }
       var text = str(n.text);
       if (STAFF_ONLY_NOTICES.some(function (re) { return re.test(text); })) return false;
       for (var i = 0; i < NAMED_NOTICES.length; i++) {
@@ -3771,7 +3781,7 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       });
       d.voctrain_submissions = ownedOf(ctx, 'voctrain_submissions', t);
       d.voctrain_announcements = ctx.L.voctrain_announcements.filter(forStudent).map(function (a) { return cutReaders(a, readers); });
-      d.voctrain_notifications = ctx.L.voctrain_notifications.filter(function (n) { return noticeFor(n, t, own.names); }).map(function (n) {
+      d.voctrain_notifications = ctx.L.voctrain_notifications.filter(function (n) { return noticeFor(n, t, own.names, course, ctx.same); }).map(function (n) {
         var r = cutReaders(n, readers);
         if (Array.isArray(r.forUsers)) r.forUsers = cutList(r.forUsers, readers);
         return r;
@@ -4995,7 +5005,7 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
      The rules above name them only on the staff side (building slices,
      collecting inboxes), which the gate never runs. Touching one throws,
      so a rule that starts to need it fails loudly instead of quietly. */
-  ["Transcript","chat","chatSync","comms","courseDuration","coursework","deriveQuarter","dropTombstonedStudents","isSnapshotableKey","keepsOwnId","migrateToStableIds","pageCloud","pendingUpload","relinkDependentData","sync"].forEach(function (name) {
+  ["Transcript","chat","chatSync","comms","courseDuration","coursework","deriveQuarter","dropTombstonedStudents","isSnapshotableKey","keepsOwnId","migrateToStableIds","notify","pageCloud","pendingUpload","relinkDependentData","sync"].forEach(function (name) {
     Object.defineProperty(Core, name, { configurable: true, enumerable: false, get: function () {
       throw new Error('Core.' + name + ' is not in the gate\'s paste: rebuild it with node trainee-gate/build-paste.js --full');
     } });
