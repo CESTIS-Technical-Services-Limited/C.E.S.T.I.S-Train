@@ -4335,7 +4335,7 @@
                   (s.pending ? 'Your changes' + since + ' are kept on this computer only and have not synced.'
                              : 'This computer is not syncing at the moment.'),
           advice: [!s.canConnect ? 'Ask the office to set up syncing on this computer.'
-                   : s.signinExpired && s.canRenew ? 'Press Reconnect (beside this) to renew it with one press, or ask the office.'
+                   : s.canRenew ? 'Press Reconnect (beside this) to renew syncing with one press, or ask the office.'
                    : s.signinExpired ? 'Press Turn On Sync below to sign in again, or ask the office.'
                    : 'Press Turn On Sync below, or ask the office to set up syncing on this computer.', keepNote] };
       } else if (s.storageFull) {

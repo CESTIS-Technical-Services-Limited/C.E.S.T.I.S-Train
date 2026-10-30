@@ -42017,7 +42017,10 @@ function syncChipInputs() {
   // exam result still in the outbox) is all the control speaks of.
   inp.staff = !!SYNC_STAFF_ROLES[currentRole];
   // The sync sign-in could not renew itself: one press on Reconnect does it.
-  inp.canRenew = inp.staff && !_syncChipLan && (typeof _renewNeeded !== 'undefined') && (_renewNeeded || (!!exp && exp <= now && !!CESTISStore.getItem('schoolDashboardGoogleAccessToken')));
+  // (Also once the sign-in has gone on a computer that was syncing before — after a reload, say.)
+  var _syncedBefore = false;
+  try { _syncedBefore = !!(CESTISStore.getItem('schoolDashboardLastSyncTime') || CESTISStore.getItem('schoolDashboardCloudFileId')); } catch(e) {}
+  inp.canRenew = inp.staff && !_syncChipLan && (typeof _renewNeeded !== 'undefined') && (_renewNeeded || (!inp.connected && _syncedBefore));
   // A save refused because the Centre's storage is full (OPS-2).
   inp.storageFull = typeof cestisStorageIsFull === 'function' && cestisStorageIsFull();
   inp.isAdmin = currentRole === 'admin';
