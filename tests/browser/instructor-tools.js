@@ -174,6 +174,7 @@ const NOT_HANDED_IN = ['Leon Stewart', 'Kerry-Ann Palmer', 'Marlon Wright', 'Sas
   }
   async function section(id, title, fn) {
     if (ONLY && !ONLY.test(id)) return;
+    if (id === 'tour' && !ONLY) return;          // pictures only, when asked for
     console.log('\n' + id + ': ' + title);
     // A notice left over from the section before never covers a button.
     for (const pg of Object.values(PAGES)) { try { await pg.evaluate(() => document.querySelectorAll('#toastContainer > *').forEach(t => t.remove())); } catch (e) {} }
@@ -698,6 +699,50 @@ const NOT_HANDED_IN = ['Leon Stewart', 'Kerry-Ann Palmer', 'Marlon Wright', 'Sas
     await refresh(wl);
     ok(!!(await until(() => wl.evaluate(() => getFilteredNotifications().some(n => /Week 11 — Joint preparation/.test(n.text))), 15000, 1500)), 'Tameka\'s bell has it');
     await phone2.close();
+  });
+
+  /* -------------------------------------------------------------- tour */
+  // The same screens photographed in any version of the site (only what
+  // both have is touched): GROUPB_ONLY=tour, for before/after pictures.
+  await section('tour', 'The screens, as they are', async () => {
+    const tShot = async (page, name, focus) => { try { await shot(page, 't-' + name, { focus }); } catch (e) {} };
+    await O.evaluate(() => { showPage('dashboard'); buildAdminPages(); }); await O.waitForTimeout(500);
+    await tShot(O, 'admin-dashboard-alerts', '#page-dashboard .alert-item');
+    await go(O, 'a-assignments'); await O.waitForTimeout(800);
+    await tShot(O, 'admin-assignments', '#page-a-assignments');
+    await O.evaluate(() => { showPage('dashboard'); });
+    await I.evaluate(() => { buildInstructorPages(); showPage('i-dashboard'); }); await I.waitForTimeout(500);
+    await tShot(I, 'instructor-dashboard-alerts', '#page-i-dashboard .alert-item');
+    await go(I, 'i-students'); await I.evaluate(() => filterInstructorStudents());
+    await tShot(I, 'my-students', '#page-i-students .card');
+    await go(I, 'i-gradebook'); await I.evaluate(() => renderInstructorGradebook());
+    await tShot(I, 'gradebook-cards', '#iCustomAssignmentsList');
+    await go(I, 'i-exams'); await I.evaluate(() => { try { backToExamList(); } catch (e) {} renderInstructorExams('completed'); });
+    await tShot(I, 'exams-completed', '#iExamTableBody');
+    await I.evaluate(() => viewExamResults('EXAM-U5')); await I.waitForTimeout(400);
+    await tShot(I, 'exam-results');
+    await I.evaluate(() => { const r = examResults.find(x => x.examId === 'EXAM-U5' && x.answers.some(a => a.needsManualGrade && !a.graded)); if (r) openGradingPanel(r.id); }); await I.waitForTimeout(400);
+    await tShot(I, 'grading-panel');
+    await I.evaluate(() => { try { closeGradingPanel(); backToExamList(); } catch (e) {} });
+    await go(I, 'i-classes'); await until(() => I.evaluate(() => !!document.getElementById('iClassSessionsList')), 8000);
+    await I.evaluate(() => renderInstructorClassSessions());
+    await tShot(I, 'class-list', '#iClassSessionsList');
+    await go(I, 'i-resources'); await until(() => I.evaluate(() => !!document.getElementById('iCustomResourcesList')), 8000);
+    await tShot(I, 'instructor-resources', '#page-i-resources');
+    await go(I, 'i-trainee-grades');
+    await until(() => I.evaluate(() => { const f = document.getElementById('iTraineeGradesFrame'); return !!(f && f.contentWindow && f.contentWindow.document.querySelector('.tg-card, .tg-empty')); }), 15000);
+    const IF = I.frame({ url: /Transcript-Grades\.html/ });
+    if (IF) await IF.evaluate(() => { const c = document.querySelector('.tg-card-head'); if (c) c.click(); }).catch(() => {});
+    await I.waitForTimeout(400);
+    await tShot(I, 'instructor-trainee-grades');
+    const ph = await computer({ phone: true });
+    const T = await open(ph, 'trainee phone (tour)', true);
+    if (await signIn(T, 'w1')) {
+      await refresh(T); await go(T, 's-assignments'); await T.waitForTimeout(800);
+      await T.evaluate(() => { try { renderStudentAssignmentsPage(); } catch (e) {} });
+      await tShot(T, 'trainee-my-assignments', '#page-s-assignments .card');
+    }
+    await ph.close();
   });
 
   ok(errors.length === 0, 'no page errors (' + errors.slice(0, 3).join(' | ') + ')');
