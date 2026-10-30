@@ -7969,6 +7969,13 @@ function cestisDialogClosed(overlay) {
 // page — so it is an administrator's action only.
 function exportDataBackup() {
   if(currentRole !== 'admin' || !currentLoggedInUser) { showToast('Only a signed-in administrator can export a backup.', 'warning'); return; }
+  // When a copy was last exported by hand (the System health card says so
+  // after 30 days). Kept in the Centre's settings, so every administrator's
+  // computer knows — noted first, so the file carries exactly what is kept.
+  try {
+    systemSettings.lastExport = { at: new Date().toISOString(), by: currentLoggedInUser.username || currentLoggedInUser.name || 'admin' };
+    saveState();
+  } catch (e) {}
   var backup = {
     version: '2.0',
     exportedAt: new Date().toISOString(),
@@ -8038,14 +8045,7 @@ function exportDataBackup() {
   a.download = 'CESTIS_Backup_' + localDateStr() + '.json';
   a.click();
   URL.revokeObjectURL(url);
-  // When a copy was last exported by hand (the System health card says so
-  // after 30 days). Kept in the Centre's settings, so every administrator's
-  // computer knows.
-  try {
-    systemSettings.lastExport = { at: new Date().toISOString(), by: (currentLoggedInUser && (currentLoggedInUser.username || currentLoggedInUser.name)) || 'admin' };
-    saveState();
-    if (typeof renderSystemHealthCard === 'function') renderSystemHealthCard();
-  } catch (e) {}
+  try { if (typeof renderSystemHealthCard === 'function') renderSystemHealthCard(); } catch (e) {}
   showToast('Backup exported successfully!');
 }
 
