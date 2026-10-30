@@ -45,6 +45,10 @@ jobs:
       - name: Version tags (npm run stamp has been run)
         run: node tools/stamp-versions.js --check
 
+      # Three quick browser suites (about 2 minutes together on a 4-core
+      # machine): sign-in, every page opening clean, the dashboard's screens.
+      # The other test:browser:* suites in package.json are run by hand
+      # before a release (docs/UPGRADE-2026-10.md, "Keeping it healthy").
       - name: Install Chromium for the browser suites
         run: |
           npm install --no-save --no-package-lock playwright-core@1.56.1
