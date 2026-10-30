@@ -354,6 +354,12 @@ function seed({ T, PNG_W }) {
   await rp.waitForSelector('#gateRegModal', { timeout: 20000 });
   await rp.selectOption('#grProgramme', { index: 1 });
   await rp.fill('#grPhone', '876-555-0199');
+  // Her personal details, which the form asks before anything is sent (office group, OF-3).
+  await rp.selectOption('#grGender', 'Female');
+  await rp.fill('#grDob', '2006-05-09');
+  await rp.fill('#grAddress', '12 Spanish Town Road, Kingston 13');
+  await rp.fill('#grEmergencyName', 'Marlene Wallace');
+  await rp.fill('#grEmergencyPhone', '876-555-0177');
   await rp.fill('#grPassword', NEW.pass);
   await rp.fill('#grPassword2', NEW.pass);
   await rp.click('#grSend');

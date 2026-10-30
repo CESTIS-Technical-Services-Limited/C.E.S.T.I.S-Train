@@ -608,14 +608,17 @@ const NOT_HANDED_IN = ['Leon Stewart', 'Kerry-Ann Palmer', 'Marlon Wright', 'Sas
     await shot(I, 'b7-instructor-resources-list', { focus: '#iCustomResourcesList' });
     // Another programme: refused even if the list were tampered with.
     await I.evaluate(() => openModal('driveUploadModal'));
-    await I.evaluate(() => { const sel = document.getElementById('driveResCourse'); const o = document.createElement('option'); o.value = 'Plumbing'; o.textContent = 'Plumbing'; sel.appendChild(o); sel.value = 'Plumbing'; });
     await I.fill('#driveResName', 'Pipe threading notes');
     await I.fill('#driveResUrl', 'https://example.org/pipe-threading');
-    const before = await I.evaluate(() => driveResources.length);
-    await I.click('#driveUploadBtn');
-    await I.waitForTimeout(800);
-    ok(await I.evaluate(n => driveResources.length === n && !driveResources.some(r => r.course === 'Plumbing'), before), 'an upload to Plumbing is refused: nothing saved');
-    ok(/your own programme only/.test(await I.evaluate(() => document.getElementById('toastContainer').innerText)), 'and he is told why');
+    // The page narrows the programme list when the window opens; tamper with it
+    // and press Upload in the same instant, so the narrowing cannot undo the tampering.
+    await I.evaluate(() => { const sel = document.getElementById('driveResCourse'); const o = document.createElement('option'); o.value = 'Plumbing'; o.textContent = 'Plumbing'; sel.appendChild(o); sel.value = 'Plumbing'; document.getElementById('driveUploadBtn').click(); });
+    // Wait for the refusal itself (a fixed pause missed it on a busy machine),
+    // then check the rule that matters: nothing was saved for Plumbing.
+    const told = await until(() => I.evaluate(() => /your own programme only/.test(document.getElementById('toastContainer').innerText)), 8000);
+    const saved = await I.evaluate(() => driveResources.filter(r => r.course === 'Plumbing' || r.name === 'Pipe threading notes').map(r => r.course + ':' + r.name));
+    ok(saved.length === 0, 'an upload to Plumbing is refused: nothing saved' + (saved.length ? ' (saved: ' + saved.join(', ') + ')' : ''));
+    ok(!!told, 'and he is told why');
     await I.evaluate(() => { closeModal('driveUploadModal'); googleAccessToken = null; });
   });
 
