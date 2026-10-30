@@ -1588,9 +1588,10 @@ phone (link #gate=…)                               gate (as the Centre's accou
                                                     CESTISREG.<id>.json exists? → submitted
                                                     no catalogue → not-open
   ◀─ {state:'new', email, programmes} ────────────
-  form: full name (from the account, editable), programme, phone?, password ×2
+  form: full name (from the account, editable), programme, phone?, password ×2, and her details:
+        gender, date of birth, TRN?, address, parent/guardian?, emergency contact (group A, OF-3)
   password → pbkdf2$210000$<fresh salt>$<hash> on the device (hashPassword); never sent as typed
-  ── register.submit {accessToken, name, programme, phone, password} ─▶ same checks; reg.check(form, catalogue)
+  ── register.submit {accessToken, name, programme, phone, password, gender, dob, trn?, address, …} ─▶ same checks; reg.check(form, catalogue)
                                                     limits (5/h per address, 60/h, 200/6h overall)
                                                     script lock (10 s), then, in ONE request:
                                                      Trainees/"<Name> (<student ID>)"  desc "cestis-trainee acct=<id> v=1 registration=pending"

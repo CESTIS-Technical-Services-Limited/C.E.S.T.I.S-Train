@@ -115,6 +115,7 @@ saw screenshots.
 |---|---|---|
 | **Audit fixes (PR #349)** | Every trainee reaches a small-room live class; the idle lock leaves a class or an open sitting alone and accepts a trainee's password at home; pass rates from marked results; one counting rule per figure with its denominator; dropouts stay Incomplete; the full gradebook; no default answer key; no false "uploaded"; notices to their programme; contact details carried to the trainee and fee records; a warning before a receipt number is reused. | `tests/vc-small-room-joiners.test.js`, `tests/centre-figures.test.js`, `tests/pass-rate-from-marks.test.js` and the other tests named in each commit |
 | **Live classes on less data (owner approved 30 Oct)** | Trainees start muted with the camera off; a muted microphone sends nothing; a trainee's camera goes to the instructor only; the instructor's picture budget is shared fairly as people join and leave; recordings at about 550 kbit/s; Large Class is put first above 6 trainees only once the Centre has its own video server. Measured, class of 6: a trainee's upload 553 → 6 kbit/s. | `tests/vc-room.test.js`, `tests/vc-page.test.js`, `tests/browser/vc-room.js` |
+| **The office runs itself (owner approved 30 Oct, group A)** | "Office today" on both office dashboards; Admin Staff get the Administrator's working pages for the sections ticked, ticks per person; Admin Staff reset trainees' passwords; one New trainee form; home registration asks date of birth, gender, TRN, address, parent/guardian and emergency contact; first-sign-in codes and one sign-in slip per trainee; automatic receipt numbers R-2026/27-0001; requests with Open transcript / Certify / Mark collected and the trainee told; Student Progress moves several at once; announcements to one programme; School Fee covered only after 5 idle minutes; details save when a programme has no fee. | `tests/office-today.test.js`, `admin-staff-working-pages`, `new-trainee-form`, `sign-in-slips`, `fee-receipt-numbers`, `requests-run-themselves`, `student-progress-bulk`, `office-announcement-programme`, `fee-idle-cover`, `fee-unpriced-details`; `tests/browser/office-group-a.js` |
 
 **Decisions the owner made in this round (29–30 October 2026):**
 - Groups A–F of the audit's recommendations approved: the office (A), instructors (B), trainees at
@@ -202,6 +203,55 @@ saw screenshots.
   - Recordings attach to their class session.
 - **Class sessions** move scheduled → live → completed, so *Live Now* and *Past Recordings*
   work.
+
+### The office runs itself (owner's decision, group A)
+Measured in real browsers with the audit's own scripts, before and after.
+- **Office today** (both office dashboards): registrations waiting, certificate/transcript
+  requests waiting (with the oldest one's wait), trainees' records missing a telephone, email,
+  date of birth or gender, certificates to hand out, programmes with no fee set — each line one
+  click from its page, shown only to somebody who may act on it. The Administrator's open menu
+  groups are remembered on that computer. A new Admin Staff member with no duties is no longer
+  told "0% — Needs Improvement".
+- **Admin Staff do the work they are given.** A ticked section opens the Administrator's own
+  working page (Attendance, Announcements, Calendar, Certificates, Online Exams, Resources,
+  Reports, Training Centres); every action checks the tick. Deleting a training centre,
+  recovering from backups, Settings, account deletion and the trainee sign-in setup stay the
+  Administrator's. **Ticks are kept per person**: Settings → Admin Staff Access → "Whose
+  access". The grid's own ticks are the default for anybody without ticks of their own, so
+  nobody lost access. **Admin Staff reset trainees' passwords** (Trainee Accounts → "A trainee
+  cannot sign in?"), never a staff, instructor or administrator password.
+- **One New trainee form** behind every add-trainee button (the dashboard's Add Student, Student
+  Progress's + Add Student, + Add Trainee Account, Settings → Create User for a trainee): the
+  sign-in, trainee record and fee record together, with gender and optional details. The **home
+  registration form** also asks date of birth, gender, TRN (optional), home address, a parent or
+  guardian (optional) and an emergency contact; Verify Users shows them, and approval puts them
+  on her trainee and fee records (blanks only). The trainee sign-in checks them with the same
+  rules (`CESTISCore.accountAccess.traineeDetails`); `trainee-gate/Gate.gs` now passes the
+  whole form to the check (one line). The gate has not been set up, so nothing is pasted twice.
+- **First-sign-in codes and sign-in slips.** Approve All (an intake imported from Excel), a New
+  trainee with no password typed, and a trainee's password reset each give a random 10-digit
+  code, kept only as its hash, like a password. The office prints ONE slip per trainee (name,
+  username, code, the trainee sign-in link and, once the trainee sign-in is on, its QR code,
+  and three steps) — only at that moment: the codes are forgotten when the dialog closes. At
+  first sign-in she must choose her own password (on an office computer at once; at home through
+  the trainee sign-in's password change).
+- **Receipt numbers** are filled in: `R-2026/27-0001` — the financial year as School Fee
+  defines it (April–March), then a 4-digit sequence per year, one past the highest number this
+  computer holds from every office computer. A number typed from a paper receipt book is kept
+  (and still asked about when already used). When the other office computers' payments could
+  not be checked in the last two minutes, or this computer has a payment not yet sent, the
+  number carries this computer's two letters (`R-2026/27-0042-K7`), so two computers can never
+  give the same number. Receipts already given are never renumbered.
+- **Requests run themselves**: oldest first with "N days waiting"; Open transcript, Certify and
+  Mark collected on each row; one collected mark updates the request and the Certificates page;
+  the trainee is told in her own bell each time her request moves on.
+- **Student Progress** moves several trainees at once (tick boxes, "Move selected to…", one
+  combined certificate checklist). **Announcements** can go to one programme's trainees. **School
+  Fee** is covered only after 5 minutes without use, and saves a trainee's details when her
+  programme has no fee set yet ("set it under Fee Structure").
+- Checklist for the Centre: give each Admin Staff member their own ticks if they differ (Settings
+  → Admin Staff Access → Whose access); print slips when approving an imported intake; tell the
+  office that receipt numbers are now automatic (paper receipt books still work).
 
 ### Live classes on less mobile data (owner's decision, group D)
 Measured first, in headless Chromium with fake cameras and a speech-like fake microphone: an
