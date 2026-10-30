@@ -25008,6 +25008,26 @@ function vcUpdateSidebarName(name) {
 // ============================== SYSTEM SETTINGS FUNCTIONS ==============================
 // Show what is actually configured. The fields carry defaults in the markup, so
 // without this the form claimed the stock values however the Centre had set it.
+/* The Academic Year choices: three school years back to two ahead of today's
+   (a school year starts in September), and always the Centre's saved one.
+   The list used to hold only 2025/2026 and 2024/2025, so a saved 2026/2027
+   could not be shown: the form fell back to the first choice, and Save then
+   wrote that wrong year back. */
+function academicYearChoices(saved, now) {
+  var d = now instanceof Date ? now : new Date();
+  var start = d.getMonth() >= 8 ? d.getFullYear() : d.getFullYear() - 1;   // September onwards is the new year
+  var out = [];
+  for (var y = start + 2; y >= start - 3; y--) out.push(y + '/' + (y + 1));
+  var s = String(saved || '').trim();
+  if (s && out.indexOf(s) === -1) out.push(s);
+  return out;
+}
+function fillAcademicYearOptions(sel, saved, now) {
+  if (!sel) return;
+  var choices = academicYearChoices(saved, now);
+  sel.innerHTML = '';
+  choices.forEach(function(v) { var o = document.createElement('option'); o.value = v; o.textContent = v; sel.appendChild(o); });
+}
 function fillSystemSettingsForm() {
   var set = function(id, val) {
     var el = document.getElementById(id);
@@ -25015,6 +25035,7 @@ function fillSystemSettingsForm() {
   };
   set('settInstitution', systemSettings.institutionName);
   set('settAdminEmail', systemSettings.adminEmail);
+  if (typeof fillAcademicYearOptions === 'function') fillAcademicYearOptions(document.getElementById('settAcadYear'), systemSettings.academicYear, new Date());
   set('settAcadYear', systemSettings.academicYear);
   // Only the built-in provider exists. An older saved choice (Zoom, Teams and
   // Meet were offered but never did anything) reads as what it always was.
