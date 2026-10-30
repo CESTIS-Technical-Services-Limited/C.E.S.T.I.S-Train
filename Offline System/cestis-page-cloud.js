@@ -598,6 +598,8 @@
     'cestisTheme',
     // Which menu groups are open on this screen.
     'cestisNavOpen',
+    // This computer's own letters on a receipt number.
+    'cestisReceiptDevice',
     // The trainee gate's part on this device (CESTISCore.gate.DEVICE_KEYS).
     'cestisGateNs', 'cestisGateMode', 'cestisGateToken', 'cestisGateSessionKey', 'cestisGateAddress',
     'cestisDeviceKind', 'cestisGatePublished', 'cestisGatePublishQueue', 'cestisGateCollected',
@@ -957,7 +959,7 @@
       // Who is signed in HERE, and this screen's own preferences. Syncing these
       // would sign people in as each other and fight over dark mode.
       'isLoggedIn', 'loggedInUser', 'cestisCurrentUser', 'cestiCurrentUser',
-      'cestisAttendanceCurrentUser', 'darkMode', 'cestisTimeDarkMode', 'cestisTheme', 'cestisNavOpen',
+      'cestisAttendanceCurrentUser', 'darkMode', 'cestisTimeDarkMode', 'cestisTheme', 'cestisNavOpen', 'cestisReceiptDevice',
       // One-off "I have seen this" dismissals.
       'firstTimeSyncDismissed', 'cestisFirstTimeDismissed',
       'postLoginSyncCompleted', 'cloudSyncCompleted', 'cestisAutoSyncEnabled',

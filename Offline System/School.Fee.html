@@ -2573,7 +2573,7 @@
                     </div>
                     <div class="form-group">
                         <label>Payment Date *</label>
-                        <input type="date" id="paymentDate" required>
+                        <input type="date" id="paymentDate" required onchange="feeSuggestReceipt()">
                     </div>
                     <div class="form-group">
                         <label>Payment Method</label>
@@ -2599,8 +2599,9 @@
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>Receipt Number</label>
-                        <input type="text" id="receiptNumber">
+                        <label for="receiptNumber">Receipt Number</label>
+                        <input type="text" id="receiptNumber" oninput="feeReceiptTyped()" aria-describedby="receiptNumberHint" autocomplete="off">
+                        <div id="receiptNumberHint" style="font-size:12px;color:var(--text-secondary);margin-top:4px;line-height:1.4;"></div>
                     </div>
                     <div class="form-group">
                         <label>Notes</label>
@@ -2610,7 +2611,7 @@
                 <div id="studentPaymentInfo" style="background: var(--bg-primary); padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem; display: none;">
                     <strong>Current Balance:</strong> <span id="currentBalance">$0.00</span>
                 </div>
-                <button class="btn" onclick="recordPayment()">Record Payment</button>
+                <button class="btn" id="recordPaymentBtn" onclick="recordPaymentClicked()">Record Payment</button>
             </div>
 
             <div id="paymentsQuarterBar"></div>
@@ -7259,6 +7260,9 @@
                 // the Fee Structure section, where programmes are chosen.
                 updateSkillAreaOptions();
                 if (!feeProgrammeNames().length) showNoProgrammeNotice();
+            } else if (moduleId === 'payments') {
+                // The next receipt number, checked against the other office computers.
+                feeReceiptCheckNow();
             } else if (moduleId === 'feeStructure') {
                 // Re-read the VocTrain suggestions on the way in.
                 renderFeeStructure();
@@ -8613,6 +8617,8 @@
             // Keep the line under the search box true whichever way the trainee
             // was chosen — from the search results or from the dropdown itself.
             renderChosenTrainee();
+            // The receipt number this payment will carry.
+            if (studentId) feeReceiptCheckNow();
         }
 
         // Record payment
@@ -8712,13 +8718,117 @@
             return true;
         }
 
+        /* ---- Automatic receipt numbers (office audit OF-5) ----
+           The next number, R-2026/27-0001 style, is filled in for the clerk
+           (CESTISCore.receiptNumbers.nextNumber): the payment date's financial
+           year, one past the highest number of that year on this computer's
+           merged copy. A number typed from a paper receipt book is kept as
+           typed (and still asked about when another payment carries it). A
+           blank number gets the next automatic one, never a "PAY…" timestamp.
+           So that two office computers never give one number, the number
+           carries this computer's own letters ("-K7") whenever the other
+           computers' payments could not be checked in the last two minutes, or
+           this computer has a payment of its own not yet sent. */
+        let _feeReceiptCheckedAt = 0;      // when the other computers' payments were last checked (ms)
+        let _feeLastOwnPaymentAt = 0;      // when this computer last recorded or changed a payment (ms)
+        function feeReceiptDeviceLetters() {
+            let have = '';
+            try { have = localStorage.getItem('cestisReceiptDevice') || ''; } catch (e) {}
+            const mine = CESTISCore.receiptNumbers.deviceSuffix(have);
+            if (mine !== have) { try { localStorage.setItem('cestisReceiptDevice', mine); } catch (e) {} }
+            return mine;
+        }
+        // This page's state with the other office computers, as the page's own
+        // sync reports it.
+        function feeReceiptSyncState() {
+            let st = null;
+            try {
+                st = (window.CESTISPageCloud && CESTISPageCloud.status() || []).filter(function (x) { return x && x.file === 'CESTIS_School_Fees.json'; })[0] || null;
+            } catch (e) { st = null; }
+            const lastPush = st ? (Date.parse(st.lastPush || '') || 0) : 0;
+            return { checkedAt: _feeReceiptCheckedAt, nowMs: Date.now(), unsent: _feeLastOwnPaymentAt > 0 && _feeLastOwnPaymentAt > lastPush };
+        }
+        // The number a payment dated `date` gets now (with this computer's
+        // letters when it must have them).
+        function feeNextReceiptNumber(date) {
+            const R = CESTISCore.receiptNumbers;
+            const suffix = R.needsSuffix(feeReceiptSyncState()) ? feeReceiptDeviceLetters() : '';
+            let all = payments;
+            // The stored copy may hold payments a pull brought in a moment ago.
+            try { const raw = JSON.parse(CESTISStore.getItem('cestiSchoolFeePayments') || '[]'); if (Array.isArray(raw) && raw.length) all = payments.concat(raw); } catch (e) {}
+            return R.nextNumber(all, date, { suffix: suffix });
+        }
+        // Fill in the suggestion — unless the clerk has typed a number of their own.
+        function feeSuggestReceipt() {
+            const el = document.getElementById('receiptNumber');
+            if (!el) return;
+            const typed = el.value.trim();
+            const auto = el.dataset.auto || '';
+            if (typed && typed !== auto) return;
+            const date = (document.getElementById('paymentDate') || {}).value || '';
+            const n = feeNextReceiptNumber(date);
+            el.value = n;
+            el.dataset.auto = n;
+            const hint = document.getElementById('receiptNumberHint');
+            if (hint) {
+                const p = CESTISCore.receiptNumbers.parse(n);
+                hint.textContent = (p && p.suffix)
+                    ? 'The next number, filled in for you. It ends in -' + p.suffix + ', this computer\'s letters, because the other office computers\' receipts could not be checked just now — so no two receipts share a number. You may type the number from a paper receipt book instead.'
+                    : 'The next number, filled in for you. You may type the number from a paper receipt book instead.';
+            }
+        }
+        function feeReceiptTyped() {
+            const el = document.getElementById('receiptNumber');
+            const hint = document.getElementById('receiptNumberHint');
+            if (!el || !hint) return;
+            if (!el.value.trim()) hint.textContent = 'Left empty, the payment gets the next number automatically.';
+            else if (el.value.trim() !== (el.dataset.auto || '')) hint.textContent = 'Your number is used as typed.';
+        }
+        // Check the other office computers' payments now (at most a few
+        // seconds), then suggest. Resolves when done either way.
+        function feeReceiptCheckNow() {
+            const done = function () { try { feeSuggestReceipt(); } catch (e) {} };
+            if (!window.CESTISPageCloud || typeof CESTISPageCloud.loadNow !== 'function') { done(); return Promise.resolve(false); }
+            const t0 = Date.now();
+            const pull = CESTISPageCloud.loadNow().then(function () {
+                const st = (CESTISPageCloud.status() || []).filter(function (x) { return x && x.file === 'CESTIS_School_Fees.json'; })[0];
+                const ok = !!(st && st.connected !== false && !st.error && (Date.parse(st.lastPull || '') || 0) >= t0 - 1000);
+                if (ok) _feeReceiptCheckedAt = Date.now();
+                return ok;
+            }).catch(function () { return false; });
+            const limit = new Promise(function (r) { setTimeout(function () { r(false); }, 6000); });
+            return Promise.race([pull, limit]).then(function (ok) { done(); return ok; });
+        }
+        // "Record Payment": an automatic number is checked against the other
+        // computers first (a few seconds at most), then the payment is recorded.
+        let _feeRecording = false;
+        function recordPaymentClicked() {
+            if (_feeRecording) return;
+            const el = document.getElementById('receiptNumber');
+            const typed = el ? el.value.trim() : '';
+            const auto = !typed || (el && typed === (el.dataset.auto || ''));
+            if (!auto) { recordPayment(); return; }
+            _feeRecording = true;
+            const btn = document.getElementById('recordPaymentBtn');
+            if (btn) btn.disabled = true;
+            feeReceiptCheckNow().then(function () {
+                _feeRecording = false;
+                if (btn) btn.disabled = false;
+                recordPayment();
+            });
+        }
+
         function recordPayment() {
             const studentId = document.getElementById('paymentStudentId').value;
             const amount = parseFloat(document.getElementById('paymentAmount').value) || 0;
             const date = document.getElementById('paymentDate').value;
             const method = document.getElementById('paymentMethod').value;
             const term = document.getElementById('paymentTerm').value;
-            const receiptNumber = document.getElementById('receiptNumber').value.trim();
+            const _rEl = document.getElementById('receiptNumber');
+            let receiptNumber = _rEl.value.trim();
+            // An automatic number (the one filled in, or none typed) is worked
+            // out again now, from everything this computer holds this moment.
+            const _rAuto = !receiptNumber || receiptNumber === ((_rEl.dataset && _rEl.dataset.auto) || '');
             const notes = document.getElementById('paymentNotes').value.trim();
             
             if (!studentId || !amount || !date) {
@@ -8750,7 +8860,8 @@
             // A receipt number already given to another payment is asked
             // about, not refused (one receipt may cover two trainees). Cancel
             // keeps the form as typed.
-            if (!feeReceiptNumberConfirmed(receiptNumber, null)) return;
+            if (_rAuto) receiptNumber = feeNextReceiptNumber(date);
+            if (!_rAuto && !feeReceiptNumberConfirmed(receiptNumber, null)) return;
 
             const payment = {
                 id: 'PAY' + Date.now(),
@@ -8773,6 +8884,10 @@
             student.status = feePaymentStatus(student);
             
             saveData();
+            _feeLastOwnPaymentAt = Date.now();
+            // Sent to the other office computers now rather than after the
+            // usual pause, so the next number they give follows this one.
+            try { if (window.CESTISPageCloud && typeof CESTISPageCloud.saveNow === 'function') CESTISPageCloud.saveNow(); } catch (e) {}
 
             // Generate receipt PDF automatically
             generateReceipt(payment, student);
@@ -8780,6 +8895,7 @@
             document.getElementById('paymentStudentId').value = '';
             document.getElementById('paymentAmount').value = '';
             document.getElementById('receiptNumber').value = '';
+            if (_rEl.dataset) _rEl.dataset.auto = '';
             document.getElementById('paymentNotes').value = '';
             document.getElementById('studentPaymentInfo').style.display = 'none';
             // The form has been cleared, so the search box and the line saying
@@ -8794,8 +8910,9 @@
             renderPaymentsTable();
             renderStudentsTable();
             updateDashboard();
+            feeSuggestReceipt();
 
-            feeToastWithYearNote('Payment recorded — receipt generated and downloaded.', yearNote);
+            feeToastWithYearNote('Payment recorded — receipt ' + receiptNumber + ' generated and downloaded.', yearNote);
         }
 
         /* ----- Fiscal-year + quarterly fee filtering ---------------------
@@ -9382,6 +9499,7 @@
             
             // The receipt number, if it is now one another payment carries.
             if (!feeReceiptNumberConfirmed(receiptNumber, payment.id)) return;
+            _feeLastOwnPaymentAt = Date.now();
 
             // Warn if amount changed significantly
             if (Math.abs(difference) > 0.01) {

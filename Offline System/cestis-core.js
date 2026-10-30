@@ -1764,6 +1764,8 @@
     'postLoginSyncCompleted', 'cloudSyncCompleted', 'cestisAutoSyncEnabled',
     // Which menu groups are open on THIS screen (the office's sidebar).
     'cestisNavOpen',
+    // This computer's own letters on a receipt number (Core.receiptNumbers).
+    'cestisReceiptDevice',
     // "this device holds work not yet uploaded" — true of THIS device only.
     'cestisPendingUpload', 'cestisUnsyncedOnSignOut',
     // The trainee gate's part on THIS device (Core.gate.DEVICE_KEYS): its
@@ -14174,7 +14176,82 @@
     function question(number, p) {
       return 'Receipt ' + String(number).trim() + ' is already used for ' + (p.studentName || 'another payment') + (p.date ? ' on ' + p.date : '') + '. Use it again?';
     }
-    return { usedBy: usedBy, question: question };
+
+    /* ---- Automatic numbers (office audit OF-5; the owner's format, 30 Oct 2026) ----
+       R-2026/27-0001: "R-", the financial year as School Fee defines it (April
+       to March — Core.deriveQuarter: "2026/2027" is written "2026/27"), then a
+       4-digit sequence that starts again each financial year. The next number
+       is one past the highest of that year in the payments this device holds
+       (the merged copy: every office computer's payments it has received),
+       whatever their suffix — a number typed from a paper receipt book in the
+       same form counts too. A number is never one already used.
+
+       Two office computers must never give the same number. When this device
+       could not check the other computers' payments just now, or holds a
+       payment of its own not yet sent, the number carries this computer's own
+       two letters ("R-2026/27-0042-K7"): it can then never equal a number
+       another computer gives. Receipts already given are never renumbered. */
+    var AUTO_RE = /^R-(\d{4})\/(\d{2})-(\d{1,6})(?:-([A-Z0-9]{1,4}))?$/i;
+    var SUFFIX_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';   // no I, O, 0, 1: read aloud without doubt
+    var CHECK_MAX_AGE_MS = 2 * 60 * 1000;
+    function fyTag(fy) {
+      var m = /^(\d{4})\/(\d{4})$/.exec(String(fy == null ? '' : fy).trim());
+      return m ? m[1] + '/' + m[2].slice(2) : '';
+    }
+    function fyOfDate(date) {
+      var d = String(date == null ? '' : date).trim() || new Date().toISOString().slice(0, 10);
+      var q = null;
+      try { q = Core.deriveQuarter(d); } catch (e) { q = null; }
+      return q && q.fy ? q.fy : '';
+    }
+    function parse(number) {
+      var m = AUTO_RE.exec(String(number == null ? '' : number).trim());
+      return m ? { fy: m[1] + '/' + m[2], seq: parseInt(m[3], 10), suffix: (m[4] || '').toUpperCase() } : null;
+    }
+    function format(tag, seq, suffix) {
+      var n = String(seq);
+      while (n.length < 4) n = '0' + n;
+      return 'R-' + tag + '-' + n + (suffix ? '-' + String(suffix).toUpperCase() : '');
+    }
+    /* The next number for a payment dated `date` ('' = today).
+       opts: { suffix } — this computer's letters, when needsSuffix() says so. */
+    function nextNumber(payments, date, opts) {
+      opts = opts || {};
+      var tag = fyTag(fyOfDate(date));
+      if (!tag) return '';
+      var list = Array.isArray(payments) ? payments : [];
+      var max = 0;
+      list.forEach(function (p) {
+        var x = parse(p && p.receiptNumber);
+        if (x && x.fy === tag && x.seq > max) max = x.seq;
+      });
+      var n = format(tag, max + 1, opts.suffix || '');
+      for (var guard = 0; usedBy(list, n, null) && guard < 10000; guard++) n = format(tag, max + 2 + guard, opts.suffix || '');
+      return n;
+    }
+    /* Must this computer's number carry its letters?
+       state: { checkedAt: ms of the last successful check of the other
+       computers' payments, nowMs, unsent: a payment of this computer's not
+       yet sent, maxAgeMs } */
+    function needsSuffix(state) {
+      if (!state || state.unsent) return true;
+      var now = typeof state.nowMs === 'number' ? state.nowMs : Date.now();
+      var at = Number(state.checkedAt) || 0;
+      if (!at) return true;
+      var age = now - at;
+      return age < -60000 || age > (state.maxAgeMs || CHECK_MAX_AGE_MS);
+    }
+    /* This computer's two letters: the ones it already has, or new ones.
+       random() -> [0,1). */
+    function deviceSuffix(stored, random) {
+      var s = String(stored == null ? '' : stored).trim().toUpperCase();
+      if (/^[A-HJ-NP-Z2-9]{2}$/.test(s)) return s;
+      var r = typeof random === 'function' ? random : Math.random;
+      return SUFFIX_CHARS.charAt(Math.floor(r() * SUFFIX_CHARS.length) % SUFFIX_CHARS.length) +
+        SUFFIX_CHARS.charAt(Math.floor(r() * SUFFIX_CHARS.length) % SUFFIX_CHARS.length);
+    }
+    return { usedBy: usedBy, question: question, fyTag: fyTag, fyOfDate: fyOfDate, parse: parse, format: format,
+      nextNumber: nextNumber, needsSuffix: needsSuffix, deviceSuffix: deviceSuffix, CHECK_MAX_AGE_MS: CHECK_MAX_AGE_MS };
   })();
 
   // ===================== ADMIN STAFF ACCESS, PERSON BY PERSON =====================
