@@ -11097,6 +11097,12 @@
       // write two whole lists, and the later one erased the other's grade.
       // Removing a manual grade is a record too (Transcript.removeManualGrade).
       { key: 'voctrain_transcriptGrades', type: 'list', id: byId, stamps: ['updatedAt'] },
+      // Unit results an instructor proposes and the office decides
+      // (Core.unitProposals): each proposal its own record, on every path
+      // (`always`) — an instructor proposes on her device while the office
+      // decides on another, and one whole list winning would erase the
+      // other side's proposals or decisions.
+      { key: 'voctrain_unitProposals', type: 'list', studentField: 'studentId', id: byId, stamps: ['updatedAt', 'decidedAt', 'proposedAt'], always: true },
       { key: 'voctrain_unitCatalogs', type: 'list', id: byId, stamps: ['updatedAt'] },
       { key: 'voctrain_transcriptProfiles', type: 'map', stamps: ['updatedAt', 'lastModified'] },
       // The virement register: per request; a decision beats "Pending"; a
@@ -11161,7 +11167,7 @@
        switched over.) Two offices grading, handling requests or ruling at
        once each wrote their whole list, and the later upload erased the
        other's work. */
-    var DRIVE_RECORD_KEYS = ['voctrain_transcriptGrades', 'voctrain_unitCatalogs', 'voctrain_transcriptProfiles',
+    var DRIVE_RECORD_KEYS = ['voctrain_transcriptGrades', 'voctrain_unitCatalogs', 'voctrain_transcriptProfiles', 'voctrain_unitProposals',
       'voctrain_certTranscriptRequests', 'cesti_virements', 'cestis_cmc_rulings', 'cestiSchoolFeeStudents'];
 
     function parseJson(raw) { try { return JSON.parse(raw); } catch (e) { return undefined; } }
@@ -11694,7 +11700,7 @@
       {
         file: 'CESTIS_Transcript_Grades.json',
         page: 'Transcript / Grades',
-        keys: ['voctrain_transcriptGrades', 'voctrain_unitCatalogs', 'voctrain_transcriptProfiles']
+        keys: ['voctrain_transcriptGrades', 'voctrain_unitCatalogs', 'voctrain_transcriptProfiles', 'voctrain_unitProposals']
       },
       {
         file: 'CESTIS_Transcript_Requests.json',
@@ -14456,6 +14462,107 @@
     }
     return { list: list, attendanceFacts: attendanceFacts, reasonText: reasonText, owedFrom: owedFrom,
       LOW_ATTENDANCE: LOW_ATTENDANCE, RUN_ALERT: RUN_ALERT, RECENT_DAYS: RECENT_DAYS, PASS_DEFAULT: PASS_DEFAULT };
+  })();
+
+  // ===================== UNIT RESULTS PROPOSED BY AN INSTRUCTOR, CONFIRMED BY THE OFFICE =====================
+  // An instructor saw her trainees' unit results on Trainee Grades and could
+  // change nothing; the office re-typed every competency result she gave on
+  // paper (about a minute per trainee per unit — audit IN-13). Now she
+  // PROPOSES a unit result; the office sees "Proposed by <instructor>" and
+  // confirms it (or changes it, or declines it). A proposal is never a grade:
+  // the transcript, the certificate checks and every figure read only the
+  // official grades (Core.Transcript), which only the office's confirmation
+  // writes. Proposals are their own records ('voctrain_unitProposals'),
+  // merged record by record on every path, newest edit winning.
+  Core.unitProposals = (function () {
+    var KEY = 'voctrain_unitProposals';
+    function T() { return Core.Transcript; }
+    function later(now, prev) { return Core.sync && Core.sync.laterStamp ? Core.sync.laterStamp(now, prev) : now; }
+    /* A grade as the transcript keeps it: 0-100, or 'Competent' / 'NYC';
+       null for anything else. */
+    function normalise(v) {
+      if (v == null) return null;
+      var s = String(v).trim();
+      if (s === '') return null;
+      if (T().isNumericGrade(s)) { var n = Number(s.replace('%', '').trim()); return n >= 0 && n <= 100 ? n : null; }
+      var c = T().competencyOf(s);
+      return c === 'competent' ? 'Competent' : c === 'nyc' ? 'NYC' : null;
+    }
+    function idOf(studentId, qualId, unitCode, byId) {
+      return 'UP-' + Core.hashString(String(studentId) + '|' + String(qualId) + '|' + String(unitCode) + '|' + String(byId || ''));
+    }
+    function copy(r) { return JSON.parse(JSON.stringify(r)); }
+    /* p = { studentId, studentName, course, qualId, unitCode, unitName, grade,
+             date, note, by, byId, at }. One live proposal per instructor per
+       unit: proposing again replaces hers, the earlier one kept in history.
+       -> { list, record } or { list, error } (nothing changed). */
+    function propose(list, p) {
+      list = Array.isArray(list) ? list.slice() : [];
+      p = p || {};
+      if (!p.studentId || !p.qualId || !p.unitCode) return { list: list, error: 'missing' };
+      var g = normalise(p.grade);
+      if (g == null) return { list: list, error: 'grade' };
+      var at = p.at || new Date().toISOString();
+      var id = idOf(p.studentId, p.qualId, p.unitCode, p.byId || p.by);
+      var idx = -1;
+      list.forEach(function (r, i) { if (r && r.id === id) idx = i; });
+      var prev = idx === -1 ? null : list[idx];
+      var hist = prev && Array.isArray(prev.history) ? prev.history.slice() : [];
+      if (prev) hist.push({ grade: prev.grade, date: prev.date || '', note: prev.note || '', status: prev.status, at: prev.updatedAt || prev.proposedAt || '', by: prev.decidedBy || prev.proposedBy || '' });
+      var rec = { id: id, studentId: p.studentId, studentName: p.studentName || '', course: p.course || '', qualId: p.qualId,
+        unitCode: p.unitCode, unitName: p.unitName || '', grade: g, date: p.date || '', note: String(p.note || '').trim(),
+        proposedBy: p.by || '', proposedById: p.byId || '', proposedAt: at, status: 'proposed',
+        updatedAt: prev ? later(at, prev.updatedAt) : at };
+      if (hist.length) rec.history = hist;
+      if (idx === -1) list.push(rec); else list[idx] = rec;
+      return { list: list, record: rec };
+    }
+    /* The office's decision on one proposal: 'confirmed' (the grade as
+       proposed), 'changed' (another grade: d.officialGrade) or 'declined';
+       the instructor may 'withdrawn' her own. Only a proposal still waiting
+       can be decided. -> { list, record } or { list, error } */
+    function decide(list, id, d) {
+      list = Array.isArray(list) ? list.slice() : [];
+      d = d || {};
+      var idx = -1;
+      list.forEach(function (r, i) { if (r && r.id === id) idx = i; });
+      if (idx === -1) return { list: list, error: 'missing' };
+      var cur = list[idx];
+      if (cur.status !== 'proposed') return { list: list, error: 'decided' };
+      var ok = { confirmed: 1, changed: 1, declined: 1, withdrawn: 1 };
+      if (!ok[d.decision]) return { list: list, error: 'decision' };
+      var at = d.at || new Date().toISOString();
+      var rec = copy(cur);
+      rec.status = d.decision;
+      rec.decidedBy = d.by || '';
+      rec.decidedAt = at;
+      if (d.decision === 'confirmed') rec.officialGrade = cur.grade;
+      if (d.decision === 'changed') {
+        var g = normalise(d.officialGrade);
+        if (g == null) return { list: list, error: 'grade' };
+        rec.officialGrade = g;
+      }
+      if (d.note) rec.decisionNote = String(d.note).trim();
+      rec.updatedAt = later(at, cur.updatedAt);
+      list[idx] = rec;
+      return { list: list, record: rec };
+    }
+    function waiting(list, opts) {
+      opts = opts || {};
+      return (Array.isArray(list) ? list : []).filter(function (r) {
+        return r && r.status === 'proposed' && (!opts.studentId || r.studentId === opts.studentId) && (!opts.qualId || r.qualId === opts.qualId);
+      }).sort(function (a, b) { return String(a.proposedAt || '') < String(b.proposedAt || '') ? -1 : 1; });
+    }
+    /* The newest proposal (any state) for one unit of one trainee. */
+    function latestFor(list, studentId, qualId, unitCode) {
+      var best = null;
+      (Array.isArray(list) ? list : []).forEach(function (r) {
+        if (!r || r.studentId !== studentId || r.qualId !== qualId || r.unitCode !== unitCode) return;
+        if (!best || String(r.updatedAt || '') > String(best.updatedAt || '')) best = r;
+      });
+      return best;
+    }
+    return { KEY: KEY, normalise: normalise, idOf: idOf, propose: propose, decide: decide, waiting: waiting, latestFor: latestFor };
   })();
 
   // ===================== THE OFFICE'S VIEW OF THE WORK: marking backlog, registers not taken =====================

@@ -614,6 +614,62 @@ const NOT_HANDED_IN = ['Leon Stewart', 'Kerry-Ann Palmer', 'Marlon Wright', 'Sas
     await I.evaluate(() => { closeModal('driveUploadModal'); googleAccessToken = null; });
   });
 
+  /* --------------------------------------------------------- proposals */
+  await section('proposals', 'An instructor proposes a unit result; the office confirms it', async () => {
+    const tgFrame = async (page, pageId, frameId) => {
+      await go(page, pageId);
+      await until(() => page.evaluate(id => { const f = document.getElementById(id); return !!(f && f.contentWindow && f.contentWindow.document && f.contentWindow.document.querySelector('.tg-header, .tg-card, .tg-empty')); }, frameId), 20000);
+      return page.frame({ url: /Transcript-Grades\.html/ });
+    };
+    // The office opens Transcript / Grades once (its file is the one the
+    // proposals travel in).
+    const OF = await tgFrame(O, 'transcript-grades', 'transcriptGradesFrame');
+    ok(!!OF, 'the office\'s Transcript / Grades is open');
+    await OF.evaluate(() => CESTISPageCloud.saveNow());
+    await O.waitForTimeout(800);
+    // Ian proposes Damion's first unit.
+    const IF = await tgFrame(I, 'i-trainee-grades', 'iTraineeGradesFrame');
+    ok(!!IF, 'Ian\'s Trainee Grades is open');
+    const damion = idOf(STOPPED);
+    await IF.evaluate(id => { insOpen[id] = true; renderInstructor(); }, damion);
+    const key = await IF.evaluate(id => { const inp = Array.from(document.querySelectorAll('input[id^="tgp-"]')).find(i => i.closest('.tg-card').innerText.indexOf('Damion Lewis') !== -1); return inp ? inp.id.slice(4) : null; }, damion);
+    ok(!!key, 'every unit row of his trainee has "Propose a result"');
+    await IF.fill('#tgp-' + key, '78');
+    await IF.fill('#tgpn-' + key, 'Clean cuts on the practical; safe set-up.');
+    await shot(I, 'b8-instructor-propose-unit');
+    await IF.click('#tgp-' + key + ' ~ button');
+    await I.waitForTimeout(1200);
+    const prop = await IF.evaluate(() => JSON.parse(CESTISStore.getItem('voctrain_unitProposals') || '[]'));
+    ok(prop.length === 1 && prop[0].grade === 78 && prop[0].status === 'proposed' && prop[0].proposedBy === 'Ian Barrett', 'the proposal is saved: 78, by Ian, waiting');
+    ok(/Proposed 78% — waiting for the office/.test(await IF.evaluate(() => document.body.innerText)), 'and his row says it waits for the office');
+    const official = await IF.evaluate(id => (JSON.parse(CESTISStore.getItem('voctrain_transcriptGrades') || '[]')).filter(g => g.studentId === id && !g.removed).length, damion);
+    ok(official === 0, 'nothing official yet: no grade recorded');
+    const onServer = await until(() => { try { const d = JSON.parse(fs.readFileSync(path.join(DATA, 'CESTIS_Transcript_Grades.json'), 'utf8')); return JSON.parse(d.data.voctrain_unitProposals || '[]').length === 1; } catch (e) { return false; } }, 15000);
+    ok(!!onServer, 'it reached the office\'s Transcript / Grades file on the Centre\'s server');
+    // The office.
+    await OF.evaluate(() => CESTISPageCloud.loadNow());
+    await O.waitForTimeout(800);
+    await OF.evaluate(() => { loadAll(); renderForRole(); });
+    const waitingTxt = await OF.evaluate(() => (document.getElementById('tgProposalsWaiting') || {}).innerText || '');
+    ok(/Proposed unit results waiting for the office \(1\)/.test(waitingTxt) && /Damion Lewis/.test(waitingTxt), 'the office sees it waiting (' + waitingTxt.replace(/\s+/g, ' ').slice(0, 80) + ')');
+    await OF.click('#tgProposalsWaiting button:has-text("Open")');
+    await O.waitForTimeout(500);
+    ok(/Proposed by Ian Barrett: 78%/.test(await OF.evaluate(() => document.getElementById('tgGradeRows').innerText)), 'the unit\'s row says "Proposed by Ian Barrett: 78%"');
+    await shot(O, 'b8-office-proposal-confirm');
+    await OF.click('.tg-proposal button:has-text("Confirm")');
+    await O.waitForTimeout(800);
+    const after = await OF.evaluate(id => ({ g: JSON.parse(CESTISStore.getItem('voctrain_transcriptGrades') || '[]').filter(x => x.studentId === id && !x.removed).map(x => x.grade + ':' + x.updatedBy),
+      p: JSON.parse(CESTISStore.getItem('voctrain_unitProposals') || '[]').map(x => x.status + ':' + x.decidedBy) }), damion);
+    ok(after.g.join() === '78:Marcia Thompson' && after.p.join() === 'confirmed:Marcia Thompson', 'Confirm makes 78 the official grade, recorded by Marcia, and the proposal says confirmed (' + JSON.stringify(after) + ')');
+    await OF.evaluate(() => CESTISPageCloud.saveNow());
+    await O.waitForTimeout(800);
+    await IF.evaluate(() => CESTISPageCloud.loadNow());
+    await I.waitForTimeout(800);
+    await IF.evaluate(() => { loadAll(); renderInstructor(); });
+    ok(!!(await until(async () => { await IF.evaluate(() => { try { CESTISPageCloud.loadNow(); loadAll(); renderInstructor(); } catch (e) {} }); return /78% confirmed by Marcia Thompson/.test(await IF.evaluate(() => document.body.innerText)); }, 15000, 1500)), 'Ian sees it confirmed');
+    await shot(I, 'b8-instructor-proposal-confirmed');
+  });
+
   /* ----------------------------------------------------------- notices */
   await section('notices', 'A Welding assignment reaches Welding trainees, not Plumbing', async () => {
     await go(I, 'i-gradebook');

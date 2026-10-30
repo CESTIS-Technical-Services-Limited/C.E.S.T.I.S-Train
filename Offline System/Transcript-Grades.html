@@ -123,6 +123,9 @@
 
   .tg-note { font-size:12px; color:var(--text-secondary); line-height:1.5; background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 12px; margin-bottom:12px; }
   .tg-note b { color: var(--text-primary); }
+  /* A unit result an instructor proposed, waiting for the office. */
+  .tg-proposal { margin-top:6px; padding:6px 8px; border-left:3px solid var(--accent, #f0a500); background:var(--bg-input); border-radius:var(--radius-sm); font-size:12px; color:var(--text-secondary); }
+  .tg-proposal b { color: var(--text-primary); }
   .tg-check { display:flex; gap:8px; align-items:flex-start; font-size:12.5px; color:var(--text-secondary); margin:10px 0; line-height:1.4; }
   .tg-check input { margin-top:2px; accent-color: var(--accent); }
 
@@ -287,7 +290,10 @@ function freshList(key, cached) {
   return Array.isArray(v) ? v : (Array.isArray(cached) ? cached : []);
 }
 
-var db = { students: [], exams: [], examResults: [], catalogs: [], grades: [], requests: [], profiles: {}, instructors: [] };
+var db = { students: [], exams: [], examResults: [], catalogs: [], grades: [], requests: [], profiles: {}, instructors: [], proposals: [] };
+// Unit results an instructor proposes and the office decides (CESTISCore.unitProposals).
+var UP = window.CESTISCore && CESTISCore.unitProposals;
+var PROPOSALS_KEY = 'voctrain_unitProposals';
 
 function loadAll() {
   db.students = readJSON('voctrain_students', []);
@@ -297,6 +303,7 @@ function loadAll() {
   db.requests = readJSON(T.KEYS.requests, []);
   db.profiles = readJSON(T.KEYS.profiles, {});
   db.instructors = readJSON('voctrain_instructorData', []);
+  db.proposals = readJSON('voctrain_unitProposals', []);
   // The seeded catalogues are added when READ, never written at start-up.
   // Writing them here stamped pristine seeds "now" before the page's cloud
   // pull had landed, and after an administrator's logout that newer stamp beat
@@ -786,6 +793,7 @@ function adminHTML() {
       '<button class="tg-btn green" onclick="downloadGradeSheet()">⬇ Download Grade Sheet (PDF)</button>' +
     '</div>' +
   '</div>' +
+  '<div id="tgProposalsWaiting"></div>' +
   '<div class="tg-controls">' +
     '<select class="tg-select" id="tgStudentSel" onchange="onPickStudent(this.value)"></select>' +
     '<select class="tg-select" id="tgQualSel" onchange="onPickQual(this.value)"></select>' +
@@ -977,7 +985,7 @@ function renderGradeRows() {
     var dirty = dirtyGrades[r.code];
     return '<tr data-code="' + escAttr(r.code) + '"' + (dirty ? ' class="tg-dirty"' : '') + '>' +
       '<td class="unit-code">' + esc(r.code) + '</td>' +
-      '<td class="unit-name">' + esc(r.name) + ((r.source === 'exam' || r.source === 'pending') && r.examTitle ? '<div style="font-size:10.5px;color:var(--text-muted);margin-top:2px;">from exam: ' + esc(r.examTitle) + '</div>' : '') + '</td>' +
+      '<td class="unit-name">' + esc(r.name) + ((r.source === 'exam' || r.source === 'pending') && r.examTitle ? '<div style="font-size:10.5px;color:var(--text-muted);margin-top:2px;">from exam: ' + esc(r.examTitle) + '</div>' : '') + proposalCellHTML(s, q, r) + '</td>' +
       '<td><input class="tg-grade-input" id="tgg-' + i + '" data-stored="' + escAttr(storedG) + '" value="' + escAttr(dirty ? dirty.g : storedG) + '" placeholder="' + (r.source === 'pending' ? 'marking' : '—') + '" oninput="markDirtyRow(this)" title="A percentage, or C / Competent / NYC"></td>' +
       '<td><input class="tg-grade-input tg-date-input" id="tgd-' + i + '" data-stored="' + escAttr(storedD) + '" value="' + escAttr(dirty ? dirty.d : storedD) + '" placeholder="DD/MM/YYYY" oninput="markDirtyRow(this)"></td>' +
       '<td><span class="tg-src ' + r.source + '">' + srcLabel + '</span></td>' +
@@ -1103,9 +1111,106 @@ function saveUnitGrade(i, opts) {
   db.index = T.gradeIndex(db.exams, db.examResults, db.catalogs);
   renderGradeRows();
   refreshPreview();
+  // A proposal waiting for this unit is now decided: confirmed when the
+  // grade saved is the one proposed, changed when it is another.
+  settleProposalsFor(s.id, q.id, unit.code, gradeVal);
   if (!opts.quiet) toast('Grade saved — ' + unit.code + ' → ' + T.displayGrade({ grade: gradeVal }));
   return true;
 }
+
+/* ---- Proposed unit results (CESTISCore.unitProposals) ----
+   An instructor proposes; the office confirms, changes or declines. Nothing
+   is official until then: the transcript reads only the saved grades. */
+function proposalsSave(list) {
+  db.proposals = list;
+  writeJSON(PROPOSALS_KEY, list);
+  notifyHost({ proposals: true });
+  try { if (window.CESTISPageCloud && CESTISPageCloud.saveShared) return CESTISPageCloud.saveShared([PROPOSALS_KEY]); } catch (e) {}
+  return null;
+}
+function proposalLabel(p) { return T.displayGrade({ grade: p.grade }); }
+function proposalCellHTML(s, q, r) {
+  if (!UP || !IS_STAFF || !s || !q) return '';
+  var w = UP.waiting(db.proposals, { studentId: s.id, qualId: q.id }).filter(function (p) { return p.unitCode === r.code; });
+  return w.map(function (p) {
+    return '<div class="tg-proposal" data-proposal="' + escAttr(p.id) + '"><b>Proposed by ' + esc(p.proposedBy || 'an instructor') + ': ' + esc(proposalLabel(p)) + '</b>' +
+      (p.date ? ' (' + esc(p.date) + ')' : '') + (p.note ? ' — ' + esc(p.note) : '') +
+      '<div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap;"><button class="tg-btn sm green" onclick="confirmProposal(' + jsArg(p.id) + ')">Confirm</button>' +
+      '<button class="tg-btn sm" onclick="editProposal(' + jsArg(p.id) + ')" title="Put the proposed grade in the row to change it, then Save">Change…</button>' +
+      '<button class="tg-btn sm danger" onclick="declineProposal(' + jsArg(p.id) + ')">Decline</button></div></div>';
+  }).join('');
+}
+function proposalById(id) { db.proposals = readJSON(PROPOSALS_KEY, []) || []; return db.proposals.filter(function (p) { return p && p.id === id; })[0] || null; }
+// Confirm: the proposed grade becomes the official grade, saved as the
+// office's own (Transcript/Grades' saveUnitGrade), and the proposal says so.
+function confirmProposal(id) {
+  var p = proposalById(id);
+  if (!p || p.status !== 'proposed') { toast('That proposal is no longer waiting', 'warn'); renderForRole(); return; }
+  if (p.studentId !== sel.studentId || p.qualId !== sel.qualId) { sel.studentId = p.studentId; sel.qualId = p.qualId; dirtyGrades = {}; dirtyFor = ''; renderAdmin(); }
+  var q = qualForStudent(p.studentId, p.qualId);
+  var i = -1;
+  (q ? q.units : []).forEach(function (u, k) { if (u.code === p.unitCode) i = k; });
+  if (i === -1) { toast('This unit is not in the trainee\'s plan any more', 'err'); return; }
+  document.getElementById('tgg-' + i).value = String(p.grade);
+  if (p.date) document.getElementById('tgd-' + i).value = p.date;
+  saveUnitGrade(i);
+}
+function editProposal(id) {
+  var p = proposalById(id);
+  if (!p) return;
+  var q = qualForStudent(p.studentId, p.qualId), i = -1;
+  (q ? q.units : []).forEach(function (u, k) { if (u.code === p.unitCode) i = k; });
+  if (i === -1) return;
+  var g = document.getElementById('tgg-' + i), d = document.getElementById('tgd-' + i);
+  if (g) { g.value = String(p.grade); markDirtyRow(g); try { g.focus(); g.select(); } catch (e) {} }
+  if (d && p.date && !d.value) d.value = p.date;
+  toast('Change the grade if needed, then Save the row', '');
+}
+function declineProposal(id) {
+  var p = proposalById(id);
+  if (!p) return;
+  if (!confirm('Decline ' + (p.proposedBy || 'the instructor') + '\'s proposed ' + proposalLabel(p) + ' for ' + p.unitCode + '? The official grade stays as it is.')) return;
+  var res = UP.decide(db.proposals, id, { decision: 'declined', by: ACTOR });
+  if (res.error) { toast('That proposal is no longer waiting', 'warn'); renderForRole(); return; }
+  proposalsSave(res.list);
+  renderForRole();
+  toast('Proposal declined — the official grade is unchanged');
+}
+// After the office saves a grade for a unit, the proposals waiting for it are settled.
+function settleProposalsFor(studentId, qualId, unitCode, gradeVal) {
+  if (!UP) return;
+  var list = readJSON(PROPOSALS_KEY, []) || [];
+  var w = UP.waiting(list, { studentId: studentId, qualId: qualId }).filter(function (p) { return p.unitCode === unitCode; });
+  if (!w.length) return;
+  w.forEach(function (p) {
+    var same = UP.normalise(p.grade) === UP.normalise(gradeVal);
+    var res = UP.decide(list, p.id, same ? { decision: 'confirmed', by: ACTOR } : { decision: 'changed', officialGrade: gradeVal, by: ACTOR });
+    if (!res.error) list = res.list;
+  });
+  proposalsSave(list);
+  renderProposalsWaiting();
+}
+// Every proposal waiting, across the Centre, at the top of the page.
+function renderProposalsWaiting() {
+  var host = document.getElementById('tgProposalsWaiting');
+  if (!host || !UP) return;
+  var w = UP.waiting(db.proposals);
+  if (!w.length) { host.innerHTML = ''; return; }
+  host.innerHTML = '<div class="tg-note" style="margin-bottom:12px;"><b>Proposed unit results waiting for the office (' + w.length + ')</b> — nothing is official until confirmed.' +
+    '<table class="tg-table" style="margin-top:6px;"><tbody>' + w.slice(0, 40).map(function (p) {
+      return '<tr><td>' + esc(p.studentName || p.studentId) + '</td><td class="unit-code">' + esc(p.unitCode) + '</td><td><b>' + esc(proposalLabel(p)) + '</b></td><td style="color:var(--text-muted);">by ' + esc(p.proposedBy || '') + '</td>' +
+        '<td><button class="tg-btn sm blue" onclick="openProposal(' + jsArg(p.id) + ')">Open</button></td></tr>';
+    }).join('') + '</tbody></table></div>';
+}
+function openProposal(id) {
+  var p = proposalById(id);
+  if (!p) return;
+  sel.studentId = p.studentId; sel.qualId = p.qualId; dirtyGrades = {}; dirtyFor = ''; profileDirtyFor = '';
+  renderAdmin();
+  var row = document.querySelector('[data-proposal="' + (window.CSS && CSS.escape ? CSS.escape(id) : id) + '"]');
+  if (row && row.scrollIntoView) row.scrollIntoView({ block: 'center' });
+}
+
 
 function clearUnitGrade(i) {
   captureDirtyGrades();
@@ -1330,6 +1435,7 @@ function renderAdmin() {
   fillQualSelect();
   renderProfileInputs();
   renderGradeRows();
+  renderProposalsWaiting();
   refreshPreview();
 }
 
@@ -1478,7 +1584,8 @@ function renderInstructor() {
   app.innerHTML =
   '<div class="tg-header">' +
     '<div><h1>Trainee Grades</h1>' +
-    '<p><span class="tg-live-dot"></span>Live grades for your trainees' + (MY_COURSES.length ? ' in <b>' + esc(MY_COURSES.join(', ')) + '</b>' : '') + ' — exam results and Admin updates appear instantly. Grade sheets carry your name as instructor.</p></div>' +
+    '<p><span class="tg-live-dot"></span>Live grades for your trainees' + (MY_COURSES.length ? ' in <b>' + esc(MY_COURSES.join(', ')) + '</b>' : '') + ' — exam results and Admin updates appear instantly. Grade sheets carry your name as instructor. ' +
+    'Propose a unit result on any row: the office confirms it before it counts.</p></div>' +
   '</div>' +
   (!list.length ? '<div class="tg-empty"><div class="big">🧑‍🏫</div>No trainees found for your course yet.</div>' :
     list.map(function (s, i) {
@@ -1494,18 +1601,58 @@ function renderInstructor() {
             '<span style="color:var(--text-muted);font-size:12px;">' + (open ? '▲' : '▼') + '</span></div>' +
         '</div>' +
         (open ? '<div class="tg-card-body" style="padding-top:6px;">' +
-          '<table class="tg-table"><thead><tr><th style="width:120px;">Unit code</th><th>Unit name</th><th style="width:110px;">Date</th><th style="width:90px;">Grade</th><th style="width:90px;">Source</th></tr></thead><tbody>' +
-          (rows.length ? rows.map(function (r) {
+          '<table class="tg-table"><thead><tr><th style="width:120px;">Unit code</th><th>Unit name</th><th style="width:110px;">Date</th><th style="width:90px;">Grade</th><th style="width:90px;">Source</th><th style="width:230px;">Propose a result</th></tr></thead><tbody>' +
+          (rows.length ? rows.map(function (r, ri) {
             var graded = r.grade != null && r.grade !== '';
             return '<tr><td class="unit-code">' + esc(r.code) + '</td><td class="unit-name">' + esc(r.name) + '</td><td>' + esc(r.date || '—') + '</td>' +
               '<td style="font-weight:700;color:' + (graded ? 'var(--green)' : 'var(--text-muted)') + ';">' + esc(graded || r.source === 'pending' ? T.displayGrade(r) : 'Pending') + '</td>' +
-              '<td><span class="tg-src ' + r.source + '">' + (r.source === 'exam' ? 'Live exam' : r.source === 'manual' ? 'Manual' : r.source === 'pending' ? 'Awaiting marking' : '—') + '</span></td></tr>';
-          }).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:18px;">No unit catalogue for this programme yet.</td></tr>') +
+              '<td><span class="tg-src ' + r.source + '">' + (r.source === 'exam' ? 'Live exam' : r.source === 'manual' ? 'Manual' : r.source === 'pending' ? 'Awaiting marking' : '—') + '</span></td>' +
+              '<td>' + insProposalCellHTML(s, q, r, i + '-' + ri) + '</td></tr>';
+          }).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:18px;">No unit catalogue for this programme yet.</td></tr>') +
           '</tbody></table></div>' : '') +
       '</div>';
     }).join(''));
 }
 function toggleInsRow(id) { insOpen[id] = !insOpen[id]; renderInstructor(); }
+/* An instructor proposes a unit result: a percentage, or C / NYC, with an
+   optional note. The office confirms it before it counts. */
+var MY_ACCOUNT_ID = (VIEWER.ok && VIEWER.account && VIEWER.account.id) || '';
+function insProposalCellHTML(s, q, r, key) {
+  if (!UP || !q) return '';
+  var p = UP.latestFor(db.proposals, s.id, q.id, r.code);
+  var mine = p && (p.proposedById === MY_ACCOUNT_ID || (!p.proposedById && p.proposedBy === MY_NAME));
+  var state = '';
+  if (p) {
+    var lbl = esc(T.displayGrade({ grade: p.grade }));
+    state = p.status === 'proposed' ? '<div class="tg-prop-state" style="font-size:12px;color:var(--accent);">Proposed ' + lbl + (mine ? '' : ' by ' + esc(p.proposedBy)) + ' — waiting for the office</div>'
+      : p.status === 'confirmed' ? '<div class="tg-prop-state" style="font-size:12px;color:var(--green);">' + lbl + ' confirmed by ' + esc(p.decidedBy || 'the office') + '</div>'
+      : p.status === 'changed' ? '<div class="tg-prop-state" style="font-size:12px;color:var(--text-secondary);">Proposed ' + lbl + '; the office recorded ' + esc(T.displayGrade({ grade: p.officialGrade })) + '</div>'
+      : p.status === 'declined' ? '<div class="tg-prop-state" style="font-size:12px;color:var(--red);">Proposed ' + lbl + '; declined by ' + esc(p.decidedBy || 'the office') + '</div>' : '';
+  }
+  return state + '<div style="display:flex;gap:4px;align-items:center;margin-top:2px;">' +
+    '<input class="tg-grade-input" id="tgp-' + escAttr(key) + '" placeholder="% or C / NYC" aria-label="Propose a result for ' + escAttr(r.code) + '" style="width:92px;" value="' + (p && p.status === 'proposed' && mine ? escAttr(String(p.grade)) : '') + '">' +
+    '<input class="tg-grade-input" id="tgpn-' + escAttr(key) + '" placeholder="Note (optional)" aria-label="Note for the office" style="width:120px;">' +
+    '<button class="tg-btn sm blue" onclick="insPropose(' + jsArg(s.id) + ',' + jsArg(r.code) + ',' + jsArg(key) + ')">Propose</button></div>';
+}
+function insPropose(studentId, unitCode, key) {
+  var s = studentById(studentId), q = s ? insQualFor(s) : null;
+  if (!s || !q || !UP) return;
+  var unit = q.units.filter(function (u) { return u.code === unitCode; })[0];
+  var gv = (document.getElementById('tgp-' + key) || {}).value || '';
+  var note = (document.getElementById('tgpn-' + key) || {}).value || '';
+  if (UP.normalise(gv) == null) { toast('Enter a percentage (0-100), or C / Competent / NYC', 'warn'); return; }
+  var res = UP.propose(readJSON(PROPOSALS_KEY, []) || [], { studentId: s.id, studentName: s.name, course: s.course, qualId: q.id, unitCode: unitCode,
+    unitName: unit ? unit.name : '', grade: gv, date: T.formatDateDMY(new Date().toISOString()), note: note, by: MY_NAME || ACTOR, byId: MY_ACCOUNT_ID });
+  if (res.error) { toast('That result could not be proposed', 'err'); return; }
+  var sent = proposalsSave(res.list);
+  insOpen[s.id] = true;
+  renderInstructor();
+  if (!sent) { toast('Proposed — saved on this device; it reaches the office when this device is connected', 'warn'); return; }
+  sent.then(function (wrote) {
+    toast(wrote && wrote.length ? 'Proposed ' + T.displayGrade({ grade: res.record.grade }) + ' for ' + unitCode + ' — the office confirms it before it counts'
+      : 'Proposed — saved on this device; it reaches the office when this device is connected', wrote && wrote.length ? '' : 'warn');
+  }, function () { toast('Proposed — saved on this device; it reaches the office when this device is connected', 'warn'); });
+}
 function insGradeSheet(id) {
   var s = studentById(id);
   var q = s ? insQualFor(s) : null;
@@ -1526,7 +1673,7 @@ function renderForRole() {
   else renderStudent();
 }
 
-var LIVE_KEYS = ['voctrain_examResults', 'voctrain_exams', 'voctrain_students', 'voctrain_instructorData'];
+var LIVE_KEYS = ['voctrain_examResults', 'voctrain_exams', 'voctrain_students', 'voctrain_instructorData', 'voctrain_unitProposals'];
 function isLiveKey(k) {
   return LIVE_KEYS.indexOf(k) !== -1 ||
     k === T.KEYS.grades || k === T.KEYS.catalogs || k === T.KEYS.requests || k === T.KEYS.profiles;
@@ -1551,6 +1698,7 @@ setInterval(function () {
          String(CESTISStore.getItem(T.KEYS.grades) || '').length + '|' +
          String(CESTISStore.getItem(T.KEYS.catalogs) || '').length + '|' +
          String(CESTISStore.getItem(T.KEYS.requests) || '').length + '|' +
+         String(CESTISStore.getItem(PROPOSALS_KEY) || '').length + '|' +
          String(CESTISStore.getItem('voctrain_students') || '').length;
   } catch (e) {}
   if (fp !== lastFingerprint && VIEWER.ok) {
@@ -1604,10 +1752,14 @@ var TG_READS = ['voctrain_students', 'voctrain_skillAreas', 'voctrain_deletedCen
 var _tgStaff = (typeof IS_STAFF !== 'undefined' && IS_STAFF);
 var _tgSignedIn = (typeof VIEWER !== 'undefined' && VIEWER.ok);
 var _tgTrainee = _tgSignedIn && (typeof ROLE !== 'undefined' && ROLE === 'student');
+// An instructor proposes unit results (CESTISCore.unitProposals): she reads
+// them and may send her proposals into the office's file, record by record —
+// the way a trainee's request reaches the request queue. Nothing official.
+var _tgInstructor = _tgSignedIn && (typeof ROLE !== 'undefined' && ROLE === 'instructor');
 CESTISPageCloud.init(_tgStaff ? {
   page: 'Transcript / Grades',
   file: 'CESTIS_Transcript_Grades.json',
-  keys: ['voctrain_transcriptGrades', 'voctrain_unitCatalogs', 'voctrain_transcriptProfiles'],
+  keys: ['voctrain_transcriptGrades', 'voctrain_unitCatalogs', 'voctrain_transcriptProfiles', 'voctrain_unitProposals'],
   // Grades are recorded against the trainee roll and the training centres, both
   // owned elsewhere: pulled from Drive here, never written back.
   reads: TG_READS,
@@ -1617,12 +1769,13 @@ CESTISPageCloud.init(_tgStaff ? {
   file: 'CESTIS_Transcript_Grades.reader',      // a reader publishes no file of its own
   readOnly: true,
   reads: _tgSignedIn ? TG_READS.concat(['voctrain_transcriptGrades', 'voctrain_unitCatalogs'])
-    .concat(_tgTrainee ? ['voctrain_certTranscriptRequests'] : []) : [],
+    .concat(_tgTrainee ? ['voctrain_certTranscriptRequests'] : [])
+    .concat(_tgInstructor ? ['voctrain_unitProposals'] : []) : [],
   // A trainee's request is a decision they may put into the request queue the
   // administration owns (CESTIS_Transcript_Requests.json); it is merged there
   // request by request, so it can neither replace nor be replaced by the
   // queue. Status changes come back the same way.
-  writes: _tgTrainee ? ['voctrain_certTranscriptRequests'] : [],
+  writes: _tgTrainee ? ['voctrain_certTranscriptRequests'] : _tgInstructor ? ['voctrain_unitProposals'] : [],
   onRestore: function () { try { if (_tgSignedIn) { loadAll(); renderForRole(); } } catch (e) {} }
 });
 </script>
