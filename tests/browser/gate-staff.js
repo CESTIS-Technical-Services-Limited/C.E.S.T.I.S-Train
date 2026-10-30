@@ -11,7 +11,7 @@
      1. Settings → Trainee Sign-in on an administrator's PC: "Not set up";
         the setup code is not available yet (the site does not serve it), or
         is copied when it is; the address is pasted and checked ("Ready —
-        version 2 · 6 trainee accounts"); Turn on shows the trainees'
+        version 3 · 6 trainee accounts"); Turn on shows the trainees'
         sign-in link (#gate=…, the address in the fragment only) with its
         QR code, and Print makes a page with the code and its caption.
      2. The PC's own 5-second save then publishes: a folder per trainee,
@@ -75,7 +75,7 @@ function fakeGate(drive, opts) {
     const u = new URL(route.request().url());
     if (u.searchParams.get('op') === 'health') g.setup();
     return route.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' },
-      body: JSON.stringify({ ok: true, service: 'cestis-trainee-gate', version: 2, protocol: [1], time: new Date().toISOString(),
+      body: JSON.stringify({ ok: true, service: 'cestis-trainee-gate', version: 3, protocol: [1], time: new Date().toISOString(),
         ready: { secret: true, folders: true, ledger: true, ledgerUpdated: new Date().toISOString(), trainees: g.trainees }, accepting: true }) });
   };
   return g;
@@ -195,7 +195,7 @@ function fakeGate(drive, opts) {
     await page.click('#gateCheckBtn');
     await page.waitForFunction(() => /^Ready/.test(document.getElementById('gateStatusLine').textContent), null, { timeout: 10000 }).catch(() => {});
     c = await card(page);
-    ok(c.status === 'Ready — version 2 · 6 trainee accounts', 'Check: "Ready — version 2 · 6 trainee accounts" (' + c.status + ')');
+    ok(c.status === 'Ready — version 3 · 6 trainee accounts', 'Check: "Ready — version 3 · 6 trainee accounts" (' + c.status + ')');
     ok(gate.calls === 1 && ctx._log.filter(l => l.indexOf('GATE ') === 0).every(l => /op=health/.test(l)), 'Check asked the address one thing: health');
     ok(await page.evaluate(GATE => systemSettings.traineeGate.url === GATE && systemSettings.traineeGate.enabled === false, GATE), 'the address is kept in the Centre\'s settings, still off');
     await shot(page, '02-ready-dark-desktop', '#gateCard');

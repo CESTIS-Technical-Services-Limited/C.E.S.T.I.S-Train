@@ -523,6 +523,50 @@ function bigCentre(n) {
     B.cache.voctrain_support_messages = A.cache.voctrain_support_messages;
   }
 
+  /* ------------------------------------------------ her fees (version 3) */
+  console.log('Her fees: published into her folder only by a PC that holds the fee roll; a PC without it, a placeholder or an older roll never replaces them');
+  {
+    const t = C.trainees[1], acct = t.acct.id;
+    const roll = [{ id: t.stu.id, lmsId: t.stu.id, name: t.stu.name, skillArea: t.p.name, tuitionFee: 60000, updatedAt: iso(NOW - 5 * DAY) }];
+    const pays = [{ id: 'PAY-1', studentId: t.stu.id, amount: 20000, date: '2026-09-04', method: 'Cash', receiptNumber: 'R-1', notes: 'office only', createdAt: iso(NOW - 50 * DAY) }];
+    const withFees = (r, p, gone) => Object.assign({}, A.cache, { cestiSchoolFeeStudents: JSON.stringify(r), cestiSchoolFeePayments: JSON.stringify(p), cestiSchoolFeeDeletedPaymentIds: JSON.stringify(gone || []) });
+    const feesFiles = () => Object.values(drive.files).filter(f => f.appProperties && f.appProperties.cestisKind === 'fees' && f.appProperties.cestisGate === '1');
+    const herFolder = filesIn(drive, cfg.traineesId).find(f => A.sb.gateFolderAcct(f.description) === acct);
+    const F = computer('F', drive, withFees(roll, pays), { settings: ON });
+    await F.tick();
+    let ff = feesFiles();
+    assert(ff.length === 1 && ff[0].name === 'from-centre-fees.json' && ff[0].parents[0] === herFolder.id && ff[0].appProperties.acct === acct,
+      'one file, from-centre-fees.json, in her own folder — only the trainee with a fee record gets one (' + ff.length + ')');
+    let body = JSON.parse(ff[0].content);
+    assertEq([body.fees.tuition, body.fees.paid, body.fees.balance, body.fees.receipts.length], [60000, 20000, 40000, 1], 'her figures and her receipt');
+    assert(JSON.stringify(body).indexOf('office only') === -1, 'no notes');
+    assertEq(F.writes().length, 1, 'F wrote that one file and nothing else (the records were already there)');
+    // A has no fee roll at all: it builds no fees, writes none.
+    const wA = A.writes().length;
+    A.forceBuild(); A.forceLook(); await A.tick();
+    assertEq([A.writes().length - wA, feesFiles().length, JSON.parse(feesFiles()[0].content).fees.paid], [0, 1, 20000], 'a PC without the fee roll publishes nothing and replaces nothing');
+    // A PC whose roll holds only a placeholder for her (made just now by the dashboard's mirror): nothing.
+    const P = computer('P', drive, withFees([{ id: t.stu.id, lmsId: t.stu.id, name: t.stu.name, skillArea: t.p.name, tuitionFee: 0, totalPaid: 0, needsFeeDetails: true, source: 'lms',
+      createdAt: new Date(clock()).toISOString() }], []), { settings: ON });
+    await P.tick();
+    assertEq([P.writes().length, JSON.parse(feesFiles()[0].content).fees.paid], [0, 20000], 'a placeholder fee record is never published over the real one');
+    // A new payment on F: F writes; O, with the older roll, is behind and writes nothing.
+    const O = computer('O', drive, withFees(roll, pays), { settings: ON });
+    const pays2 = pays.concat([{ id: 'PAY-2', studentId: t.stu.id, amount: 15000, date: '2026-10-20', method: 'Bank transfer', receiptNumber: 'R-2', createdAt: new Date(clock()).toISOString() }]);
+    F.cache.cestiSchoolFeePayments = JSON.stringify(pays2);
+    F.forceBuild(); F.forceLook(); await F.tick();
+    assertEq(JSON.parse(feesFiles()[0].content).fees.paid, 35000, 'a new payment reaches her file');
+    for (let i = 0; i < 2; i++) { O.forceBuild(); O.forceLook(); await O.tick(); }
+    assertEq([O.writes().length, JSON.parse(feesFiles()[0].content).fees.paid], [0, 35000], 'a PC with the older roll is behind: it never puts the older figures back');
+    // A payment deleted at the office (no stamp of its own): the PC that knows it still wins.
+    F.cache.cestiSchoolFeeDeletedPaymentIds = JSON.stringify(['PAY-2']);
+    F.forceBuild(); F.forceLook(); await F.tick();
+    assertEq(JSON.parse(feesFiles()[0].content).fees.receipts.map(r => r.receipt), ['R-1'], 'a deleted payment leaves her receipts');
+    O.cache.cestiSchoolFeePayments = JSON.stringify(pays2);
+    for (let i = 0; i < 2; i++) { O.forceBuild(); O.forceLook(); await O.tick(); }
+    assertEq(JSON.parse(feesFiles()[0].content).fees.receipts.map(r => r.receipt), ['R-1'], 'a PC that has not heard of the deletion never brings it back');
+  }
+
   /* ------------------------------------------------ a student ID changes */
   console.log('A trainee renamed (a new student ID): their folder is renamed, their records updated in place');
   {

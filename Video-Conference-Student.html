@@ -23,7 +23,7 @@
     <p style="color:var(--text-muted);padding:16px;text-align:center;">Loading class sessions...</p>
   </div>
   <div style="padding:16px;border-top:1px solid var(--border);text-align:center;">
-    <p style="color:var(--text-muted);font-size:13px;margin-bottom:10px;">Have a room code from your instructor? Enter it to join the class</p>
+    <label for="s-vc-join-code" style="display:block;color:var(--text-muted);font-size:13px;margin-bottom:10px;"><strong style="color:var(--text-secondary);">Room code</strong> — have one from your instructor? Enter it to join the class</label>
     <div style="display:flex;gap:8px;align-items:center;justify-content:center;">
       <input type="text" class="form-control" id="s-vc-join-code" placeholder="ROOM CODE" maxlength="16" autocomplete="off" style="font-family:monospace;font-size:20px;letter-spacing:3px;text-align:center;text-transform:uppercase;width:100%;max-width:280px;" onkeyup="this.value=this.value.toUpperCase();if(event.key==='Enter')sJoinByCode()">
       <button class="btn btn-primary" onclick="sJoinByCode()">Join</button>

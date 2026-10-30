@@ -170,7 +170,7 @@ const GSI_STUB = `(function(){
     await page.evaluate(() => saveAccountsLedger());
     await until(() => Object.values(drive.files).some(f => f.name === 'CESTIS_ACCOUNTS.json' && f.parents.indexOf(MAIN_FOLDER) !== -1), 15000);
     const h = gate.world.get({ op: 'health' });
-    ok(h.ok && h.version === 2 && h.ready.folders && h.ready.ledger, 'the gate (version 2) set itself up beside the accounts list (' + JSON.stringify(h.ready) + ')');
+    ok(h.ok && h.version === 3 && h.ready.folders && h.ready.ledger, 'the gate (version 3) set itself up beside the accounts list (' + JSON.stringify(h.ready) + ')');
     await page.evaluate(GATE => { systemSettings.traineeGate = { url: GATE, enabled: true, setAt: new Date().toISOString(), setBy: 'mthompson' }; saveState(); GATE_LIMITS.gapMs = 0; _gateRun.cfgAt = 0; }, GATE_URL);
     const done = await until(() => page.evaluate(() => { try { const s = JSON.parse(localStorage.getItem('cestisGatePublished') || '{}'); return !!s.syncedAt && !_gateRun.publishing && JSON.parse(localStorage.getItem('cestisGatePublishQueue') || '[]').length === 0; } catch (e) { return false; } }), 120000, 500);
     ok(!!done, 'the office PC published everything');

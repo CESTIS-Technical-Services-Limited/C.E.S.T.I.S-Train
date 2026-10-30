@@ -1546,7 +1546,7 @@ by trainee name should be generated same time and uploaded to drive, trainees mu
 for authentication in order for account to reach system."* There are no lab PCs at the Centre now:
 trainees sign in and sit tests at home through the gate.
 
-**The gate is version 2** (`GATE_VERSION`, and `GATE_EXPECTED_VERSION` in `index.html`): the
+**The gate was version 2 here** (`GATE_VERSION`, and `GATE_EXPECTED_VERSION` in `index.html`; version 3: §18): the
 administrator pastes `PASTE-GATE.gs` again (SETUP.md §2). Until then the card says "A newer version is
 available", sign-in works as before, and registering answers "Registration is not open just now". The
 Centre's server's gate is version 2 as well (it answers the new requests `not-available`).
@@ -1690,5 +1690,85 @@ it, the administrator approves, she signs in with her email account and then her
   strength rule (6+ characters, a capital letter and a number), as today's form does.
 - **A registration file is never changed by the gate** once written (a re-submit with other details
   changes nothing); the office corrects details in Settings → Users after approving.
-- **Not built:** emailing the trainee when they are approved; registering for a programme not in the
-  catalogue; an instructor registering from home.
+- **Not built:** registering for a programme not in the catalogue; an instructor registering from home.
+  (Emailing the trainee when she is approved was built in version 3 — §18.5.)
+
+## 18. Home study (version 3, as built)
+
+The owner's group C, "Make home study smooth". **The gate is version 3** (`GATE_VERSION`, and
+`GATE_EXPECTED_VERSION` in `index.html`); a version 2 gate keeps working — every new request answers
+`unknown-op` there and the page says so plainly (fees: "ask the office"; password: "ask the office to
+change it"; files: sent whole, as before; certificate: "Collect your certificate at the Centre").
+
+### 18.1 Her fees (OF-12)
+
+- One small file per trainee, `from-centre-fees.json` in her own folder (`Core.gate.home.buildFees`):
+  her programme fee, her receipts (id, receipt number, date, amount, method, term) — never the office's
+  notes, contact details or another trainee. Paid, balance and status are added up from her receipts.
+- Only an office computer that holds the fee roll publishes it (a computer without it publishes
+  nothing, so it never replaces a real file with an empty one). Two computers that know different
+  things: `feesDecision` — the one that knows more deleted payments writes (a deletion never comes back),
+  then the newer stamp on the whole roll, then the higher hash; one that knows less is "behind".
+- `op: fees` (`{have}` → `{same}` / `{none}` / `{fees, h, builtAt}`); the device keeps the last answer
+  (`cestisGateFees` in the namespace) for when there is no signal. The Offline System gate builds hers
+  from its own fee roll on request. Page: My Fees (`s-fees`).
+
+### 18.2 Her password, changed at home (OF-12)
+
+- `password.start` → a challenge for HER account (login `acct:<id>`, the sign-in's PBKDF2 proof, its
+  limits: 5 wrong → 15 minutes); `password.change {nonce, proof, password}` with the new password in the
+  dashboard's stored form (never in plain text; shape checked by `storedPasswordOk`); at most 5 changes in
+  6 hours.
+- The gate keeps the change (`PW_PENDING`) until the accounts list shows it: sign-in uses it at once,
+  every other session of hers ends (a new credential version), and this device gets a new session in the
+  answer (what it had waiting is sealed again under it).
+- The change reaches the office as an operation only the gate writes (`CESTISINBOX.L-pw-<session>`,
+  `passwordChange {password, was, at}`); the staff collector applies it only if the account still holds
+  the password she replaced (`was` = fingerprint) — an office reset since wins — stamped
+  `max(updatedAt + 1, at)` so record-level newest-wins keeps it. If the accounts list is rewritten without
+  it, the gate writes the note again. The Offline System gate writes the account itself.
+- Page: Change Password in her account menu (gate sessions only).
+
+### 18.3 Her certificate at home (T4)
+
+- `cert.template {key, page}`: the background picture the office uploaded
+  (`cert_template_<key>_<page>.txt`), only when her own records say the certificate is issued, not
+  withdrawn, and its download approved, and only her programme's template. The device keeps it
+  (IndexedDB) for the next time.
+- The download is counted through her outbox: `certDownload {device, n, certNo}` (n = this device's
+  running count, kept under a "Session" key); validated against her slice; the collector keeps the
+  highest n per `home-<device>` (`recordHomeDownload`). On the Centre's own network, and whenever it
+  cannot be downloaded, the button says "Collect your certificate at the Centre".
+
+### 18.4 Her files, never lost (T2)
+
+- A photo is made about 0.4 MB on the phone (`Core.homeStudy.photoPlan`: 1600 px on the long side, JPEG
+  0.8 → 0.5, about 450 KB); one the browser cannot read (HEIC on most Android phones) is sent as it is.
+- From home the files are kept on the device (IndexedDB `CESTIS_GATE_OUTBOX` version 2, store
+  `uploads` — additive) and sent in parts of 384 KB (`upload.part {uploadId, index, total, size, …}`),
+  each confirmed; the last part makes the file (same kinds, limits and daily allowance as `upload`); a
+  part sent twice answers the same; parts left over go after 3 days. No `xhr.upload.onprogress` (it
+  needs a CORS preflight the gate cannot answer): progress is counted in parts.
+- A part that does not go: tried again later (2 s → 5 min; the day's allowance: an hour), on `online`,
+  on coming back to the page, at her next sign-in on that device. A file the gate can never take is kept,
+  marked, until she removes it. Only when every file is in is her submission written into her records,
+  then sealed and sent like any other change of hers.
+
+### 18.5 The approval email (T6)
+
+- When the gate reads the accounts list, every account that registered from home and was approved in
+  the last 14 days, not yet emailed, goes on a short list (`MAIL_QUEUE`); `health` sends up to 5 at a
+  time (`MailApp`, the Centre's own account — about 100 a day on a free account; no new set-up; EmailJS
+  was not used: its template carries only a sign-in code and its 200 a month are shared with those
+  codes). Each trainee is emailed once (`MAILED`, kept 30 days). Activate / Approve All ask for `health`
+  a few times (20 s, 1, 2 and 5 minutes on) so it goes out soon.
+- The pending screen says "The office usually approves registrations within 1–2 working days. We'll
+  email you at <her address> when you can sign in." (the promise only when the gate said it will send it).
+
+### 18.6 Tests
+
+`tests/home-study.test.js` (every item, both builds), `tests/gate-client.test.js` (her files in parts
+with the signal dropping, her fees, her password changed — against the real paste),
+`tests/gate-appsscript-vm.test.js` §home, `tests/gate-contract.test.js` (fees and password on both gates),
+`tests/gate-publisher.test.js` (fees files: who writes, who waits), and in browsers
+`tests/browser/home-study.js` (`npm run test:browser:home-study`).

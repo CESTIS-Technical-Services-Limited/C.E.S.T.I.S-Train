@@ -49,10 +49,11 @@ What you need:
    - *See, edit, create and delete all of your Google Drive files* — to read the published records
      and keep what trainees send in their own folders;
    - *Connect to an external service* — to check an email sign-in with Google;
-   - *Send email as you* — for emailed sign-in codes (at most 100 a day; backup codes always work).
+   - *Send email as you* — for emailed sign-in codes, and to tell a trainee who registered from home
+     that the office has approved her (at most 100 emails a day in all; backup codes always work).
 7. Copy the **Web app URL** (it ends in `/exec`) and click **Done**.
 8. Back in the dashboard card, paste it into **Address** and press **Check**. The first check makes
-   the program create its folders, its secret and `CESTIS_GATE.json`. Expect **"Ready — version 2"**
+   the program create its folders, its secret and `CESTIS_GATE.json`. Expect **"Ready — version 3"**
    and the number of trainee accounts.
    - *If the card is not there yet:* paste the address into a new browser tab and add `?op=selfcheck`
      to the end. You should see a page of ✓ lines: *Secret made*, *Folders present*, *Accounts list
@@ -70,11 +71,17 @@ Now run the **live checks** (section 3) once.
 
 ## 2. Upgrading to a new version (the address stays the same)
 
-> **Version 2 (October 2026) must be pasted again.** It adds registration from home (section 7)
-> and names each trainee's folder with their name and student ID. Until it is pasted, the
-> dashboard card says *"A newer version is available"*, trainees can still sign in as before, and
-> the "Register with your email account" button answers *"Registration is not open just now"*.
-> Follow the five steps below; the address does not change.
+> **Version 3 (October 2026) is the version to set up.** If the program has never been set up,
+> just follow section 1: nothing needs pasting twice. Version 3 adds, for trainees at home: **their
+> fees and receipts**, **changing their own password**, **downloading their certificate** once its
+> download is approved, **photos and files sent in parts** on a weak signal, and **an email when the
+> office approves a registration from home** (section 7). Version 2 added registration from home
+> and names each trainee's folder with their name and student ID.
+>
+> If an older version is running, the dashboard card says *"A newer version is available"* and
+> trainees can still sign in as before; until it is pasted, My Fees says the fees are not available
+> yet, Change Password and the certificate download at home answer that it is not available yet, and
+> nobody is emailed on approval. Follow the five steps below; the address does not change.
 
 1. Copy the program again (step 1 above).
 2. Open **https://script.google.com** (signed in as the Centre) → click **CESTIS Trainee Gate**.
@@ -124,7 +131,7 @@ open the dashboard's own site in Chrome, press **F12**, click **Console**, paste
   fetch(GATE, { method: 'POST', body: JSON.stringify({ op: 'health' }) })
     .then(r => r.json()).then(j => console.log('OK', j)).catch(e => console.log('FAILED', e));
   ```
-- **Expect:** `OK {ok: true, service: "cestis-trainee-gate", version: 2, …}`. (A text body is sent
+- **Expect:** `OK {ok: true, service: "cestis-trainee-gate", version: 3, …}`. (A text body is sent
   as `text/plain`, so the browser asks no permission first.)
 - **If FAILED with "CORS" or "blocked":** check that step 5 said **Who has access: Anyone**, and
   that the address ends in `/exec` (not `/dev`). Fix with **Deploy → Manage deployments → ✏ → Who
@@ -270,7 +277,8 @@ Accounts*) → **+ Add Trainee Account**. The account works at once. With traine
 anywhere turned on, the trainee's folder appears within seconds; with it off, it is made the first
 time it is turned on. Admin Staff can make **trainee accounts only**.
 
-**A trainee registers from home** (the program must be version 2):
+**A trainee registers from home** (the program must be version 2 or later; the approval email needs
+version 3):
 
 1. On their phone, from the trainees' link or QR code: **New trainee? Register with your email
    account**. Google's own sign-in window opens; they choose their Google account. Only a Google
@@ -280,14 +288,22 @@ time it is turned on. Admin Staff can make **trainee accounts only**.
    a phone number (optional) and a password. They press **Register**.
 3. At that moment the program keeps the registration in `Registrations/` **and** makes their folder
    in `Trainees/`, named "Name (student ID)". The phone says *"Your registration has reached the
-   office."* Registering again with the same Google account finds the same registration — never a
-   second one, never a second folder.
+   office. The office usually approves registrations within 1–2 working days. We'll email you at
+   <their address> when you can sign in."* Registering again with the same Google account finds the
+   same registration — never a second one, never a second folder.
 4. Within a minute, the office PCs bring it into **Verify Users** (Admin Staff: *Trainee Accounts*),
    marked *"Registered from home · email account verified"*. **Activate** approves it (the trainee's
    record is made and their records go into the folder made in step 3); **Reject** turns it down
    (the folder is kept and marked).
 5. Once approved, the trainee signs in at home with their Google account **or** with the password
    they chose in step 2.
+6. **The email.** Right after **Activate** (or **Approve All**), the office's dashboard asks the
+   program to send it: from the Centre's own Google account, to the address she registered with,
+   subject *"You can sign in now — your registration is approved"*, with her sign-in link. Each
+   trainee is emailed once. If the office PC goes offline before that, the email goes the next
+   time any office PC opens the trainee sign-in card's **Check**, or at the daily check. It uses the
+   same allowance as the emailed sign-in codes (about 100 a day on a free account); `?op=selfcheck`
+   shows how many are left today.
 
 On the Centre's own network (the Offline System) registering from home is not available: the office
 creates the account there.

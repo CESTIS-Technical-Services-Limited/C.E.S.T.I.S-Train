@@ -167,7 +167,8 @@ const SOURCE_WORDS = /cloud|☁|google|\bdrive\b|gmail|server|network|\blan\b|of
       await page.click('#topbarWho'); await page.waitForTimeout(250);
       r = await page.evaluate(() => { const m = document.getElementById('topbarAccountMenu'), b = m.getBoundingClientRect();
         return { open: !m.hidden, inView: b.left >= 0 && b.right <= innerWidth, items: Array.from(m.querySelectorAll('.tam-item')).filter(e => e.offsetParent).map(e => e.innerText.trim()),
-          small: Array.from(m.querySelectorAll('.tam-item')).filter(e => e.getBoundingClientRect().height < 44).length }; });
+          // (Items not on screen for this person — Change Password is a trainee's at home — are not measured.)
+          small: Array.from(m.querySelectorAll('.tam-item')).filter(e => e.offsetParent && e.getBoundingClientRect().height < 44).length }; });
       ok(r.open && r.inView, 'the initials open the account menu, on screen');
       ok(['Lock', theme === 'light' ? 'Dark mode' : 'Light mode', 'Two-Step Verification', 'Sign Out'].every(w => r.items.indexOf(w) !== -1), 'it holds Lock, the theme switch, Two-Step Verification and Sign Out (' + r.items.join(' / ') + ')');
       ok(r.small === 0, 'each item is at least 44px tall');
