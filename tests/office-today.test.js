@@ -141,7 +141,8 @@ function sandbox(role, access) {
     box
   };
   vm.createContext(sb);
-  ['accountReviewAllowed', 'asAccessForMe', 'officeMay', 'officeTodayLines', 'renderOfficeToday'].forEach(n => vm.runInContext(extractFunction(n), sb));
+  vm.runInContext(PAGE.slice(PAGE.indexOf('var AS_ACCESS_DEFAULTS = {'), PAGE.indexOf('};', PAGE.indexOf('var AS_ACCESS_DEFAULTS = {')) + 2), sb);
+  ['adminStaffAccessDefaults', 'asAccessFor', 'asAccessForMe', 'accountReviewAllowed', 'officeMay', 'officeTodayLines', 'renderOfficeToday'].forEach(n => vm.runInContext(extractFunction(n), sb));
   return sb;
 }
 console.log('\n[index.html] The Administrator sees every line, each opening its page');

@@ -8645,6 +8645,27 @@
       return null;
     }
 
+    /* May this person reset (set a new password or first-sign-in code for)
+       that account? An administrator: any account. Admin Staff: a TRAINEE's
+       account only — never a staff, instructor, board or administrator login —
+       and only while "Trainee Accounts" is ticked for them (actor.allowed).
+       The owner decided (30 October 2026): "Admin Staff may reset trainee
+       passwords". Nobody else, and never an account that is not there.
+         actor: { role, allowed }  target: the account
+       → null when allowed, else { code, message }. */
+    function resetRefusal(actor, target) {
+      actor = actor || {};
+      var who = String(actor.role || '').trim().toLowerCase();
+      var no = function (code, message) { return { code: code, message: message }; };
+      if (!target || typeof target !== 'object') return no('missing', 'That account is no longer there.');
+      if (who === 'admin') return null;
+      if (who !== 'adminstaff') return no('not-allowed', 'Only the office can reset a password.');
+      if (actor.allowed === false) return no('not-allowed', 'Resetting trainees\' passwords has not been turned on for you by the Administrator.');
+      var role = String(target.role || '').trim().toLowerCase();
+      if (role !== 'student') return no('role', 'Admin Staff can reset trainees\' passwords only. Ask an administrator to reset a staff password.');
+      return null;
+    }
+
     /* What Verify Users lists, and what Approve All / Reject All act on.
 
        It used to be every pending account PLUS every disabled one except
@@ -8937,7 +8958,7 @@
       isPublishedDefault: isPublishedDefault, publishedDefaultLogin: publishedDefaultLogin, toolDefaultLogin: toolDefaultLogin,
       isPlaceholderRecoveryEmail: isPlaceholderRecoveryEmail,
       registrationRole: registrationRole, isPrivilegedSelfRegistration: isPrivilegedSelfRegistration,
-      isFullName: isFullName, officeCreateRefusal: officeCreateRefusal, PHONE_RE: PHONE_RE,
+      isFullName: isFullName, officeCreateRefusal: officeCreateRefusal, PHONE_RE: PHONE_RE, resetRefusal: resetRefusal,
       reviewQueue: reviewQueue, studentLinkFor: studentLinkFor,
       isBackfillStub: isBackfillStub, accountForTrainee: accountForTrainee, traineeHasAccount: traineeHasAccount,
       backfillStubFolds: backfillStubFolds,
@@ -14154,6 +14175,65 @@
       return 'Receipt ' + String(number).trim() + ' is already used for ' + (p.studentName || 'another payment') + (p.date ? ' on ' + p.date : '') + '. Use it again?';
     }
     return { usedBy: usedBy, question: question };
+  })();
+
+  // ===================== ADMIN STAFF ACCESS, PERSON BY PERSON =====================
+  // One set of ticks used to apply to every Admin Staff member (office audit
+  // OF-2). Ticks are now kept per person, inside the same Administrator's grid
+  // ('voctrain_adminStaffAccess'), under `people`:
+  //   { attendance: true, …, updatedAt, people: { 'USR-sbrown': { attendance:
+  //     true, …, updatedAt }, 'USR-ngordon': { useDefault: true, updatedAt } } }
+  // The grid's own ticks stay what they were — the DEFAULT for anybody with no
+  // ticks of their own — so nobody loses access they had (an additive change).
+  // Each person's entry is merged on its own, newest edit winning; an entry is
+  // never dropped because a copy lacks it ("use the default" is itself an
+  // entry, so going back to the default travels like any other edit).
+  Core.staffAccess = (function () {
+    function isObj(v) { return v !== null && typeof v === 'object' && !Array.isArray(v); }
+    function msOf(v) { var t = Date.parse(v || ''); return isNaN(t) ? 0 : t; }
+    /* The person's own entry, when they have ticks of their own. */
+    function ownTicks(grid, userId) {
+      var e = isObj(grid) && isObj(grid.people) && userId != null ? grid.people[String(userId)] : null;
+      return isObj(e) && e.useDefault !== true ? e : null;
+    }
+    /* The sections one Admin Staff member may use: the defaults, then the
+       grid's ticks (everybody's default), then their own ticks if they have
+       their own. Only the known keys (those in `defaults`) are answered. */
+    function forPerson(grid, defaults, userId) {
+      var out = {};
+      Object.keys(defaults || {}).forEach(function (k) { out[k] = !!defaults[k]; });
+      if (isObj(grid)) Object.keys(out).forEach(function (k) { if (k in grid) out[k] = !!grid[k]; });
+      var own = ownTicks(grid, userId);
+      if (own) Object.keys(out).forEach(function (k) { if (k in own) out[k] = !!own[k]; });
+      return out;
+    }
+    /* Merge another copy's people into ours, person by person, newest edit
+       winning. Never removes an entry; ignores a `people` that is not an
+       object (an older version's copy). Returns { people, changed }. */
+    function mergePeople(mine, theirs) {
+      var out = {}, changed = false;
+      if (isObj(mine)) Object.keys(mine).forEach(function (id) { if (isObj(mine[id])) out[id] = mine[id]; });
+      if (isObj(theirs)) Object.keys(theirs).forEach(function (id) {
+        var t = theirs[id];
+        if (!isObj(t)) return;
+        var m = out[id];
+        if (!m || msOf(t.updatedAt) > msOf(m.updatedAt)) {
+          if (!m || JSON.stringify(m) !== JSON.stringify(t)) changed = true;
+          out[id] = JSON.parse(JSON.stringify(t));
+        }
+      });
+      return { people: out, changed: changed };
+    }
+    /* A person's own ticks (every known key written), or back to the
+       default ({ useDefault: true }). Returns the new entry. */
+    function entry(ticks, defaults, nowIso) {
+      var e = {};
+      Object.keys(defaults || {}).forEach(function (k) { e[k] = !!(ticks && ticks[k]); });
+      e.updatedAt = nowIso || new Date().toISOString();
+      return e;
+    }
+    function defaultEntry(nowIso) { return { useDefault: true, updatedAt: nowIso || new Date().toISOString() }; }
+    return { forPerson: forPerson, ownTicks: ownTicks, mergePeople: mergePeople, entry: entry, defaultEntry: defaultEntry };
   })();
 
   // ===================== THE OFFICE'S DAY: what is waiting =====================

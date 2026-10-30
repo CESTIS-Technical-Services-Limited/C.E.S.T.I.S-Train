@@ -627,8 +627,8 @@ console.log('Dashboards: Top Performers, Recent Activity, instructor roster, ski
     currentInstructor: { name: 'I', course: 'W' }, instructorCourseMatch() { return true; }, stageBadge: {}, stageLabels: {}
   }, 'renderInstructorStudents(students)', sb => Object.values(sb.__els).map(x => x.innerHTML).join(''));
   const sk = { id: 7, name: EVIL, icon: ATTACK.tag, color: 'red;"onmouseover="__pwn(6)', desc: EVIL, students: ATTACK.tag, materials: 1 };
-  render('renderSkills', ['renderSkills'], { skillAreas: [sk], currentRole: 'admin', cdCardDurationBadge() { return ''; }, updateSkillAreaCounts() {} }, 'renderSkills()', sb => Object.values(sb.__els).map(x => x.innerHTML).join(''));
-  render('renderCentreTable', ['renderCentreTable'], { skillAreas: [sk], centreDisplayName(c) { return c.name; }, cdCardDurationBadge() { return ''; } }, 'renderCentreTable()', sb => Object.values(sb.__els).map(x => x.innerHTML).join(''));
+  render('renderSkills', ['renderSkills'], { skillAreas: [sk], currentRole: 'admin', trainingCentreEditAllowed() { return true; }, cdCardDurationBadge() { return ''; }, updateSkillAreaCounts() {} }, 'renderSkills()', sb => Object.values(sb.__els).map(x => x.innerHTML).join(''));
+  render('renderCentreTable', ['renderCentreTable'], { skillAreas: [sk], currentRole: 'admin', trainingCentreEditAllowed() { return true; }, centreDisplayName(c) { return c.name; }, cdCardDurationBadge() { return ''; } }, 'renderCentreTable()', sb => Object.values(sb.__els).map(x => x.innerHTML).join(''));
 }
 
 /* =====================================================================

@@ -443,6 +443,12 @@ function spCanManage() {
   var grid = null;
   try { if (window.parent && window.parent !== window && window.parent.adminStaffAccessSettings) grid = window.parent.adminStaffAccessSettings; } catch (e) {}
   if (!grid) { try { grid = JSON.parse(CESTISStore.getItem('voctrain_adminStaffAccess') || 'null'); } catch (e) { grid = null; } }
+  // Their own ticks when the Administrator gave them their own, else the
+  // grid's (CESTISCore.staffAccess — ticks are kept person by person).
+  try {
+    var me = SP_VIEWER.account && SP_VIEWER.account.id;
+    return CESTISCore.staffAccess.forPerson(grid, { studentsmanage: false }, me).studentsmanage === true;
+  } catch (e) {}
   return !!(grid && grid.studentsmanage === true);
 }
 function spRefuseEdit() {

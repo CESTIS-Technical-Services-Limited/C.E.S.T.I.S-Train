@@ -601,6 +601,27 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       return null;
     }
 
+    /* May this person reset (set a new password or first-sign-in code for)
+       that account? An administrator: any account. Admin Staff: a TRAINEE's
+       account only — never a staff, instructor, board or administrator login —
+       and only while "Trainee Accounts" is ticked for them (actor.allowed).
+       The owner decided (30 October 2026): "Admin Staff may reset trainee
+       passwords". Nobody else, and never an account that is not there.
+         actor: { role, allowed }  target: the account
+       → null when allowed, else { code, message }. */
+    function resetRefusal(actor, target) {
+      actor = actor || {};
+      var who = String(actor.role || '').trim().toLowerCase();
+      var no = function (code, message) { return { code: code, message: message }; };
+      if (!target || typeof target !== 'object') return no('missing', 'That account is no longer there.');
+      if (who === 'admin') return null;
+      if (who !== 'adminstaff') return no('not-allowed', 'Only the office can reset a password.');
+      if (actor.allowed === false) return no('not-allowed', 'Resetting trainees\' passwords has not been turned on for you by the Administrator.');
+      var role = String(target.role || '').trim().toLowerCase();
+      if (role !== 'student') return no('role', 'Admin Staff can reset trainees\' passwords only. Ask an administrator to reset a staff password.');
+      return null;
+    }
+
     /* What Verify Users lists, and what Approve All / Reject All act on.
 
        It used to be every pending account PLUS every disabled one except
@@ -893,7 +914,7 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       isPublishedDefault: isPublishedDefault, publishedDefaultLogin: publishedDefaultLogin, toolDefaultLogin: toolDefaultLogin,
       isPlaceholderRecoveryEmail: isPlaceholderRecoveryEmail,
       registrationRole: registrationRole, isPrivilegedSelfRegistration: isPrivilegedSelfRegistration,
-      isFullName: isFullName, officeCreateRefusal: officeCreateRefusal, PHONE_RE: PHONE_RE,
+      isFullName: isFullName, officeCreateRefusal: officeCreateRefusal, PHONE_RE: PHONE_RE, resetRefusal: resetRefusal,
       reviewQueue: reviewQueue, studentLinkFor: studentLinkFor,
       isBackfillStub: isBackfillStub, accountForTrainee: accountForTrainee, traineeHasAccount: traineeHasAccount,
       backfillStubFolds: backfillStubFolds,

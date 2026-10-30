@@ -8696,8 +8696,17 @@ function lmsChatFlushDriveSyncNow() {
 var AS_ACCESS_DEFAULTS = { attendance:false, announcements:false, calendar:false, students:false, studentsmanage:false, certificates:false, reports:false, training:false, exams:false, invigilation:false, video:true, resources:false, supportmessages:false, traineeaccounts:true };
 function adminStaffAccessDefaults() { return Object.assign({}, AS_ACCESS_DEFAULTS); }
 var adminStaffAccessSettings = adminStaffAccessDefaults();
-// The sections the Admin Staff member signed in on this device may use.
-function asAccessForMe() { return adminStaffAccessSettings || {}; }
+// The sections an Admin Staff member may use: their own ticks when the
+// Administrator has given them their own, else the grid's (the default for
+// everybody) — CESTISCore.staffAccess.forPerson.
+function asAccessFor(userId) {
+  try { return CESTISCore.staffAccess.forPerson(adminStaffAccessSettings, AS_ACCESS_DEFAULTS, userId); }
+  catch(e) { return Object.assign(adminStaffAccessDefaults(), adminStaffAccessSettings || {}); }
+}
+// …and the one signed in on this device.
+function asAccessForMe() {
+  return asAccessFor(currentLoggedInUser && currentLoggedInUser.id);
+}
 
 /* Adopt a set of access settings from anywhere they arrive — local storage, a
    cloud restore, a merge — and put them on screen.
@@ -8713,19 +8722,27 @@ function asAccessForMe() { return adminStaffAccessSettings || {}; }
    Returns true when something actually changed. */
 function applyAdminStaffAccess(next) {
   if (!next || typeof next !== 'object') return false;
+  // Each person's own ticks ('people', CESTISCore.staffAccess) are merged
+  // person by person, newest edit winning, whatever the age of the copy
+  // they arrive in: an entry is never dropped, and a copy without them (an
+  // older version's) changes nothing.
+  var changed = false;
+  try {
+    var pm = CESTISCore.staffAccess.mergePeople(adminStaffAccessSettings.people, next.people);
+    if (pm.changed) { adminStaffAccessSettings.people = pm.people; changed = true; }
+  } catch(e) {}
   // The grid carries updatedAt (stamped on save when it changed). A copy
   // older than the one in force is a stale folder's and must not revoke
   // sections the Administrator has since granted.
   var nextAt = Date.parse(next.updatedAt || '') || 0, haveAt = Date.parse(adminStaffAccessSettings.updatedAt || '') || 0;
-  if (haveAt && nextAt < haveAt) return false;
-  var changed = false;
+  if (haveAt && nextAt < haveAt) { if (changed) refreshAdminStaffNav(); return changed; }
   var merged = adminStaffAccessDefaults();
-  Object.keys(next).forEach(function(k) { if (k === 'updatedAt') return; merged[k] = !!next[k]; });
+  Object.keys(next).forEach(function(k) { if (k === 'updatedAt' || k === 'people') return; merged[k] = !!next[k]; });
   Object.keys(merged).forEach(function(k) {
     if (adminStaffAccessSettings[k] !== merged[k]) { adminStaffAccessSettings[k] = merged[k]; changed = true; }
   });
   Object.keys(adminStaffAccessSettings).forEach(function(k) {
-    if (k === 'updatedAt') return;
+    if (k === 'updatedAt' || k === 'people') return;
     if (!(k in merged)) { delete adminStaffAccessSettings[k]; changed = true; }
   });
   if (next.updatedAt && next.updatedAt !== adminStaffAccessSettings.updatedAt) { adminStaffAccessSettings.updatedAt = next.updatedAt; changed = true; }
@@ -10925,7 +10942,7 @@ function officeStampCreator(acct, dateStr) {
    same moment (gatePublishSoon); with it off, the first publishing turn
    after it is turned on makes it. */
 function officeMayAddTrainee() {
-  return currentRole === 'admin' || (currentRole === 'adminstaff' && !!(adminStaffAccessSettings && adminStaffAccessSettings.traineeaccounts));
+  return currentRole === 'admin' || (currentRole === 'adminstaff' && !!asAccessForMe().traineeaccounts);
 }
 // Programmes a trainee can be put on now (the centres taking trainees today).
 function officeEnrollingProgrammes() {
@@ -11043,9 +11060,42 @@ function saveUserEdit() {
   showToast('User updated successfully!');
 }
 
+/* Who may reset whose password (CESTISCore.accountAccess.resetRefusal): an
+   administrator any account; Admin Staff a TRAINEE's only, while "Trainee
+   Accounts" is ticked for them (the owner, 30 October 2026). Said, and
+   refused, otherwise. */
+function passwordResetRefused(user) {
+  var r = CESTISCore.accountAccess.resetRefusal({ role: currentRole, allowed: currentRole === 'adminstaff' ? !!asAccessForMe().traineeaccounts : true }, user);
+  if(r) { showToast(r.message, 'warning'); return true; }
+  return false;
+}
+/* Trainee Accounts / Verify Users: "A trainee cannot sign in?" — find the
+   trainee, reset the password. Trainees' accounts only, for everybody. */
+function renderTraineeResetSearch() {
+  var out = document.getElementById('vuResetResults');
+  if(!out) return;
+  var q = String((document.getElementById('vuResetSearch') || {}).value || '').trim().toLowerCase();
+  if(q.length < 2) { out.innerHTML = ''; return; }
+  var hits = (userAccounts || []).filter(function(u) {
+    if(!u || String(u.role || '').toLowerCase() !== 'student') return false;
+    if(typeof isUserDeleted === 'function' && isUserDeleted(u.id)) return false;
+    return [u.name, u.username, u.email].some(function(v) { return String(v || '').toLowerCase().indexOf(q) !== -1; });
+  }).sort(function(a, b) { return String(a.name || '').localeCompare(String(b.name || '')); });
+  if(!hits.length) { out.innerHTML = '<p style="font-size:13px;color:var(--text-muted);">No trainee account matches.</p>'; return; }
+  out.innerHTML = '<div class="table-wrapper"><table class="tbl-phone"><thead><tr><th>Trainee</th><th>Username</th><th>Programme</th><th>Status</th><th></th></tr></thead><tbody>' +
+    hits.slice(0, 8).map(function(u) {
+      return '<tr><td><strong>' + escapeHtml(u.name || '') + '</strong>' + (u.email ? '<br><span style="font-size:12px;color:var(--text-muted);">' + escapeHtml(u.email) + '</span>' : '') + '</td>' +
+        '<td style="font-family:monospace;font-size:12px;">' + escapeHtml(u.username || '') + '</td>' +
+        '<td>' + escapeHtml(u.programme || '—') + '</td>' +
+        '<td>' + escapeHtml(u.status || '') + '</td>' +
+        '<td><button class="btn btn-sm btn-primary" onclick="openResetPassword(' + jsArg(u.id) + ')">Reset password</button></td></tr>';
+    }).join('') + '</tbody></table></div>' +
+    (hits.length > 8 ? '<p style="font-size:12px;color:var(--text-muted);margin-top:6px;">' + (hits.length - 8) + ' more — type more of the name.</p>' : '');
+}
 function openResetPassword(userId) {
   var user = userAccounts.find(function(u){ return u.id === userId; });
   if(!user) return;
+  if(passwordResetRefused(user)) return;
   document.getElementById('resetPwUserId').value = userId;
   document.getElementById('resetPwUserName').textContent = user.name + ' (' + user.username + ')';
   document.getElementById('resetPwNew').value = '';
@@ -11071,11 +11121,15 @@ async function confirmResetPasswordVerified() {
   if(newPw !== confirmPw) { alert('Passwords do not match.'); return; }
   var user = userAccounts.find(function(u){ return u.id === userId; });
   if(!user) return;
+  if(passwordResetRefused(user)) return;
   user.password = await hashPassword(newPw);
   delete user.defaultPassword;   // a password somebody set, not the seed
   cachePlaintextPw(user, newPw);
   touchAccount(user);
   saveUserAccounts();
+  // A trainee who signs in at home: the new password's check reaches the
+  // trainee sign-in's account list with the publisher's next turn, now.
+  try { if(String(user.role) === 'student' && typeof gatePublishSoon === 'function') gatePublishSoon(); } catch(e) {}
   closeModal('resetPasswordModal');
   showToast('Password reset successfully for ' + user.name);
 }
@@ -13486,7 +13540,7 @@ function createInstructorDataForAccount(userAccount) {
    from home, and both administrators and admin staff are the office). */
 function accountReviewAllowed(u) {
   if (currentRole === 'admin') return true;
-  if (currentRole !== 'adminstaff' || !(adminStaffAccessSettings && adminStaffAccessSettings.traineeaccounts)) return false;
+  if (currentRole !== 'adminstaff' || !asAccessForMe().traineeaccounts) return false;
   return !!u && String(u.role || '').trim().toLowerCase() === 'student' && !CESTISCore.accountAccess.isPrivilegedSelfRegistration(u);
 }
 // Who decided, on the account itself: the role (as the field always held) and the person.
@@ -14592,8 +14646,26 @@ var AS_PAGE_PERMISSION = {
   'as-training': 'training', 'as-exams': 'exams', 'as-invigilator': 'invigilation', 'as-video': 'video',
   'as-resources': 'resources', 'as-support-messages': 'supportmessages',
   'as-attendance': 'attendance', 'as-announcements': 'announcements', 'as-calendar': 'calendar',
-  'as-trainee-accounts': 'traineeaccounts'
+  'as-trainee-accounts': 'traineeaccounts',
+  // The Administrator's working pages Admin Staff open when ticked (OF-2).
+  'training': 'training', 'a-resources': 'resources', 'exams': 'exams', 'attendance': 'attendance',
+  'announcements': 'announcements', 'calendar': 'calendar', 'certificates': 'certificates', 'reports': 'reports'
 };
+// The read-only Admin Staff pages these replaced: any link to one opens the
+// working page instead.
+var AS_WORKING_PAGES = {
+  'as-training': 'training', 'as-resources': 'a-resources', 'as-exams': 'exams', 'as-attendance': 'attendance',
+  'as-announcements': 'announcements', 'as-calendar': 'calendar', 'as-certificates': 'certificates', 'as-reports': 'reports'
+};
+/* An action on one of those working pages, by Admin Staff whose ticks do
+   not include that section, is refused (true = refused, and said so).
+   Administrators and instructors are never refused here. */
+function staffSectionRefused(key) {
+  if(currentRole !== 'adminstaff') return false;
+  if(asAccessForMe()[key]) return false;
+  showToast('That has not been enabled for you by the Administrator.', 'warning');
+  return true;
+}
 
 // Is this page allowed for whoever is signed in? The Admin Staff access grid
 // only ever decided which SIDEBAR ITEMS were drawn — buildAdminStaffPages()
@@ -14605,10 +14677,11 @@ function pageAllowedForRole(pageId) {
   if(currentRole !== 'adminstaff') return true;
   var need = AS_PAGE_PERMISSION[pageId];
   if(!need) return true;
-  return !!adminStaffAccessSettings[need];
+  return !!asAccessForMe()[need];
 }
 
 function showPage(pageId) {
+  if(currentRole === 'adminstaff' && AS_WORKING_PAGES[pageId]) pageId = AS_WORKING_PAGES[pageId];
   if(!pageAllowedForRole(pageId)) {
     showToast('That section has not been enabled for Admin Staff by the Administrator.', 'warning');
     return;
@@ -14802,6 +14875,57 @@ function showPage(pageId) {
   setTimeout(animateAllCounters, 50);
 }
 
+/* The Training Centres and Reports pages, as the Administrator has them. Admin
+   Staff with the section ticked get the SAME working page (office audit OF-2:
+   with every tick on, these pages had 0 action buttons for Admin Staff). */
+function adminTrainingPageHtml() {
+  return `
+  <!-- TRAINING -->
+  <section class="page" id="page-training">
+    <div id="trainingOverview">
+      <p style="color:var(--text-secondary);margin-bottom:20px;font-size:14px;" id="trainingCentreCount">${skillAreas.length} dedicated skill centres — select a programme to view materials, curriculum, and resources.</p>
+      <div id="trainingAdminControls" style="display:none;margin-bottom:20px;">
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+          <button class="btn btn-primary" onclick="openModal('addCentreModal')">+ Add Training Centre</button>
+          <button class="btn btn-secondary" onclick="recoverAllCourseData()" title="Scan backups to recover students and instructors for all skill areas">🔄 Recover from Backups</button>
+          <div style="flex:1;"></div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-secondary" onclick="toggleCentreView('grid')" id="centreViewGrid" title="Grid View" style="padding:8px 12px;">▦</button>
+            <button class="btn btn-secondary" onclick="toggleCentreView('table')" id="centreViewTable" title="Table View" style="padding:8px 12px;">☰</button>
+          </div>
+        </div>
+      </div>
+      <div class="skills-grid" id="skillsGrid"></div>
+      <div id="centreTableView" style="display:none;">
+        <div class="card"><div class="card-header"><h3>Training Centres</h3></div>
+          <div class="table-wrapper"><table><thead><tr><th>Icon</th><th>Centre Name</th><th>Description</th><th>Students</th><th>Materials</th><th>Actions</th></tr></thead><tbody id="centreTableBody"></tbody></table></div>
+        </div>
+      </div>
+    </div>
+    <div id="skillDetailPage" style="display:none;"></div>
+  </section>
+`;
+}
+function adminReportsPageHtml() {
+  return `
+  <section class="page" id="page-reports">
+    <div class="stats-grid" id="reportStats"></div>
+    <div class="grid-2col">
+      <div class="card"><div class="card-header"><h3>Student Stage Distribution</h3><button class="btn-export" onclick="exportReportCSV()">\uD83D\uDCC4 Export</button></div><div id="donutChartContainer" style="display:flex;align-items:center;gap:24px;justify-content:center;"></div></div>
+      <div class="card"><div class="card-header"><h3>Pass Rate by Programme</h3></div><div id="passRateChart"></div></div>
+    </div>
+    <div class="grid-2col">
+      <div class="card"><div class="card-header"><h3>Enrollment by Course</h3></div><div id="enrollmentBarChart" class="bar-chart"></div></div>
+      <div class="card"><div class="card-header"><h3>Overall Completion Rate</h3></div><div id="gaugeContainer" style="display:flex;flex-direction:column;align-items:center;gap:24px;padding:20px 0;"></div></div>
+    </div>
+    <div class="grid-2col">
+      <div class="card"><div class="card-header"><h3>Attendance Heatmap</h3></div><div id="attendanceHeatmap"></div></div>
+      <div class="card"><div class="card-header"><h3>Gender Distribution</h3></div><div id="genderDistContainer" style="display:flex;align-items:center;justify-content:center;gap:32px;padding:20px;"></div></div>
+    </div>
+  </section>
+`;
+}
+
 function buildAdminPages() {
   resolveExamStatuses();
   setTimeout(renderVerifyUsersPage, 200);
@@ -14924,30 +15048,7 @@ function buildAdminPages() {
     <iframe id="studentProgressFrame" style="width:100%;height:calc(100vh - var(--topbar-h) - 56px);border:none;border-radius:12px;"></iframe>
   </section>
 
-  <!-- TRAINING -->
-  <section class="page" id="page-training">
-    <div id="trainingOverview">
-      <p style="color:var(--text-secondary);margin-bottom:20px;font-size:14px;" id="trainingCentreCount">${skillAreas.length} dedicated skill centres — select a programme to view materials, curriculum, and resources.</p>
-      <div id="trainingAdminControls" style="display:none;margin-bottom:20px;">
-        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
-          <button class="btn btn-primary" onclick="openModal('addCentreModal')">+ Add Training Centre</button>
-          <button class="btn btn-secondary" onclick="recoverAllCourseData()" title="Scan backups to recover students and instructors for all skill areas">🔄 Recover from Backups</button>
-          <div style="flex:1;"></div>
-          <div style="display:flex;gap:8px;">
-            <button class="btn btn-secondary" onclick="toggleCentreView('grid')" id="centreViewGrid" title="Grid View" style="padding:8px 12px;">▦</button>
-            <button class="btn btn-secondary" onclick="toggleCentreView('table')" id="centreViewTable" title="Table View" style="padding:8px 12px;">☰</button>
-          </div>
-        </div>
-      </div>
-      <div class="skills-grid" id="skillsGrid"></div>
-      <div id="centreTableView" style="display:none;">
-        <div class="card"><div class="card-header"><h3>Training Centres</h3></div>
-          <div class="table-wrapper"><table><thead><tr><th>Icon</th><th>Centre Name</th><th>Description</th><th>Students</th><th>Materials</th><th>Actions</th></tr></thead><tbody id="centreTableBody"></tbody></table></div>
-        </div>
-      </div>
-    </div>
-    <div id="skillDetailPage" style="display:none;"></div>
-  </section>
+  ${adminTrainingPageHtml()}
 
   <!-- ENROLMENT REGISTERS -->
   <section class="page" id="page-enrolment-registers">
@@ -15238,21 +15339,7 @@ function buildAdminPages() {
     </div>
   </div>
 
-  <section class="page" id="page-reports">
-    <div class="stats-grid" id="reportStats"></div>
-    <div class="grid-2col">
-      <div class="card"><div class="card-header"><h3>Student Stage Distribution</h3><button class="btn-export" onclick="exportReportCSV()">\uD83D\uDCC4 Export</button></div><div id="donutChartContainer" style="display:flex;align-items:center;gap:24px;justify-content:center;"></div></div>
-      <div class="card"><div class="card-header"><h3>Pass Rate by Programme</h3></div><div id="passRateChart"></div></div>
-    </div>
-    <div class="grid-2col">
-      <div class="card"><div class="card-header"><h3>Enrollment by Course</h3></div><div id="enrollmentBarChart" class="bar-chart"></div></div>
-      <div class="card"><div class="card-header"><h3>Overall Completion Rate</h3></div><div id="gaugeContainer" style="display:flex;flex-direction:column;align-items:center;gap:24px;padding:20px 0;"></div></div>
-    </div>
-    <div class="grid-2col">
-      <div class="card"><div class="card-header"><h3>Attendance Heatmap</h3></div><div id="attendanceHeatmap"></div></div>
-      <div class="card"><div class="card-header"><h3>Gender Distribution</h3></div><div id="genderDistContainer" style="display:flex;align-items:center;justify-content:center;gap:32px;padding:20px;"></div></div>
-    </div>
-  </section>
+  ${adminReportsPageHtml()}
 
   <!-- SETTINGS -->
   <!-- VERIFY USERS PAGE -->
@@ -22094,6 +22181,7 @@ async function syncAssignmentsFromDrive() {
 
 // ============================== RESOURCE FUNCTIONS ==============================
 function uploadResource() {
+  if(typeof staffSectionRefused === 'function' && staffSectionRefused('resources')) return;
   const name = document.getElementById('resName')?.value?.trim();
   const cat = document.getElementById('resCat')?.value;
   const type = document.getElementById('resType')?.value;
@@ -22298,6 +22386,7 @@ function assignResourceAsAssignment(resourceId) {
 }
 
 function deleteResource(id) {
+  if(typeof staffSectionRefused === 'function' && staffSectionRefused('resources')) return;
   syncTombstoneRemoved('instructorResources', instructorResources, instructorResources = instructorResources.filter(r => r.id !== id));
   saveState();
   showToast('Resource deleted');
@@ -22724,6 +22813,7 @@ async function recoverAllCourseData() {
 }
 
 async function uploadResourceToDrive() {
+  if(typeof staffSectionRefused === 'function' && staffSectionRefused('resources')) return;
   const name = document.getElementById('driveResName')?.value?.trim();
   const course = document.getElementById('driveResCourse')?.value;
   const category = document.getElementById('driveResCategory')?.value;
@@ -24135,7 +24225,7 @@ var TRANSCRIPT_FRAMES = ['transcriptGradesFrame', 'asTranscriptGradesFrame', 'sT
    or Admin Staff granted "Student Progress — manage". */
 function studentProgressManageAllowed() {
   if (currentRole === 'admin') return true;
-  return currentRole === 'adminstaff' && !!(adminStaffAccessSettings && adminStaffAccessSettings.studentsmanage);
+  return currentRole === 'adminstaff' && !!asAccessForMe().studentsmanage;
 }
 /* A trainee deleted in Student Progress: their login goes too, written down as
    deleted so no sync hands it back — the cascade the old in-page delete did,
@@ -25271,9 +25361,9 @@ function renderSkills() {
   if(!grid) return;
   // Refresh material/student counts from live data before rendering
   updateSkillAreaCounts();
-  var isAdmin = currentRole === 'admin';
+  var isAdmin = currentRole === 'admin', mayEdit = trainingCentreEditAllowed();
   grid.innerHTML = skillAreas.map(function(s) {
-    var adminBtns = isAdmin ? '<div style="display:flex;gap:6px;margin-top:8px;justify-content:center;" onclick="event.stopPropagation()"><button class="btn btn-sm btn-secondary" onclick="openEditCentre('+Number(s.id)+')" style="font-size:11px;padding:3px 8px;">✎ Edit</button><button class="btn btn-sm" style="background:#e74c3c;color:#fff;font-size:11px;padding:3px 8px;border:none;border-radius:var(--radius-sm);cursor:pointer;" onclick="openDeleteCentre('+Number(s.id)+')">✕ Delete</button></div>' : '';
+    var adminBtns = mayEdit ? '<div style="display:flex;gap:6px;margin-top:8px;justify-content:center;" onclick="event.stopPropagation()"><button class="btn btn-sm btn-secondary" onclick="openEditCentre('+Number(s.id)+')" style="font-size:11px;padding:3px 8px;">✎ Edit</button>' + (isAdmin ? '<button class="btn btn-sm" style="background:#e74c3c;color:#fff;font-size:11px;padding:3px 8px;border:none;border-radius:var(--radius-sm);cursor:pointer;" onclick="openDeleteCentre('+Number(s.id)+')">✕ Delete</button>' : '') + '</div>' : '';
     return '<div class="skill-card" onclick="showSkillDetail('+Number(s.id)+')"><div class="skill-icon" style="background:'+escapeAttr(s.color)+'22;color:'+escapeAttr(s.color)+';">'+escapeHtml(s.icon)+'</div><h4>'+escapeHtml(s.name)+'</h4><p>'+escapeHtml(s.desc)+'</p>'+cdCardDurationBadge(s)+'<div class="skill-meta"><span>👥 '+escapeHtml(s.students)+'</span><span>📄 '+escapeHtml(s.materials)+'</span></div>'+adminBtns+'</div>';
   }).join('');
 }
@@ -27072,11 +27162,20 @@ function _composeEnrolmentRegisterDoc(sk) {
 
 function initTrainingAdminControls() {
   var ctrl = document.getElementById('trainingAdminControls');
-  if(ctrl && currentRole === 'admin') {
+  // Admin Staff with Training Centres ticked add and edit centres (OF-2);
+  // recovering from backups and deleting a centre stay the Administrator's.
+  if(ctrl && trainingCentreEditAllowed()) {
     ctrl.style.display = 'block';
+    var rec = ctrl.querySelector('button[onclick="recoverAllCourseData()"]');
+    if(rec) rec.style.display = currentRole === 'admin' ? '' : 'none';
   } else if(ctrl) {
     ctrl.style.display = 'none';
   }
+}
+// Who may add and edit training centres: the Administrator, and Admin Staff
+// with "Training Centres" ticked. Deleting one stays the Administrator's.
+function trainingCentreEditAllowed() {
+  return currentRole === 'admin' || (currentRole === 'adminstaff' && !!asAccessForMe().training);
 }
 
 function toggleCentreView(mode) {
@@ -27114,8 +27213,8 @@ function renderCentreTable() {
       '<td style="text-align:center;">' + escapeHtml(c.students) + '</td>' +
       '<td style="text-align:center;">' + escapeHtml(c.materials) + '</td>' +
       '<td><div style="display:flex;gap:6px;">' +
-        '<button class="btn btn-sm btn-secondary" onclick="openEditCentre(' + Number(c.id) + ')" title="Edit">✎ Edit</button>' +
-        '<button class="btn btn-sm" style="background:#e74c3c;color:#fff;font-size:12px;padding:4px 10px;border:none;border-radius:var(--radius-sm);cursor:pointer;" onclick="openDeleteCentre(' + Number(c.id) + ')" title="Delete">✕ Delete</button>' +
+        (trainingCentreEditAllowed() ? '<button class="btn btn-sm btn-secondary" onclick="openEditCentre(' + Number(c.id) + ')" title="Edit">✎ Edit</button>' : '') +
+        (currentRole === 'admin' ? '<button class="btn btn-sm" style="background:#e74c3c;color:#fff;font-size:12px;padding:4px 10px;border:none;border-radius:var(--radius-sm);cursor:pointer;" onclick="openDeleteCentre(' + Number(c.id) + ')" title="Delete">✕ Delete</button>' : '') +
       '</div></td>' +
     '</tr>';
   }).join('');
@@ -27159,7 +27258,7 @@ function centreKeysInUse() {
 }
 
 function addTrainingCentre() {
-  if(currentRole !== 'admin') { alert('Only administrators can add training centres.'); return; }
+  if(!trainingCentreEditAllowed()) { alert('Adding training centres has not been enabled for you by the Administrator.'); return; }
   var name = document.getElementById('newCentreName').value.trim();
   var icon = document.getElementById('newCentreIcon').value.trim() || '📋';
   var color = document.getElementById('newCentreColor').value || '#3498db';
@@ -27238,7 +27337,8 @@ function addTrainingCentre() {
 }
 
 function openEditCentre(id) {
-  if(currentRole !== 'admin') { alert('Only administrators can edit training centres.'); return; }
+  if(!trainingCentreEditAllowed()) return;
+  if(!trainingCentreEditAllowed()) { alert('Editing training centres has not been enabled for you by the Administrator.'); return; }
   var centre = skillAreas.find(function(c) { return c.id === id; });
   if(!centre) return;
   document.getElementById('editCentreId').value = id;
@@ -27254,7 +27354,7 @@ function openEditCentre(id) {
 }
 
 function saveTrainingCentre() {
-  if(currentRole !== 'admin') { alert('Only administrators can edit training centres.'); return; }
+  if(!trainingCentreEditAllowed()) { alert('Editing training centres has not been enabled for you by the Administrator.'); return; }
   var id = parseInt(document.getElementById('editCentreId').value);
   var centre = skillAreas.find(function(c) { return c.id === id; });
   if(!centre) return;
@@ -27634,7 +27734,7 @@ function renderInstructorExams(filter) {
     var resultsForExam = examResults.filter(function(r){return r && r.examId===e.id && !r.archived;});
     var livePass = CESTISCore.exams.passRateOf(resultsForExam) || (resultsForExam.some(CESTISCore.exams.isProvisional) ? 'awaiting marking' : e.passRate);
     // Instructors can only edit/activate/complete their own exams
-    var isOwner = currentRole === 'admin' || (currentInstructor && e.createdBy === currentInstructor.id);
+    var isOwner = currentRole === 'admin' || (currentRole === 'adminstaff' && !!asAccessForMe().exams) || (currentInstructor && e.createdBy === currentInstructor.id);
     var createdByLabel = '';
     if(currentRole === 'instructor') {
       createdByLabel = isOwner ? '<br><span style="font-size:10px;color:var(--accent);">Created by you</span>' : '<br><span style="font-size:10px;color:var(--text-muted);">Created by Admin</span>';
@@ -28124,6 +28224,7 @@ function examCloseToggle() {
 
 
 function createExam() {
+  if(typeof staffSectionRefused === 'function' && staffSectionRefused('exams')) return;
   var title = document.getElementById('examTitle').value.trim();
   if(!title){alert('Please enter exam title');return;}
   // Validate questions
@@ -28233,7 +28334,7 @@ function createExam() {
     showToast('Exam updated with '+editing.questions+' questions!');
     addNotification('Exam updated: "' + editing.title + '" — ' + editing.questions + ' questions', 'exam', null, ['admin','instructor']);
   } else {
-    var creatorId = currentRole === 'instructor' && currentInstructor ? currentInstructor.id : (currentRole === 'admin' ? 'admin' : 'unknown');
+    var creatorId = currentRole === 'instructor' && currentInstructor ? currentInstructor.id : ((currentRole === 'admin' || currentRole === 'adminstaff') ? 'admin' : 'unknown');
     var newExam = {
       id: cestisGenId('EXAM-'),
       title: title,
@@ -28278,6 +28379,7 @@ function editExamQuestions(idx) {
 }
 
 function activateExam(idx) {
+  if(typeof staffSectionRefused === 'function' && staffSectionRefused('exams')) return;
   var e = examFind(idx);
   if(!e) return;
   if(currentRole === 'instructor' && currentInstructor && e.createdBy !== currentInstructor.id) {
@@ -28307,6 +28409,7 @@ function activateExam(idx) {
 }
 
 function completeExam(idx) {
+  if(typeof staffSectionRefused === 'function' && staffSectionRefused('exams')) return;
   var e = examFind(idx);
   if(!e) return;
   if(currentRole === 'instructor' && currentInstructor && e.createdBy !== currentInstructor.id) {
@@ -28327,6 +28430,7 @@ function completeExam(idx) {
 }
 
 function deleteExam(idx) {
+  if(typeof staffSectionRefused === 'function' && staffSectionRefused('exams')) return;
   var e = examFind(idx);
   if (!e) return;
   var resultsCount = examResults.filter(function(r) { return r && r.examId === e.id && !r.archived; }).length;
@@ -28475,7 +28579,7 @@ function viewExamDetail(idx) {
   var statusLabel = e.status==='active'?'In Progress':e.status==='completed'?'Completed':'Scheduled';
   var statusBadge = '<span class="badge '+(e.status==='upcoming'?'badge-blue':e.status==='active'?'badge-red':'badge-green')+'"><span class="badge-dot"></span>'+statusLabel+'</span>';
 
-  var canEdit = currentRole === 'admin' || (currentInstructor && e.createdBy === currentInstructor.id);
+  var canEdit = currentRole === 'admin' || (currentRole === 'adminstaff' && !!asAccessForMe().exams) || (currentInstructor && e.createdBy === currentInstructor.id);
   var canTest = canEdit && hasQuestions;
   var html = '<div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">' +
     '<button class="btn btn-secondary" onclick="backToExamList()">&larr; Back to Exams</button>' +
@@ -28613,6 +28717,7 @@ function endExamPreview() {
 }
 
 function editExam(idx) {
+  if(typeof staffSectionRefused === 'function' && staffSectionRefused('exams')) return;
   var e = examFind(idx);
   if(!e) return;
   if(currentRole === 'instructor' && currentInstructor && e.createdBy !== currentInstructor.id) {
@@ -30858,7 +30963,7 @@ var _INVIG_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Frid
 var _INVIG_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 function invigAllowed() {
-  return !!(window.CESTISCore && CESTISCore.invigilation && examActivityReady() && CESTISCore.invigilation.canOpen(currentRole, adminStaffAccessSettings));
+  return !!(window.CESTISCore && CESTISCore.invigilation && examActivityReady() && CESTISCore.invigilation.canOpen(currentRole, currentRole === 'adminstaff' ? asAccessForMe() : adminStaffAccessSettings));
 }
 function invigPageActive() {
   return !!document.querySelector('#page-invigilator.active, #page-i-invigilator.active, #page-as-invigilator.active');
@@ -31484,7 +31589,7 @@ function invigDownloadPdf() {
 var _invigAttend = null;
 function invigMayMarkAttendance() {
   if (currentRole === 'admin' || currentRole === 'instructor') return true;
-  return currentRole === 'adminstaff' && !!(adminStaffAccessSettings && adminStaffAccessSettings.attendance);
+  return currentRole === 'adminstaff' && !!asAccessForMe().attendance;
 }
 function invigOpenAttendance() {
   var reg = invigCurrentRegister();
@@ -31586,6 +31691,7 @@ function filterCerts() { renderCerts(document.getElementById('certFilter')?.valu
    whoever sat there after a background reload of the roll, so the wrong
    trainee could be marked as having collected a certificate. */
 function markCollected(id) {
+  if(typeof staffSectionRefused === 'function' && staffSectionRefused('certificates')) return;
   var idx = -1;
   for (var _mi = 0; _mi < students.length; _mi++) { if (students[_mi] && String(students[_mi].id) === String(id)) { idx = _mi; break; } }
   if (idx === -1) { showToast('That trainee\'s record changed — the list has been refreshed. Please try again.', 'warning'); filterCerts(); return; }
@@ -32676,6 +32782,7 @@ function attendanceMarkAll(date, status, page) {
 function attendanceMarkAllToday(page) { attendanceMarkAll(attendanceCurrentDate(), 'present', page); }
 
 function saveAttendance() {
+  if(typeof staffSectionRefused === 'function' && staffSectionRefused('attendance')) return;
   flushAttendanceRegister();
   saveState();
   showToast('Attendance saved!');
@@ -32822,6 +32929,7 @@ function toggleAnnouncementForm() {
 }
 
 function createAnnouncement() {
+  if(typeof staffSectionRefused === 'function' && staffSectionRefused('announcements')) return;
   const title = document.getElementById('annTitle')?.value.trim();
   const body = document.getElementById('annBody')?.value.trim();
   if(!title || !body) { alert('Please fill in title and body'); return; }
@@ -32847,6 +32955,7 @@ function createAnnouncement() {
 }
 
 function deleteAnnouncement(id) {
+  if(typeof staffSectionRefused === 'function' && staffSectionRefused('announcements')) return;
   syncTombstoneRemoved('announcements', announcements, announcements = announcements.filter(a => a.id !== id));
   renderAnnouncements();
   refreshContentDependentViews();
@@ -33090,7 +33199,7 @@ function changeCalMonth(delta) {
   if(calendarMonth > 11) { calendarMonth = 0; calendarYear++; }
   if(calendarMonth < 0) { calendarMonth = 11; calendarYear--; }
   selectedCalendarDay = null;
-  if(currentRole === 'admin') renderCalendar();
+  if(currentRole === 'admin' || currentRole === 'adminstaff') renderCalendar();
   else if(currentRole === 'instructor') renderInstructorCalendar();
   else renderStudentCalendar();
 }
@@ -33180,6 +33289,7 @@ function cestisRenderCalendars() {
 }
 
 function saveCalendarEventForm() {
+  if(typeof staffSectionRefused === 'function' && staffSectionRefused('calendar')) return;
   var form = readCalendarEventForm();
   var check = CESTISCore.comms.validateEvent(form);
   var err = document.getElementById('calEvtError');
@@ -33216,7 +33326,8 @@ function saveCalendarEventForm() {
 // Administrators edit any event; an instructor edits the events they made.
 function calCanEditEvent(ev) {
   if (!ev) return false;
-  if (currentRole === 'admin' || currentRole === 'adminstaff') return true;
+  if (currentRole === 'admin') return true;
+  if (currentRole === 'adminstaff') return !!asAccessForMe().calendar;
   var me = currentLoggedInUser && currentLoggedInUser.id;
   return currentRole === 'instructor' && !!me && ev.createdById === me;
 }
@@ -45662,12 +45773,48 @@ function saveAdminStaffAccessToStorage() {
    the live settings at once, and the next save of anything — or the autosave —
    granted it to every Admin Staff device although nobody pressed Save. The
    draft is started afresh each time the grid is drawn, so leaving the page
-   discards it. */
+   discards it.
+
+   Person by person (OF-2): "Whose access" picks the default (everybody with
+   no ticks of their own) or one Admin Staff member. A person's own ticks are
+   kept in the grid's `people` (CESTISCore.staffAccess); "Use the default for
+   this person" puts them back on the default. */
 var asAccessDraft = null;
+function adminStaffPeople() {
+  return (userAccounts || []).filter(function(u) { return u && u.role === 'adminstaff' && u.status !== 'rejected'; })
+    .sort(function(a, b) { return String(a.name || '').localeCompare(String(b.name || '')); });
+}
+function adminStaffAccessPerson() {
+  var sel = document.getElementById('asAccessPerson');
+  return sel ? String(sel.value || '') : '';
+}
 function renderAdminStaffAccessGrid() {
   var grid = document.getElementById('asAccessGrid');
   if(!grid) return;
-  asAccessDraft = Object.assign({}, adminStaffAccessSettings || {});
+  var sel = document.getElementById('asAccessPerson');
+  var who = '';
+  if(sel) {
+    who = String(sel.value || '');
+    var people = adminStaffPeople();
+    if(who && !people.some(function(u) { return u.id === who; })) who = '';
+    sel.innerHTML = '<option value="">Everyone — the default</option>' + people.map(function(u) {
+      var own = CESTISCore.staffAccess.ownTicks(adminStaffAccessSettings, u.id);
+      return '<option value="' + escapeAttr(u.id) + '"' + (u.id === who ? ' selected' : '') + '>' + escapeHtml(u.name || u.username) + (own ? ' — own ticks' : ' — uses the default') + '</option>';
+    }).join('');
+  }
+  var known = adminStaffAccessDefaults();
+  asAccessDraft = who ? asAccessFor(who) : (function() {
+    var d = {};
+    Object.keys(known).forEach(function(k) { d[k] = (k in adminStaffAccessSettings) ? !!adminStaffAccessSettings[k] : !!known[k]; });
+    return d;
+  })();
+  var note = document.getElementById('asAccessPersonNote');
+  var useDef = document.getElementById('asAccessUseDefault');
+  var hasOwn = who && CESTISCore.staffAccess.ownTicks(adminStaffAccessSettings, who);
+  if(note) note.textContent = !who ? 'These ticks apply to every Admin Staff member who has no ticks of their own.'
+    : hasOwn ? 'This person has ticks of their own. Changing the default does not change them.'
+    : 'This person uses the default. Saving gives them ticks of their own.';
+  if(useDef) useDef.style.display = hasOwn ? '' : 'none';
   var html = '';
   asAccessPages.forEach(function(pg) {
     var checked = asAccessDraft[pg.key] ? 'checked' : '';
@@ -45682,25 +45829,52 @@ function renderAdminStaffAccessGrid() {
 }
 
 function toggleAsAccess(key, itemEl) {
-  if(!asAccessDraft) asAccessDraft = Object.assign({}, adminStaffAccessSettings || {});
+  if(!asAccessDraft) asAccessDraft = asAccessFor(adminStaffAccessPerson() || null);
   asAccessDraft[key] = !asAccessDraft[key];
   var cb = document.getElementById('asAccess_'+key);
   if(cb) cb.checked = !!asAccessDraft[key];
 }
 
 function saveAdminStaffAccess() {
+  if(currentRole !== 'admin') return;
+  var who = adminStaffAccessPerson();
   if(asAccessDraft) {
-    Object.keys(asAccessDraft).forEach(function(k){ adminStaffAccessSettings[k] = asAccessDraft[k]; });
+    if(who) {
+      // This person's own ticks, every section written down, dated.
+      var people = Object.assign({}, adminStaffAccessSettings.people || {});
+      people[who] = CESTISCore.staffAccess.entry(asAccessDraft, AS_ACCESS_DEFAULTS, new Date().toISOString());
+      adminStaffAccessSettings.people = people;
+    } else {
+      Object.keys(adminStaffAccessDefaults()).forEach(function(k){ if(k in asAccessDraft) adminStaffAccessSettings[k] = !!asAccessDraft[k]; });
+    }
   }
   saveAdminStaffAccessToStorage();
   // Takes effect at once for anyone signed in as Admin Staff on this device.
   refreshAdminStaffNav();
-  showToast('Admin Staff access settings saved!');
+  renderAdminStaffAccessGrid();
+  var u = who ? (userAccounts || []).find(function(a) { return a && a.id === who; }) : null;
+  showToast(u ? 'Access saved for ' + (u.name || u.username) + '.' : 'Admin Staff access settings saved!');
+}
+/* Put one person back on the default ticks (their own are set aside, as an
+   entry of its own, so the change reaches every device). */
+function adminStaffAccessUseDefault() {
+  if(currentRole !== 'admin') return;
+  var who = adminStaffAccessPerson();
+  if(!who) return;
+  var people = Object.assign({}, adminStaffAccessSettings.people || {});
+  people[who] = CESTISCore.staffAccess.defaultEntry(new Date().toISOString());
+  adminStaffAccessSettings.people = people;
+  saveAdminStaffAccessToStorage();
+  refreshAdminStaffNav();
+  renderAdminStaffAccessGrid();
+  showToast('Back on the default ticks.');
 }
 
 // ============================== BUILD ADMIN STAFF SIDEBAR ==============================
 function buildAdminStaffSidebar() {
   var nav = document.getElementById('sidebarNav');
+  // This person's ticks (their own, or the default — asAccessForMe).
+  var my = asAccessForMe();
   var html = '<div class="nav-section-label">My Portal</div>';
   html += '<div class="nav-item active" data-page="as-dashboard" onclick="showPage(\'as-dashboard\')">' +
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Dashboard</div>';
@@ -45720,55 +45894,55 @@ function buildAdminStaffSidebar() {
 
   // Conditionally show pages based on admin access settings
   var hasAdditional = false;
-  if(adminStaffAccessSettings.video) {
+  if(my.video) {
     if(!hasAdditional) { html += '<div class="nav-section-label">Permitted Functions</div>'; hasAdditional = true; }
     html += '<div class="nav-item" data-page="as-video" onclick="showPage(\'as-video\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>Video Conference</div>';
   }
-  if(adminStaffAccessSettings.students) {
+  if(my.students) {
     if(!hasAdditional) { html += '<div class="nav-section-label">Permitted Functions</div>'; hasAdditional = true; }
     html += '<div class="nav-item" data-page="as-students" onclick="showPage(\'as-students\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Student Progress</div>';
   }
-  if(adminStaffAccessSettings.training) {
+  if(my.training) {
     if(!hasAdditional) { html += '<div class="nav-section-label">Permitted Functions</div>'; hasAdditional = true; }
-    html += '<div class="nav-item" data-page="as-training" onclick="showPage(\'as-training\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>Training Centres</div>';
+    html += '<div class="nav-item" data-page="training" onclick="showPage(\'training\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>Training Centres</div>';
   }
-  if(adminStaffAccessSettings.resources) {
+  if(my.resources) {
     if(!hasAdditional) { html += '<div class="nav-section-label">Permitted Functions</div>'; hasAdditional = true; }
-    html += '<div class="nav-item" data-page="as-resources" onclick="showPage(\'as-resources\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>Resource Manager</div>';
+    html += '<div class="nav-item" data-page="a-resources" onclick="showPage(\'a-resources\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>Resource Manager</div>';
   }
-  if(adminStaffAccessSettings.exams) {
+  if(my.exams) {
     if(!hasAdditional) { html += '<div class="nav-section-label">Permitted Functions</div>'; hasAdditional = true; }
-    html += '<div class="nav-item" data-page="as-exams" onclick="showPage(\'as-exams\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Online Exams</div>';
+    html += '<div class="nav-item" data-page="exams" onclick="showPage(\'exams\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Online Exams</div>';
   }
-  if(adminStaffAccessSettings.invigilation) {
+  if(my.invigilation) {
     if(!hasAdditional) { html += '<div class="nav-section-label">Permitted Functions</div>'; hasAdditional = true; }
     html += '<div class="nav-item" data-page="as-invigilator" onclick="showPage(\'as-invigilator\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>Exam Invigilator</div>';
   }
 
   var hasMgmt = false;
-  if(adminStaffAccessSettings.traineeaccounts) {
+  if(my.traineeaccounts) {
     if(!hasMgmt) { html += '<div class="nav-section-label">Management</div>'; hasMgmt = true; }
     html += '<div class="nav-item" data-page="as-trainee-accounts" onclick="showPage(\'as-trainee-accounts\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6"/><path d="M23 11h-6"/></svg>Trainee Accounts<span class="nav-badge" id="asPendingUsersBadge" style="display:none;background:var(--red);">0</span></div>';
   }
-  if(adminStaffAccessSettings.attendance) {
+  if(my.attendance) {
     if(!hasMgmt) { html += '<div class="nav-section-label">Management</div>'; hasMgmt = true; }
-    html += '<div class="nav-item" data-page="as-attendance" onclick="showPage(\'as-attendance\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>Attendance</div>';
+    html += '<div class="nav-item" data-page="attendance" onclick="showPage(\'attendance\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>Attendance</div>';
   }
-  if(adminStaffAccessSettings.announcements) {
+  if(my.announcements) {
     if(!hasMgmt) { html += '<div class="nav-section-label">Management</div>'; hasMgmt = true; }
-    html += '<div class="nav-item" data-page="as-announcements" onclick="showPage(\'as-announcements\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>Announcements</div>';
+    html += '<div class="nav-item" data-page="announcements" onclick="showPage(\'announcements\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>Announcements</div>';
   }
-  if(adminStaffAccessSettings.calendar) {
+  if(my.calendar) {
     if(!hasMgmt) { html += '<div class="nav-section-label">Management</div>'; hasMgmt = true; }
-    html += '<div class="nav-item" data-page="as-calendar" onclick="showPage(\'as-calendar\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Calendar</div>';
+    html += '<div class="nav-item" data-page="calendar" onclick="showPage(\'calendar\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Calendar</div>';
   }
-  if(adminStaffAccessSettings.certificates) {
+  if(my.certificates) {
     if(!hasMgmt) { html += '<div class="nav-section-label">Management</div>'; hasMgmt = true; }
-    html += '<div class="nav-item" data-page="as-certificates" onclick="showPage(\'as-certificates\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>Certificates</div>';
+    html += '<div class="nav-item" data-page="certificates" onclick="showPage(\'certificates\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>Certificates</div>';
   }
-  if(adminStaffAccessSettings.reports) {
+  if(my.reports) {
     if(!hasMgmt) { html += '<div class="nav-section-label">Management</div>'; hasMgmt = true; }
-    html += '<div class="nav-item" data-page="as-reports" onclick="showPage(\'as-reports\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Reports</div>';
+    html += '<div class="nav-item" data-page="reports" onclick="showPage(\'reports\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Reports</div>';
   }
 
   // Document Hub and PDF Workshop always visible for admin staff
@@ -45795,7 +45969,7 @@ function buildAdminStaffSidebar() {
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>School Fee Management</div>';
 
   // Support Messages — conditionally visible based on access settings
-  if(adminStaffAccessSettings.supportmessages) {
+  if(my.supportmessages) {
     html += '<div class="nav-section-label">Support</div>';
     html += '<div class="nav-item" data-page="as-support-messages" onclick="showPage(\'as-support-messages\')">' +
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>Support Messages<span class="nav-badge" id="supportMsgBadge" style="display:none;background:var(--red);">0</span></div>';
@@ -45816,7 +45990,7 @@ function buildAdminStaffSidebar() {
   nav.innerHTML = html;
   setTimeout(updateCtrRequestsBadge, 200);
   // The count of trainees' registrations waiting, on "Trainee Accounts" (renderVerifyUsersPage sets it).
-  if(adminStaffAccessSettings.traineeaccounts) setTimeout(function() { try { renderVerifyUsersPage(); } catch(e) {} }, 250);
+  if(my.traineeaccounts) setTimeout(function() { try { renderVerifyUsersPage(); } catch(e) {} }, 250);
 }
 
 // ============================== BUILD ADMIN STAFF PAGES ==============================
@@ -46035,54 +46209,22 @@ function buildAdminStaffPages() {
     '<div class="cestis-mount" data-feature="verify-users" data-prefix="adminstaff"></div>' +
   '</section>';
 
-  // Training Centres
-  html += '<section class="page" id="page-as-training">' +
-    '<div class="card-header" style="margin-bottom:16px;"><h3 style="font-family:\'Playfair Display\',serif;">Training Centres</h3></div>' +
-    '<div class="grid-3">' +
-      skillAreas.map(function(sk){ return '<div class="card" style="padding:20px;text-align:center;"><div style="font-size:36px;margin-bottom:8px;">'+escapeHtml(sk.icon)+'</div><h4 style="font-size:14px;margin-bottom:4px;">'+escapeHtml(sk.name)+'</h4><div style="font-size:12px;color:var(--text-muted);">'+sk.students+' students &bull; '+sk.materials+' materials</div><p style="font-size:11px;color:var(--text-muted);margin-top:8px;">'+escapeHtml(sk.desc)+'</p></div>'; }).join('') +
-    '</div>' +
-  '</section>';
-
-  // Resource Manager
-  html += '<section class="page" id="page-as-resources">' + '<div class="cestis-mount" data-feature="as-resources" data-prefix="adminstaff"></div>' + '</section>';
-
-  // Online Exams
-  html += '<section class="page" id="page-as-exams">' + '<div class="cestis-mount" data-feature="as-exams" data-prefix="adminstaff"></div>' + '</section>';
+  // Training Centres, Resource Manager, Online Exams, Attendance,
+  // Announcements, Calendar, Certificates and Reports: the Administrator's own
+  // WORKING pages, under the Administrator's page names (office audit OF-2:
+  // with every tick on, these used to be read-only lists with 0 action
+  // buttons). Built for every Admin Staff member; the sidebar and
+  // pageAllowedForRole decide, person by person, who may open each one, and
+  // each action checks the tick again (staffSectionRefused).
+  html += adminTrainingPageHtml();
+  html += '<section class="page" id="page-a-resources"><div class="cestis-mount" data-feature="a-resources" data-prefix="admin"></div></section>';
+  html += '<section class="page" id="page-exams"><div class="cestis-mount" data-feature="exams" data-prefix="admin"></div></section>';
   html += '<section class="page" id="page-as-invigilator">' + '<div class="cestis-mount" data-feature="invigilator" data-prefix="adminstaff"></div>' + '</section>';
-
-  // Attendance Management
-  html += '<section class="page" id="page-as-attendance">' + '<div class="cestis-mount" data-feature="as-attendance" data-prefix="adminstaff"></div>' + '</section>';
-
-  // Announcements
-  html += '<section class="page" id="page-as-announcements">' + '<div class="cestis-mount" data-feature="as-announcements" data-prefix="adminstaff"></div>' + '</section>';
-
-  // Calendar
-  html += '<section class="page" id="page-as-calendar">' + '<div class="cestis-mount" data-feature="as-calendar" data-prefix="adminstaff"></div>' + '</section>';
-
-  // Certificate Tracking
-  html += '<section class="page" id="page-as-certificates">' + '<div class="cestis-mount" data-feature="as-certificates" data-prefix="adminstaff"></div>' + '</section>';
-
-  // Reports
-  html += '<section class="page" id="page-as-reports">' +
-    '<div class="card-header" style="margin-bottom:16px;"><h3 style="font-family:\'Playfair Display\',serif;">Reports & Analytics</h3></div>' +
-    '<div class="grid-2">' +
-      '<div class="card" style="padding:20px;"><h4 style="margin-bottom:12px;">Enrollment Summary</h4>' +
-        '<div style="font-size:42px;font-weight:800;color:var(--accent);margin-bottom:4px;">'+students.length+'</div>' +
-        '<div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">Total Students</div>' +
-        (function(){ var _t = centreRollTally(); return courses.map(function(c){ var count = programmeRoll(_t, c).length; return '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;"><span>'+c+'</span><strong>'+count+'</strong></div>'; }).join(''); })() +
-      '</div>' +
-      '<div class="card" style="padding:20px;"><h4 style="margin-bottom:12px;">Student Pipeline</h4>' +
-        stages.map(function(st){ var count = students.filter(function(s){ return s.stage===st; }).length; return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;"><span>'+stageIcons[st]+' '+(stageLabels[st]||st)+'</span><strong>'+count+'</strong></div>'; }).join('') +
-      '</div>' +
-    '</div>' +
-    '<div class="card" style="padding:20px;margin-top:16px;"><h4 style="margin-bottom:12px;">Exam Results Summary</h4>' +
-      '<div style="display:flex;gap:24px;flex-wrap:wrap;">' +
-        '<div><div style="font-size:28px;font-weight:700;color:var(--green);">'+examResults.length+'</div><div style="font-size:12px;color:var(--text-muted);">Total Submissions</div></div>' +
-        '<div><div style="font-size:28px;font-weight:700;color:var(--accent);">'+exams.filter(function(e){ return e.status==='completed'; }).length+'</div><div style="font-size:12px;color:var(--text-muted);">Exams Completed</div></div>' +
-        '<div><div style="font-size:28px;font-weight:700;color:var(--blue);">'+exams.filter(function(e){ return e.status==='upcoming'; }).length+'</div><div style="font-size:12px;color:var(--text-muted);">Upcoming Exams</div></div>' +
-      '</div>' +
-    '</div>' +
-  '</section>';
+  html += '<section class="page" id="page-attendance"><div class="cestis-mount" data-feature="attendance" data-prefix="admin"></div></section>';
+  html += '<section class="page" id="page-announcements"><div class="cestis-mount" data-feature="announcements" data-prefix="admin"></div></section>';
+  html += '<section class="page" id="page-calendar"><div class="cestis-mount" data-feature="calendar" data-prefix="admin"></div></section>';
+  html += '<section class="page" id="page-certificates"><div class="cestis-mount" data-feature="certificates" data-prefix="admin"></div></section>';
+  html += adminReportsPageHtml();
 
   // ---- PDF Workshop Page (Admin Staff) ----
   html += '<section class="page" id="page-as-pdf-workshop">' +

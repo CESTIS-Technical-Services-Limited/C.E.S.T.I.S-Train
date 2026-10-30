@@ -153,6 +153,8 @@ function page(opts) {
     setCmcChair() { return ''; }
   };
   vm.createContext(sb);
+  // Admin Staff's ticks are read person by person (asAccessForMe, OF-2).
+  vm.runInContext(extractStatement('var AS_ACCESS_DEFAULTS = {', '};') + ';\n' + ['adminStaffAccessDefaults', 'asAccessFor', 'asAccessForMe'].map(extractFunction).join('\n'), sb);
   vm.runInContext(FUNCS.map(extractFunction).join('\n\n'), sb);
   return sb;
 }
