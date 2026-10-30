@@ -604,7 +604,7 @@ console.log('Video classes: lists, lobby, conference, participants');
     peerNames: { p1: EVIL }, peerRoles: { p1: ATTACK.tag }, mutedPeers: {}, vcCoHosts: {}, isRoomHost: true, rtcPeer: { id: 'me' },
     vcCurrentUserName: EVIL, vcCurrentRole: 'admin', vcIsCoHost: false, currentRoomCode: 'ABC234'
   });
-  load(vsb, ['vcHostPeerId', 'vcCleanPeerName', 'vcCleanPeerRole', 'vcUpdateParticipants']);
+  load(vsb, ['vcHostPeerId', 'vcCleanPeerName', 'vcCleanPeerRole', 'sanitizePeerId', 'vcSetTileMuted', 'vcUpdateParticipants']);
   vm.runInContext('vcUpdateParticipants()', vsb);
   const parts = el(vsb, 'vc-part-list');
   assertSafeMarkup(parts, 'vcUpdateParticipants', extractFunction(SRC, 'vcUpdateParticipants'));
@@ -613,7 +613,7 @@ console.log('Video classes: lists, lobby, conference, participants');
   const conf = render('vcShowConference', ['vcShowConference'], {
     vcCurrentUserName: EVIL, isRoomHost: true, currentRoomCode: ATTACK.tag, localStream: null,
     vcUpdateParticipants() {}, vcRestoreChatHistory() {}, videoTimerInterval: null, videoSeconds: 0,
-    vcReplayStreams() {}, vcRefreshRecordingBanner() {}, vcNatNotice() {}
+    vcReplayStreams() {}, vcRefreshRecordingBanner() {}, vcNatNotice() {}, vcRefreshDeviceButtons() {}, vcMicIsOn() { return false; }
   }, 'vcShowConference(' + JSON.stringify(EVIL) + ', "admin")', sb => el(sb, 'videoRoom'));
   const send = handlerCalls(conf.html).filter(c => c.name === 'sendChatMsg');
   assert(send.length === 2 && send.every(c => c.args[1] === EVIL), 'Send passes the exact sender name (an apostrophe used to break chat)');
