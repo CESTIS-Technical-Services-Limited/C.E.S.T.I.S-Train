@@ -174,6 +174,8 @@ const NOT_HANDED_IN = ['Leon Stewart', 'Kerry-Ann Palmer', 'Marlon Wright', 'Sas
   async function section(id, title, fn) {
     if (ONLY && !ONLY.test(id)) return;
     console.log('\n' + id + ': ' + title);
+    // A notice left over from the section before never covers a button.
+    for (const pg of Object.values(PAGES)) { try { await pg.evaluate(() => document.querySelectorAll('#toastContainer > *').forEach(t => t.remove())); } catch (e) {} }
     const t0 = Date.now();
     try { await fn(); } catch (e) {
       ok(false, id + ' stopped: ' + String(e && e.message || e).split('\n')[0].slice(0, 240));
@@ -440,6 +442,7 @@ const NOT_HANDED_IN = ['Leon Stewart', 'Kerry-Ann Palmer', 'Marlon Wright', 'Sas
   /* ------------------------------------------------------------- reuse */
   await section('reuse', 'Copy a test for the next intake; a reload part-way loses nothing; Import Exam', async () => {
     await go(I, 'i-exams');
+    await I.evaluate(() => { try { backToExamList(); } catch (e) {} });
     await I.click('#page-i-exams .tab:has-text("Completed")');
     await I.waitForTimeout(300);
     const row = I.locator('#iExamTableBody tr', { hasText: 'Unit 5 Theory Test' });
