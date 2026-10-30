@@ -2,14 +2,14 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<script src="cestis-core.js?v=20261030c"></script>
+<script src="cestis-core.js?v=20261030d"></script>
 <script src="cestis-form-modal.js?v=20261028d" defer></script>
 <!-- Inert until a page registers: the CMC Board registers as a READ-ONLY reader
      so the operating pages' books reach its dashboards without anyone syncing. -->
-<script src="cestis-page-cloud.js?v=20261030c"></script>
-<script src="cestis-gate-client.js?v=20261030b" defer></script>
+<script src="cestis-page-cloud.js?v=20261030d"></script>
+<script src="cestis-gate-client.js?v=20261030d" defer></script>
 <script src="staff-appraisals.js?v=20261028d"></script>
-<script src="cmc-portal.js?v=20261029b"></script>
+<script src="cmc-portal.js?v=20261030d"></script>
 <script src="cert-template-seed.js?v=20260802b"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <!-- Installable, with an icon, and able to open with no connection (sw.js). -->
@@ -954,6 +954,11 @@ body.gate-trainee.gate-lan .gate-register-note { display:block; }
 .gate-reg-modal .gate-reg-say { min-height:18px; font-size:13px; margin-top:8px; color:var(--red); }
 .gate-reg-modal .gate-reg-say.is-status { color:var(--text-secondary); }
 .gate-reg-modal .gate-reg-hint { font-size:12px; color:var(--text-muted); margin-top:4px; }
+/* Her personal details, asked once (office audit OF-3): the office only checks them. */
+.gate-reg-set { border:1px solid var(--border-light); border-radius:var(--radius-sm); padding:12px 14px 2px; margin:4px 0 14px; }
+.gate-reg-set legend { font-size:13px; font-weight:700; color:var(--text-primary); padding:0 6px; }
+.gate-reg-row { display:grid; grid-template-columns:1fr 1fr; gap:0 12px; }
+@media (max-width: 480px) { .gate-reg-row { grid-template-columns:1fr; } }
 html.gate-ns #landingPage { display:none; }
 .role-login-error.is-status { color:var(--text-secondary); background:transparent; border-color:transparent; }
 .gate-boot { position:fixed; inset:0; z-index:10050; display:flex; align-items:center; justify-content:center; padding:16px; background:var(--bg-primary); }
@@ -2012,6 +2017,47 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 .alert-item .alert-body { flex:1; min-width:0; }
 .alert-item .alert-body .alert-msg { font-size:13px; color:var(--text-primary); line-height:1.4; }
 .alert-item .alert-body .alert-time { font-size:12px; color:var(--text-muted); margin-top:4px; }
+
+/* ============================== OFFICE TODAY (administrator and Admin Staff dashboards) ==============================
+   What is waiting for the office, each line one click from its page. */
+.ot-card { padding:18px 20px; }
+.ot-card .card-header { margin-bottom:10px; }
+.ot-card .ot-sub { font-size:12px; color:var(--text-muted); }
+.ot-lines { display:flex; flex-direction:column; gap:8px; }
+.ot-line {
+  display:flex; align-items:center; gap:12px; width:100%; text-align:left;
+  padding:12px 14px; min-height:44px; border:1px solid var(--border); border-left:3px solid var(--accent);
+  background:var(--bg-secondary); color:var(--text-primary); border-radius:0 var(--radius-sm) var(--radius-sm) 0;
+  font:inherit; cursor:pointer; transition:background var(--transition);
+}
+.ot-line:hover, .ot-line:focus-visible { background:var(--bg-card-hover); }
+.ot-line .ot-count { min-width:34px; font-size:20px; font-weight:800; color:var(--accent); text-align:center; }
+.ot-line .ot-text { flex:1; min-width:0; }
+.ot-line .ot-msg { font-size:14px; font-weight:600; line-height:1.35; }
+.ot-line .ot-detail { font-size:12px; color:var(--text-muted); margin-top:2px; line-height:1.4; overflow-wrap:anywhere; }
+.ot-line .ot-go { font-size:12px; font-weight:600; color:var(--accent); white-space:nowrap; }
+.ot-line.ot-urgent { border-left-color:var(--red); }
+.ot-line.ot-urgent .ot-count { color:var(--red); }
+.ot-line.ot-clear { border-left-color:var(--green); }
+.ot-line.ot-clear .ot-count { color:var(--green); font-size:16px; }
+.ot-line.ot-clear .ot-msg { font-weight:500; color:var(--text-secondary); }
+.ot-new-staff { font-size:13px; color:var(--text-secondary); line-height:1.5; }
+/* The New trainee form's optional details (OF-7). */
+.at-more { border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 12px; margin:4px 0 8px; }
+.at-more summary { cursor:pointer; font-size:13px; font-weight:600; color:var(--text-secondary); min-height:28px; }
+.at-more[open] summary { margin-bottom:10px; }
+.vu-details { display:block; font-size:12px; color:var(--text-secondary); margin-top:4px; line-height:1.45; font-weight:400; }
+/* First-sign-in codes and slips (OF-4). */
+.reset-code-box { border:1px solid var(--accent); background:var(--accent-dim); border-radius:var(--radius-sm); padding:12px 14px; margin-bottom:14px; font-size:13px; line-height:1.5; }
+.reset-code-box p { margin:0 0 10px; }
+.reset-code-box .reset-code-or { margin:12px 0 0; color:var(--text-muted); }
+.slips-warn { border:1px solid var(--red); background:var(--red-dim); color:var(--text-primary); border-radius:var(--radius-sm); padding:10px 12px; font-size:13px; line-height:1.5; }
+.slips-list { list-style:none; margin:12px 0 0; padding:0; max-height:40vh; overflow:auto; border:1px solid var(--border); border-radius:var(--radius-sm); }
+.slips-list li { display:flex; flex-wrap:wrap; gap:4px 10px; align-items:baseline; padding:8px 12px; border-bottom:1px solid var(--border); font-size:13px; }
+.slips-list li:last-child { border-bottom:none; }
+.slips-list .slips-user { color:var(--text-muted); font-family:monospace; font-size:12px; }
+.slips-list .slips-code { margin-left:auto; font-family:monospace; font-size:15px; font-weight:700; letter-spacing:1px; color:var(--accent); }
+@media (max-width: 600px) { .ot-line .ot-go { display:none; } .ot-card { padding:14px; } }
 
 /* ============================== TOP PERFORMERS WIDGET ============================== */
 .performer-row {
@@ -5960,12 +6006,17 @@ html.gate-ns .tam-gate-only { display:flex; }
   </div>
 </div>
 
-<!-- ADD TRAINEE ACCOUNT MODAL (Verify Users / Admin Staff: Trainee Accounts) -->
+<!-- NEW TRAINEE (one form behind every add-trainee button: the dashboard's Add
+     Student, Student Progress's + Add Student, Verify Users / Trainee Accounts'
+     + Add Trainee Account, Settings → Create User for a trainee — OF-7) -->
 <div class="modal-overlay" id="addTraineeModal">
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="addTraineeTitle">
-    <div class="modal-header"><h3 id="addTraineeTitle">Add Trainee Account</h3><button class="modal-close" onclick="closeModal('addTraineeModal')" aria-label="Close">✕</button></div>
-    <p style="font-size:13px;color:var(--text-muted);margin:0 0 14px;">The account is active at once. Give the trainee their username and password. With their email address entered, they can also sign in with their email account.</p>
-    <div class="form-group"><label for="atName">Full Name (first &amp; last name required)</label><input type="text" class="form-control" id="atName" placeholder="First and last name, e.g. Tameka Richards" autocomplete="off"></div>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="addTraineeTitle" style="max-height:calc(100vh - 32px);overflow-y:auto;">
+    <div class="modal-header"><h3 id="addTraineeTitle">New trainee</h3><button class="modal-close" onclick="closeModal('addTraineeModal')" aria-label="Close">✕</button></div>
+    <p style="font-size:13px;color:var(--text-muted);margin:0 0 14px;">Makes the trainee's sign-in, trainee record and fee record together. The account is active at once. Leave the password blank to print her a sign-in slip with a first-sign-in code. With her email address entered, she can also sign in with her email account.</p>
+    <div class="um-form-row">
+      <div class="form-group"><label for="atName">Full Name (first &amp; last name required)</label><input type="text" class="form-control" id="atName" placeholder="First and last name, e.g. Tameka Richards" autocomplete="off"></div>
+      <div class="form-group"><label for="atGender">Gender</label><select class="form-control" id="atGender"><option value="">— Select —</option><option value="Female">Female</option><option value="Male">Male</option></select></div>
+    </div>
     <div class="um-form-row">
       <div class="form-group"><label for="atEmail">Email</label><input type="email" class="form-control" id="atEmail" placeholder="trainee@example.com" autocomplete="off"></div>
       <div class="form-group"><label for="atPhone">Phone (optional)</label><input type="tel" class="form-control" id="atPhone" placeholder="876-555-0123" autocomplete="off"></div>
@@ -5973,12 +6024,28 @@ html.gate-ns .tam-gate-only { display:flex; }
     <div class="form-group"><label for="atProgramme">Programme</label><select class="form-control" id="atProgramme"><option value="">— Select Programme —</option></select></div>
     <div class="um-form-row">
       <div class="form-group"><label for="atUsername">Username</label><input type="text" class="form-control" id="atUsername" placeholder="Left blank: made from the email" autocomplete="off" autocapitalize="none" spellcheck="false"></div>
-      <div class="form-group"><label for="atPassword">Password</label><input type="password" class="form-control" id="atPassword" placeholder="Minimum 6 characters" autocomplete="new-password"></div>
+      <div class="form-group"><label for="atPassword">Password</label><input type="password" class="form-control" id="atPassword" placeholder="Left blank: a code + slip to print" autocomplete="new-password"></div>
     </div>
+    <details class="at-more" id="atMore">
+      <summary>More details (optional): date of birth, TRN, address, parent or guardian, emergency contact</summary>
+      <div class="um-form-row">
+        <div class="form-group"><label for="atDob">Date of birth</label><input type="date" class="form-control" id="atDob"></div>
+        <div class="form-group"><label for="atTrn">TRN</label><input type="text" class="form-control" id="atTrn" inputmode="numeric" placeholder="e.g. 123-456-789" autocomplete="off"></div>
+      </div>
+      <div class="form-group"><label for="atAddress">Home address</label><input type="text" class="form-control" id="atAddress" placeholder="e.g. 12 Hope Road, Kingston 6" autocomplete="off"></div>
+      <div class="um-form-row">
+        <div class="form-group"><label for="atParentName">Parent or guardian</label><input type="text" class="form-control" id="atParentName" placeholder="Name" autocomplete="off"></div>
+        <div class="form-group"><label for="atParentPhone">Their phone</label><input type="tel" class="form-control" id="atParentPhone" placeholder="876-555-0145" autocomplete="off"></div>
+      </div>
+      <div class="um-form-row">
+        <div class="form-group"><label for="atEmergencyName">Emergency contact</label><input type="text" class="form-control" id="atEmergencyName" placeholder="Name" autocomplete="off"></div>
+        <div class="form-group"><label for="atEmergencyPhone">Their phone</label><input type="tel" class="form-control" id="atEmergencyPhone" placeholder="876-555-0178" autocomplete="off"></div>
+      </div>
+    </details>
     <div class="role-login-error" id="atSaid" role="alert" hidden></div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
       <button class="btn btn-secondary" onclick="closeModal('addTraineeModal')">Cancel</button>
-      <button class="btn btn-primary" id="atCreateBtn" onclick="createTraineeAccount()">Create Account</button>
+      <button class="btn btn-primary" id="atCreateBtn" onclick="createTraineeAccount()">Create trainee</button>
     </div>
   </div>
 </div>
@@ -6015,11 +6082,46 @@ html.gate-ns .tam-gate-only { display:flex; }
     <div class="modal-header"><h3>Reset Password</h3><button class="modal-close" onclick="closeModal('resetPasswordModal')">✕</button></div>
     <input type="hidden" id="resetPwUserId">
     <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">Resetting password for: <strong id="resetPwUserName"></strong></p>
+    <div id="resetPwCodeBox" class="reset-code-box" hidden>
+      <p><strong>Recommended for a trainee:</strong> a new first-sign-in code. She signs in with it once, then chooses her own password. You print her slip now.</p>
+      <button class="btn btn-primary" id="resetPwCodeBtn" onclick="resetWithSignInCode()">Make a code and print her slip</button>
+      <p class="reset-code-or">Or type a new password for her:</p>
+    </div>
     <div class="form-group"><label>New Password</label><input type="password" class="form-control" id="resetPwNew" placeholder="Minimum 6 characters"></div>
     <div class="form-group"><label>Confirm Password</label><input type="password" class="form-control" id="resetPwConfirm" placeholder="Re-enter password"></div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
       <button class="btn btn-secondary" onclick="closeModal('resetPasswordModal')">Cancel</button>
       <button class="btn btn-primary" onclick="confirmResetPassword()">Reset Password</button>
+    </div>
+  </div>
+</div>
+
+<!-- SIGN-IN SLIPS (OF-4): the first-sign-in codes, shown and printable only now -->
+<div class="modal-overlay" id="signInSlipsModal" style="z-index:1150;">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="slipsTitle" style="max-width:560px;max-height:calc(100vh - 32px);overflow-y:auto;">
+    <div class="modal-header"><h3 id="slipsTitle">Sign-in slips</h3></div>
+    <p id="slipsWhat" style="font-size:13px;color:var(--text-secondary);margin:0 0 12px;"></p>
+    <div class="slips-warn" role="note"><strong>Print the slips now.</strong> The codes are not kept anywhere: once you close this, they cannot be shown again. A lost code means resetting the password again.</div>
+    <ul class="slips-list" id="slipsList"></ul>
+    <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:16px;">
+      <button class="btn btn-secondary" onclick="closeSignInSlips()">Done</button>
+      <button class="btn btn-primary" id="slipsDownloadBtn" onclick="downloadSignInSlips()">Download the slips (PDF)</button>
+    </div>
+  </div>
+</div>
+
+<!-- A TRAINEE AT HOME SIGNED IN WITH HER FIRST-SIGN-IN CODE (OF-4): her own password -->
+<div class="modal-overlay" id="homeFirstCodeModal" style="z-index:1150;">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="hfcTitle" style="max-width:420px;">
+    <div class="modal-header"><h3 id="hfcTitle">Choose your own password</h3></div>
+    <p style="font-size:13px;color:var(--text-secondary);margin:0 0 14px;">You signed in with the code on your slip. Choose your own password now: the code then stops working.</p>
+    <div class="form-group"><label for="hfcCode">The code on your slip</label><input type="text" class="form-control" id="hfcCode" inputmode="numeric" autocomplete="one-time-code" placeholder="10 digits"></div>
+    <div class="form-group"><label for="hfcNew">Your new password</label><input type="password" class="form-control" id="hfcNew" autocomplete="new-password" placeholder="At least 6, with a capital letter and a number"></div>
+    <div class="form-group"><label for="hfcNew2">Type it again</label><input type="password" class="form-control" id="hfcNew2" autocomplete="new-password" onkeydown="if(event.key==='Enter')homeFirstCodeSubmit()"></div>
+    <div class="tfa-error" id="hfcSay" role="alert" style="display:block;min-height:18px;"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
+      <button class="btn btn-secondary" onclick="closeModal('homeFirstCodeModal')">Later</button>
+      <button class="btn btn-primary" onclick="homeFirstCodeSubmit()">Save my password</button>
     </div>
   </div>
 </div>
@@ -6105,7 +6207,7 @@ html.gate-ns .tam-gate-only { display:flex; }
 <div class="modal-overlay" id="forceChangePwModal" style="z-index:1200;">
   <div class="modal" style="max-width:420px;">
     <div class="modal-header"><h3>Set a New Password</h3></div>
-    <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">This account is still using the default password. For security you must set a new one before continuing.</p>
+    <p id="forceChangePwWhy" style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">This account is still using the default password. For security you must set a new one before continuing.</p>
     <div class="form-group"><label>New Password</label><input type="password" class="form-control" id="forceChangePwNew" placeholder="Minimum 8 characters"></div>
     <div class="form-group"><label>Confirm Password</label><input type="password" class="form-control" id="forceChangePwConfirm" placeholder="Re-enter password" onkeydown="if(event.key==='Enter')forceChangePwSubmit()"></div>
     <div id="forceChangePwError" class="tfa-error" style="display:none;"></div>
@@ -8955,6 +9057,17 @@ function lmsChatFlushDriveSyncNow() {
 var AS_ACCESS_DEFAULTS = { attendance:false, announcements:false, calendar:false, students:false, studentsmanage:false, certificates:false, reports:false, training:false, exams:false, invigilation:false, video:true, resources:false, supportmessages:false, traineeaccounts:true };
 function adminStaffAccessDefaults() { return Object.assign({}, AS_ACCESS_DEFAULTS); }
 var adminStaffAccessSettings = adminStaffAccessDefaults();
+// The sections an Admin Staff member may use: their own ticks when the
+// Administrator has given them their own, else the grid's (the default for
+// everybody) — CESTISCore.staffAccess.forPerson.
+function asAccessFor(userId) {
+  try { return CESTISCore.staffAccess.forPerson(adminStaffAccessSettings, AS_ACCESS_DEFAULTS, userId); }
+  catch(e) { return Object.assign(adminStaffAccessDefaults(), adminStaffAccessSettings || {}); }
+}
+// …and the one signed in on this device.
+function asAccessForMe() {
+  return asAccessFor(currentLoggedInUser && currentLoggedInUser.id);
+}
 
 /* Adopt a set of access settings from anywhere they arrive — local storage, a
    cloud restore, a merge — and put them on screen.
@@ -8970,19 +9083,27 @@ var adminStaffAccessSettings = adminStaffAccessDefaults();
    Returns true when something actually changed. */
 function applyAdminStaffAccess(next) {
   if (!next || typeof next !== 'object') return false;
+  // Each person's own ticks ('people', CESTISCore.staffAccess) are merged
+  // person by person, newest edit winning, whatever the age of the copy
+  // they arrive in: an entry is never dropped, and a copy without them (an
+  // older version's) changes nothing.
+  var changed = false;
+  try {
+    var pm = CESTISCore.staffAccess.mergePeople(adminStaffAccessSettings.people, next.people);
+    if (pm.changed) { adminStaffAccessSettings.people = pm.people; changed = true; }
+  } catch(e) {}
   // The grid carries updatedAt (stamped on save when it changed). A copy
   // older than the one in force is a stale folder's and must not revoke
   // sections the Administrator has since granted.
   var nextAt = Date.parse(next.updatedAt || '') || 0, haveAt = Date.parse(adminStaffAccessSettings.updatedAt || '') || 0;
-  if (haveAt && nextAt < haveAt) return false;
-  var changed = false;
+  if (haveAt && nextAt < haveAt) { if (changed) refreshAdminStaffNav(); return changed; }
   var merged = adminStaffAccessDefaults();
-  Object.keys(next).forEach(function(k) { if (k === 'updatedAt') return; merged[k] = !!next[k]; });
+  Object.keys(next).forEach(function(k) { if (k === 'updatedAt' || k === 'people') return; merged[k] = !!next[k]; });
   Object.keys(merged).forEach(function(k) {
     if (adminStaffAccessSettings[k] !== merged[k]) { adminStaffAccessSettings[k] = merged[k]; changed = true; }
   });
   Object.keys(adminStaffAccessSettings).forEach(function(k) {
-    if (k === 'updatedAt') return;
+    if (k === 'updatedAt' || k === 'people') return;
     if (!(k in merged)) { delete adminStaffAccessSettings[k]; changed = true; }
   });
   if (next.updatedAt && next.updatedAt !== adminStaffAccessSettings.updatedAt) { adminStaffAccessSettings.updatedAt = next.updatedAt; changed = true; }
@@ -11097,6 +11218,9 @@ function getNextUserId() {
 
 function toggleUserFormFields() {
   var role = document.getElementById('newUserRole').value;
+  // A trainee is added with the New trainee form (OF-7): sign-in, trainee
+  // record and fee record together. What was typed is carried over.
+  if(role === 'student') { createUserAsTrainee(); return; }
   document.getElementById('newUserProgrammeGroup').style.display = (role === 'admin' || role === 'adminstaff' || role === 'cmc') ? 'none' : 'block';
   // Chairperson is a board office, so it is only offered on a board account.
   var chair = document.getElementById('newUserChairGroup');
@@ -11123,6 +11247,13 @@ function setCmcChair(account) {
   return stoodDown;
 }
 
+function createUserAsTrainee() {
+  var val = function(id) { var el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; };
+  var prefill = { name: val('newUserName'), email: val('newUserEmail'), username: val('newUserUsername') };
+  var role = document.getElementById('newUserRole'); if(role) role.value = 'admin';
+  closeModal('createUserModal');
+  openNewTrainee(prefill);
+}
 async function createUserAccount() {
   var name = document.getElementById('newUserName').value.trim();
   var role = document.getElementById('newUserRole').value;
@@ -11201,7 +11332,7 @@ function officeStampCreator(acct, dateStr) {
    same moment (gatePublishSoon); with it off, the first publishing turn
    after it is turned on makes it. */
 function officeMayAddTrainee() {
-  return currentRole === 'admin' || (currentRole === 'adminstaff' && !!(adminStaffAccessSettings && adminStaffAccessSettings.traineeaccounts));
+  return currentRole === 'admin' || (currentRole === 'adminstaff' && !!asAccessForMe().traineeaccounts);
 }
 // Programmes a trainee can be put on now (the centres taking trainees today).
 function officeEnrollingProgrammes() {
@@ -11215,24 +11346,79 @@ function officeSuggestUsername(name, email) {
   while (userAccounts.some(function(a) { return a && String(a.username || '').trim().toLowerCase() === u; })) { n++; u = base + n; }
   return u;
 }
-function openAddTraineeAccount() {
-  if(!officeMayAddTrainee()) { showToast('Adding trainee accounts has not been enabled for Admin Staff by the Administrator.', 'warning'); return; }
+// The New trainee form's boxes for her personal details (Core.accountAccess.traineeDetails).
+var AT_DETAIL_IDS = { gender: 'atGender', dob: 'atDob', trn: 'atTrn', address: 'atAddress', parentName: 'atParentName', parentPhone: 'atParentPhone', emergencyName: 'atEmergencyName', emergencyPhone: 'atEmergencyPhone' };
+/* ONE "New trainee" form behind every add-trainee button (office audit OF-7):
+   the dashboard's Add Student, Student Progress's + Add Student, Verify Users
+   / Trainee Accounts' + Add Trainee Account, and Settings → Create User for
+   a trainee. It makes the sign-in, the trainee record and the fee record
+   together. prefill: { name, email, username } carried over from Create User. */
+function openAddTraineeAccount(prefill) {
+  if(!officeMayAddTrainee()) { showToast('Adding trainee accounts has not been enabled for Admin Staff by the Administrator.', 'warning'); return false; }
   var sel = document.getElementById('atProgramme');
   if(sel) sel.innerHTML = '<option value="">— Select Programme —</option>' + officeEnrollingProgrammes().map(function(p) { return '<option value="' + escapeAttr(p) + '">' + escapeHtml(p) + '</option>'; }).join('');
-  ['atName', 'atEmail', 'atPhone', 'atUsername', 'atPassword'].forEach(function(id) { var el = document.getElementById(id); if(el) el.value = ''; });
+  ['atName', 'atEmail', 'atPhone', 'atUsername', 'atPassword'].concat(Object.keys(AT_DETAIL_IDS).map(function(k) { return AT_DETAIL_IDS[k]; }))
+    .forEach(function(id) { var el = document.getElementById(id); if(el) el.value = ''; });
+  var more = document.getElementById('atMore'); if(more) more.open = false;
+  prefill = prefill || {};
+  [['atName', prefill.name], ['atEmail', prefill.email], ['atUsername', prefill.username]].forEach(function(p) { var el = document.getElementById(p[0]); if(el && p[1]) el.value = String(p[1]); });
   var said = document.getElementById('atSaid'); if(said) { said.hidden = true; said.textContent = ''; }
   openModal('addTraineeModal');
+  return true;
+}
+function openNewTrainee(prefill) { return openAddTraineeAccount(prefill); }
+/* Her personal details onto her trainee record and her fee record, filling
+   ONLY what is blank (CESTISCore.traineeContact.fillDetails): from the New
+   trainee form, or — on approval — from what she gave when she registered
+   from home (account.details). A fee record that does not exist yet is made
+   first (the fee mirror), so the parent / guardian and emergency contact,
+   which only the fee record holds, are not lost. Returns whether the
+   trainee record changed. */
+function applyTraineeDetails(student, details) {
+  if(!student || !details || typeof details !== 'object' || !Object.keys(details).length) return false;
+  var TC = CESTISCore.traineeContact;
+  var changed = TC.fillDetails(student, details, 'trainee').length > 0;
+  try {
+    var read = function() { var raw = CESTISStore.getItem('cestiSchoolFeeStudents'); var a = raw ? JSON.parse(raw) : []; return Array.isArray(a) ? a : []; };
+    var fee = read();
+    var twinsOf = function(list) { return list.filter(function(f) { return f && CESTISCore.isFeeTwin(student, f); }); };
+    var twins = twinsOf(fee);
+    if(!twins.length && typeof window.syncStudentsToSchoolFee === 'function' && (students || []).indexOf(student) !== -1) {
+      window.syncStudentsToSchoolFee();
+      fee = read(); twins = twinsOf(fee);
+    }
+    var feeChanged = false;
+    twins.forEach(function(f) { if(TC.fillDetails(f, details, 'fee').length) { f.updatedAt = new Date().toISOString(); feeChanged = true; } });
+    if(feeChanged) CESTISCore.pageCloud.guardedSet(CESTISStore, 'cestiSchoolFeeStudents', fee);
+  } catch(e) { console.warn('[Accounts] could not fill the fee record\'s details:', e); }
+  return changed;
 }
 async function createTraineeAccount() {
   if(!officeMayAddTrainee()) return;
   var v = function(id) { var el = document.getElementById(id); return el ? String(el.value || '') : ''; };
   var name = v('atName').trim().replace(/\s+/g, ' '), email = v('atEmail').trim(), phone = v('atPhone').trim();
   var programme = v('atProgramme'), password = v('atPassword');
+  // No password typed: a first-sign-in code, and her slip (OF-4).
+  var useCode = !password;
+  if(useCode) password = makeSignInCodeNow();
   var username = v('atUsername').trim() || officeSuggestUsername(name, email);
   var draft = { role: 'student', name: name, username: username, email: email, programme: programme, password: password, phone: phone };
   var refusal = CESTISCore.accountAccess.officeCreateRefusal({ role: currentRole, allowed: officeMayAddTrainee() }, draft, userAccounts,
     { enrolBlock: programme ? courseEnrolmentBlockReason(programme) : '' });
+  // Gender, and the optional details, by the rules a registration from home
+  // follows (CESTISCore.accountAccess.traineeDetails).
+  var detailForm = {};
+  Object.keys(AT_DETAIL_IDS).forEach(function(k) { detailForm[k] = v(AT_DETAIL_IDS[k]); });
+  var det = CESTISCore.accountAccess.traineeDetails.check(detailForm, { require: ['gender'] });
   var said = document.getElementById('atSaid');
+  if(!refusal && !det.ok) {
+    var DET_SAY = { gender: 'Please choose the trainee\'s gender.', dob: 'Please check the date of birth (the trainee must be at least 12).', trn: 'A TRN is 9 digits, e.g. 123-456-789 — or leave it blank.',
+      address: 'Please check the address (at least 5 characters), or leave it blank.', parentName: 'Please give the parent or guardian\'s name as well as their phone, or neither.',
+      parentPhone: 'Please give the parent or guardian\'s phone as well as their name, or neither.', emergencyName: 'Please give the emergency contact\'s name as well as their phone, or neither.',
+      emergencyPhone: 'Please give the emergency contact\'s phone as well as their name, or neither.' };
+    refusal = { code: det.field, message: DET_SAY[det.field] || 'Please check the trainee\'s details.' };
+    if(det.field !== 'gender') { var more = document.getElementById('atMore'); if(more) more.open = true; }
+  }
   if(refusal) { if(said) { said.hidden = false; said.textContent = refusal.message; } else alert(refusal.message); return; }
   var btn = document.getElementById('atCreateBtn'); if(btn) btn.disabled = true;
   try {
@@ -11241,13 +11427,17 @@ async function createTraineeAccount() {
       programme: programme, status: 'active', createdAt: dateStr, registeredVia: 'admin-created' };
     if(phone) acct.phone = phone;
     officeStampCreator(acct, dateStr);
-    cachePlaintextPw(acct, password);
+    if(useCode) acct.firstSignInCode = CESTISCore.accountAccess.signInCodeMark(acct.password, new Date().toISOString());
+    else cachePlaintextPw(acct, password);
     clearDeletedUser(acct.id);
     userAccounts.push(acct);
     // Their trainee record: the one of that name on that programme, or a new one.
     var existingStudent = findStudentRecordForAccount(acct);
+    var rec = existingStudent;
     if(existingStudent) { acct.studentDataId = existingStudent.id; fillTraineeContactFromAccount(existingStudent, acct); }
-    else createStudentDataForAccount(acct);
+    else rec = createStudentDataForAccount(acct);
+    // Gender and the other details, on the trainee record and the fee record (blanks only).
+    try { applyTraineeDetails(rec, det.value); } catch(e) { console.warn('[Accounts] details not filled:', e); }
     saveUserAccounts();
     saveState();
     closeModal('addTraineeModal');
@@ -11256,6 +11446,7 @@ async function createTraineeAccount() {
     showToast('Trainee account created: ' + name + ' (username ' + username + ')');
     addNotification('New trainee account created: ' + name, 'student', null, ['admin']);
     try { gatePublishSoon(); } catch(e) {}
+    if(useCode) openSignInSlips([{ name: name, username: username, programme: programme, code: password }], name + ' has been added.');
   } finally { if(btn) btn.disabled = false; }
 }
 
@@ -11319,13 +11510,49 @@ function saveUserEdit() {
   showToast('User updated successfully!');
 }
 
+/* Who may reset whose password (CESTISCore.accountAccess.resetRefusal): an
+   administrator any account; Admin Staff a TRAINEE's only, while "Trainee
+   Accounts" is ticked for them (the owner, 30 October 2026). Said, and
+   refused, otherwise. */
+function passwordResetRefused(user) {
+  var r = CESTISCore.accountAccess.resetRefusal({ role: currentRole, allowed: currentRole === 'adminstaff' ? !!asAccessForMe().traineeaccounts : true }, user);
+  if(r) { showToast(r.message, 'warning'); return true; }
+  return false;
+}
+/* Trainee Accounts / Verify Users: "A trainee cannot sign in?" — find the
+   trainee, reset the password. Trainees' accounts only, for everybody. */
+function renderTraineeResetSearch() {
+  var out = document.getElementById('vuResetResults');
+  if(!out) return;
+  var q = String((document.getElementById('vuResetSearch') || {}).value || '').trim().toLowerCase();
+  if(q.length < 2) { out.innerHTML = ''; return; }
+  var hits = (userAccounts || []).filter(function(u) {
+    if(!u || String(u.role || '').toLowerCase() !== 'student') return false;
+    if(typeof isUserDeleted === 'function' && isUserDeleted(u.id)) return false;
+    return [u.name, u.username, u.email].some(function(v) { return String(v || '').toLowerCase().indexOf(q) !== -1; });
+  }).sort(function(a, b) { return String(a.name || '').localeCompare(String(b.name || '')); });
+  if(!hits.length) { out.innerHTML = '<p style="font-size:13px;color:var(--text-muted);">No trainee account matches.</p>'; return; }
+  out.innerHTML = '<div class="table-wrapper"><table class="tbl-phone"><thead><tr><th>Trainee</th><th>Username</th><th>Programme</th><th>Status</th><th></th></tr></thead><tbody>' +
+    hits.slice(0, 8).map(function(u) {
+      return '<tr><td><strong>' + escapeHtml(u.name || '') + '</strong>' + (u.email ? '<br><span style="font-size:12px;color:var(--text-muted);">' + escapeHtml(u.email) + '</span>' : '') + '</td>' +
+        '<td style="font-family:monospace;font-size:12px;">' + escapeHtml(u.username || '') + '</td>' +
+        '<td>' + escapeHtml(u.programme || '—') + '</td>' +
+        '<td>' + escapeHtml(u.status || '') + '</td>' +
+        '<td><button class="btn btn-sm btn-primary" onclick="openResetPassword(' + jsArg(u.id) + ')">Reset password</button></td></tr>';
+    }).join('') + '</tbody></table></div>' +
+    (hits.length > 8 ? '<p style="font-size:12px;color:var(--text-muted);margin-top:6px;">' + (hits.length - 8) + ' more — type more of the name.</p>' : '');
+}
 function openResetPassword(userId) {
   var user = userAccounts.find(function(u){ return u.id === userId; });
   if(!user) return;
+  if(passwordResetRefused(user)) return;
   document.getElementById('resetPwUserId').value = userId;
   document.getElementById('resetPwUserName').textContent = user.name + ' (' + user.username + ')';
   document.getElementById('resetPwNew').value = '';
   document.getElementById('resetPwConfirm').value = '';
+  // A trainee: a first-sign-in code and her slip, first (OF-4).
+  var codeBox = document.getElementById('resetPwCodeBox');
+  if(codeBox) codeBox.hidden = String(user.role || '').toLowerCase() !== 'student';
   openModal('resetPasswordModal');
 }
 
@@ -11347,13 +11574,220 @@ async function confirmResetPasswordVerified() {
   if(newPw !== confirmPw) { alert('Passwords do not match.'); return; }
   var user = userAccounts.find(function(u){ return u.id === userId; });
   if(!user) return;
+  if(passwordResetRefused(user)) return;
   user.password = await hashPassword(newPw);
   delete user.defaultPassword;   // a password somebody set, not the seed
   cachePlaintextPw(user, newPw);
   touchAccount(user);
   saveUserAccounts();
+  // A trainee who signs in at home: the new password's check reaches the
+  // trainee sign-in's account list with the publisher's next turn, now.
+  try { if(String(user.role) === 'student' && typeof gatePublishSoon === 'function') gatePublishSoon(); } catch(e) {}
   closeModal('resetPasswordModal');
   showToast('Password reset successfully for ' + user.name);
+}
+
+/* ============================== FIRST-SIGN-IN CODES AND SIGN-IN SLIPS (office audit OF-4) ==============================
+   An intake imported from Excel reached the office with no passwords: after
+   Approve All, 25 trainees were active and 0 could sign in, and each
+   password took the Administrator ≈25 s (≈10.5 min an intake), then had to be
+   handed out. Now the system makes a random first-sign-in code for each
+   trainee — on Approve All (a trainee with no password), on New trainee with
+   no password typed, and on a password reset — and the office prints ONE slip
+   per trainee: name, username, code, the trainee sign-in link (and its QR
+   code, once the trainee sign-in is set up) and three plain steps.
+   The code is kept only as its hash (CESTISCore.accountAccess.makeSignInCode,
+   signInCodeMark). The codes in plain text live ONLY in this page's memory
+   while the slips dialog is open; closing it forgets them: the slips can be
+   printed only at that moment, and the dialog says so. */
+var _slipBatch = null;            // [{ name, username, programme, code }] — memory only
+var _slipDownloaded = false;
+function makeSignInCodeNow() {
+  return CESTISCore.accountAccess.makeSignInCode(function(n) { var a = new Uint8Array(n); (window.crypto || window.msCrypto).getRandomValues(a); return a; });
+}
+/* Give one trainee account a new first-sign-in code: its password becomes the
+   code's hash, marked as a code. Returns the code (for the slip only). */
+async function giveSignInCode(account) {
+  var code = makeSignInCodeNow();
+  account.password = await hashPassword(code);
+  account.firstSignInCode = CESTISCore.accountAccess.signInCodeMark(account.password, new Date().toISOString());
+  delete account.defaultPassword; delete account.mustChangePassword;
+  try { delete account._plaintextPw; } catch(e) {}
+  touchAccount(account);
+  return code;
+}
+/* Codes for these trainee accounts (never a staff login: resetRefusal), saved,
+   sent to the trainee sign-in at once, and the slips offered. */
+async function issueSignInCodes(accounts, why) {
+  var list = (accounts || []).filter(function(a) { return a && !CESTISCore.accountAccess.resetRefusal({ role: currentRole, allowed: currentRole === 'adminstaff' ? !!asAccessForMe().traineeaccounts : true }, a); });
+  if(!list.length) return [];
+  var slips = [];
+  for(var i = 0; i < list.length; i++) {
+    var a = list[i];
+    var code = await giveSignInCode(a);
+    var canon = userAccounts.find(function(u) { return u && u.id === a.id; });
+    if(canon && canon !== a) { canon.password = a.password; canon.firstSignInCode = a.firstSignInCode; canon.updatedAt = a.updatedAt; delete canon.defaultPassword; }
+    slips.push({ name: a.name || '', username: a.username || a.email || '', programme: a.programme || '', code: code });
+  }
+  try { saveUserAccounts(); } catch(e) {}
+  try { saveState(); } catch(e) {}
+  // A trainee who signs in at home: the code's check reaches the trainee sign-in's account list now.
+  try { gatePublishSoon(); } catch(e) {}
+  openSignInSlips(slips, why);
+  return slips;
+}
+// The trainees' sign-in link: the trainee sign-in's own link once it is set
+// up (with a QR code on the slip), else this site's address.
+function signInSlipLink() {
+  var tg = (systemSettings && systemSettings.traineeGate) || {};
+  var gateLink = (tg.enabled === true && tg.url && typeof gateSignInLink === 'function') ? gateSignInLink(tg.url, gateSiteBase()) : '';
+  var site = '';
+  try { site = typeof gateSiteBase === 'function' ? gateSiteBase() : (location.origin + location.pathname); } catch(e) { site = ''; }
+  return { link: gateLink || site, qr: !!gateLink };
+}
+function openSignInSlips(slips, why) {
+  _slipBatch = (slips || []).slice();
+  _slipDownloaded = false;
+  var n = _slipBatch.length;
+  var what = document.getElementById('slipsWhat');
+  if(what) what.textContent = (why ? why + ' ' : '') + n + ' trainee' + (n === 1 ? '' : 's') + ' now sign' + (n === 1 ? 's' : '') + ' in with a first-sign-in code, then choose' + (n === 1 ? 's' : '') + ' their own password.';
+  var ul = document.getElementById('slipsList');
+  if(ul) ul.innerHTML = _slipBatch.map(function(s) {
+    return '<li><strong>' + escapeHtml(s.name) + '</strong> <span class="slips-user">' + escapeHtml(s.username) + '</span> <span class="slips-code">' + escapeHtml(s.code) + '</span></li>';
+  }).join('');
+  var t = document.getElementById('slipsTitle');
+  if(t) t.textContent = n === 1 ? 'Sign-in slip' : 'Sign-in slips (' + n + ')';
+  openModal('signInSlipsModal');
+}
+function closeSignInSlips(force) {
+  if(_slipBatch && _slipBatch.length && !_slipDownloaded && !force &&
+     !confirm('The slips have not been downloaded. The codes cannot be shown again once this closes — you would reset the passwords again to make new ones.\n\nClose anyway?')) return false;
+  _slipBatch = null;
+  var ul = document.getElementById('slipsList'); if(ul) ul.innerHTML = '';
+  closeModal('signInSlipsModal');
+  return true;
+}
+/* The slips as a PDF (the vendored jsPDF): three to an A4 page, one per
+   trainee, with a cut line between. Returns the jsPDF document. */
+function buildSignInSlipsPdf(slips) {
+  var jsPDF = window.jspdf.jsPDF;
+  var doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  var centre = (systemSettings && systemSettings.institutionName) || 'C.E.S.T.I.S';
+  var L = signInSlipLink();
+  var qr = L.qr && typeof gateQrDataUrl === 'function' ? gateQrDataUrl(L.link, 360) : '';
+  var made = localDateStr();
+  var by = (currentLoggedInUser && currentLoggedInUser.name) || '';
+  var H = 99, W = 210, M = 14;
+  (slips || []).forEach(function(s, i) {
+    var slot = i % 3;
+    if(i && slot === 0) doc.addPage();
+    var y0 = slot * H;
+    if(slot) { doc.setLineDashPattern([2, 2], 0); doc.setDrawColor(150); doc.line(6, y0, W - 6, y0); doc.setLineDashPattern([], 0); doc.setFontSize(7); doc.setTextColor(120); doc.text('cut here', W - 20, y0 - 1.5); }
+    var y = y0 + 12;
+    doc.setTextColor(20);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.text(String(centre), M, y);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(90); doc.text('Trainee sign-in slip — keep it private', M, y + 5);
+    doc.setTextColor(20);
+    y += 14;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(15); doc.text(String(s.name || ''), M, y);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+    if(s.programme) doc.text(String(s.programme), M, y + 5.5);
+    y += 13;
+    doc.setFontSize(10); doc.setTextColor(90); doc.text('Username', M, y); doc.text('First-sign-in code', M + 62, y);
+    doc.setTextColor(20); doc.setFont('courier', 'bold'); doc.setFontSize(14);
+    doc.text(String(s.username || ''), M, y + 7);
+    doc.setFontSize(20); doc.text(String(s.code || ''), M + 62, y + 8);
+    doc.setFont('helvetica', 'normal');
+    y += 16;
+    doc.setFontSize(9); doc.setTextColor(90); doc.text('Sign in at', M, y);
+    doc.setTextColor(20); doc.setFontSize(8.5);
+    var linkLines = doc.splitTextToSize(String(L.link || ''), qr ? 120 : 175);
+    doc.text(linkLines.slice(0, 3), M, y + 4.5);
+    y += 4.5 + Math.min(3, linkLines.length) * 3.6 + 3;
+    doc.setFontSize(10);
+    var steps = ['1. Open the link above' + (qr ? ' (or scan the square code)' : '') + ' on your phone or a computer.',
+      '2. Sign in with your username and the code above.',
+      '3. Choose your own password when you are asked. The code then stops working.'];
+    steps.forEach(function(t, k) { doc.text(doc.splitTextToSize(t, qr ? 125 : 180), M, y + k * 5.5); });
+    if(qr) { try { doc.addImage(qr, 'PNG', W - M - 42, y0 + 30, 42, 42); doc.setFontSize(7.5); doc.setTextColor(90); doc.text('Scan to sign in', W - M - 34, y0 + 76); } catch(e) {} }
+    doc.setFontSize(7.5); doc.setTextColor(120);
+    doc.text('Made ' + made + (by ? ' by ' + by : '') + '. Lost it? Ask the office for a new code.', M, y0 + H - 6);
+  });
+  return doc;
+}
+function downloadSignInSlips() {
+  if(!_slipBatch || !_slipBatch.length) { showToast('These slips have already been closed. Reset the password again to make a new code.', 'warning'); return; }
+  var batch = _slipBatch.slice();
+  cestisNeedLib('jspdf').then(function() {
+    // The QR code needs its drawing library; a slip without it still has the link.
+    return (typeof QRCode === 'undefined' ? cestisNeedLib('QRCode').catch(function() {}) : Promise.resolve());
+  }).then(function() {
+    var doc = buildSignInSlipsPdf(batch);
+    doc.save('Sign-in slips ' + localDateStr() + (batch.length === 1 ? ' - ' + String(batch[0].name).replace(/[\\/:*?"<>|]+/g, '') : '') + '.pdf');
+    _slipDownloaded = true;
+    showToast('Slips downloaded — print them now.', 'success');
+  }, function() { showToast('The PDF could not be prepared. Try again.', 'error'); });
+}
+/* A password reset for a trainee, the new way: a first-sign-in code and her
+   slip (Settings → Users, and Trainee Accounts' "A trainee cannot sign in?"). */
+function resetWithSignInCode() {
+  var actor = tfaAccountRecord(currentLoggedInUser);
+  if(tfaEnabled(actor)) {
+    tfaOpenVerify(actor, { title: 'Authorize Password Reset', subtitle: 'Enter your 6-digit code to authorize resetting this user\'s password.', allowBackup: false }, resetWithSignInCodeVerified);
+    return;
+  }
+  resetWithSignInCodeVerified();
+}
+async function resetWithSignInCodeVerified() {
+  var userId = document.getElementById('resetPwUserId').value;
+  var user = userAccounts.find(function(u){ return u.id === userId; });
+  if(!user || passwordResetRefused(user)) return;
+  if(String(user.role || '').toLowerCase() !== 'student') { showToast('A first-sign-in code is for trainees. Type a new password for this account.', 'warning'); return; }
+  closeModal('resetPasswordModal');
+  await issueSignInCodes([user], 'Password reset for ' + user.name + '.');
+}
+/* Signing in with a first-sign-in code (on this computer): her own password
+   first, before anything opens — the existing "set a new password" step. */
+function firstCodeGate(account, role, proceed) {
+  if(!account || !CESTISCore.accountAccess.firstCodeInForce(account)) { proceed(); return; }
+  currentLoggedInUser = account;
+  openForceChangePw(role, proceed, 'code');
+}
+/* At home (the trainee sign-in): her records say her password is still the
+   office's code (card.firstCode). She is asked to choose her own — through
+   the trainee sign-in's password change where it exists; the code, typed
+   again from her slip, proves it is her (it is never kept on her device). */
+function homeFirstCodeCheck(acct) {
+  if(!acct || acct.firstCode !== true) return false;
+  var box = document.getElementById('homeFirstCodeModal');
+  if(!box) return false;
+  ['hfcCode', 'hfcNew', 'hfcNew2'].forEach(function(id) { var el = document.getElementById(id); if(el) el.value = ''; });
+  var say = document.getElementById('hfcSay'); if(say) say.textContent = '';
+  openModal('homeFirstCodeModal');
+  return true;
+}
+var _hfcBusy = false;
+async function homeFirstCodeSubmit() {
+  if(_hfcBusy) return;
+  var v = function(id) { var el = document.getElementById(id); return el ? String(el.value || '') : ''; };
+  var say = function(t) { var el = document.getElementById('hfcSay'); if(el) el.textContent = t; };
+  var code = v('hfcCode').replace(/\s+/g, ''), pw = v('hfcNew'), pw2 = v('hfcNew2');
+  if(!/^\d{10}$/.test(code)) { say('Type the 10-digit code from your slip.'); return; }
+  if(pw.length < 6 || !/[A-Z]/.test(pw) || !/[0-9]/.test(pw)) { say('Your new password must be at least 6 characters, with a capital letter and a number.'); return; }
+  if(pw !== pw2) { say('The two new passwords do not match.'); return; }
+  if(!(window.CESTISGate && typeof CESTISGate.changePassword === 'function')) {
+    say('Choosing your own password here is not available yet. You can keep signing in with your code; the office can set a password for you.');
+    return;
+  }
+  _hfcBusy = true;
+  say('Saving your password…');
+  var res = null;
+  try { res = await CESTISGate.changePassword({ oldPassword: code, newPassword: pw }); } catch(e) { res = { ok: false, error: 'unreachable' }; }
+  _hfcBusy = false;
+  if(res && res.ok) { closeModal('homeFirstCodeModal'); showToast('Your password is set. Use it next time you sign in.', 'success'); return; }
+  var c = String((res && res.error) || 'unreachable');
+  say(c === 'no-match' ? 'That code is not right. Type it exactly as it is on your slip.' : c === 'locked' ? 'Too many tries. Wait 15 minutes, then try again.'
+    : 'Could not save your password right now. Try again when you have signal.');
 }
 
 // ============================================================
@@ -12287,7 +12721,7 @@ async function handleStudentClick(opts) {
     if(savedStuProfile) {
       if(savedStuProfile.name) { studentMatch.name = savedStuProfile.name; userAccount.name = savedStuProfile.name; }
     }
-    publishedDefaultGate(userAccount, pw, 'student', function(){ tfaGateLogin(userAccount, function(){ currentLoggedInUser = userAccount; enterApp('student'); }); });
+    publishedDefaultGate(userAccount, pw, 'student', function(){ firstCodeGate(userAccount, 'student', function(){ tfaGateLogin(userAccount, function(){ currentLoggedInUser = userAccount; enterApp('student'); }); }); });
   } catch(err) { console.error('handleStudentClick error:', err); signInSay('student', 'Error: ' + err.message); }
 }
 async function handleInstructorClick() {
@@ -12991,9 +13425,14 @@ function adminClearTwoStepApply(userId){
 }
 
 var _forceChangePwRole = null, _forceChangePwThen = null;
-function openForceChangePw(role, then) {
+function openForceChangePw(role, then, why) {
   _forceChangePwRole = role;
   _forceChangePwThen = typeof then === 'function' ? then : null;
+  // Why she is asked: the published default, or the office's first-sign-in code (OF-4).
+  var whyEl = document.getElementById('forceChangePwWhy');
+  if(whyEl) whyEl.textContent = why === 'code'
+    ? 'You signed in with the code on your slip. Choose your own password now: the code then stops working.'
+    : 'This account is still using the default password. For security you must set a new one before continuing.';
   var n = document.getElementById('forceChangePwNew');
   var c = document.getElementById('forceChangePwConfirm');
   var e = document.getElementById('forceChangePwError');
@@ -13029,10 +13468,10 @@ async function forceChangePwSubmit() {
   if(KNOWN_DEFAULT_PASSWORDS.indexOf(np) !== -1 || np.toLowerCase() === 'password'){ fail('Choose a password that is not the default.'); return; }
   var canonical = userAccounts.find(function(u){ return u.id === acct.id; }) || acct;
   canonical.password = await hashPassword(np);
-  delete canonical.defaultPassword; delete canonical.mustChangePassword;
+  delete canonical.defaultPassword; delete canonical.mustChangePassword; delete canonical.firstSignInCode;
   cachePlaintextPw(canonical, np);
   touchAccount(canonical);
-  if(acct !== canonical){ acct.password = canonical.password; delete acct.defaultPassword; delete acct.mustChangePassword; }
+  if(acct !== canonical){ acct.password = canonical.password; delete acct.defaultPassword; delete acct.mustChangePassword; delete acct.firstSignInCode; }
   try { if(canonical.username) clearLoginFailures(canonical.username); if(canonical.email) clearLoginFailures(canonical.email); } catch(_){}
   saveUserAccounts();
   lanHostTicketAfterSave(canonical, np);
@@ -13775,7 +14214,7 @@ function createInstructorDataForAccount(userAccount) {
    from home, and both administrators and admin staff are the office). */
 function accountReviewAllowed(u) {
   if (currentRole === 'admin') return true;
-  if (currentRole !== 'adminstaff' || !(adminStaffAccessSettings && adminStaffAccessSettings.traineeaccounts)) return false;
+  if (currentRole !== 'adminstaff' || !asAccessForMe().traineeaccounts) return false;
   return !!u && String(u.role || '').trim().toLowerCase() === 'student' && !CESTISCore.accountAccess.isPrivilegedSelfRegistration(u);
 }
 // Who decided, on the account itself: the role (as the field always held) and the person.
@@ -13783,6 +14222,19 @@ function stampReviewer(u) {
   u.approvedBy = currentRole === 'adminstaff' ? 'adminstaff' : 'admin';
   var me = currentLoggedInUser && (currentLoggedInUser.name || currentLoggedInUser.username);
   if (me) u.approvedByName = String(me);
+}
+/* A registration's personal details, in one short block on its row. */
+function vuDetailsHtml(d) {
+  var bits = [];
+  if(d.gender) bits.push(escapeHtml(d.gender));
+  if(d.dob) bits.push('Born ' + escapeHtml(d.dob));
+  if(d.trn) bits.push('TRN ' + escapeHtml(d.trn));
+  if(d.address) bits.push(escapeHtml(d.address));
+  var line2 = [];
+  if(d.parentName) line2.push('Parent/guardian: ' + escapeHtml(d.parentName) + (d.parentPhone ? ' ' + escapeHtml(d.parentPhone) : ''));
+  if(d.emergencyName) line2.push('Emergency: ' + escapeHtml(d.emergencyName) + (d.emergencyPhone ? ' ' + escapeHtml(d.emergencyPhone) : ''));
+  if(!bits.length && !line2.length) return '';
+  return '<span class="vu-details">' + bits.join(' · ') + (line2.length ? '<br>' + line2.join(' · ') : '') + '</span>';
 }
 function renderVerifyUsersPage() {
   // Only registrations and never-reviewed trainee placeholders: an account a
@@ -13848,6 +14300,8 @@ function renderVerifyUsersPage() {
         // Sent by the trainee from home, signed in with their own email account
         // (the address was checked as theirs before the registration was taken).
         if (u.registeredVia === 'home-registration') sourceLabel = ' <span class="vu-home-note" style="display:block;font-size:12px;color:var(--green);font-weight:600;">Registered from home · email account verified</span>';
+        // What she gave, for the office to check before approving (OF-3).
+        if (u.details && typeof u.details === 'object') sourceLabel += vuDetailsHtml(u.details);
         if (_maybeDup[u.id]) sourceLabel += ' <span style="font-size:10px;color:var(--accent);font-weight:600;">(may be a second account of somebody who already has one — check the accounts list before activating)</span>';
         return '<tr>' +
           '<td><strong>' + escapeHtml(u.name) + '</strong>' + sourceLabel + '</td>' +
@@ -13904,6 +14358,12 @@ function approveUser(userId) {
       createStudentDataForAccount(user);
     }
   }
+  // What she gave when registering from home (date of birth, gender, TRN,
+  // address, parent or guardian, emergency contact): onto her trainee and fee
+  // records, blanks only (OF-3).
+  if (user.role === 'student' && user.details) {
+    try { applyTraineeDetails(students.find(function(s) { return s && s.id === user.studentDataId; }), user.details); } catch(e) {}
+  }
   // Ensure instructor data is created and linked when approving an instructor account
   if (user.role === 'instructor') {
     var existingInstructor = findInstructorRecordForAccount(user);
@@ -13921,7 +14381,9 @@ function approveUser(userId) {
   // Accounts created by the fee sync and the chat backfill carry no password, so
   // "approved" on its own still leaves the trainee unable to sign in. Finish the
   // job here rather than letting them meet "invalid username or password".
-  if(!CESTISCore.accountAccess.hasPassword(user)) {
+  if(!CESTISCore.accountAccess.hasPassword(user) && String(user.role || '').toLowerCase() === 'student' && typeof issueSignInCodes === 'function') {
+    issueSignInCodes([user], user.name + ' is approved.');
+  } else if(!CESTISCore.accountAccess.hasPassword(user)) {
     showToast(user.name + ' is approved but has NO PASSWORD — set one so they can sign in', 'warning');
     if(confirm(user.name + ' is approved, but no password has ever been set for this account, so they still cannot sign in.\n\nSet a password now?')) { openResetPassword(user.id); return; }
   }
@@ -13975,6 +14437,10 @@ function approveAllPending() {
         createStudentDataForAccount(u);
       }
     }
+    // Her details from home, onto her records (blanks only — OF-3).
+    if (u.role === 'student' && u.details) {
+      try { applyTraineeDetails(students.find(function(s) { return s && s.id === u.studentDataId; }), u.details); } catch(e) {}
+    }
     if (u.role === 'instructor') {
       var existingInstructor = findInstructorRecordForAccount(u);
       if (!existingInstructor) {
@@ -13986,18 +14452,24 @@ function approveAllPending() {
   try { saveUserAccounts(); } catch(e) {}   // the accounts ledger at once (see approveUser)
   renderVerifyUsersPage();
   refreshStudentDependentViews();
-  // Flag the approved accounts that still cannot sign in because no password was
-  // ever set for them (fee-sync / chat-backfill records).
+  // A trainee approved from a home registration is emailed (the trainee gate's approval email).
   try { if (pending.some(function(u) { return u.registeredVia === 'home-registration'; })) gateNudgeApprovalMail(); } catch(e) {}
+  // Trainees approved with no password (an intake imported from Excel, the
+  // chat backfill) get a first-sign-in code each, and their slips (OF-4).
   var noPw = pending.filter(function(u) { return !CESTISCore.accountAccess.hasPassword(u); });
-  showToast(pending.length + ' account(s) approved!' + (noPw.length ? ' ' + noPw.length + ' still need a password.' : ''));
+  var codeFor = noPw.filter(function(u) { return String(u.role || '').toLowerCase() === 'student'; });
+  if(codeFor.length && typeof issueSignInCodes === 'function') {
+    noPw = noPw.filter(function(u) { return codeFor.indexOf(u) === -1; });
+    issueSignInCodes(codeFor, pending.length + ' account(s) approved.');
+  }
+  showToast(pending.length + ' account(s) approved!' + (codeFor.length ? ' ' + codeFor.length + ' sign-in slip' + (codeFor.length === 1 ? '' : 's') + ' to print.' : '') + (noPw.length ? ' ' + noPw.length + ' still need a password.' : ''));
   if(noPw.length) {
     alert(noPw.length + ' of the accounts just approved have no password set, so those people still cannot sign in:\n\n' +
       noPw.slice(0, 12).map(function(u){ return '  • ' + u.name + ' (' + u.username + ')'; }).join('\n') +
       (noPw.length > 12 ? '\n  … and ' + (noPw.length - 12) + ' more' : '') +
       '\n\nSet a password for each in Settings → Users (🔑 Reset Password).');
   }
-  addNotification(pending.length + ' user account(s) approved' + (noPw.length ? ' — ' + noPw.length + ' still need a password' : ''), 'success', null, ['admin']);
+  addNotification(pending.length + ' user account(s) approved' + (codeFor.length ? ' — ' + codeFor.length + ' given first-sign-in codes' : '') + (noPw.length ? ' — ' + noPw.length + ' still need a password' : ''), 'success', null, ['admin']);
   try { gatePublishSoon(); } catch(e) {}
 }
 
@@ -14248,6 +14720,39 @@ function toggleNavSection(labelEl) {
   if (group && group.classList.contains('nav-section-group')) {
     group.classList.toggle('collapsed', collapsed);
   }
+  navGroupsRemember();
+}
+/* Which menu groups are open is remembered on THIS device (OF-1): the
+   Administrator's Management and Administration groups started collapsed at
+   every sign-in, hiding the counts of what was waiting. A device-only
+   preference ('cestisNavOpen', localStorage): never in a backup or the
+   Centre's shared files (CESTISCore DEVICE_ONLY_KEYS, cestis-page-cloud.js
+   DEVICE_KEYS). One list per role: { admin: ['Management', ...] }. */
+var NAV_OPEN_KEY = 'cestisNavOpen';
+function navGroupsRead() {
+  try { var v = JSON.parse(localStorage.getItem(NAV_OPEN_KEY) || '{}'); return v && typeof v === 'object' && !Array.isArray(v) ? v : {}; } catch(e) { return {}; }
+}
+function navGroupLabel(el) { return String((el && el.textContent) || '').replace(/\s+/g, ' ').trim(); }
+function navGroupsRemember() {
+  if(!currentRole) return;
+  try {
+    var open = [];
+    document.querySelectorAll('#sidebarNav .nav-section-toggle').forEach(function(l) { if(!l.classList.contains('collapsed')) open.push(navGroupLabel(l)); });
+    var all = navGroupsRead();
+    all[currentRole] = open;
+    localStorage.setItem(NAV_OPEN_KEY, JSON.stringify(all));
+  } catch(e) {}
+}
+function navGroupsRestore(role) {
+  var open = navGroupsRead()[role || currentRole];
+  if(!Array.isArray(open)) return;
+  document.querySelectorAll('#sidebarNav .nav-section-toggle').forEach(function(l) {
+    var on = open.indexOf(navGroupLabel(l)) !== -1;
+    l.classList.toggle('collapsed', !on);
+    l.setAttribute('aria-expanded', on ? 'true' : 'false');
+    var g = l.nextElementSibling;
+    if(g && g.classList.contains('nav-section-group')) g.classList.toggle('collapsed', !on);
+  });
 }
 
 function buildAdminSidebar() {
@@ -14346,6 +14851,7 @@ function buildAdminSidebar() {
     <div class="nav-item nav-item-standalone" data-page="settings" onclick="showPage('settings')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Settings</div>
   `;
+  navGroupsRestore('admin');
   setTimeout(updateCtrRequestsBadge, 200);
   setTimeout(function(){ try { refreshAttentionBadges(); } catch(e) {} }, 300);
 }
@@ -14864,8 +15370,26 @@ var AS_PAGE_PERMISSION = {
   'as-training': 'training', 'as-exams': 'exams', 'as-invigilator': 'invigilation', 'as-video': 'video',
   'as-resources': 'resources', 'as-support-messages': 'supportmessages',
   'as-attendance': 'attendance', 'as-announcements': 'announcements', 'as-calendar': 'calendar',
-  'as-trainee-accounts': 'traineeaccounts'
+  'as-trainee-accounts': 'traineeaccounts',
+  // The Administrator's working pages Admin Staff open when ticked (OF-2).
+  'training': 'training', 'a-resources': 'resources', 'exams': 'exams', 'attendance': 'attendance',
+  'announcements': 'announcements', 'calendar': 'calendar', 'certificates': 'certificates', 'reports': 'reports'
 };
+// The read-only Admin Staff pages these replaced: any link to one opens the
+// working page instead.
+var AS_WORKING_PAGES = {
+  'as-training': 'training', 'as-resources': 'a-resources', 'as-exams': 'exams', 'as-attendance': 'attendance',
+  'as-announcements': 'announcements', 'as-calendar': 'calendar', 'as-certificates': 'certificates', 'as-reports': 'reports'
+};
+/* An action on one of those working pages, by Admin Staff whose ticks do
+   not include that section, is refused (true = refused, and said so).
+   Administrators and instructors are never refused here. */
+function staffSectionRefused(key) {
+  if(currentRole !== 'adminstaff') return false;
+  if(asAccessForMe()[key]) return false;
+  showToast('That has not been enabled for you by the Administrator.', 'warning');
+  return true;
+}
 
 // Is this page allowed for whoever is signed in? The Admin Staff access grid
 // only ever decided which SIDEBAR ITEMS were drawn — buildAdminStaffPages()
@@ -14877,10 +15401,11 @@ function pageAllowedForRole(pageId) {
   if(currentRole !== 'adminstaff') return true;
   var need = AS_PAGE_PERMISSION[pageId];
   if(!need) return true;
-  return !!adminStaffAccessSettings[need];
+  return !!asAccessForMe()[need];
 }
 
 function showPage(pageId) {
+  if(currentRole === 'adminstaff' && AS_WORKING_PAGES[pageId]) pageId = AS_WORKING_PAGES[pageId];
   if(!pageAllowedForRole(pageId)) {
     showToast('That section has not been enabled for Admin Staff by the Administrator.', 'warning');
     return;
@@ -14896,6 +15421,7 @@ function showPage(pageId) {
   if(pg) pg.classList.add('active');
   // Keep the staff-appraisal due indicator fresh whenever the admin dashboard is shown
   if(pageId === 'dashboard') { try { if(typeof sappRenderAdminDueCard === 'function') sappRenderAdminDueCard(); } catch(e) {} try { refreshDashboardFees(); } catch(e) {} }
+  if(pageId === 'dashboard' || pageId === 'as-dashboard') { try { renderOfficeToday(); } catch(e) { console.warn('[Office today] render failed', e); } }
   if(pageId === 'transfer-trainees') { try { renderTransferTraineesPage(); } catch(e) { console.warn('[Transfer] render failed', e); } }
   // Reports counts the roll on every panel, so it is drawn on the way in rather
   // than served from whenever the page happened to be built.
@@ -14993,11 +15519,11 @@ function showPage(pageId) {
     if(iframeEl && !iframeEl.getAttribute('data-src-loaded')) {
       iframeEl.src = iframeInfo.src;
       iframeEl.setAttribute('data-src-loaded', '1');
-      // First load: the iframe drops its own privacy screen on DOMContentLoaded.
+      // First load: the page opens uncovered (the clerk is using it).
     } else if(iframeEl && (pageId === 'fee-management' || pageId === 'as-fee-management')) {
-      // Already loaded once and kept alive — ask the School Fee page to re-show
-      // its privacy screen so financial data stays covered until the user
-      // clicks "Activate Window" each time they navigate back to the page.
+      // Already loaded once and kept alive — tell the School Fee page the clerk
+      // is back. It covers its records only if nobody has used it for its idle
+      // time meanwhile (OF-8: it used to cover on every visit).
       try { iframeEl.contentWindow.postMessage({ type: 'cestis-show-privacy' }, '*'); } catch(e){}
     }
   }
@@ -15049,6 +15575,9 @@ function showPage(pageId) {
       var tgSrc = (tgInfo.requests ? 'Cert-Transcript-Requests.html' : 'Transcript-Grades.html') + '?role=' + encodeURIComponent(tgInfo.role);
       var tgActor = (typeof currentLoggedInUser !== 'undefined' && currentLoggedInUser && currentLoggedInUser.name) ? currentLoggedInUser.name : tgInfo.role;
       tgSrc += '&actor=' + encodeURIComponent(tgActor);
+      // "Open transcript" on a request (OF-9): the trainee already chosen.
+      var tgPick = tgEl.getAttribute('data-open-select');
+      if(tgPick && !tgInfo.requests && (tgInfo.role === 'admin' || tgInfo.role === 'adminstaff')) { tgSrc += '&select=' + encodeURIComponent(tgPick); tgEl.removeAttribute('data-open-select'); }
       if(tgInfo.role === 'student' && typeof currentStudent !== 'undefined' && currentStudent) {
         if(currentStudent.id)     tgSrc += '&studentId=' + encodeURIComponent(currentStudent.id);
         if(currentStudent.name)   tgSrc += '&name=' + encodeURIComponent(currentStudent.name);
@@ -15077,9 +15606,77 @@ function showPage(pageId) {
   setTimeout(animateAllCounters, 50);
 }
 
+/* The Training Centres and Reports pages, as the Administrator has them. Admin
+   Staff with the section ticked get the SAME working page (office audit OF-2:
+   with every tick on, these pages had 0 action buttons for Admin Staff). */
+function adminTrainingPageHtml() {
+  return `
+  <!-- TRAINING -->
+  <section class="page" id="page-training">
+    <div id="trainingOverview">
+      <p style="color:var(--text-secondary);margin-bottom:20px;font-size:14px;" id="trainingCentreCount">${skillAreas.length} dedicated skill centres — select a programme to view materials, curriculum, and resources.</p>
+      <div id="trainingAdminControls" style="display:none;margin-bottom:20px;">
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+          <button class="btn btn-primary" onclick="openModal('addCentreModal')">+ Add Training Centre</button>
+          <button class="btn btn-secondary" onclick="recoverAllCourseData()" title="Scan backups to recover students and instructors for all skill areas">🔄 Recover from Backups</button>
+          <div style="flex:1;"></div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-secondary" onclick="toggleCentreView('grid')" id="centreViewGrid" title="Grid View" style="padding:8px 12px;">▦</button>
+            <button class="btn btn-secondary" onclick="toggleCentreView('table')" id="centreViewTable" title="Table View" style="padding:8px 12px;">☰</button>
+          </div>
+        </div>
+      </div>
+      <div class="skills-grid" id="skillsGrid"></div>
+      <div id="centreTableView" style="display:none;">
+        <div class="card"><div class="card-header"><h3>Training Centres</h3></div>
+          <div class="table-wrapper"><table><thead><tr><th>Icon</th><th>Centre Name</th><th>Description</th><th>Students</th><th>Materials</th><th>Actions</th></tr></thead><tbody id="centreTableBody"></tbody></table></div>
+        </div>
+      </div>
+    </div>
+    <div id="skillDetailPage" style="display:none;"></div>
+  </section>
+`;
+}
+function adminReportsPageHtml() {
+  return `
+  <section class="page" id="page-reports">
+    <!-- The Programme return (audit M8): choose an intake and a period, then
+         download it as a spreadsheet (CSV) or a PDF. Drawn by renderProgrammeReturn(). -->
+    <div class="card pr-card" id="programmeReturnCard">
+      <div class="card-header"><h3>Programme return</h3>
+        <div class="pr-actions">
+          <button type="button" class="btn btn-primary btn-sm" onclick="exportProgrammeReturnCSV()">Download CSV</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="exportProgrammeReturnPDF()">Download PDF</button>
+        </div>
+      </div>
+      <div class="pr-filters">
+        <label class="pr-filter"><span>Intake</span><select class="form-control" id="prIntake" onchange="programmeReturnChoose('intake', this.value)"></select></label>
+        <label class="pr-filter"><span>Period</span><select class="form-control" id="prPeriod" onchange="programmeReturnChoose('period', this.value)"></select></label>
+      </div>
+      <div id="prHeading" class="pr-heading"></div>
+      <div id="prBody"></div>
+    </div>
+    <div class="stats-grid" id="reportStats"></div>
+    <div class="grid-2col">
+      <div class="card"><div class="card-header"><h3>Student Stage Distribution</h3><button class="btn-export" onclick="exportReportCSV()">\uD83D\uDCC4 Export</button></div><div id="donutChartContainer" style="display:flex;align-items:center;gap:24px;justify-content:center;"></div></div>
+      <div class="card"><div class="card-header"><h3>Pass Rate by Programme</h3></div><div id="passRateChart"></div></div>
+    </div>
+    <div class="grid-2col">
+      <div class="card"><div class="card-header"><h3>Enrollment by Course</h3></div><div id="enrollmentBarChart" class="bar-chart"></div></div>
+      <div class="card"><div class="card-header"><h3>Overall Completion Rate</h3></div><div id="gaugeContainer" style="display:flex;flex-direction:column;align-items:center;gap:24px;padding:20px 0;"></div></div>
+    </div>
+    <div class="grid-2col">
+      <div class="card"><div class="card-header"><h3>Attendance Heatmap</h3></div><div id="attendanceHeatmap"></div></div>
+      <div class="card"><div class="card-header"><h3>Gender Distribution</h3></div><div id="genderDistContainer" style="display:flex;align-items:center;justify-content:center;gap:32px;padding:20px;"></div></div>
+    </div>
+  </section>
+`;
+}
+
 function buildAdminPages() {
   resolveExamStatuses();
   setTimeout(renderVerifyUsersPage, 200);
+  setTimeout(function() { try { renderOfficeToday(); } catch(e) {} }, 250);
   const totalEnrolled = students.length;
   // Certified THIS calendar year, by the certificate's own date — the card
   // used to count every graduate the Centre ever had.
@@ -15112,6 +15709,7 @@ function buildAdminPages() {
   mc.innerHTML = `
   <section class="page active" id="page-dashboard">
     <div id="sappAdminDueCard"></div>
+    <div id="officeTodayCard"></div>
     <div class="stats-grid">
       <div class="stat-card"><div class="stat-icon" style="background:var(--blue-dim);color:var(--blue);">\uD83D\uDC65</div><div class="stat-value" data-count="${totalEnrolled}">0</div><div class="stat-label">Total Enrolled Students</div><div class="stat-change" id="dashActiveLine" style="color:var(--text-muted);">${dashActiveLineText()}</div></div>
       <div class="stat-card"><div class="stat-icon" style="background:var(--green-dim);color:var(--green);">\uD83C\uDF93</div><div class="stat-value" data-count="${totalCertified}">0</div><div class="stat-label">Certified This Year</div><div class="stat-change" style="color:var(--text-muted);">Completed certification</div></div>
@@ -15120,7 +15718,7 @@ function buildAdminPages() {
     </div>
     <div class="card dash-fees-card" id="dashFeesCard">${dashFeesCardInner()}</div>
     <div class="quick-actions">
-      <div class="quick-action-btn" onclick="showPage('students')"><div class="qa-icon">&#128100;</div><div class="qa-label">Add Student</div></div>
+      <div class="quick-action-btn" onclick="openNewTrainee()"><div class="qa-icon">&#128100;</div><div class="qa-label">Add Student</div></div>
       <div class="quick-action-btn" onclick="openModal('createExamModal')"><div class="qa-icon">\uD83D\uDCDD</div><div class="qa-label">Create Exam</div></div>
       <div class="quick-action-btn" onclick="showPage('announcements')"><div class="qa-icon">\uD83D\uDCE2</div><div class="qa-label">New Announcement</div></div>
       <div class="quick-action-btn" onclick="exportReportCSV()"><div class="qa-icon">\uD83D\uDCC4</div><div class="qa-label">Export Report</div></div>
@@ -15205,30 +15803,7 @@ function buildAdminPages() {
     <iframe id="studentProgressFrame" style="width:100%;height:calc(100vh - var(--topbar-h) - 56px);border:none;border-radius:12px;"></iframe>
   </section>
 
-  <!-- TRAINING -->
-  <section class="page" id="page-training">
-    <div id="trainingOverview">
-      <p style="color:var(--text-secondary);margin-bottom:20px;font-size:14px;" id="trainingCentreCount">${skillAreas.length} dedicated skill centres — select a programme to view materials, curriculum, and resources.</p>
-      <div id="trainingAdminControls" style="display:none;margin-bottom:20px;">
-        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
-          <button class="btn btn-primary" onclick="openModal('addCentreModal')">+ Add Training Centre</button>
-          <button class="btn btn-secondary" onclick="recoverAllCourseData()" title="Scan backups to recover students and instructors for all skill areas">🔄 Recover from Backups</button>
-          <div style="flex:1;"></div>
-          <div style="display:flex;gap:8px;">
-            <button class="btn btn-secondary" onclick="toggleCentreView('grid')" id="centreViewGrid" title="Grid View" style="padding:8px 12px;">▦</button>
-            <button class="btn btn-secondary" onclick="toggleCentreView('table')" id="centreViewTable" title="Table View" style="padding:8px 12px;">☰</button>
-          </div>
-        </div>
-      </div>
-      <div class="skills-grid" id="skillsGrid"></div>
-      <div id="centreTableView" style="display:none;">
-        <div class="card"><div class="card-header"><h3>Training Centres</h3></div>
-          <div class="table-wrapper"><table><thead><tr><th>Icon</th><th>Centre Name</th><th>Description</th><th>Students</th><th>Materials</th><th>Actions</th></tr></thead><tbody id="centreTableBody"></tbody></table></div>
-        </div>
-      </div>
-    </div>
-    <div id="skillDetailPage" style="display:none;"></div>
-  </section>
+  ${adminTrainingPageHtml()}
 
   <!-- ENROLMENT REGISTERS -->
   <section class="page" id="page-enrolment-registers">
@@ -15519,37 +16094,7 @@ function buildAdminPages() {
     </div>
   </div>
 
-  <section class="page" id="page-reports">
-    <!-- The Programme return (audit M8): choose an intake and a period, then
-         download it as a spreadsheet (CSV) or a PDF. Drawn by renderProgrammeReturn(). -->
-    <div class="card pr-card" id="programmeReturnCard">
-      <div class="card-header"><h3>Programme return</h3>
-        <div class="pr-actions">
-          <button type="button" class="btn btn-primary btn-sm" onclick="exportProgrammeReturnCSV()">Download CSV</button>
-          <button type="button" class="btn btn-secondary btn-sm" onclick="exportProgrammeReturnPDF()">Download PDF</button>
-        </div>
-      </div>
-      <div class="pr-filters">
-        <label class="pr-filter"><span>Intake</span><select class="form-control" id="prIntake" onchange="programmeReturnChoose('intake', this.value)"></select></label>
-        <label class="pr-filter"><span>Period</span><select class="form-control" id="prPeriod" onchange="programmeReturnChoose('period', this.value)"></select></label>
-      </div>
-      <div id="prHeading" class="pr-heading"></div>
-      <div id="prBody"></div>
-    </div>
-    <div class="stats-grid" id="reportStats"></div>
-    <div class="grid-2col">
-      <div class="card"><div class="card-header"><h3>Student Stage Distribution</h3><button class="btn-export" onclick="exportReportCSV()">\uD83D\uDCC4 Export</button></div><div id="donutChartContainer" style="display:flex;align-items:center;gap:24px;justify-content:center;"></div></div>
-      <div class="card"><div class="card-header"><h3>Pass Rate by Programme</h3></div><div id="passRateChart"></div></div>
-    </div>
-    <div class="grid-2col">
-      <div class="card"><div class="card-header"><h3>Enrollment by Course</h3></div><div id="enrollmentBarChart" class="bar-chart"></div></div>
-      <div class="card"><div class="card-header"><h3>Overall Completion Rate</h3></div><div id="gaugeContainer" style="display:flex;flex-direction:column;align-items:center;gap:24px;padding:20px 0;"></div></div>
-    </div>
-    <div class="grid-2col">
-      <div class="card"><div class="card-header"><h3>Attendance Heatmap</h3></div><div id="attendanceHeatmap"></div></div>
-      <div class="card"><div class="card-header"><h3>Gender Distribution</h3></div><div id="genderDistContainer" style="display:flex;align-items:center;justify-content:center;gap:32px;padding:20px;"></div></div>
-    </div>
-  </section>
+  ${adminReportsPageHtml()}
 
   <!-- SETTINGS -->
   <!-- VERIFY USERS PAGE -->
@@ -23025,6 +23570,7 @@ async function syncAssignmentsFromDrive() {
 
 // ============================== RESOURCE FUNCTIONS ==============================
 function uploadResource() {
+  if(typeof staffSectionRefused === 'function' && staffSectionRefused('resources')) return;
   const name = document.getElementById('resName')?.value?.trim();
   const cat = document.getElementById('resCat')?.value;
   const type = document.getElementById('resType')?.value;
@@ -23229,6 +23775,7 @@ function assignResourceAsAssignment(resourceId) {
 }
 
 function deleteResource(id) {
+  if(typeof staffSectionRefused === 'function' && staffSectionRefused('resources')) return;
   syncTombstoneRemoved('instructorResources', instructorResources, instructorResources = instructorResources.filter(r => r.id !== id));
   saveState();
   showToast('Resource deleted');
@@ -23667,6 +24214,7 @@ async function recoverAllCourseData() {
 }
 
 async function uploadResourceToDrive() {
+  if(typeof staffSectionRefused === 'function' && staffSectionRefused('resources')) return;
   const name = document.getElementById('driveResName')?.value?.trim();
   const course = document.getElementById('driveResCourse')?.value;
   const category = document.getElementById('driveResCategory')?.value;
@@ -25087,7 +25635,7 @@ var TRANSCRIPT_FRAMES = ['transcriptGradesFrame', 'asTranscriptGradesFrame', 'sT
    or Admin Staff granted "Student Progress — manage". */
 function studentProgressManageAllowed() {
   if (currentRole === 'admin') return true;
-  return currentRole === 'adminstaff' && !!(adminStaffAccessSettings && adminStaffAccessSettings.studentsmanage);
+  return currentRole === 'adminstaff' && !!asAccessForMe().studentsmanage;
 }
 /* A trainee deleted in Student Progress: their login goes too, written down as
    deleted so no sync hands it back — the cascade the old in-page delete did,
@@ -25172,7 +25720,84 @@ window.addEventListener('message', function(e) {
     updateCtrRequestsBadge();
     try { scheduleDebouncedCloudSave(); } catch(e2) {}
   }
+  // Student Progress's "+ Add Student" (OF-7): the New trainee form — or,
+  // for somebody who may manage the roll but not add accounts, its own form.
+  if(e.data && e.data.type === 'cestis-new-trainee') {
+    if (!cestisMessageFromFrames(e, STUDENT_PROGRESS_FRAMES)) return;
+    if (officeMayAddTrainee()) openNewTrainee();
+    else { try { e.source.postMessage({ type: 'cestis-sp-add-own' }, '*'); } catch(e2) {} }
+  }
+  // The requests page (OF-9): a request moved on, or "Open transcript" /
+  // "Certify" pressed on its row.
+  if(e.data && (e.data.type === 'cestis-ctr-status' || e.data.type === 'cestis-ctr-open')) {
+    if (!cestisMessageFromFrames(e, CTR_REQUEST_FRAMES)) return;
+    if (e.data.type === 'cestis-ctr-status') ctrRequestMovedOn(String(e.data.requestId || ''), String(e.data.status || ''), String(e.data.was || ''));
+    else ctrOpenFor(String(e.data.what || ''), String(e.data.studentId || ''));
+  }
 });
+
+/* ---- Certificate / transcript requests that run themselves (OF-9, M12) ----
+   Each request row has "Open transcript", "Certify" and "Mark collected". ONE
+   collected mark updates both the request and the Certificates page, from
+   either side; and the trainee is told in her own bell (hers alone —
+   forUsers) each time her request moves on. */
+var CTR_REQUEST_FRAMES = ['ctrRequestsFrame', 'asCtrRequestsFrame'];
+function ctrReadRequests() {
+  try { var v = JSON.parse(CESTISStore.getItem('voctrain_certTranscriptRequests') || '[]'); return Array.isArray(v) ? v : []; } catch(e) { return []; }
+}
+// Tell the trainee, once per request and status (the same notice raised on two
+// office computers is one: its id is fixed).
+function ctrNotifyTrainee(r, status) {
+  if(!r) return null;
+  var text = CESTISCore.Transcript.requestNotice(r, status);
+  var uid = typeof examTraineeUserId === 'function' ? examTraineeUserId(r.studentId) : null;
+  if(!text || !uid) return null;
+  return addNotificationForUser(text, status === 'declined' ? 'warning' : 'success', '\uD83C\uDF93', uid, 'student', 'CTR-' + r.id + '-' + status);
+}
+// A certificate handed over: the trainee's record says so (as Certificates →
+// Mark Collected does), without asking again.
+function ctrCertificateCollected(studentId) {
+  var s = (students || []).find(function(x) { return x && String(x.id) === String(studentId); });
+  if(!s || s.certCollected || !(s.certNo || s.stage === 'certified' || s.stage === 'collected')) return false;
+  s.certCollected = true; s.stage = 'collected'; s.progress = 100;
+  try { markStageSetByUser(s); } catch(e) {}
+  try { filterCerts(); updatePipelineCounts(); renderCertStats(); } catch(e) {}
+  try { refreshStudentDependentViews(); } catch(e) {}
+  return true;
+}
+function ctrRequestMovedOn(requestId, status, was) {
+  if(currentRole !== 'admin' && currentRole !== 'adminstaff') return;
+  var r = ctrReadRequests().find(function(x) { return x && x.id === requestId; });
+  if(!r || r.status !== status || was === status) return;
+  ctrNotifyTrainee(r, status);
+  var certDone = status === 'collected' && CESTISCore.Transcript.wantsCertificate(r) && ctrCertificateCollected(r.studentId);
+  if(certDone) addNotification('Certificate collected: ' + (r.studentName || '') + (r.course ? ' — ' + r.course : ''), 'cert', null, ['admin']);
+  try { updateCtrRequestsBadge(); renderOfficeToday(); } catch(e) {}
+  saveState();
+}
+/* "Open transcript": Transcript/Grades with the trainee already chosen.
+   "Certify": Student Progress's stage dialog for the trainee, set to
+   Certified, with its checklist (studentProgressManageAllowed). */
+function ctrOpenFor(what, studentId) {
+  if(!studentId || (currentRole !== 'admin' && currentRole !== 'adminstaff')) return;
+  var staff = currentRole === 'adminstaff';
+  var go = function(pageId, frameId, msg, param) {
+    var f = document.getElementById(frameId);
+    var fresh = f && !f.getAttribute('data-src-loaded');
+    if(fresh) f.setAttribute('data-open-' + param, studentId);
+    showPage(pageId);
+    var post = function() { try { f.contentWindow.postMessage(msg, '*'); } catch(e) {} };
+    if(!f) return;
+    if(fresh) f.addEventListener('load', function once() { f.removeEventListener('load', once); setTimeout(post, 300); });
+    else post();
+  };
+  if(what === 'transcript') {
+    go(staff ? 'as-transcript-grades' : 'transcript-grades', staff ? 'asTranscriptGradesFrame' : 'transcriptGradesFrame', { type: 'cestis-tg-select', studentId: studentId }, 'select');
+  } else if(what === 'certify') {
+    if(!studentProgressManageAllowed() || !pageAllowedForRole(staff ? 'as-students' : 'students')) { showToast('Certifying needs "Student Progress" and "Student Progress — manage". Ask the Administrator.', 'warning'); return; }
+    go(staff ? 'as-students' : 'students', staff ? 'asStudentProgressFrame' : 'studentProgressFrame', { type: 'cestis-sp-certify', studentId: studentId }, 'certify');
+  }
+}
 
 // ============================== CERT/TRANSCRIPT REQUEST BADGE ==============================
 // Pending trainee requests for transcripts/certificates, shown on the
@@ -25194,8 +25819,101 @@ function updateCtrRequestsBadge() {
   });
 }
 window.addEventListener('storage', function(e) {
-  if(e.key === 'voctrain_certTranscriptRequests') updateCtrRequestsBadge();
+  if(e.key === 'voctrain_certTranscriptRequests') { updateCtrRequestsBadge(); try { renderOfficeToday(); } catch(x) {} }
 });
+
+/* ---- Office today (office audit OF-1, management M10) ----
+   What is waiting for the office, on the Administrator's and the Admin
+   Staff's dashboards: registrations, certificate/transcript requests (with
+   the oldest one's wait), trainees' records missing details, certificates to
+   hand over, programmes with no fee set. Each line opens its page in one
+   click, and a line is shown only to somebody who may act on it there. */
+// May the person signed in act on this section? (Administrators always; Admin
+// Staff by their ticks — CESTISCore.staffAccess, item OF-2.)
+function officeMay(key) {
+  if(currentRole === 'admin') return true;
+  if(currentRole !== 'adminstaff') return false;
+  try { return !!asAccessForMe()[key]; } catch(e) { return !!(adminStaffAccessSettings && adminStaffAccessSettings[key]); }
+}
+function officeTodayLines() {
+  if(currentRole !== 'admin' && currentRole !== 'adminstaff') return [];
+  var OT = CESTISCore.officeToday, admin = currentRole === 'admin', now = Date.now();
+  var lines = [];
+  var page = function(a, s) { return admin ? a : s; };
+  // 1. Registrations waiting (trainees' only, for Admin Staff — accountReviewAllowed).
+  if(admin || officeMay('traineeaccounts')) {
+    var queue = [];
+    try { queue = CESTISCore.accountAccess.reviewQueue(userAccounts).filter(accountReviewAllowed); } catch(e) { queue = []; }
+    var fromHome = queue.filter(function(u) { return u.registeredVia === 'home-registration'; }).length;
+    lines.push({ key: 'registrations', count: queue.length, page: page('verify-users', 'as-trainee-accounts'),
+      msg: queue.length === 1 ? 'registration waiting for approval' : 'registrations waiting for approval',
+      detail: queue.length ? (fromHome ? fromHome + ' registered from home. ' : '') + OT.someNames(queue.map(function(u) { return u.name; })) : '', clear: 'No registrations waiting' });
+  }
+  // 2. Certificate / transcript requests (every office person has the queue).
+  var reqs = [];
+  try { reqs = JSON.parse(CESTISStore.getItem('voctrain_certTranscriptRequests') || '[]') || []; } catch(e) { reqs = []; }
+  var rq = OT.openRequests(reqs, now);
+  lines.push({ key: 'requests', count: rq.count, page: page('cert-transcript-requests', 'as-cert-transcript-requests'), urgent: rq.oldestDays >= 7,
+    msg: rq.count === 1 ? 'certificate or transcript request waiting' : 'certificate or transcript requests waiting',
+    detail: rq.count ? 'Oldest: ' + (rq.oldest.studentName || 'a trainee') + ', ' + OT.waitingText(rq.oldestDays) : '', clear: 'No requests waiting' });
+  // 3. Trainees still with the Centre whose records lack a telephone, email,
+  //    date of birth or gender (typed on the fee page's Students tab).
+  var fee = [];
+  try { fee = JSON.parse(CESTISStore.getItem('cestiSchoolFeeStudents') || '[]') || []; } catch(e) { fee = []; }
+  var feeByLms = {};
+  fee.forEach(function(f) { if(f && f.lmsId != null) feeByLms[String(f.lmsId)] = f; });
+  var feeOf = function(s) { return feeByLms[String(s.id)] || fee.find(function(f) { return f && CESTISCore.isFeeTwin(s, f); }) || null; };
+  var miss = OT.recordsMissingDetails(students, feeOf, function(s) { return (studentProfiles || {})[s.id] || null; });
+  var tally = {};
+  miss.forEach(function(m) { m.missing.forEach(function(k) { tally[k] = (tally[k] || 0) + 1; }); });
+  lines.push({ key: 'details', count: miss.length, page: page('fee-management', 'as-fee-management'),
+    msg: miss.length === 1 ? 'trainee record missing details' : 'trainee records missing details',
+    detail: miss.length ? Object.keys(tally).map(function(k) { return tally[k] + ' without ' + (k === 'email' ? 'an email' : k === 'telephone' ? 'a telephone' : k === 'gender' ? 'gender' : 'a date of birth'); }).join(' · ') : '',
+    clear: 'Every current trainee\'s record has a telephone, email, date of birth and gender' });
+  // 4. Certificates to hand over (Certificates page).
+  if(admin || officeMay('certificates')) {
+    var certs = OT.certificatesToHandOut(students);
+    lines.push({ key: 'certificates', count: certs.length, page: 'certificates',
+      msg: certs.length === 1 ? 'certificate to hand out' : 'certificates to hand out',
+      detail: certs.length ? OT.someNames(certs.map(function(s) { return s.name; })) : '', clear: 'No certificates waiting to be handed out' });
+  }
+  // 5. Programmes taking trainees with no fee set (School Fee → Fee Structure).
+  var fs = {};
+  try { fs = JSON.parse(CESTISStore.getItem('cestiFeeStructure') || '{}') || {}; } catch(e) { fs = {}; }
+  var progs = [];
+  try { progs = OT.programmesWithoutFee(officeEnrollingProgrammes(), fs); } catch(e) { progs = []; }
+  lines.push({ key: 'fees', count: progs.length, page: page('fee-management', 'as-fee-management'),
+    msg: progs.length === 1 ? 'programme with no fee set' : 'programmes with no fee set',
+    detail: progs.length ? OT.someNames(progs) : '', clear: 'Every programme taking trainees has its fee set' });
+  return lines;
+}
+function renderOfficeToday() {
+  var box = document.getElementById('officeTodayCard');
+  if(!box) return;
+  // Drawn while the dashboard is on screen (and again each time it is shown).
+  var pg = box.closest ? box.closest('.page') : null;
+  if(pg && !pg.classList.contains('active')) return;
+  var lines = officeTodayLines();
+  if(!lines.length) { box.innerHTML = ''; return; }
+  var waiting = lines.filter(function(l) { return l.count > 0; });
+  var clear = lines.filter(function(l) { return !l.count; });
+  var row = function(l) {
+    var cls = 'ot-line' + (l.count ? (l.urgent ? ' ot-urgent' : '') : ' ot-clear');
+    return '<button type="button" class="' + cls + '" data-ot="' + escapeAttr(l.key) + '" onclick="showPage(' + jsArg(l.page) + ')">' +
+      '<span class="ot-count"' + (l.count ? '' : ' aria-hidden="true"') + '>' + (l.count ? l.count : '✓') + '</span>' +
+      '<span class="ot-text"><span class="ot-msg">' + (l.count ? escapeHtml(l.msg) : escapeHtml(l.clear)) + '</span>' +
+      (l.count && l.detail ? '<span class="ot-detail" style="display:block;">' + escapeHtml(l.detail) + '</span>' : '') + '</span>' +
+      (l.count ? '<span class="ot-go">Open →</span>' : '') + '</button>';
+  };
+  box.innerHTML = '<div class="card ot-card"><div class="card-header"><h3>Office today</h3>' +
+    '<span class="ot-sub">' + (waiting.length ? waiting.length + ' of ' + lines.length + ' need' + (waiting.length === 1 ? 's' : '') + ' attention' : 'Nothing waiting') + '</span></div>' +
+    '<div class="ot-lines">' + waiting.concat(clear).map(row).join('') + '</div></div>';
+}
+(function watchOfficeToday() {
+  try {
+    if(window.CESTISCore && typeof CESTISCore.on === 'function') CESTISCore.on('cestis:state-saved', function() { try { renderOfficeToday(); } catch(e) {} });
+  } catch(e) {}
+})();
 
 // ============================== EXTERNAL CHANGE ADOPTION ==============================
 // Another document — an embedded page, another tab — changed data this page also
@@ -26166,9 +26884,9 @@ function renderSkills() {
   if(!grid) return;
   // Refresh material/student counts from live data before rendering
   updateSkillAreaCounts();
-  var isAdmin = currentRole === 'admin';
+  var isAdmin = currentRole === 'admin', mayEdit = trainingCentreEditAllowed();
   grid.innerHTML = skillAreas.map(function(s) {
-    var adminBtns = isAdmin ? '<div style="display:flex;gap:6px;margin-top:8px;justify-content:center;" onclick="event.stopPropagation()"><button class="btn btn-sm btn-secondary" onclick="openEditCentre('+Number(s.id)+')" style="font-size:11px;padding:3px 8px;">✎ Edit</button><button class="btn btn-sm" style="background:#e74c3c;color:#fff;font-size:11px;padding:3px 8px;border:none;border-radius:var(--radius-sm);cursor:pointer;" onclick="openDeleteCentre('+Number(s.id)+')">✕ Delete</button></div>' : '';
+    var adminBtns = mayEdit ? '<div style="display:flex;gap:6px;margin-top:8px;justify-content:center;" onclick="event.stopPropagation()"><button class="btn btn-sm btn-secondary" onclick="openEditCentre('+Number(s.id)+')" style="font-size:11px;padding:3px 8px;">✎ Edit</button>' + (isAdmin ? '<button class="btn btn-sm" style="background:#e74c3c;color:#fff;font-size:11px;padding:3px 8px;border:none;border-radius:var(--radius-sm);cursor:pointer;" onclick="openDeleteCentre('+Number(s.id)+')">✕ Delete</button>' : '') + '</div>' : '';
     return '<div class="skill-card" onclick="showSkillDetail('+Number(s.id)+')"><div class="skill-icon" style="background:'+escapeAttr(s.color)+'22;color:'+escapeAttr(s.color)+';">'+escapeHtml(s.icon)+'</div><h4>'+escapeHtml(s.name)+'</h4><p>'+escapeHtml(s.desc)+'</p>'+cdCardDurationBadge(s)+'<div class="skill-meta"><span>👥 '+escapeHtml(s.students)+'</span><span>📄 '+escapeHtml(s.materials)+'</span></div>'+adminBtns+'</div>';
   }).join('');
 }
@@ -27971,11 +28689,20 @@ function _composeEnrolmentRegisterDoc(sk) {
 
 function initTrainingAdminControls() {
   var ctrl = document.getElementById('trainingAdminControls');
-  if(ctrl && currentRole === 'admin') {
+  // Admin Staff with Training Centres ticked add and edit centres (OF-2);
+  // recovering from backups and deleting a centre stay the Administrator's.
+  if(ctrl && trainingCentreEditAllowed()) {
     ctrl.style.display = 'block';
+    var rec = ctrl.querySelector('button[onclick="recoverAllCourseData()"]');
+    if(rec) rec.style.display = currentRole === 'admin' ? '' : 'none';
   } else if(ctrl) {
     ctrl.style.display = 'none';
   }
+}
+// Who may add and edit training centres: the Administrator, and Admin Staff
+// with "Training Centres" ticked. Deleting one stays the Administrator's.
+function trainingCentreEditAllowed() {
+  return currentRole === 'admin' || (currentRole === 'adminstaff' && !!asAccessForMe().training);
 }
 
 function toggleCentreView(mode) {
@@ -28013,8 +28740,8 @@ function renderCentreTable() {
       '<td style="text-align:center;">' + escapeHtml(c.students) + '</td>' +
       '<td style="text-align:center;">' + escapeHtml(c.materials) + '</td>' +
       '<td><div style="display:flex;gap:6px;">' +
-        '<button class="btn btn-sm btn-secondary" onclick="openEditCentre(' + Number(c.id) + ')" title="Edit">✎ Edit</button>' +
-        '<button class="btn btn-sm" style="background:#e74c3c;color:#fff;font-size:12px;padding:4px 10px;border:none;border-radius:var(--radius-sm);cursor:pointer;" onclick="openDeleteCentre(' + Number(c.id) + ')" title="Delete">✕ Delete</button>' +
+        (trainingCentreEditAllowed() ? '<button class="btn btn-sm btn-secondary" onclick="openEditCentre(' + Number(c.id) + ')" title="Edit">✎ Edit</button>' : '') +
+        (currentRole === 'admin' ? '<button class="btn btn-sm" style="background:#e74c3c;color:#fff;font-size:12px;padding:4px 10px;border:none;border-radius:var(--radius-sm);cursor:pointer;" onclick="openDeleteCentre(' + Number(c.id) + ')" title="Delete">✕ Delete</button>' : '') +
       '</div></td>' +
     '</tr>';
   }).join('');
@@ -28058,7 +28785,7 @@ function centreKeysInUse() {
 }
 
 function addTrainingCentre() {
-  if(currentRole !== 'admin') { alert('Only administrators can add training centres.'); return; }
+  if(!trainingCentreEditAllowed()) { alert('Adding training centres has not been enabled for you by the Administrator.'); return; }
   var name = document.getElementById('newCentreName').value.trim();
   var icon = document.getElementById('newCentreIcon').value.trim() || '📋';
   var color = document.getElementById('newCentreColor').value || '#3498db';
@@ -28137,7 +28864,8 @@ function addTrainingCentre() {
 }
 
 function openEditCentre(id) {
-  if(currentRole !== 'admin') { alert('Only administrators can edit training centres.'); return; }
+  if(!trainingCentreEditAllowed()) return;
+  if(!trainingCentreEditAllowed()) { alert('Editing training centres has not been enabled for you by the Administrator.'); return; }
   var centre = skillAreas.find(function(c) { return c.id === id; });
   if(!centre) return;
   document.getElementById('editCentreId').value = id;
@@ -28153,7 +28881,7 @@ function openEditCentre(id) {
 }
 
 function saveTrainingCentre() {
-  if(currentRole !== 'admin') { alert('Only administrators can edit training centres.'); return; }
+  if(!trainingCentreEditAllowed()) { alert('Editing training centres has not been enabled for you by the Administrator.'); return; }
   var id = parseInt(document.getElementById('editCentreId').value);
   var centre = skillAreas.find(function(c) { return c.id === id; });
   if(!centre) return;
@@ -28536,7 +29264,7 @@ function renderInstructorExams(filter) {
     var resultsForExam = examResults.filter(function(r){return r && r.examId===e.id && !r.archived;});
     var livePass = CESTISCore.exams.passRateOf(resultsForExam) || (resultsForExam.some(CESTISCore.exams.isProvisional) ? 'awaiting marking' : e.passRate);
     // Instructors can only edit/activate/complete their own exams
-    var isOwner = currentRole === 'admin' || (currentInstructor && e.createdBy === currentInstructor.id);
+    var isOwner = currentRole === 'admin' || (currentRole === 'adminstaff' && !!asAccessForMe().exams) || (currentInstructor && e.createdBy === currentInstructor.id);
     var createdByLabel = '';
     if(currentRole === 'instructor') {
       createdByLabel = isOwner ? '<br><span style="font-size:10px;color:var(--accent);">Created by you</span>' : '<br><span style="font-size:10px;color:var(--text-muted);">Created by Admin</span>';
@@ -29228,6 +29956,7 @@ function examCloseToggle() {
 
 
 function createExam() {
+  if(typeof staffSectionRefused === 'function' && staffSectionRefused('exams')) return;
   var title = document.getElementById('examTitle').value.trim();
   if(!title){alert('Please enter exam title');return;}
   // Validate questions
@@ -29337,7 +30066,7 @@ function createExam() {
     showToast('Exam updated with '+editing.questions+' questions!');
     addNotification('Exam updated: "' + editing.title + '" — ' + editing.questions + ' questions', 'exam', null, ['admin','instructor']);
   } else {
-    var creatorId = currentRole === 'instructor' && currentInstructor ? currentInstructor.id : (currentRole === 'admin' ? 'admin' : 'unknown');
+    var creatorId = currentRole === 'instructor' && currentInstructor ? currentInstructor.id : ((currentRole === 'admin' || currentRole === 'adminstaff') ? 'admin' : 'unknown');
     var newExam = {
       // A copied test keeps the new id it was given when copied (and says
       // which test it came from); its questions already have new ids.
@@ -29389,6 +30118,7 @@ function editExamQuestions(idx) {
 }
 
 function activateExam(idx) {
+  if(typeof staffSectionRefused === 'function' && staffSectionRefused('exams')) return;
   var e = examFind(idx);
   if(!e) return;
   if(currentRole === 'instructor' && currentInstructor && e.createdBy !== currentInstructor.id) {
@@ -29418,6 +30148,7 @@ function activateExam(idx) {
 }
 
 function completeExam(idx) {
+  if(typeof staffSectionRefused === 'function' && staffSectionRefused('exams')) return;
   var e = examFind(idx);
   if(!e) return;
   if(currentRole === 'instructor' && currentInstructor && e.createdBy !== currentInstructor.id) {
@@ -29438,6 +30169,7 @@ function completeExam(idx) {
 }
 
 function deleteExam(idx) {
+  if(typeof staffSectionRefused === 'function' && staffSectionRefused('exams')) return;
   var e = examFind(idx);
   if (!e) return;
   var resultsCount = examResults.filter(function(r) { return r && r.examId === e.id && !r.archived; }).length;
@@ -29588,7 +30320,7 @@ function viewExamDetail(idx) {
   var statusLabel = e.status==='active'?'In Progress':e.status==='completed'?'Completed':'Scheduled';
   var statusBadge = '<span class="badge '+(e.status==='upcoming'?'badge-blue':e.status==='active'?'badge-red':'badge-green')+'"><span class="badge-dot"></span>'+statusLabel+'</span>';
 
-  var canEdit = currentRole === 'admin' || (currentInstructor && e.createdBy === currentInstructor.id);
+  var canEdit = currentRole === 'admin' || (currentRole === 'adminstaff' && !!asAccessForMe().exams) || (currentInstructor && e.createdBy === currentInstructor.id);
   var canTest = canEdit && hasQuestions;
   var html = '<div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">' +
     '<button class="btn btn-secondary" onclick="backToExamList()">&larr; Back to Exams</button>' +
@@ -29726,6 +30458,7 @@ function endExamPreview() {
 }
 
 function editExam(idx) {
+  if(typeof staffSectionRefused === 'function' && staffSectionRefused('exams')) return;
   var e = examFind(idx);
   if(!e) return;
   if(currentRole === 'instructor' && currentInstructor && e.createdBy !== currentInstructor.id) {
@@ -32034,7 +32767,7 @@ var _INVIG_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Frid
 var _INVIG_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 function invigAllowed() {
-  return !!(window.CESTISCore && CESTISCore.invigilation && examActivityReady() && CESTISCore.invigilation.canOpen(currentRole, adminStaffAccessSettings));
+  return !!(window.CESTISCore && CESTISCore.invigilation && examActivityReady() && CESTISCore.invigilation.canOpen(currentRole, currentRole === 'adminstaff' ? asAccessForMe() : adminStaffAccessSettings));
 }
 function invigPageActive() {
   return !!document.querySelector('#page-invigilator.active, #page-i-invigilator.active, #page-as-invigilator.active');
@@ -32660,7 +33393,7 @@ function invigDownloadPdf() {
 var _invigAttend = null;
 function invigMayMarkAttendance() {
   if (currentRole === 'admin' || currentRole === 'instructor') return true;
-  return currentRole === 'adminstaff' && !!(adminStaffAccessSettings && adminStaffAccessSettings.attendance);
+  return currentRole === 'adminstaff' && !!asAccessForMe().attendance;
 }
 function invigOpenAttendance() {
   var reg = invigCurrentRegister();
@@ -32762,10 +33495,27 @@ function filterCerts() { renderCerts(document.getElementById('certFilter')?.valu
    whoever sat there after a background reload of the roll, so the wrong
    trainee could be marked as having collected a certificate. */
 function markCollected(id) {
+  if(typeof staffSectionRefused === 'function' && staffSectionRefused('certificates')) return;
   var idx = -1;
   for (var _mi = 0; _mi < students.length; _mi++) { if (students[_mi] && String(students[_mi].id) === String(id)) { idx = _mi; break; } }
   if (idx === -1) { showToast('That trainee\'s record changed — the list has been refreshed. Please try again.', 'warning'); filterCerts(); return; }
-  students[idx].certCollected=true;students[idx].stage='collected';students[idx].progress=100;markStageSetByUser(students[idx]);filterCerts();updatePipelineCounts();renderCertStats();refreshStudentDependentViews();showToast(`Certificate collected: ${students[idx].name}`);addNotification('Certificate collected: ' + students[idx].name + ' — ' + students[idx].course, 'cert', null, ['admin']);saveState(); }
+  students[idx].certCollected=true;students[idx].stage='collected';students[idx].progress=100;markStageSetByUser(students[idx]);filterCerts();updatePipelineCounts();renderCertStats();refreshStudentDependentViews();showToast(`Certificate collected: ${students[idx].name}`);addNotification('Certificate collected: ' + students[idx].name + ' — ' + students[idx].course, 'cert', null, ['admin']);
+  // ONE collected mark (OF-9): the trainee's open requests for a certificate
+  // are collected too, and she is told.
+  try { ctrCollectRequestsFor(students[idx].id); } catch(e) { console.warn('[Requests] could not mark the request collected', e); }
+  saveState(); }
+function ctrCollectRequestsFor(studentId) {
+  var me = (currentLoggedInUser && (currentLoggedInUser.name || currentLoggedInUser.username)) || 'Admin';
+  var res = CESTISCore.Transcript.collectCertificateRequests(ctrReadRequests(), studentId, me, new Date().toISOString());
+  if(!res.changed.length) return 0;
+  var merged = CESTISCore.Transcript.mergeRequestLists(ctrReadRequests(), res.list);
+  CESTISStore.setItem('voctrain_certTranscriptRequests', JSON.stringify(merged));
+  res.changed.forEach(function(r) { ctrNotifyTrainee(r, 'collected'); });
+  try { updateCtrRequestsBadge(); renderOfficeToday(); } catch(e) {}
+  // The requests page, if it is open, shows it at once.
+  CTR_REQUEST_FRAMES.forEach(function(id) { var f = document.getElementById(id); try { if(f && f.contentWindow) f.contentWindow.postMessage({ type: 'transcript-refresh' }, '*'); } catch(e) {} });
+  return res.changed.length;
+}
 
 /* The programmes every Reports panel counts, worked out ONCE.
 
@@ -34165,6 +34915,7 @@ function attendanceMarkAll(date, status, page) {
 function attendanceMarkAllToday(page) { attendanceMarkAll(attendanceCurrentDate(), 'present', page); }
 
 function saveAttendance() {
+  if(typeof staffSectionRefused === 'function' && staffSectionRefused('attendance')) return;
   flushAttendanceRegister();
   saveState();
   showToast('Attendance saved!');
@@ -34308,9 +35059,28 @@ function toggleAnnouncementForm() {
   announcementFormVisible = !announcementFormVisible;
   const form = document.getElementById('announcementForm');
   if(form) form.style.display = announcementFormVisible ? 'block' : 'none';
+  if(announcementFormVisible) annFillCourseOptions();
+}
+/* "Which trainees": every programme, or one (office audit OF-11). An office
+   notice such as "Cosmetology kits Monday" reached all 120 trainees on 5
+   programmes. It now carries the programme the way an instructor's does
+   (`course`, IN-10), so only that programme's trainees see it and are told
+   of it (CESTISCore.comms.forViewer, CESTISCore.notify.reaches); staff see
+   it either way. */
+function annFillCourseOptions() {
+  var sel = document.getElementById('annCourse');
+  if(!sel) return;
+  var was = sel.value;
+  var list = [];
+  try { list = getCourseList(); } catch(e) { list = []; }
+  sel.innerHTML = '<option value="">Trainees of every programme</option>' + list.map(function(c) {
+    return '<option value="' + escapeAttr(c) + '">' + escapeHtml(c) + ' trainees only</option>';
+  }).join('');
+  if(was && list.indexOf(was) !== -1) sel.value = was;
 }
 
 function createAnnouncement() {
+  if(typeof staffSectionRefused === 'function' && staffSectionRefused('announcements')) return;
   const title = document.getElementById('annTitle')?.value.trim();
   const body = document.getElementById('annBody')?.value.trim();
   if(!title || !body) { alert('Please fill in title and body'); return; }
@@ -34322,20 +35092,25 @@ function createAnnouncement() {
   if(document.getElementById('annRoleStudent')?.checked) targetRoles.push('student');
   if(document.getElementById('annRoleAdminStaff')?.checked) targetRoles.push('adminstaff');
   if(targetRoles.length === 0) { alert('Please select at least one target audience'); return; }
-  announcements.unshift({
-    id: cestisGenId('ANN-'), title, body, priority, date: localDateStr(), author, forRoles: targetRoles
-  });
+  // One programme's trainees only, when one is picked (OF-11).
+  var course = String((document.getElementById('annCourse') || {}).value || '').trim();
+  var rec = { id: cestisGenId('ANN-'), title, body, priority, date: localDateStr(), author, forRoles: targetRoles };
+  if(course) rec.course = course;
+  announcements.unshift(rec);
   document.getElementById('annTitle').value = '';
   document.getElementById('annBody').value = '';
+  var _annCourseSel = document.getElementById('annCourse'); if(_annCourseSel) _annCourseSel.value = '';
   toggleAnnouncementForm();
   renderAnnouncements();
   refreshContentDependentViews();
   saveState();
   showToast('Announcement published!');
-  addNotification('New announcement: "' + title + '"' + (priority==='urgent' ? ' (URGENT)' : ''), priority==='urgent' ? 'warning' : 'announce', null, targetRoles);
+  addNotification('New announcement: "' + title + '"' + (priority==='urgent' ? ' (URGENT)' : ''), priority==='urgent' ? 'warning' : 'announce', null, targetRoles, null,
+    course ? { forCourse: course } : null);
 }
 
 function deleteAnnouncement(id) {
+  if(typeof staffSectionRefused === 'function' && staffSectionRefused('announcements')) return;
   syncTombstoneRemoved('announcements', announcements, announcements = announcements.filter(a => a.id !== id));
   renderAnnouncements();
   refreshContentDependentViews();
@@ -34353,7 +35128,7 @@ function renderAnnouncements() {
     var audienceBadges = (a.forRoles || ['admin','instructor','student']).map(function(r) {
       var colors = {admin:'background:var(--accent-dim);color:var(--accent)',instructor:'background:var(--green-dim);color:var(--green)',student:'background:var(--blue-dim);color:var(--blue)'};
       return '<span style="'+colors[r]+';padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;text-transform:capitalize;">'+escapeHtml(r)+'</span>';
-    }).join('');
+    }).join('') + (a.course ? '<span style="background:var(--teal-dim);color:var(--teal);padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;">'+escapeHtml(a.course)+' trainees only</span>' : '');
     return `
     <div class="announcement-card priority-${annPriorityClass(a.priority)}">
       <div class="ann-header">
@@ -34579,7 +35354,7 @@ function changeCalMonth(delta) {
   if(calendarMonth > 11) { calendarMonth = 0; calendarYear++; }
   if(calendarMonth < 0) { calendarMonth = 11; calendarYear--; }
   selectedCalendarDay = null;
-  if(currentRole === 'admin') renderCalendar();
+  if(currentRole === 'admin' || currentRole === 'adminstaff') renderCalendar();
   else if(currentRole === 'instructor') renderInstructorCalendar();
   else renderStudentCalendar();
 }
@@ -34669,6 +35444,7 @@ function cestisRenderCalendars() {
 }
 
 function saveCalendarEventForm() {
+  if(typeof staffSectionRefused === 'function' && staffSectionRefused('calendar')) return;
   var form = readCalendarEventForm();
   var check = CESTISCore.comms.validateEvent(form);
   var err = document.getElementById('calEvtError');
@@ -34705,7 +35481,8 @@ function saveCalendarEventForm() {
 // Administrators edit any event; an instructor edits the events they made.
 function calCanEditEvent(ev) {
   if (!ev) return false;
-  if (currentRole === 'admin' || currentRole === 'adminstaff') return true;
+  if (currentRole === 'admin') return true;
+  if (currentRole === 'adminstaff') return !!asAccessForMe().calendar;
   var me = currentLoggedInUser && currentLoggedInUser.id;
   return currentRole === 'instructor' && !!me && ev.createdById === me;
 }
@@ -38305,6 +39082,10 @@ function mergeCloudAccounts(cloudAccounts, opts) {
         try { delete localMatch._plaintextPw; } catch(e) {}     // an old password must no longer validate
         changed++;
       }
+      // A first-sign-in code's mark travels with the password it marks (OF-4);
+      // a mark that no longer matches its password simply means nothing.
+      if (cloudUser.firstSignInCode && typeof cloudUser.firstSignInCode === 'object' &&
+          JSON.stringify(cloudUser.firstSignInCode) !== JSON.stringify(localMatch.firstSignInCode || null)) { localMatch.firstSignInCode = cloudUser.firstSignInCode; changed++; }
       if (cloudUser.status && cloudUser.status !== localMatch.status) { localMatch.status = cloudUser.status; changed++; }
       if ((cloudUser.disabledAt || '') !== (localMatch.disabledAt || '')) {
         if (cloudUser.disabledAt) { localMatch.disabledAt = cloudUser.disabledAt; localMatch.disabledBy = cloudUser.disabledBy; }
@@ -41275,8 +42056,18 @@ var GATE_REG_FIELD = {
   programme: 'Please choose your programme.',
   phone: 'Please enter your phone number with digits only (spaces and + - ( ) are fine), or leave it blank.',
   password: 'Your password must be at least 6 characters, with at least one capital letter and one number.',
-  confirm: 'The two passwords do not match.'
+  confirm: 'The two passwords do not match.',
+  gender: 'Please choose Female or Male.',
+  dob: 'Please enter your date of birth (you must be at least 12).',
+  trn: 'Your TRN is 9 digits (for example 123-456-789). Leave it blank if you do not have one.',
+  address: 'Please enter your home address.',
+  parentName: 'Please enter your parent or guardian\'s name, or leave both of their boxes blank.',
+  parentPhone: 'Please enter your parent or guardian\'s phone number, or leave both of their boxes blank.',
+  emergencyName: 'Please enter the name of somebody we can call in an emergency.',
+  emergencyPhone: 'Please enter the phone number of somebody we can call in an emergency.'
 };
+// The boxes of her personal details on the form (Core.accountAccess.traineeDetails).
+var GATE_REG_DETAIL_IDS = { gender: 'grGender', dob: 'grDob', trn: 'grTrn', address: 'grAddress', parentName: 'grParentName', parentPhone: 'grParentPhone', emergencyName: 'grEmergencyName', emergencyPhone: 'grEmergencyPhone' };
 function gateRegSay(code) {
   var c = String(code || 'unreachable');
   if (GATE_REG_SAY[c]) return GATE_REG_SAY[c];
@@ -41351,6 +42142,27 @@ function gateRegisterForm(res, ctx) {
     '<div class="form-group"><label for="grName">Full name (first &amp; last name)</label><input type="text" id="grName" autocomplete="name" value="' + escapeAttr(name) + '" placeholder="First and last name, e.g. Tameka Richards"></div>' +
     '<div class="form-group"><label for="grProgramme">Programme</label><select id="grProgramme"><option value="">— Choose your programme —</option>' + opts + '</select></div>' +
     '<div class="form-group"><label for="grPhone">Phone (optional)</label><input type="tel" id="grPhone" autocomplete="tel" placeholder="e.g. 876-555-0123"></div>' +
+    // Asked once, here, so the office only checks them (OF-3).
+    '<fieldset class="gate-reg-set"><legend>About you</legend>' +
+      '<div class="gate-reg-row">' +
+        '<div class="form-group"><label for="grGender">Gender</label><select id="grGender"><option value="">— Choose —</option><option value="Female">Female</option><option value="Male">Male</option></select></div>' +
+        '<div class="form-group"><label for="grDob">Date of birth</label><input type="date" id="grDob" autocomplete="bday"></div>' +
+      '</div>' +
+      '<div class="form-group"><label for="grTrn">TRN (optional)</label><input type="text" id="grTrn" inputmode="numeric" autocomplete="off" placeholder="e.g. 123-456-789"></div>' +
+      '<div class="form-group"><label for="grAddress">Home address</label><input type="text" id="grAddress" autocomplete="street-address" placeholder="e.g. 12 Hope Road, Kingston 6"></div>' +
+    '</fieldset>' +
+    '<fieldset class="gate-reg-set"><legend>Parent or guardian (optional)</legend>' +
+      '<div class="gate-reg-row">' +
+        '<div class="form-group"><label for="grParentName">Name</label><input type="text" id="grParentName" autocomplete="off" placeholder="e.g. Paulette Barrett"></div>' +
+        '<div class="form-group"><label for="grParentPhone">Phone</label><input type="tel" id="grParentPhone" autocomplete="off" placeholder="e.g. 876-555-0145"></div>' +
+      '</div>' +
+    '</fieldset>' +
+    '<fieldset class="gate-reg-set"><legend>Emergency contact</legend>' +
+      '<div class="gate-reg-row">' +
+        '<div class="form-group"><label for="grEmergencyName">Name</label><input type="text" id="grEmergencyName" autocomplete="off" placeholder="Somebody we can call"></div>' +
+        '<div class="form-group"><label for="grEmergencyPhone">Phone</label><input type="tel" id="grEmergencyPhone" autocomplete="off" placeholder="e.g. 876-555-0178"></div>' +
+      '</div>' +
+    '</fieldset>' +
     '<div class="form-group"><label for="grPassword">Password</label><input type="password" id="grPassword" autocomplete="new-password" placeholder="At least 6 characters">' +
       '<div class="gate-reg-hint">With a capital letter and a number. You can sign in with it, or with your email account.</div></div>' +
     '<div class="form-group"><label for="grPassword2">Confirm password</label><input type="password" id="grPassword2" autocomplete="new-password" placeholder="Type it again"></div>' +
@@ -41377,13 +42189,18 @@ async function gateRegisterSubmit() {
   if (!CESTISCore.accountAccess.isFullName(name) || /[<>"]/.test(name)) { gateRegFormSay(GATE_REG_FIELD.name); return; }
   if (!programme) { gateRegFormSay(GATE_REG_FIELD.programme); return; }
   if (phone && !CESTISCore.accountAccess.PHONE_RE.test(phone)) { gateRegFormSay(GATE_REG_FIELD.phone); return; }
+  // Her personal details, by the rules the gate keeps (CESTISCore.accountAccess.traineeDetails).
+  var TD = CESTISCore.accountAccess.traineeDetails, form = {};
+  Object.keys(GATE_REG_DETAIL_IDS).forEach(function(k) { form[k] = v(GATE_REG_DETAIL_IDS[k]); });
+  var det = TD.check(form, { require: TD.HOME_REQUIRED });
+  if (!det.ok) { gateRegFormSay(GATE_REG_FIELD[det.field]); try { document.getElementById(GATE_REG_DETAIL_IDS[det.field]).focus(); } catch (e) {} return; }
   if (pw.length < 6 || !/[A-Z]/.test(pw) || !/[0-9]/.test(pw)) { gateRegFormSay(GATE_REG_FIELD.password); return; }
   if (pw !== pw2) { gateRegFormSay(GATE_REG_FIELD.confirm); return; }
   _gateReg.busy = true;
   var btn = document.getElementById('grSend'); if (btn) btn.disabled = true;
   gateRegFormSay('Sending your registration to the office…', true);
   var res = null;
-  try { res = await CESTISGate.registerSubmit({ accessToken: _gateReg.token, name: name, programme: programme, phone: phone, password: pw }); }
+  try { res = await CESTISGate.registerSubmit(Object.assign({ accessToken: _gateReg.token, name: name, programme: programme, phone: phone, password: pw }, det.value)); }
   catch (e) { res = { ok: false, error: 'unreachable' }; }
   _gateReg.busy = false;
   if (btn) btn.disabled = false;
@@ -41565,6 +42382,8 @@ function gateEnterPortal() {
   loginSyncCompleted = true;
   gateBootScreenHide();
   enterApp('student');
+  // Signed in with the office's first-sign-in code: her own password (OF-4).
+  try { homeFirstCodeCheck(acct); } catch (e) {}
 }
 /* How often this phone asks for her records (T1): every minute from 10
    minutes before to 30 minutes after a class of her programme is due to
@@ -48003,12 +48822,48 @@ function saveAdminStaffAccessToStorage() {
    the live settings at once, and the next save of anything — or the autosave —
    granted it to every Admin Staff device although nobody pressed Save. The
    draft is started afresh each time the grid is drawn, so leaving the page
-   discards it. */
+   discards it.
+
+   Person by person (OF-2): "Whose access" picks the default (everybody with
+   no ticks of their own) or one Admin Staff member. A person's own ticks are
+   kept in the grid's `people` (CESTISCore.staffAccess); "Use the default for
+   this person" puts them back on the default. */
 var asAccessDraft = null;
+function adminStaffPeople() {
+  return (userAccounts || []).filter(function(u) { return u && u.role === 'adminstaff' && u.status !== 'rejected'; })
+    .sort(function(a, b) { return String(a.name || '').localeCompare(String(b.name || '')); });
+}
+function adminStaffAccessPerson() {
+  var sel = document.getElementById('asAccessPerson');
+  return sel ? String(sel.value || '') : '';
+}
 function renderAdminStaffAccessGrid() {
   var grid = document.getElementById('asAccessGrid');
   if(!grid) return;
-  asAccessDraft = Object.assign({}, adminStaffAccessSettings || {});
+  var sel = document.getElementById('asAccessPerson');
+  var who = '';
+  if(sel) {
+    who = String(sel.value || '');
+    var people = adminStaffPeople();
+    if(who && !people.some(function(u) { return u.id === who; })) who = '';
+    sel.innerHTML = '<option value="">Everyone — the default</option>' + people.map(function(u) {
+      var own = CESTISCore.staffAccess.ownTicks(adminStaffAccessSettings, u.id);
+      return '<option value="' + escapeAttr(u.id) + '"' + (u.id === who ? ' selected' : '') + '>' + escapeHtml(u.name || u.username) + (own ? ' — own ticks' : ' — uses the default') + '</option>';
+    }).join('');
+  }
+  var known = adminStaffAccessDefaults();
+  asAccessDraft = who ? asAccessFor(who) : (function() {
+    var d = {};
+    Object.keys(known).forEach(function(k) { d[k] = (k in adminStaffAccessSettings) ? !!adminStaffAccessSettings[k] : !!known[k]; });
+    return d;
+  })();
+  var note = document.getElementById('asAccessPersonNote');
+  var useDef = document.getElementById('asAccessUseDefault');
+  var hasOwn = who && CESTISCore.staffAccess.ownTicks(adminStaffAccessSettings, who);
+  if(note) note.textContent = !who ? 'These ticks apply to every Admin Staff member who has no ticks of their own.'
+    : hasOwn ? 'This person has ticks of their own. Changing the default does not change them.'
+    : 'This person uses the default. Saving gives them ticks of their own.';
+  if(useDef) useDef.style.display = hasOwn ? '' : 'none';
   var html = '';
   asAccessPages.forEach(function(pg) {
     var checked = asAccessDraft[pg.key] ? 'checked' : '';
@@ -48023,25 +48878,52 @@ function renderAdminStaffAccessGrid() {
 }
 
 function toggleAsAccess(key, itemEl) {
-  if(!asAccessDraft) asAccessDraft = Object.assign({}, adminStaffAccessSettings || {});
+  if(!asAccessDraft) asAccessDraft = asAccessFor(adminStaffAccessPerson() || null);
   asAccessDraft[key] = !asAccessDraft[key];
   var cb = document.getElementById('asAccess_'+key);
   if(cb) cb.checked = !!asAccessDraft[key];
 }
 
 function saveAdminStaffAccess() {
+  if(currentRole !== 'admin') return;
+  var who = adminStaffAccessPerson();
   if(asAccessDraft) {
-    Object.keys(asAccessDraft).forEach(function(k){ adminStaffAccessSettings[k] = asAccessDraft[k]; });
+    if(who) {
+      // This person's own ticks, every section written down, dated.
+      var people = Object.assign({}, adminStaffAccessSettings.people || {});
+      people[who] = CESTISCore.staffAccess.entry(asAccessDraft, AS_ACCESS_DEFAULTS, new Date().toISOString());
+      adminStaffAccessSettings.people = people;
+    } else {
+      Object.keys(adminStaffAccessDefaults()).forEach(function(k){ if(k in asAccessDraft) adminStaffAccessSettings[k] = !!asAccessDraft[k]; });
+    }
   }
   saveAdminStaffAccessToStorage();
   // Takes effect at once for anyone signed in as Admin Staff on this device.
   refreshAdminStaffNav();
-  showToast('Admin Staff access settings saved!');
+  renderAdminStaffAccessGrid();
+  var u = who ? (userAccounts || []).find(function(a) { return a && a.id === who; }) : null;
+  showToast(u ? 'Access saved for ' + (u.name || u.username) + '.' : 'Admin Staff access settings saved!');
+}
+/* Put one person back on the default ticks (their own are set aside, as an
+   entry of its own, so the change reaches every device). */
+function adminStaffAccessUseDefault() {
+  if(currentRole !== 'admin') return;
+  var who = adminStaffAccessPerson();
+  if(!who) return;
+  var people = Object.assign({}, adminStaffAccessSettings.people || {});
+  people[who] = CESTISCore.staffAccess.defaultEntry(new Date().toISOString());
+  adminStaffAccessSettings.people = people;
+  saveAdminStaffAccessToStorage();
+  refreshAdminStaffNav();
+  renderAdminStaffAccessGrid();
+  showToast('Back on the default ticks.');
 }
 
 // ============================== BUILD ADMIN STAFF SIDEBAR ==============================
 function buildAdminStaffSidebar() {
   var nav = document.getElementById('sidebarNav');
+  // This person's ticks (their own, or the default — asAccessForMe).
+  var my = asAccessForMe();
   var html = '<div class="nav-section-label">My Portal</div>';
   html += '<div class="nav-item active" data-page="as-dashboard" onclick="showPage(\'as-dashboard\')">' +
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Dashboard</div>';
@@ -48064,55 +48946,55 @@ function buildAdminStaffSidebar() {
 
   // Conditionally show pages based on admin access settings
   var hasAdditional = false;
-  if(adminStaffAccessSettings.video) {
+  if(my.video) {
     if(!hasAdditional) { html += '<div class="nav-section-label">Permitted Functions</div>'; hasAdditional = true; }
     html += '<div class="nav-item" data-page="as-video" onclick="showPage(\'as-video\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>Video Conference</div>';
   }
-  if(adminStaffAccessSettings.students) {
+  if(my.students) {
     if(!hasAdditional) { html += '<div class="nav-section-label">Permitted Functions</div>'; hasAdditional = true; }
     html += '<div class="nav-item" data-page="as-students" onclick="showPage(\'as-students\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Student Progress</div>';
   }
-  if(adminStaffAccessSettings.training) {
+  if(my.training) {
     if(!hasAdditional) { html += '<div class="nav-section-label">Permitted Functions</div>'; hasAdditional = true; }
-    html += '<div class="nav-item" data-page="as-training" onclick="showPage(\'as-training\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>Training Centres</div>';
+    html += '<div class="nav-item" data-page="training" onclick="showPage(\'training\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>Training Centres</div>';
   }
-  if(adminStaffAccessSettings.resources) {
+  if(my.resources) {
     if(!hasAdditional) { html += '<div class="nav-section-label">Permitted Functions</div>'; hasAdditional = true; }
-    html += '<div class="nav-item" data-page="as-resources" onclick="showPage(\'as-resources\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>Resource Manager</div>';
+    html += '<div class="nav-item" data-page="a-resources" onclick="showPage(\'a-resources\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>Resource Manager</div>';
   }
-  if(adminStaffAccessSettings.exams) {
+  if(my.exams) {
     if(!hasAdditional) { html += '<div class="nav-section-label">Permitted Functions</div>'; hasAdditional = true; }
-    html += '<div class="nav-item" data-page="as-exams" onclick="showPage(\'as-exams\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Online Exams</div>';
+    html += '<div class="nav-item" data-page="exams" onclick="showPage(\'exams\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Online Exams</div>';
   }
-  if(adminStaffAccessSettings.invigilation) {
+  if(my.invigilation) {
     if(!hasAdditional) { html += '<div class="nav-section-label">Permitted Functions</div>'; hasAdditional = true; }
     html += '<div class="nav-item" data-page="as-invigilator" onclick="showPage(\'as-invigilator\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>Exam Invigilator</div>';
   }
 
   var hasMgmt = false;
-  if(adminStaffAccessSettings.traineeaccounts) {
+  if(my.traineeaccounts) {
     if(!hasMgmt) { html += '<div class="nav-section-label">Management</div>'; hasMgmt = true; }
     html += '<div class="nav-item" data-page="as-trainee-accounts" onclick="showPage(\'as-trainee-accounts\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6"/><path d="M23 11h-6"/></svg>Trainee Accounts<span class="nav-badge" id="asPendingUsersBadge" style="display:none;background:var(--red);">0</span></div>';
   }
-  if(adminStaffAccessSettings.attendance) {
+  if(my.attendance) {
     if(!hasMgmt) { html += '<div class="nav-section-label">Management</div>'; hasMgmt = true; }
-    html += '<div class="nav-item" data-page="as-attendance" onclick="showPage(\'as-attendance\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>Attendance</div>';
+    html += '<div class="nav-item" data-page="attendance" onclick="showPage(\'attendance\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>Attendance</div>';
   }
-  if(adminStaffAccessSettings.announcements) {
+  if(my.announcements) {
     if(!hasMgmt) { html += '<div class="nav-section-label">Management</div>'; hasMgmt = true; }
-    html += '<div class="nav-item" data-page="as-announcements" onclick="showPage(\'as-announcements\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>Announcements</div>';
+    html += '<div class="nav-item" data-page="announcements" onclick="showPage(\'announcements\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>Announcements</div>';
   }
-  if(adminStaffAccessSettings.calendar) {
+  if(my.calendar) {
     if(!hasMgmt) { html += '<div class="nav-section-label">Management</div>'; hasMgmt = true; }
-    html += '<div class="nav-item" data-page="as-calendar" onclick="showPage(\'as-calendar\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Calendar</div>';
+    html += '<div class="nav-item" data-page="calendar" onclick="showPage(\'calendar\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Calendar</div>';
   }
-  if(adminStaffAccessSettings.certificates) {
+  if(my.certificates) {
     if(!hasMgmt) { html += '<div class="nav-section-label">Management</div>'; hasMgmt = true; }
-    html += '<div class="nav-item" data-page="as-certificates" onclick="showPage(\'as-certificates\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>Certificates</div>';
+    html += '<div class="nav-item" data-page="certificates" onclick="showPage(\'certificates\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>Certificates</div>';
   }
-  if(adminStaffAccessSettings.reports) {
+  if(my.reports) {
     if(!hasMgmt) { html += '<div class="nav-section-label">Management</div>'; hasMgmt = true; }
-    html += '<div class="nav-item" data-page="as-reports" onclick="showPage(\'as-reports\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Reports</div>';
+    html += '<div class="nav-item" data-page="reports" onclick="showPage(\'reports\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Reports</div>';
   }
 
   // Document Hub and PDF Workshop always visible for admin staff
@@ -48139,7 +49021,7 @@ function buildAdminStaffSidebar() {
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>School Fee Management</div>';
 
   // Support Messages — conditionally visible based on access settings
-  if(adminStaffAccessSettings.supportmessages) {
+  if(my.supportmessages) {
     html += '<div class="nav-section-label">Support</div>';
     html += '<div class="nav-item" data-page="as-support-messages" onclick="showPage(\'as-support-messages\')">' +
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>Support Messages<span class="nav-badge" id="supportMsgBadge" style="display:none;background:var(--red);">0</span></div>';
@@ -48161,7 +49043,7 @@ function buildAdminStaffSidebar() {
   setTimeout(updateCtrRequestsBadge, 200);
   setTimeout(function(){ try { refreshAttentionBadges(); } catch(e) {} }, 300);
   // The count of trainees' registrations waiting, on "Trainee Accounts" (renderVerifyUsersPage sets it).
-  if(adminStaffAccessSettings.traineeaccounts) setTimeout(function() { try { renderVerifyUsersPage(); } catch(e) {} }, 250);
+  if(my.traineeaccounts) setTimeout(function() { try { renderVerifyUsersPage(); } catch(e) {} }, 250);
 }
 
 // ============================== BUILD ADMIN STAFF PAGES ==============================
@@ -48249,6 +49131,9 @@ function buildAdminStaffPages() {
     '<p>Administrative Staff &mdash; ' + escapeHtml(user.email) + '</p>' +
   '</div>';
 
+  // Office today: what is waiting for the office (renderOfficeToday).
+  html += '<div id="officeTodayCard"></div>';
+
   // Duty Stats
   html += '<div class="as-duty-stats">' +
     '<div class="as-duty-stat"><div class="as-ds-val" style="color:var(--accent);">' + myTasks.length + '</div><div class="as-ds-label">Total Duties</div></div>' +
@@ -48257,14 +49142,23 @@ function buildAdminStaffPages() {
     '<div class="as-duty-stat"><div class="as-ds-val" style="color:var(--red);">' + overdueTasks.length + '</div><div class="as-ds-label">Overdue</div></div>' +
   '</div>';
 
-  // Performance Card
-  html += '<div class="card" style="margin-bottom:24px;padding:24px;">' +
+  // Performance Card. A new member of staff with no duties yet has no
+  // performance to show: they were greeted with "0% Performance — Needs
+  // Improvement" before anybody had given them anything to do (OF-1).
+  if(perf.total === 0) {
+    html += '<div class="card" style="margin-bottom:24px;padding:20px 24px;" id="asPerfCard">' +
+      '<div style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px;">Performance</div>' +
+      '<p class="ot-new-staff">No duties have been given to you yet. Your performance appears here once the Administrator assigns you duties and you complete them.</p>' +
+    '</div>';
+  } else {
+  html += '<div class="card" style="margin-bottom:24px;padding:24px;" id="asPerfCard">' +
     '<div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;">' +
       '<div style="text-align:center;"><div style="font-size:42px;font-weight:800;font-family:\'Playfair Display\',serif;color:'+perfColor+';">'+perf.score+'%</div><div style="font-size:12px;color:var(--text-muted);">Performance</div></div>' +
       '<div style="flex:1;min-width:200px;"><div class="adr-staff-perf-bar" style="height:12px;margin-bottom:8px;"><div class="adr-staff-perf-fill" style="width:'+perf.score+'%;background:'+perfColor+';"></div></div>' +
       '<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);"><span>'+perf.onTime+' on time / '+perf.total+' total</span><span class="adr-badge '+badge.cls+'" style="font-size:12px;">'+badge.icon+' '+badge.label+'</span></div></div>' +
     '</div>' +
   '</div>';
+  }
 
   // My Performance Appraisal grade card (rendered by staff-appraisals.js after build)
   html += '<div id="asMyAppraisalCard"></div>';
@@ -48368,54 +49262,22 @@ function buildAdminStaffPages() {
     '<div class="cestis-mount" data-feature="verify-users" data-prefix="adminstaff"></div>' +
   '</section>';
 
-  // Training Centres
-  html += '<section class="page" id="page-as-training">' +
-    '<div class="card-header" style="margin-bottom:16px;"><h3 style="font-family:\'Playfair Display\',serif;">Training Centres</h3></div>' +
-    '<div class="grid-3">' +
-      skillAreas.map(function(sk){ return '<div class="card" style="padding:20px;text-align:center;"><div style="font-size:36px;margin-bottom:8px;">'+escapeHtml(sk.icon)+'</div><h4 style="font-size:14px;margin-bottom:4px;">'+escapeHtml(sk.name)+'</h4><div style="font-size:12px;color:var(--text-muted);">'+sk.students+' students &bull; '+sk.materials+' materials</div><p style="font-size:11px;color:var(--text-muted);margin-top:8px;">'+escapeHtml(sk.desc)+'</p></div>'; }).join('') +
-    '</div>' +
-  '</section>';
-
-  // Resource Manager
-  html += '<section class="page" id="page-as-resources">' + '<div class="cestis-mount" data-feature="as-resources" data-prefix="adminstaff"></div>' + '</section>';
-
-  // Online Exams
-  html += '<section class="page" id="page-as-exams">' + '<div class="cestis-mount" data-feature="as-exams" data-prefix="adminstaff"></div>' + '</section>';
+  // Training Centres, Resource Manager, Online Exams, Attendance,
+  // Announcements, Calendar, Certificates and Reports: the Administrator's own
+  // WORKING pages, under the Administrator's page names (office audit OF-2:
+  // with every tick on, these used to be read-only lists with 0 action
+  // buttons). Built for every Admin Staff member; the sidebar and
+  // pageAllowedForRole decide, person by person, who may open each one, and
+  // each action checks the tick again (staffSectionRefused).
+  html += adminTrainingPageHtml();
+  html += '<section class="page" id="page-a-resources"><div class="cestis-mount" data-feature="a-resources" data-prefix="admin"></div></section>';
+  html += '<section class="page" id="page-exams"><div class="cestis-mount" data-feature="exams" data-prefix="admin"></div></section>';
   html += '<section class="page" id="page-as-invigilator">' + '<div class="cestis-mount" data-feature="invigilator" data-prefix="adminstaff"></div>' + '</section>';
-
-  // Attendance Management
-  html += '<section class="page" id="page-as-attendance">' + '<div class="cestis-mount" data-feature="as-attendance" data-prefix="adminstaff"></div>' + '</section>';
-
-  // Announcements
-  html += '<section class="page" id="page-as-announcements">' + '<div class="cestis-mount" data-feature="as-announcements" data-prefix="adminstaff"></div>' + '</section>';
-
-  // Calendar
-  html += '<section class="page" id="page-as-calendar">' + '<div class="cestis-mount" data-feature="as-calendar" data-prefix="adminstaff"></div>' + '</section>';
-
-  // Certificate Tracking
-  html += '<section class="page" id="page-as-certificates">' + '<div class="cestis-mount" data-feature="as-certificates" data-prefix="adminstaff"></div>' + '</section>';
-
-  // Reports
-  html += '<section class="page" id="page-as-reports">' +
-    '<div class="card-header" style="margin-bottom:16px;"><h3 style="font-family:\'Playfair Display\',serif;">Reports & Analytics</h3></div>' +
-    '<div class="grid-2">' +
-      '<div class="card" style="padding:20px;"><h4 style="margin-bottom:12px;">Enrollment Summary</h4>' +
-        '<div style="font-size:42px;font-weight:800;color:var(--accent);margin-bottom:4px;">'+students.length+'</div>' +
-        '<div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">Total Students</div>' +
-        (function(){ var _t = centreRollTally(); return courses.map(function(c){ var count = programmeRoll(_t, c).length; return '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;"><span>'+c+'</span><strong>'+count+'</strong></div>'; }).join(''); })() +
-      '</div>' +
-      '<div class="card" style="padding:20px;"><h4 style="margin-bottom:12px;">Student Pipeline</h4>' +
-        stages.map(function(st){ var count = students.filter(function(s){ return s.stage===st; }).length; return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;"><span>'+stageIcons[st]+' '+(stageLabels[st]||st)+'</span><strong>'+count+'</strong></div>'; }).join('') +
-      '</div>' +
-    '</div>' +
-    '<div class="card" style="padding:20px;margin-top:16px;"><h4 style="margin-bottom:12px;">Exam Results Summary</h4>' +
-      '<div style="display:flex;gap:24px;flex-wrap:wrap;">' +
-        '<div><div style="font-size:28px;font-weight:700;color:var(--green);">'+examResults.length+'</div><div style="font-size:12px;color:var(--text-muted);">Total Submissions</div></div>' +
-        '<div><div style="font-size:28px;font-weight:700;color:var(--accent);">'+exams.filter(function(e){ return e.status==='completed'; }).length+'</div><div style="font-size:12px;color:var(--text-muted);">Exams Completed</div></div>' +
-        '<div><div style="font-size:28px;font-weight:700;color:var(--blue);">'+exams.filter(function(e){ return e.status==='upcoming'; }).length+'</div><div style="font-size:12px;color:var(--text-muted);">Upcoming Exams</div></div>' +
-      '</div>' +
-    '</div>' +
-  '</section>';
+  html += '<section class="page" id="page-attendance"><div class="cestis-mount" data-feature="attendance" data-prefix="admin"></div></section>';
+  html += '<section class="page" id="page-announcements"><div class="cestis-mount" data-feature="announcements" data-prefix="admin"></div></section>';
+  html += '<section class="page" id="page-calendar"><div class="cestis-mount" data-feature="calendar" data-prefix="admin"></div></section>';
+  html += '<section class="page" id="page-certificates"><div class="cestis-mount" data-feature="certificates" data-prefix="admin"></div></section>';
+  html += adminReportsPageHtml();
 
   // ---- PDF Workshop Page (Admin Staff) ----
   html += '<section class="page" id="page-as-pdf-workshop">' +
@@ -48523,6 +49385,7 @@ function buildAdminStaffPages() {
   mc.innerHTML = html;
   loadSupportMessages();
   updateSupportBadge();
+  setTimeout(function() { try { renderOfficeToday(); } catch(e) {} }, 250);
 }
 
 // ---- Admin Staff Student Filter ----

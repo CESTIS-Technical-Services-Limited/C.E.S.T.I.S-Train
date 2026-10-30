@@ -103,7 +103,8 @@ console.log('A published default opens nothing once the Centre has a real admini
 console.log('Every password sign-in goes through the gate before anything opens');
 {
   ['admin', 'student', 'instructor', 'adminstaff', 'cmc'].forEach(function (role) {
-    const re = new RegExp("publishedDefaultGate\\(\\w+, pw, '" + role + "', function\\(\\)\\{ tfaGateLogin\\(");
+    // (A trainee signing in with the office's first-sign-in code chooses her own password next — firstCodeGate, OF-4.)
+    const re = new RegExp("publishedDefaultGate\\(\\w+, pw, '" + role + "', function\\(\\)\\{ (?:firstCodeGate\\(\\w+, '" + role + "', function\\(\\)\\{ )?tfaGateLogin\\(");
     assert(re.test(SRC), 'the ' + role + ' sign-in passes its typed password through publishedDefaultGate, then two-step');
   });
   assert(!/^\s*tfaGateLogin\((adminUser|userAccount), function\(\)\{ currentLoggedInUser = /m.test(SRC),

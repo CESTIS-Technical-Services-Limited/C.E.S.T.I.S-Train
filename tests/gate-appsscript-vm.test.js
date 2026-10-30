@@ -848,7 +848,10 @@ function sRegister(src) {
   w.tokeninfo['tok-reg-unver'] = info(EMAIL, { email_verified: 'false' });
   w.tokeninfo['tok-reg-has01'] = info(C.trainees[2].acct.email);
   w.tokeninfo['tok-reg-pend1'] = info(C.pending.email);
-  const submit = over => w.post(Object.assign({ op: 'register.submit', accessToken: 'tok-reg-new1', name: 'Shantelle  Barrett', programme: P[0], phone: '876-555-0101', password: REG_STORED }, over || {}));
+  // With her personal details (office audit OF-3; Core.accountAccess.traineeDetails).
+  const submit = over => w.post(Object.assign({ op: 'register.submit', accessToken: 'tok-reg-new1', name: 'Shantelle  Barrett', programme: P[0], phone: '876-555-0101', password: REG_STORED,
+    gender: 'Female', dob: '2005-02-14', trn: '123-456-789', address: '4 Hope Road, Kingston 6', parentName: 'Paulette Barrett', parentPhone: '876-555-0145',
+    emergencyName: 'Paulette Barrett', emergencyPhone: '876-555-0145' }, over || {}));
   const regFolder = () => w.drive.children(cfg.registrationsId, 'file').filter(f => /^CESTISREG\./.test(f.name));
   const traineeFolders = () => w.drive.children(cfg.traineesId, 'folder');
 
@@ -880,6 +883,11 @@ function sRegister(src) {
   assertEq(submit({ phone: 'call me' }).field, 'phone', 'a phone that is not one');
   assertEq(submit({ password: 'Shantelle-2026' }).field, 'password', 'a password as typed — never taken (it must arrive as its check)');
   assertEq(submit({ password: pbkdf2(REG_PW, '00112233445566778899aabbccddeeff', 1000) }).field, 'password', 'a check of too few rounds');
+  assertEq(submit({ gender: '' }).field, 'gender', 'her gender is asked');
+  assertEq(submit({ dob: '2005-13-01' }).field, 'dob', 'a date of birth that is not one');
+  assertEq(submit({ address: '' }).field, 'address', 'her address is asked');
+  assertEq(submit({ emergencyPhone: '' }).field, 'emergencyPhone', 'an emergency contact with no number');
+  assertEq(submit({ trn: '12' }).field, 'trn', 'a TRN that is not nine digits');
   assertEq([regFolder().length, traineeFolders().length], [0, 40], 'nothing made for a form that was refused');
 
   section('Sent: the registration and the trainee\'s folder, in the same request');
@@ -892,6 +900,8 @@ function sRegister(src) {
   assertEq([reg.format, reg.accountId, reg.studentId, reg.name, reg.email, reg.programme, reg.phone, reg.password, reg.googleVerified, reg.registeredVia, reg.status],
     ['cestis-registration', acct, stu, 'Shantelle Barrett', EMAIL, P[0], '876-555-0101', REG_STORED, true, 'home-registration', 'pending'], 'holding what the office needs — the password only as its check');
   assert(JSON.stringify(reg).indexOf(REG_PW) === -1, 'never the password itself');
+  assertEq(reg.details, { gender: 'Female', dob: '2005-02-14', trn: '123-456-789', address: '4 Hope Road, Kingston 6', parentName: 'Paulette Barrett', parentPhone: '876-555-0145',
+    emergencyName: 'Paulette Barrett', emergencyPhone: '876-555-0145' }, 'and her personal details, for the office to check');
   const mine = traineeFolders().filter(f => new RegExp('(^|\\s)acct=' + acct + '(\\s|$)').test(f.description));
   assertEq(mine.map(f => [f.name, f.description]), [['Shantelle Barrett (' + stu + ')', 'cestis-trainee acct=' + acct + ' v=1 registration=pending']],
     'and her own folder in Trainees/, named "<Name> (<student ID>)" — the dashboard\'s own student ID — and marked waiting');

@@ -1781,6 +1781,10 @@
   var DEVICE_ONLY_KEYS = ['isLoggedIn', 'loggedInUser', 'cestisCurrentUser', 'cestiCurrentUser',
     'cestisAttendanceCurrentUser', 'cestisTimeDarkMode', 'cestisTheme', 'firstTimeSyncDismissed', 'cestisFirstTimeDismissed',
     'postLoginSyncCompleted', 'cloudSyncCompleted', 'cestisAutoSyncEnabled',
+    // Which menu groups are open on THIS screen (the office's sidebar).
+    'cestisNavOpen',
+    // This computer's own letters on a receipt number (Core.receiptNumbers).
+    'cestisReceiptDevice',
     // "this device holds work not yet uploaded" — true of THIS device only —
     // and its note of what it last put in the Main copy.
     'cestisPendingUpload', 'cestisUnsyncedOnSignOut', 'cestisLastUploadHash',
@@ -8088,6 +8092,39 @@
       return (requests || []).filter(function (r) { return r && (r.status === 'pending' || r.status === 'processing') ; }).length;
     };
 
+    /* ---- Requests that run themselves (office audit OF-9, management M12) ---- */
+    // A request that still asks for the office's work, or the trainee's visit.
+    T.isOpenRequest = function (r) { return !!r && (r.status === 'pending' || r.status === 'processing' || r.status === 'ready'); };
+    // Does it include a certificate?
+    T.wantsCertificate = function (r) { return !!r && (r.type === 'certificate' || r.type === 'both'); };
+    /* What the trainee is told in her bell when her request moves on (none
+       for a move back to "pending"). */
+    T.requestNotice = function (r, status) {
+      if (!r) return '';
+      var what = r.type === 'both' ? 'transcript and certificate' : r.type === 'certificate' ? 'certificate' : 'transcript';
+      var note = String(r.adminNote || '').trim();
+      switch (status) {
+        case 'processing': return 'Your ' + what + ' request is being prepared by the office.';
+        case 'ready': return 'Your ' + what + (r.type === 'both' ? ' are' : ' is') + ' ready. Collect ' + (r.type === 'both' ? 'them' : 'it') + ' at the office.';
+        case 'collected': return 'Your ' + what + ' request is complete: collected at the office.';
+        case 'declined': return 'Your ' + what + ' request was declined' + (note ? ': ' + note : '') + '. Ask the office if you have a question.';
+        default: return '';
+      }
+    };
+    /* A certificate handed over (Certificates → Mark Collected): the
+       trainee's open requests that include a certificate are collected too,
+       so the two records can never disagree. Returns { list, changed }. */
+    T.collectCertificateRequests = function (requests, studentId, actor, nowIso) {
+      var now = nowIso || new Date().toISOString(), changed = [];
+      var list = (Array.isArray(requests) ? requests : []).map(function (r) {
+        if (!r || String(r.studentId) !== String(studentId) || !T.wantsCertificate(r) || !T.isOpenRequest(r)) return r;
+        var hit = Object.assign({}, r, { status: 'collected', handledBy: actor || '', handledAt: now, updatedAt: now });
+        changed.push(hit);
+        return hit;
+      });
+      return { list: list, changed: changed };
+    };
+
     return T;
   })();
 
@@ -8686,6 +8723,121 @@
       return null;
     }
 
+    /* May this person reset (set a new password or first-sign-in code for)
+       that account? An administrator: any account. Admin Staff: a TRAINEE's
+       account only — never a staff, instructor, board or administrator login —
+       and only while "Trainee Accounts" is ticked for them (actor.allowed).
+       The owner decided (30 October 2026): "Admin Staff may reset trainee
+       passwords". Nobody else, and never an account that is not there.
+         actor: { role, allowed }  target: the account
+       → null when allowed, else { code, message }. */
+    function resetRefusal(actor, target) {
+      actor = actor || {};
+      var who = String(actor.role || '').trim().toLowerCase();
+      var no = function (code, message) { return { code: code, message: message }; };
+      if (!target || typeof target !== 'object') return no('missing', 'That account is no longer there.');
+      if (who === 'admin') return null;
+      if (who !== 'adminstaff') return no('not-allowed', 'Only the office can reset a password.');
+      if (actor.allowed === false) return no('not-allowed', 'Resetting trainees\' passwords has not been turned on for you by the Administrator.');
+      var role = String(target.role || '').trim().toLowerCase();
+      if (role !== 'student') return no('role', 'Admin Staff can reset trainees\' passwords only. Ask an administrator to reset a staff password.');
+      return null;
+    }
+
+    /* ---- A trainee's personal details (office audit OF-3, OF-7) ----
+       Asked once — on the office's New trainee form, or by the trainee
+       registering from home — so the office only checks them instead of
+       typing them on the fee page (≈74 s a trainee; ≈31 min an intake of
+       25). The same rules on both, and at the trainee sign-in, which takes a
+       registration only when they hold:
+         gender         'Female' | 'Male' (as every form on the platform)
+         dob            a real date, YYYY-MM-DD, aged 12 to 100
+         trn            9 digits (spaces or dashes allowed), kept 123-456-789
+         address        5 to 200 characters
+         parentName / parentPhone       a parent or guardian: both or neither
+         emergencyName / emergencyPhone an emergency contact: both or neither
+       A name is 2 to 80 characters with a letter, no markup; a phone is
+       PHONE_RE. opts.require: the fields that must be given (HOME_REQUIRED
+       from home). → { ok, value } | { ok: false, field } */
+    var DETAIL_FIELDS = ['gender', 'dob', 'trn', 'address', 'parentName', 'parentPhone', 'emergencyName', 'emergencyPhone'];
+    var HOME_REQUIRED = ['gender', 'dob', 'address', 'emergencyName', 'emergencyPhone'];
+    function dtxt(v) { return String(v == null ? '' : v).replace(/\s+/g, ' ').trim(); }
+    function checkDetail(k, raw, nowMs) {
+      var v = dtxt(raw);
+      if (!v) return { empty: true };
+      if (k === 'gender') { var g = v.toLowerCase(); return g === 'female' ? { v: 'Female' } : g === 'male' ? { v: 'Male' } : { bad: true }; }
+      if (k === 'dob') {
+        var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
+        if (!m) return { bad: true };
+        var t = Date.UTC(+m[1], +m[2] - 1, +m[3]), d = new Date(t);
+        if (d.getUTCFullYear() !== +m[1] || d.getUTCMonth() !== +m[2] - 1 || d.getUTCDate() !== +m[3]) return { bad: true };
+        var age = ((typeof nowMs === 'number' ? nowMs : Date.now()) - t) / (365.25 * 86400000);
+        return age >= 12 && age <= 100 ? { v: v } : { bad: true };
+      }
+      if (k === 'trn') { var digits = v.replace(/[\s-]/g, ''); return /^\d{9}$/.test(digits) ? { v: digits.slice(0, 3) + '-' + digits.slice(3, 6) + '-' + digits.slice(6) } : { bad: true }; }
+      if (k === 'address') return v.length >= 5 && v.length <= 200 && !/[<>"\u0000-\u001f]/.test(v) ? { v: v } : { bad: true };
+      if (k === 'parentName' || k === 'emergencyName') return v.length >= 2 && v.length <= 80 && /[A-Za-z]/.test(v) && !/[<>"\u0000-\u001f]/.test(v) ? { v: v } : { bad: true };
+      if (k === 'parentPhone' || k === 'emergencyPhone') return PHONE_RE.test(v) ? { v: v } : { bad: true };
+      return { bad: true };
+    }
+    function checkDetails(form, opts) {
+      form = form && typeof form === 'object' ? form : {};
+      opts = opts || {};
+      var req = Array.isArray(opts.require) ? opts.require : [], out = {};
+      for (var i = 0; i < DETAIL_FIELDS.length; i++) {
+        var k = DETAIL_FIELDS[i], r = checkDetail(k, form[k], opts.nowMs);
+        if (r.bad) return { ok: false, field: k };
+        if (r.empty) { if (req.indexOf(k) !== -1) return { ok: false, field: k }; continue; }
+        out[k] = r.v;
+      }
+      // A name with no number to call, or a number with no name, is half a contact.
+      if (!!out.parentName !== !!out.parentPhone) return { ok: false, field: out.parentName ? 'parentPhone' : 'parentName' };
+      if (!!out.emergencyName !== !!out.emergencyPhone) return { ok: false, field: out.emergencyName ? 'emergencyPhone' : 'emergencyName' };
+      return { ok: true, value: out };
+    }
+    /* What a stored copy holds that is valid — read back from a registration,
+       never refused because of one bad field (nothing a trainee sent is lost
+       for it: the office simply types that one). */
+    function cleanDetails(d) {
+      var out = {};
+      if (!d || typeof d !== 'object') return out;
+      DETAIL_FIELDS.forEach(function (k) { var r = checkDetail(k, d[k]); if (r.v) out[k] = r.v; });
+      return out;
+    }
+
+    /* ---- First-sign-in codes (office audit OF-4) ----
+       When trainees are approved in one go (Approve All — an intake imported
+       from Excel arrives in the queue with no password), when the office
+       makes a trainee with no password typed, and when the office resets a
+       trainee's password, each trainee gets a random code to sign in with
+       ONCE: ten digits (easy to type on any phone, no capitals to get wrong).
+       The code is kept ONLY as its hash, exactly like a password (the account's
+       password IS the code's PBKDF2 check); it is printed on the trainee's
+       slip at that moment and never stored, synced or shown again.
+       The account carries a mark of WHICH password is a code —
+       firstSignInCode: { fp, at }, fp a fingerprint of the stored hash (not of
+       the code) — so the code is "in force" exactly while the password is
+       still that hash: the moment the trainee (or anybody) sets another
+       password, by any route, the mark no longer matches and needs no
+       clearing. While it is in force, signing in asks for her own password
+       first. */
+    var CODE_DIGITS = 10;
+    // randomBytes(n) -> n random bytes (crypto.getRandomValues on a page).
+    function makeSignInCode(randomBytes) {
+      var out = '';
+      while (out.length < CODE_DIGITS) {
+        var b = randomBytes(CODE_DIGITS * 2);
+        for (var i = 0; i < b.length && out.length < CODE_DIGITS; i++) if (b[i] < 250) out += String(b[i] % 10);   // no bias
+      }
+      return out;
+    }
+    function signInCodeFp(storedHash) { return Core.hashString('fsc|' + String(storedHash == null ? '' : storedHash)); }
+    function signInCodeMark(storedHash, nowIso) { return { fp: signInCodeFp(storedHash), at: String(nowIso || '') }; }
+    function firstCodeInForce(account) {
+      var m = account && account.firstSignInCode;
+      return !!(m && typeof m === 'object' && m.fp && account.password && m.fp === signInCodeFp(account.password));
+    }
+
     /* What Verify Users lists, and what Approve All / Reject All act on.
 
        It used to be every pending account PLUS every disabled one except
@@ -8978,7 +9130,9 @@
       isPublishedDefault: isPublishedDefault, publishedDefaultLogin: publishedDefaultLogin, toolDefaultLogin: toolDefaultLogin,
       isPlaceholderRecoveryEmail: isPlaceholderRecoveryEmail,
       registrationRole: registrationRole, isPrivilegedSelfRegistration: isPrivilegedSelfRegistration,
-      isFullName: isFullName, officeCreateRefusal: officeCreateRefusal, PHONE_RE: PHONE_RE,
+      isFullName: isFullName, officeCreateRefusal: officeCreateRefusal, PHONE_RE: PHONE_RE, resetRefusal: resetRefusal,
+      traineeDetails: { FIELDS: DETAIL_FIELDS, HOME_REQUIRED: HOME_REQUIRED, check: checkDetails, clean: cleanDetails },
+      makeSignInCode: makeSignInCode, signInCodeMark: signInCodeMark, firstCodeInForce: firstCodeInForce, CODE_DIGITS: CODE_DIGITS,
       reviewQueue: reviewQueue, studentLinkFor: studentLinkFor,
       isBackfillStub: isBackfillStub, accountForTrainee: accountForTrainee, traineeHasAccount: traineeHasAccount,
       backfillStubFolds: backfillStubFolds,
@@ -15153,7 +15307,29 @@
       });
       return out;
     }
-    return { fillFromAccount: fillFromAccount, FEE_FIELDS: { email: 'email', phone: 'contact' } };
+    /* Her personal details (Core.accountAccess.traineeDetails) onto a record,
+       filling ONLY what is blank. kind 'trainee': the trainee record (gender,
+       dob, trn, address); 'fee': the fee record (gender, dateOfBirth,
+       nationalId, address, parentName, parentContact, emergencyContactName,
+       emergencyContact). Returns the record fields it filled. */
+    var DETAIL_MAP = {
+      trainee: { gender: 'gender', dob: 'dob', trn: 'trn', address: 'address' },
+      fee: { gender: 'gender', dob: 'dateOfBirth', trn: 'nationalId', address: 'address', parentName: 'parentName', parentPhone: 'parentContact',
+        emergencyName: 'emergencyContactName', emergencyPhone: 'emergencyContact' }
+    };
+    function fillDetails(record, details, kind) {
+      var out = [];
+      if (!record || !details || typeof details !== 'object') return out;
+      var map = DETAIL_MAP[kind === 'fee' ? 'fee' : 'trainee'];
+      Object.keys(map).forEach(function (k) {
+        var to = map[k], v = details[k];
+        if (blank(v) || !blank(record[to])) return;
+        record[to] = String(v).trim();
+        out.push(to);
+      });
+      return out;
+    }
+    return { fillFromAccount: fillFromAccount, fillDetails: fillDetails, DETAIL_MAP: DETAIL_MAP, FEE_FIELDS: { email: 'email', phone: 'contact' } };
   })();
 
   // ===================== RECEIPT NUMBERS: a number already given =====================
@@ -15180,7 +15356,245 @@
     function question(number, p) {
       return 'Receipt ' + String(number).trim() + ' is already used for ' + (p.studentName || 'another payment') + (p.date ? ' on ' + p.date : '') + '. Use it again?';
     }
-    return { usedBy: usedBy, question: question };
+
+    /* ---- Automatic numbers (office audit OF-5; the owner's format, 30 Oct 2026) ----
+       R-2026/27-0001: "R-", the financial year as School Fee defines it (April
+       to March — Core.deriveQuarter: "2026/2027" is written "2026/27"), then a
+       4-digit sequence that starts again each financial year. The next number
+       is one past the highest of that year in the payments this device holds
+       (the merged copy: every office computer's payments it has received),
+       whatever their suffix — a number typed from a paper receipt book in the
+       same form counts too. A number is never one already used.
+
+       Two office computers must never give the same number. When this device
+       could not check the other computers' payments just now, or holds a
+       payment of its own not yet sent, the number carries this computer's own
+       two letters ("R-2026/27-0042-K7"): it can then never equal a number
+       another computer gives. Receipts already given are never renumbered. */
+    var AUTO_RE = /^R-(\d{4})\/(\d{2})-(\d{1,6})(?:-([A-Z0-9]{1,4}))?$/i;
+    var SUFFIX_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';   // no I, O, 0, 1: read aloud without doubt
+    var CHECK_MAX_AGE_MS = 2 * 60 * 1000;
+    function fyTag(fy) {
+      var m = /^(\d{4})\/(\d{4})$/.exec(String(fy == null ? '' : fy).trim());
+      return m ? m[1] + '/' + m[2].slice(2) : '';
+    }
+    function fyOfDate(date) {
+      var d = String(date == null ? '' : date).trim() || new Date().toISOString().slice(0, 10);
+      var q = null;
+      try { q = Core.deriveQuarter(d); } catch (e) { q = null; }
+      return q && q.fy ? q.fy : '';
+    }
+    function parse(number) {
+      var m = AUTO_RE.exec(String(number == null ? '' : number).trim());
+      return m ? { fy: m[1] + '/' + m[2], seq: parseInt(m[3], 10), suffix: (m[4] || '').toUpperCase() } : null;
+    }
+    function format(tag, seq, suffix) {
+      var n = String(seq);
+      while (n.length < 4) n = '0' + n;
+      return 'R-' + tag + '-' + n + (suffix ? '-' + String(suffix).toUpperCase() : '');
+    }
+    /* The next number for a payment dated `date` ('' = today).
+       opts: { suffix } — this computer's letters, when needsSuffix() says so. */
+    function nextNumber(payments, date, opts) {
+      opts = opts || {};
+      var tag = fyTag(fyOfDate(date));
+      if (!tag) return '';
+      var list = Array.isArray(payments) ? payments : [];
+      var max = 0;
+      list.forEach(function (p) {
+        var x = parse(p && p.receiptNumber);
+        if (x && x.fy === tag && x.seq > max) max = x.seq;
+      });
+      var n = format(tag, max + 1, opts.suffix || '');
+      for (var guard = 0; usedBy(list, n, null) && guard < 10000; guard++) n = format(tag, max + 2 + guard, opts.suffix || '');
+      return n;
+    }
+    /* Must this computer's number carry its letters?
+       state: { checkedAt: ms of the last successful check of the other
+       computers' payments, nowMs, unsent: a payment of this computer's not
+       yet sent, maxAgeMs } */
+    function needsSuffix(state) {
+      if (!state || state.unsent) return true;
+      var now = typeof state.nowMs === 'number' ? state.nowMs : Date.now();
+      var at = Number(state.checkedAt) || 0;
+      if (!at) return true;
+      var age = now - at;
+      return age < -60000 || age > (state.maxAgeMs || CHECK_MAX_AGE_MS);
+    }
+    /* This computer's two letters: the ones it already has, or new ones.
+       random() -> [0,1). */
+    function deviceSuffix(stored, random) {
+      var s = String(stored == null ? '' : stored).trim().toUpperCase();
+      if (/^[A-HJ-NP-Z2-9]{2}$/.test(s)) return s;
+      var r = typeof random === 'function' ? random : Math.random;
+      return SUFFIX_CHARS.charAt(Math.floor(r() * SUFFIX_CHARS.length) % SUFFIX_CHARS.length) +
+        SUFFIX_CHARS.charAt(Math.floor(r() * SUFFIX_CHARS.length) % SUFFIX_CHARS.length);
+    }
+    return { usedBy: usedBy, question: question, fyTag: fyTag, fyOfDate: fyOfDate, parse: parse, format: format,
+      nextNumber: nextNumber, needsSuffix: needsSuffix, deviceSuffix: deviceSuffix, CHECK_MAX_AGE_MS: CHECK_MAX_AGE_MS };
+  })();
+
+  // ===================== ADMIN STAFF ACCESS, PERSON BY PERSON =====================
+  // One set of ticks used to apply to every Admin Staff member (office audit
+  // OF-2). Ticks are now kept per person, inside the same Administrator's grid
+  // ('voctrain_adminStaffAccess'), under `people`:
+  //   { attendance: true, …, updatedAt, people: { 'USR-sbrown': { attendance:
+  //     true, …, updatedAt }, 'USR-ngordon': { useDefault: true, updatedAt } } }
+  // The grid's own ticks stay what they were — the DEFAULT for anybody with no
+  // ticks of their own — so nobody loses access they had (an additive change).
+  // Each person's entry is merged on its own, newest edit winning; an entry is
+  // never dropped because a copy lacks it ("use the default" is itself an
+  // entry, so going back to the default travels like any other edit).
+  Core.staffAccess = (function () {
+    function isObj(v) { return v !== null && typeof v === 'object' && !Array.isArray(v); }
+    function msOf(v) { var t = Date.parse(v || ''); return isNaN(t) ? 0 : t; }
+    /* The person's own entry, when they have ticks of their own. */
+    function ownTicks(grid, userId) {
+      var e = isObj(grid) && isObj(grid.people) && userId != null ? grid.people[String(userId)] : null;
+      return isObj(e) && e.useDefault !== true ? e : null;
+    }
+    /* The sections one Admin Staff member may use: the defaults, then the
+       grid's ticks (everybody's default), then their own ticks if they have
+       their own. Only the known keys (those in `defaults`) are answered. */
+    function forPerson(grid, defaults, userId) {
+      var out = {};
+      Object.keys(defaults || {}).forEach(function (k) { out[k] = !!defaults[k]; });
+      if (isObj(grid)) Object.keys(out).forEach(function (k) { if (k in grid) out[k] = !!grid[k]; });
+      var own = ownTicks(grid, userId);
+      if (own) Object.keys(out).forEach(function (k) { if (k in own) out[k] = !!own[k]; });
+      return out;
+    }
+    /* Merge another copy's people into ours, person by person, newest edit
+       winning. Never removes an entry; ignores a `people` that is not an
+       object (an older version's copy). Returns { people, changed }. */
+    function mergePeople(mine, theirs) {
+      var out = {}, changed = false;
+      if (isObj(mine)) Object.keys(mine).forEach(function (id) { if (isObj(mine[id])) out[id] = mine[id]; });
+      if (isObj(theirs)) Object.keys(theirs).forEach(function (id) {
+        var t = theirs[id];
+        if (!isObj(t)) return;
+        var m = out[id];
+        if (!m || msOf(t.updatedAt) > msOf(m.updatedAt)) {
+          if (!m || JSON.stringify(m) !== JSON.stringify(t)) changed = true;
+          out[id] = JSON.parse(JSON.stringify(t));
+        }
+      });
+      return { people: out, changed: changed };
+    }
+    /* A person's own ticks (every known key written), or back to the
+       default ({ useDefault: true }). Returns the new entry. */
+    function entry(ticks, defaults, nowIso) {
+      var e = {};
+      Object.keys(defaults || {}).forEach(function (k) { e[k] = !!(ticks && ticks[k]); });
+      e.updatedAt = nowIso || new Date().toISOString();
+      return e;
+    }
+    function defaultEntry(nowIso) { return { useDefault: true, updatedAt: nowIso || new Date().toISOString() }; }
+    return { forPerson: forPerson, ownTicks: ownTicks, mergePeople: mergePeople, entry: entry, defaultEntry: defaultEntry };
+  })();
+
+  // ===================== THE OFFICE'S DAY: what is waiting =====================
+  // The office's work was invisible on both office dashboards: 12 home
+  // registrations and 6 certificate/transcript requests waiting showed no sign
+  // on the first screen (office audit OF-1, management M10). These are the
+  // counts the "Office today" box shows; the page decides which lines the
+  // person signed in may act on, and where each one opens.
+  Core.officeToday = (function () {
+    var DAY = 86400000;
+    // Trainees still with the Centre: the details are needed for the
+    // registers, the fee record and the certificate.
+    var ENROLLED = { testing: 1, interview: 1, training: 1 };
+    function blank(v) { return v == null || String(v).trim() === ''; }
+    function msOf(v) { var t = Date.parse(v || ''); return isNaN(t) ? 0 : t; }
+    function nameKey(v) { return String(v == null ? '' : v).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim(); }
+
+    /* Whole days from `fromIso` to `nowMs` (0 the same day). */
+    function daysWaiting(fromIso, nowMs) {
+      var t = msOf(fromIso);
+      if (!t) return 0;
+      var now = typeof nowMs === 'number' ? nowMs : Date.now();
+      return Math.max(0, Math.floor((now - t) / DAY));
+    }
+    /* "3 days waiting", "1 day waiting", "since today". */
+    function waitingText(days) {
+      if (!days) return 'since today';
+      return days + ' day' + (days === 1 ? '' : 's') + ' waiting';
+    }
+
+    /* Which of the four details a trainee's records lack: telephone, email,
+       date of birth, gender. A detail typed on the fee record (or the
+       trainee's profile) counts — the office typed it once. */
+    function missingDetails(student, fee, profile) {
+      var s = student || {}, f = fee || {}, p = profile || {};
+      var out = [];
+      if (blank(s.phone) && blank(f.contact) && blank(p.phone)) out.push('telephone');
+      if (blank(s.email) && blank(f.email) && blank(p.email)) out.push('email');
+      if (blank(s.dob) && blank(f.dateOfBirth)) out.push('date of birth');
+      if (blank(s.gender) && blank(f.gender)) out.push('gender');
+      return out;
+    }
+    /* Trainees still with the Centre whose records lack any of the four.
+       feeOf(student) -> its fee record or null; profileOf(student) -> its
+       profile or null. -> [{ student, missing: [...] }] */
+    function recordsMissingDetails(students, feeOf, profileOf) {
+      var out = [];
+      (Array.isArray(students) ? students : []).forEach(function (s) {
+        if (!s || !ENROLLED[s.stage || 'training']) return;
+        var miss = missingDetails(s, feeOf ? feeOf(s) : null, profileOf ? profileOf(s) : null);
+        if (miss.length) out.push({ student: s, missing: miss });
+      });
+      return out;
+    }
+
+    /* The requests waiting for the office (pending or processing — the same
+       rule as the menu's count), oldest first. -> { count, oldestDays, oldest } */
+    function openRequests(requests, nowMs) {
+      var open = (Array.isArray(requests) ? requests : []).filter(function (r) {
+        return r && (r.status === 'pending' || r.status === 'processing');
+      }).sort(function (a, b) { return msOf(a.requestedAt) - msOf(b.requestedAt); });
+      return { count: open.length, oldest: open[0] || null, oldestDays: open.length ? daysWaiting(open[0].requestedAt, nowMs) : 0, list: open };
+    }
+
+    /* Certified trainees whose certificate has not been handed over yet. */
+    function certificatesToHandOut(students) {
+      return (Array.isArray(students) ? students : []).filter(function (s) {
+        return s && s.stage === 'certified' && !s.certCollected;
+      });
+    }
+
+    /* Programmes taking trainees that have no fee set (no entry with a total
+       above 0 under the programme's name, written any way, or under one of
+       its intakes' labels — "02. Cosmetology"). */
+    function programmesWithoutFee(programmes, feeStructure) {
+      var priced = {};
+      Object.keys(feeStructure || {}).forEach(function (k) {
+        var e = feeStructure[k];
+        if (!e || !(parseFloat(e.total) > 0)) return;
+        priced[nameKey(k)] = 1;
+        var m = /^(\d{1,4})\s*[.)]\s*(.+)$/.exec(String(k).trim());
+        if (m) priced[nameKey(m[2])] = 1;
+      });
+      var seen = {};
+      return (Array.isArray(programmes) ? programmes : []).filter(function (p) {
+        var k = nameKey(p);
+        if (!k || seen[k]) return false;
+        seen[k] = 1;
+        var m = /^(\d{1,4})\s*[.)]\s*(.+)$/.exec(String(p).trim());
+        return !priced[k] && !(m && priced[nameKey(m[2])]);
+      });
+    }
+
+    /* "Akeem Williams, Brianna Grant and 3 more" */
+    function someNames(names, max) {
+      var list = (names || []).filter(Boolean);
+      max = max || 3;
+      if (list.length <= max) return list.length > 1 ? list.slice(0, -1).join(', ') + ' and ' + list[list.length - 1] : (list[0] || '');
+      return list.slice(0, max).join(', ') + ' and ' + (list.length - max) + ' more';
+    }
+
+    return { daysWaiting: daysWaiting, waitingText: waitingText, missingDetails: missingDetails,
+      recordsMissingDetails: recordsMissingDetails, openRequests: openRequests,
+      certificatesToHandOut: certificatesToHandOut, programmesWithoutFee: programmesWithoutFee, someNames: someNames };
   })();
 
   // ===================== COMMUNICATIONS: announcements, agenda, bell =====================
@@ -16712,6 +17126,9 @@
       d.voctrain_students = [copy(t.student)];
       var card = pick(t.account, USER_FIELDS);
       card.twoFactorEnabled = !!t.account.twoFactorEnabled;
+      // Her password is still the office's first-sign-in code: her device asks
+      // her own (OF-4). A flag only — never the code, never the mark.
+      if (Core.accountAccess.firstCodeInForce(t.account)) card.firstCode = true;
       card.emailOtpLogin = !!t.account.emailOtpLogin;
       d.voctrain_users = [card];
       d.voctrain_exams = ctx.L.voctrain_exams.filter(function (e) { return examForTrainee(ctx, e, t); }).map(examMeta);
@@ -17885,11 +18302,15 @@
 
     /* What the registration form sends, checked: the full name (first and
        last — Core.accountAccess.isFullName, the rule of every account form),
-       a programme from the catalogue, an optional phone, and the password as
+       a programme from the catalogue, an optional phone, the password as
        the dashboard stores one (pbkdf2$<iterations>$<salt>$<hash>, worked out
        on the trainee's device with a fresh salt — the password itself never
-       travels). → { ok, value } | { ok: false, field } */
-    function checkRegistration(form, programmes) {
+       travels), and her personal details (Core.accountAccess.traineeDetails:
+       gender, date of birth, address and an emergency contact required; TRN
+       and a parent or guardian when she has them — office audit OF-3), so
+       the office only checks them. opts.nowMs: today, for the age.
+       → { ok, value } | { ok: false, field } */
+    function checkRegistration(form, programmes, opts) {
       form = isObj(form) ? form : {};
       var name = cleanName(form.name);
       if (!name || name.length > REG_NAME_MAX || /[<>"\u0000-\u001f]/.test(name) || !Core.accountAccess.isFullName(name)) return { ok: false, field: 'name' };
@@ -17899,7 +18320,10 @@
       if (phone && !Core.accountAccess.PHONE_RE.test(phone)) return { ok: false, field: 'phone' };
       var pw = str(form.password), m = STORED_PW_RE.exec(pw);
       if (!m || Number(m[1]) < 100000 || Number(m[1]) > 1000000) return { ok: false, field: 'password' };
-      var value = { name: name, programme: programme, phone: phone, password: pw };
+      var TD = Core.accountAccess.traineeDetails;
+      var det = TD.check(form, { require: TD.HOME_REQUIRED, nowMs: opts && typeof opts.nowMs === 'number' ? opts.nowMs : undefined });
+      if (!det.ok) return { ok: false, field: det.field };
+      var value = { name: name, programme: programme, phone: phone, password: pw, details: det.value };
       // The sign-in link she registered from (https only, with the gate's address): the approval email carries it.
       var link = str(form.link).trim();
       if (link && REG_LINK_RE.test(link)) value.link = link;
@@ -17916,6 +18340,7 @@
         googleVerified: true, registeredVia: 'home-registration', status: 'pending', createdAt: iso(o.nowMs) };
       if (v.phone) out.phone = str(v.phone);
       if (v.link) out.link = str(v.link);
+      if (isObj(v.details) && Object.keys(v.details).length) out.details = copy(v.details);
       if (o.folder && o.folder.id) { out.folderId = str(o.folder.id); out.folderName = str(o.folder.name); }
       return out;
     }
@@ -17960,6 +18385,10 @@
         programme: str(r.programme).trim(), status: 'pending', createdAt: day || str(r.createdAt).slice(0, 10), registeredVia: 'home-registration',
         googleVerified: true, registeredAt: str(r.createdAt), updatedAt: str(r.createdAt) };
       if (r.phone && Core.accountAccess.PHONE_RE.test(str(r.phone).trim())) acct.phone = str(r.phone).trim();
+      // Her personal details, kept on the waiting account for the office to
+      // check; on approval they reach her trainee and fee records (blanks only).
+      var det = Core.accountAccess.traineeDetails.clean(r.details);
+      if (Object.keys(det).length) acct.details = det;
       if (r.folderId) acct.gateFolderId = str(r.folderId);
       return { action: 'add', account: acct };
     }

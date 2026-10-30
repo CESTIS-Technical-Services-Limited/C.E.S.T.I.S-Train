@@ -198,12 +198,14 @@ console.log('Administration: centre ids, transfers, access grid, documents, exte
   assert(tr.indexOf("var mine = !!movedIds[String(u.studentDataId)];") !== -1 && tr.indexOf('if (!mine && !linked)') !== -1,
     'a transfer moves the moved trainee\'s account; a name match only for an unlinked account on the FROM programme');
 
-  const acc = { adminStaffAccessSettings: { exams: false }, document: { getElementById: () => ({ checked: false }) } };
+  const acc = { adminStaffAccessSettings: { exams: false }, document: { getElementById: () => ({ checked: false, value: '' }) },
+    // The draft starts from the ticks of whoever the grid is showing (OF-2: per person).
+    asAccessFor: function () { return Object.assign({}, acc.adminStaffAccessSettings); } };
   vm.createContext(acc);
-  vm.runInContext('var asAccessDraft = null;\n' + extractFunction(IX, 'toggleAsAccess'), acc);
+  vm.runInContext('var asAccessDraft = null;\n' + extractFunction(IX, 'adminStaffAccessPerson') + '\n' + extractFunction(IX, 'toggleAsAccess'), acc);
   vm.runInContext("toggleAsAccess('exams')", acc);
   assertEq(acc.adminStaffAccessSettings.exams, false, 'ticking a box in the access grid changes nothing until Save');
-  assert(/function saveAdminStaffAccess\(\) \{\s*if\(asAccessDraft\)/.test(IX), 'Save applies the draft');
+  assert(/function saveAdminStaffAccess\(\) \{[\s\S]{0,200}?if\(asAccessDraft\)/.test(IX), 'Save applies the draft');
 
   const mc = extractFunction(IX, 'markCollected');
   assert(/function markCollected\(id\)/.test(mc) && /markCollected\(\$\{jsArg\(s\.id\)\}\)/.test(IX), 'Mark Collected acts on a record id');

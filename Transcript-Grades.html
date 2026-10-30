@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<script src="cestis-core.js?v=20261030c"></script>
+<script src="cestis-core.js?v=20261030d"></script>
 <script src="transcript-assets.js?v=20260711b"></script>
 <script src="vendor/jspdf-2.5.1.umd.min.js"></script>
 <script>window.jspdf||(document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js">\x3C/script>'))</script>
@@ -1688,7 +1688,18 @@ window.addEventListener('message', function (e) {
   if (e.data && (e.data.type === 'transcript-refresh' || e.data.type === 'refresh-students')) {
     loadAll(); renderForRole();
   }
+  // "Open transcript" on a certificate/transcript request (OF-9): this trainee
+  // chosen — the office's view only, from the dashboard only.
+  if (e.data && e.data.type === 'cestis-tg-select' && e.source === window.parent) tgSelectFromOffice(String(e.data.studentId || ''));
 });
+/* Open the office's transcript editor on one trainee (a request's "Open
+   transcript"): instead of finding her among every trainee in the picker. */
+function tgSelectFromOffice(id) {
+  if (!IS_STAFF || !VIEWER.ok || !id) return false;
+  if (!db || !db.students || !studentById(id)) return false;
+  if (sel.studentId !== id) onPickStudent(id);
+  return true;
+}
 /* Safety net for writes that only land in IndexedDB (no storage event). */
 var lastFingerprint = '';
 setInterval(function () {
@@ -1716,6 +1727,9 @@ function boot() {
   if (!VIEWER.ok) { renderForRole(); return; }   // nothing is read, rendered or written without a session
   loadAll();
   renderForRole();
+  // Opened for one trainee (a request's "Open transcript", OF-9).
+  var pick = param('select');
+  if (pick) tgSelectFromOffice(pick);
 }
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -1740,7 +1754,7 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 <!-- Per-page Google Drive save path (own file in the shared backup folder) -->
-<script src="cestis-page-cloud.js?v=20261030c"></script>
+<script src="cestis-page-cloud.js?v=20261030d"></script>
 <script>
 // Staff own this page's file: they pull it and push their edits. Anybody else
 // — a trainee, an instructor — only READS the grades and catalogues they are

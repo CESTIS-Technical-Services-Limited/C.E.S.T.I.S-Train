@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-<script src="cestis-core.js?v=20261030c"></script>
+<script src="cestis-core.js?v=20261030d"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CESTIS - School Fee Management System</title>
     
@@ -2575,7 +2575,7 @@
                     </div>
                     <div class="form-group">
                         <label>Payment Date *</label>
-                        <input type="date" id="paymentDate" required>
+                        <input type="date" id="paymentDate" required onchange="feeSuggestReceipt()">
                     </div>
                     <div class="form-group">
                         <label>Payment Method</label>
@@ -2601,8 +2601,9 @@
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>Receipt Number</label>
-                        <input type="text" id="receiptNumber">
+                        <label for="receiptNumber">Receipt Number</label>
+                        <input type="text" id="receiptNumber" oninput="feeReceiptTyped()" aria-describedby="receiptNumberHint" autocomplete="off">
+                        <div id="receiptNumberHint" style="font-size:12px;color:var(--text-secondary);margin-top:4px;line-height:1.4;"></div>
                     </div>
                     <div class="form-group">
                         <label>Notes</label>
@@ -2612,7 +2613,7 @@
                 <div id="studentPaymentInfo" style="background: var(--bg-primary); padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem; display: none;">
                     <strong>Current Balance:</strong> <span id="currentBalance">$0.00</span>
                 </div>
-                <button class="btn" onclick="recordPayment()">Record Payment</button>
+                <button class="btn" id="recordPaymentBtn" onclick="recordPaymentClicked()">Record Payment</button>
             </div>
 
             <div id="paymentsQuarterBar"></div>
@@ -3581,14 +3582,14 @@
         </div>
     </div>
 
-    <!-- Inactivity Privacy Screen (covers dashboard after 30s idle) -->
+    <!-- Privacy screen: covers the fee records after 5 minutes nobody has used the page -->
     <div id="inactivityOverlay" class="inactivity-overlay">
         <div id="dvdLogo" class="dvd-logo">
             <img src="https://drive.google.com/thumbnail?id=1P-DmK6T37lr6ryEfWBMDfOoa3-pqeWIG&sz=w500" alt="CESTIS Logo"
                  onerror="if(!this.dataset.fb){this.dataset.fb='1';this.src='CESTI%20Logo%202-Photoroom%20(1).png';}else{this.replaceWith(Object.assign(document.createElement('div'),{className:'dvd-logo-fallback',textContent:'CESTIS'}));}">
         </div>
-        <div class="inactivity-message">User inactive, please activate page when ready</div>
-        <button id="activateWindowBtn" class="activate-window-btn" onclick="deactivateInactivityScreen()">Activate Window</button>
+        <div class="inactivity-message">Hidden after 5 minutes without use, so nobody passing by can read the fee records.</div>
+        <button id="activateWindowBtn" class="activate-window-btn" onclick="deactivateInactivityScreen()">Show the page</button>
     </div>
 
     <script>
@@ -3725,10 +3726,20 @@
         let dvdAnimationFrame = null;
         let inactivityScreenActive = false;
 
+        /* The cover comes down only after REAL idle time (office audit OF-8).
+           It used to cover the page on every visit — on entry and each time
+           the clerk came back from another page, even two seconds later — and
+           told a clerk who was busy at the desk "User inactive". Now it covers
+           the fee records after 5 minutes nobody has used this page (moved
+           the mouse, typed, scrolled or touched it), wherever the clerk was
+           meanwhile, and says why. */
+        let _feeLastActivityAt = Date.now();
+        function feeIdleForMs() { return Date.now() - _feeLastActivityAt; }
         function resetInactivityTimer() {
             // While the privacy screen is up, ignore activity — the user must
-            // click "Activate Window" to dismiss it.
+            // press "Show the page" to dismiss it.
             if (inactivityScreenActive) return;
+            _feeLastActivityAt = Date.now();
             if (inactivityIdleTimer) clearTimeout(inactivityIdleTimer);
             inactivityIdleTimer = setTimeout(showInactivityScreen, SESSION_TIMEOUT_MS);
         }
@@ -5704,11 +5715,10 @@
             initializeCloudSync();
             startSessionTimer();
 
-            // Privacy screen on entry: drop the black privacy cover the moment
-            // the page loads (i.e. right after login / when the user first
-            // navigates here) so on-screen financial data is never revealed
-            // until the user explicitly clicks "Activate Window".
-            showInactivityScreen();
+            // No cover on entry (OF-8): the clerk who opened the page is using
+            // it. The idle timer (startSessionTimer, above) covers the records
+            // after 5 minutes without use.
+            _feeLastActivityAt = Date.now();
 
             loadData();
             normalizeFeeKeysToVoctrain(); // align legacy fee keys to exact VocTrain course names
@@ -6692,8 +6702,11 @@
                 // the user navigates back to this page. The iframe is loaded
                 // once and kept alive, so DOMContentLoaded won't fire again —
                 // this message is how we re-cover the page on each visit.
+                // Coming back from another page: covered only if this page has
+                // gone unused for the idle time meanwhile (OF-8) — never two
+                // seconds after the clerk left it.
                 if (d.type === 'cestis-show-privacy') {
-                    showInactivityScreen();
+                    if (feeIdleForMs() >= SESSION_TIMEOUT_MS) showInactivityScreen();
                     return;
                 }
                 if (d.type !== 'cestis-lms-students' || !Array.isArray(d.students)) return;
@@ -7261,6 +7274,9 @@
                 // the Fee Structure section, where programmes are chosen.
                 updateSkillAreaOptions();
                 if (!feeProgrammeNames().length) showNoProgrammeNotice();
+            } else if (moduleId === 'payments') {
+                // The next receipt number, checked against the other office computers.
+                feeReceiptCheckNow();
             } else if (moduleId === 'feeStructure') {
                 // Re-read the VocTrain suggestions on the way in.
                 renderFeeStructure();
@@ -8060,7 +8076,21 @@
             // Populate edit form
             document.getElementById('editStudentId').value = student.id;
             document.getElementById('editStudentName').value = student.name;
-            document.getElementById('editSkillArea').value = student.skillArea;
+            // The programme list is the priced programmes. A trainee whose
+            // programme has no fee set yet used to open with no programme
+            // chosen, and saving their details was refused with "Please fill
+            // in all required fields (Name and Skill Area)" (OF-14). Their own
+            // programme is offered, marked, so the details save.
+            const _editSel = document.getElementById('editSkillArea');
+            _editSel.value = student.skillArea;
+            if (student.skillArea && _editSel.value !== student.skillArea) {
+                const _own = document.createElement('option');
+                _own.value = student.skillArea;
+                _own.textContent = student.skillArea + ' (no fee set yet)';
+                _own.setAttribute('data-unpriced', '1');
+                _editSel.appendChild(_own);
+                _editSel.value = student.skillArea;
+            }
             document.getElementById('editTuitionFee').value = student.tuitionFee;
             document.getElementById('editContactNumber').value = student.contact || '';
             document.getElementById('editEmail').value = student.email || '';
@@ -8198,8 +8228,12 @@
             const parentContact = document.getElementById('editParentContact').value.trim();
             const emergencyContact = document.getElementById('editEmergencyContact').value.trim();
 
-            if (!name || !skillArea) {
-                alert('Please fill in all required fields (Name and Skill Area)');
+            if (!name) {
+                alert('Please enter the trainee\'s name.');
+                return;
+            }
+            if (!skillArea) {
+                alert('Please choose the trainee\'s programme (Skill Area).');
                 return;
             }
 
@@ -8215,6 +8249,12 @@
             const newTuitionFee = _feeKey
                 ? feeStructure[_feeKey].total
                 : (parseFloat(student.tuitionFee) || 0);
+            // A programme with no fee set yet (OF-14): the personal details are
+            // saved, the tuition stays as it is, and a trainee not priced yet
+            // stays marked as such, so setting the programme's fee later fills
+            // in their tuition (feeBackfillTuition) instead of leaving them at
+            // $0 — "fully paid" while owing everything.
+            const _unpricedProgramme = !_feeKey && !(newTuitionFee > 0);
 
             // Warn if changing skill area with existing payments
             if (oldSkillArea !== skillArea && student.totalPaid > 0) {
@@ -8252,7 +8292,8 @@
             // placeholder from the trainee roll. (The tuition back-fill already
             // promises to leave an edited record as set, and a merge never lets
             // a placeholder outrank it — CESTISCore.feeRecordRank.)
-            delete student.needsFeeDetails;
+            if (!_unpricedProgramme) delete student.needsFeeDetails;
+            else student.needsFeeDetails = true;
             // Stamp the edit: the name is synced both ways and resolved by which
             // side was edited last, so an undated record would lose every tie.
             student.updatedAt = new Date().toISOString();
@@ -8290,7 +8331,9 @@
             closeModal('editStudentModal');
             editingStudentIndex = -1;
             
-            feeToastWithYearNote('Student information updated.', yearNote);
+            feeToastWithYearNote(_unpricedProgramme
+                ? 'Student information updated. ' + skillArea + ' has no fee set yet: set it under Fee Structure and this trainee\'s tuition is filled in.'
+                : 'Student information updated.', yearNote);
         }
 
         // Populate payment student select
@@ -8615,6 +8658,8 @@
             // Keep the line under the search box true whichever way the trainee
             // was chosen — from the search results or from the dropdown itself.
             renderChosenTrainee();
+            // The receipt number this payment will carry.
+            if (studentId) feeReceiptCheckNow();
         }
 
         // Record payment
@@ -8714,13 +8759,117 @@
             return true;
         }
 
+        /* ---- Automatic receipt numbers (office audit OF-5) ----
+           The next number, R-2026/27-0001 style, is filled in for the clerk
+           (CESTISCore.receiptNumbers.nextNumber): the payment date's financial
+           year, one past the highest number of that year on this computer's
+           merged copy. A number typed from a paper receipt book is kept as
+           typed (and still asked about when another payment carries it). A
+           blank number gets the next automatic one, never a "PAY…" timestamp.
+           So that two office computers never give one number, the number
+           carries this computer's own letters ("-K7") whenever the other
+           computers' payments could not be checked in the last two minutes, or
+           this computer has a payment of its own not yet sent. */
+        let _feeReceiptCheckedAt = 0;      // when the other computers' payments were last checked (ms)
+        let _feeLastOwnPaymentAt = 0;      // when this computer last recorded or changed a payment (ms)
+        function feeReceiptDeviceLetters() {
+            let have = '';
+            try { have = localStorage.getItem('cestisReceiptDevice') || ''; } catch (e) {}
+            const mine = CESTISCore.receiptNumbers.deviceSuffix(have);
+            if (mine !== have) { try { localStorage.setItem('cestisReceiptDevice', mine); } catch (e) {} }
+            return mine;
+        }
+        // This page's state with the other office computers, as the page's own
+        // sync reports it.
+        function feeReceiptSyncState() {
+            let st = null;
+            try {
+                st = (window.CESTISPageCloud && CESTISPageCloud.status() || []).filter(function (x) { return x && x.file === 'CESTIS_School_Fees.json'; })[0] || null;
+            } catch (e) { st = null; }
+            const lastPush = st ? (Date.parse(st.lastPush || '') || 0) : 0;
+            return { checkedAt: _feeReceiptCheckedAt, nowMs: Date.now(), unsent: _feeLastOwnPaymentAt > 0 && _feeLastOwnPaymentAt > lastPush };
+        }
+        // The number a payment dated `date` gets now (with this computer's
+        // letters when it must have them).
+        function feeNextReceiptNumber(date) {
+            const R = CESTISCore.receiptNumbers;
+            const suffix = R.needsSuffix(feeReceiptSyncState()) ? feeReceiptDeviceLetters() : '';
+            let all = payments;
+            // The stored copy may hold payments a pull brought in a moment ago.
+            try { const raw = JSON.parse(CESTISStore.getItem('cestiSchoolFeePayments') || '[]'); if (Array.isArray(raw) && raw.length) all = payments.concat(raw); } catch (e) {}
+            return R.nextNumber(all, date, { suffix: suffix });
+        }
+        // Fill in the suggestion — unless the clerk has typed a number of their own.
+        function feeSuggestReceipt() {
+            const el = document.getElementById('receiptNumber');
+            if (!el) return;
+            const typed = el.value.trim();
+            const auto = el.dataset.auto || '';
+            if (typed && typed !== auto) return;
+            const date = (document.getElementById('paymentDate') || {}).value || '';
+            const n = feeNextReceiptNumber(date);
+            el.value = n;
+            el.dataset.auto = n;
+            const hint = document.getElementById('receiptNumberHint');
+            if (hint) {
+                const p = CESTISCore.receiptNumbers.parse(n);
+                hint.textContent = (p && p.suffix)
+                    ? 'The next number, filled in for you. It ends in -' + p.suffix + ', this computer\'s letters, because the other office computers\' receipts could not be checked just now — so no two receipts share a number. You may type the number from a paper receipt book instead.'
+                    : 'The next number, filled in for you. You may type the number from a paper receipt book instead.';
+            }
+        }
+        function feeReceiptTyped() {
+            const el = document.getElementById('receiptNumber');
+            const hint = document.getElementById('receiptNumberHint');
+            if (!el || !hint) return;
+            if (!el.value.trim()) hint.textContent = 'Left empty, the payment gets the next number automatically.';
+            else if (el.value.trim() !== (el.dataset.auto || '')) hint.textContent = 'Your number is used as typed.';
+        }
+        // Check the other office computers' payments now (at most a few
+        // seconds), then suggest. Resolves when done either way.
+        function feeReceiptCheckNow() {
+            const done = function () { try { feeSuggestReceipt(); } catch (e) {} };
+            if (!window.CESTISPageCloud || typeof CESTISPageCloud.loadNow !== 'function') { done(); return Promise.resolve(false); }
+            const t0 = Date.now();
+            const pull = CESTISPageCloud.loadNow().then(function () {
+                const st = (CESTISPageCloud.status() || []).filter(function (x) { return x && x.file === 'CESTIS_School_Fees.json'; })[0];
+                const ok = !!(st && st.connected !== false && !st.error && (Date.parse(st.lastPull || '') || 0) >= t0 - 1000);
+                if (ok) _feeReceiptCheckedAt = Date.now();
+                return ok;
+            }).catch(function () { return false; });
+            const limit = new Promise(function (r) { setTimeout(function () { r(false); }, 6000); });
+            return Promise.race([pull, limit]).then(function (ok) { done(); return ok; });
+        }
+        // "Record Payment": an automatic number is checked against the other
+        // computers first (a few seconds at most), then the payment is recorded.
+        let _feeRecording = false;
+        function recordPaymentClicked() {
+            if (_feeRecording) return;
+            const el = document.getElementById('receiptNumber');
+            const typed = el ? el.value.trim() : '';
+            const auto = !typed || (el && typed === (el.dataset.auto || ''));
+            if (!auto) { recordPayment(); return; }
+            _feeRecording = true;
+            const btn = document.getElementById('recordPaymentBtn');
+            if (btn) btn.disabled = true;
+            feeReceiptCheckNow().then(function () {
+                _feeRecording = false;
+                if (btn) btn.disabled = false;
+                recordPayment();
+            });
+        }
+
         function recordPayment() {
             const studentId = document.getElementById('paymentStudentId').value;
             const amount = parseFloat(document.getElementById('paymentAmount').value) || 0;
             const date = document.getElementById('paymentDate').value;
             const method = document.getElementById('paymentMethod').value;
             const term = document.getElementById('paymentTerm').value;
-            const receiptNumber = document.getElementById('receiptNumber').value.trim();
+            const _rEl = document.getElementById('receiptNumber');
+            let receiptNumber = _rEl.value.trim();
+            // An automatic number (the one filled in, or none typed) is worked
+            // out again now, from everything this computer holds this moment.
+            const _rAuto = !receiptNumber || receiptNumber === ((_rEl.dataset && _rEl.dataset.auto) || '');
             const notes = document.getElementById('paymentNotes').value.trim();
             
             if (!studentId || !amount || !date) {
@@ -8752,7 +8901,8 @@
             // A receipt number already given to another payment is asked
             // about, not refused (one receipt may cover two trainees). Cancel
             // keeps the form as typed.
-            if (!feeReceiptNumberConfirmed(receiptNumber, null)) return;
+            if (_rAuto) receiptNumber = feeNextReceiptNumber(date);
+            if (!_rAuto && !feeReceiptNumberConfirmed(receiptNumber, null)) return;
 
             const payment = {
                 id: 'PAY' + Date.now(),
@@ -8775,6 +8925,10 @@
             student.status = feePaymentStatus(student);
             
             saveData();
+            _feeLastOwnPaymentAt = Date.now();
+            // Sent to the other office computers now rather than after the
+            // usual pause, so the next number they give follows this one.
+            try { if (window.CESTISPageCloud && typeof CESTISPageCloud.saveNow === 'function') CESTISPageCloud.saveNow(); } catch (e) {}
 
             // Generate receipt PDF automatically
             generateReceipt(payment, student);
@@ -8782,6 +8936,7 @@
             document.getElementById('paymentStudentId').value = '';
             document.getElementById('paymentAmount').value = '';
             document.getElementById('receiptNumber').value = '';
+            if (_rEl.dataset) _rEl.dataset.auto = '';
             document.getElementById('paymentNotes').value = '';
             document.getElementById('studentPaymentInfo').style.display = 'none';
             // The form has been cleared, so the search box and the line saying
@@ -8796,8 +8951,9 @@
             renderPaymentsTable();
             renderStudentsTable();
             updateDashboard();
+            feeSuggestReceipt();
 
-            feeToastWithYearNote('Payment recorded — receipt generated and downloaded.', yearNote);
+            feeToastWithYearNote('Payment recorded — receipt ' + receiptNumber + ' generated and downloaded.', yearNote);
         }
 
         /* ----- Fiscal-year + quarterly fee filtering ---------------------
@@ -9384,6 +9540,7 @@
             
             // The receipt number, if it is now one another payment carries.
             if (!feeReceiptNumberConfirmed(receiptNumber, payment.id)) return;
+            _feeLastOwnPaymentAt = Date.now();
 
             // Warn if amount changed significantly
             if (Math.abs(difference) > 0.01) {
@@ -15826,7 +15983,7 @@
 <script src="megadata/pages/fee-page.js?v=1"></script>
 
 <!-- Per-page Google Drive save path (own file in the shared backup folder) -->
-<script src="cestis-page-cloud.js?v=20261030c"></script>
+<script src="cestis-page-cloud.js?v=20261030d"></script>
 <script src="cestis-sync-chip.js?v=20261028d"></script>
 <script>
 CESTISPageCloud.init({

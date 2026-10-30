@@ -313,6 +313,21 @@ let today = '', weekend = false, signedUrl = '', certNo = '';
     for (const [who, role] of [[INS, 'instructor'], [AMA, 'student'], [SHANTE, 'student'], [KOFI, 'student']]) {
       await A.click('button:has-text("+ Create User")');
       await A.fill('#newUserName', who.name);
+      if (role === 'student') {
+        // A trainee is added with the New trainee form (office audit OF-7): choosing
+        // Student hands over what was typed; the form makes the sign-in, the trainee
+        // record and the fee record together, and asks her gender.
+        await A.fill('#newUserUsername', who.user);
+        await A.fill('#newUserEmail', who.email);
+        await A.selectOption('#newUserRole', role);
+        await A.waitForSelector('#addTraineeModal.active', { timeout: 5000 });
+        await A.selectOption('#atGender', who === KOFI ? 'Male' : 'Female');
+        await A.selectOption('#atProgramme', PROG);
+        await A.fill('#atPassword', who.pass);
+        await A.click('#atCreateBtn');
+        await A.waitForTimeout(800);
+        continue;
+      }
       await A.selectOption('#newUserRole', role);
       await A.fill('#newUserUsername', who.user);
       await A.fill('#newUserPassword', who.pass);
