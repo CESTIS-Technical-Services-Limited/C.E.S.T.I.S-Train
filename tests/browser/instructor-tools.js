@@ -433,6 +433,68 @@ const NOT_HANDED_IN = ['Leon Stewart', 'Kerry-Ann Palmer', 'Marlon Wright', 'Sas
     await ph.close();
   });
 
+  /* ------------------------------------------------------------- reuse */
+  await section('reuse', 'Copy a test for the next intake; a reload part-way loses nothing; Import Exam', async () => {
+    await go(I, 'i-exams');
+    await I.click('#page-i-exams .tab:has-text("Completed")');
+    await I.waitForTimeout(300);
+    const row = I.locator('#iExamTableBody tr', { hasText: 'Unit 5 Theory Test' });
+    ok(await row.locator('button:has-text("Copy")').count() === 1, 'a finished test has Copy');
+    await shot(I, 'b3-exams-copy-button', { focus: '#iExamTableBody' });
+    await row.locator('button:has-text("Copy")').click();
+    await I.waitForTimeout(500);
+    const b = await I.evaluate(() => ({ open: document.getElementById('createExamModal').classList.contains('active'), title: document.getElementById('examTitle').value,
+      qs: examBuilderQuestions.length, keyed: CESTISCore.exams.keyProblems(examBuilderQuestions).length, newId: examBuilderNewId, from: examBuilderCopiedFrom }));
+    ok(b.open && b.title === 'Unit 5 Theory Test (copy)' && b.qs === 20 && b.keyed === 0, 'the builder opens with the copy: 20 questions, every answer set (' + JSON.stringify(b) + ')');
+    await shot(I, 'b3-copy-in-builder');
+    await I.fill('#examTitle', 'Unit 5 Theory Test — January intake');
+    await I.click('#examStep1 button:has-text("Next")');
+    await I.waitForTimeout(300);
+    await I.click('#createExamPublishBtn');
+    await I.waitForTimeout(800);
+    const made = await I.evaluate(() => { const e = exams.find(x => x.title === 'Unit 5 Theory Test — January intake'); return e ? { id: e.id, n: CESTISCore.exams.questionCount(e), st: e.status, from: e.copiedFrom,
+      results: examResults.filter(r => r.examId === e.id).length, keys: e.questionData.filter(q => q.correctAnswer != null).length, sameIds: e.questionData.some(q => /^MQ|^TF|^ES|^FI/.test(q.id)) } : null; });
+    ok(!!made && made.n === 20 && made.st === 'upcoming' && made.from === 'EXAM-U5' && made.results === 0 && made.id === b.newId && !made.sameIds, 'published as a new test: new id, 20 questions, upcoming, no results (' + JSON.stringify(made) + ')');
+    ok(await I.evaluate(() => exams.find(x => x.id === 'EXAM-U5').questionData.length === 20 && examResults.filter(r => r.examId === 'EXAM-U5').length === 20), 'the original and its 20 results are untouched');
+    ok(await I.evaluate(() => !localStorage.getItem('cestisExamBuilderDraft')), 'and nothing is left waiting on this computer');
+    // Building a test, then the page reloads part-way.
+    await I.evaluate(() => { document.querySelectorAll('#toastContainer > *').forEach(t => t.remove()); openModal('createExamModal'); });
+    await I.fill('#examTitle', 'Unit 6 Theory Test');
+    await I.click('#examStep1 button:has-text("Next")');
+    for (let k = 0; k < 3; k++) {
+      await I.click('#examAddQuestionBtn'); await I.check('#examTypePicker input[name="examNewType"][value="tf"]'); await I.click('#examTypeAddBtn');
+      await I.fill('#qItem-' + k + ' .q-text-input', 'Statement ' + (k + 1) + ' about the plasma cutter.'); await I.dispatchEvent('#qItem-' + k + ' .q-text-input', 'change');
+      await I.locator('#qItem-' + k + ' input[type=radio]').nth(k % 2).check();
+    }
+    await I.waitForTimeout(700);
+    ok(await I.evaluate(() => { const d = JSON.parse(localStorage.getItem('cestisExamBuilderDraft') || '{}')['USR-INS-IAN'] || {}; const k = Object.keys(d)[0]; return !!k && d[k].questions.length === 3; }), 'the builder has kept 3 questions on this computer as they were typed');
+    ok(!(centre('voctrain_exams') || []).some(e => e.title === 'Unit 6 Theory Test') && await I.evaluate(() => !JSON.stringify(Object.keys(localStorage)).includes('nothing')), 'and nowhere else: not on the Centre\'s server');
+    await I.reload({ waitUntil: 'load' });
+    await I.waitForTimeout(900);
+    ok(await signIn(I, 'ian'), 'Ian signs in again after the reload');
+    await go(I, 'i-exams');
+    await I.evaluate(() => renderInstructorExams('upcoming'));
+    const banner = await txt(I, '#iExamListView .exam-draft-banner');
+    ok(/unsaved test on this computer: "Unit 6 Theory Test", 3 questions/.test(banner), 'the Exams page says plainly that an unsaved test is waiting (' + banner.replace(/\s+/g, ' ').slice(0, 90) + ')');
+    await shot(I, 'b3-unsaved-test-banner', { focus: '#iExamListView' });
+    await I.evaluate(() => document.querySelectorAll('#toastContainer > *').forEach(t => t.remove()));
+    await I.click('#examDraftContinue');
+    await I.waitForTimeout(600);
+    const back = await I.evaluate(() => ({ title: document.getElementById('examTitle').value, n: examBuilderQuestions.length, keys: CESTISCore.exams.keyProblems(examBuilderQuestions).length }));
+    ok(back.title === 'Unit 6 Theory Test' && back.n === 3 && back.keys === 0, 'Continue building brings it all back: title, 3 questions and their answers (' + JSON.stringify(back) + ')');
+    await shot(I, 'b3-restored-builder');
+    await I.evaluate(() => document.querySelectorAll('#toastContainer > *').forEach(t => t.remove()));
+    await I.click('#createExamPublishBtn');
+    await I.waitForTimeout(800);
+    ok(await I.evaluate(() => exams.some(e => e.title === 'Unit 6 Theory Test' && e.questionData.length === 3) && !localStorage.getItem('cestisExamBuilderDraft')), 'published, and the draft is gone');
+    // Import Exam for the instructor, his own programme only.
+    await go(I, 'i-import-exam');
+    await until(() => I.evaluate(() => !!document.getElementById('importExamCourse')), 8000);
+    const opts = await I.evaluate(() => Array.from(document.getElementById('importExamCourse').options).map(o => o.value));
+    ok(opts.length === 1 && opts[0] === W, 'Import Exam is open to him, for Welding only (' + opts.join(', ') + ')');
+    await shot(I, 'b3-instructor-import-exam');
+  });
+
   /* ----------------------------------------------------------- notices */
   await section('notices', 'A Welding assignment reaches Welding trainees, not Plumbing', async () => {
     await go(I, 'i-gradebook');

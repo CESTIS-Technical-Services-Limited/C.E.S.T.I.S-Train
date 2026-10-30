@@ -14070,6 +14070,8 @@ function buildInstructorSidebar() {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>Qual Plan/Curriculum</div>
     <div class="nav-item" data-page="i-exams" onclick="showPage('i-exams')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Online Exams</div>
+    <div class="nav-item" data-page="i-import-exam" onclick="showPage('i-import-exam')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Import Exam</div>
     <div class="nav-item" data-page="i-invigilator" onclick="showPage('i-invigilator')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>Exam Invigilator</div>
     <div class="nav-section-label">Tasks</div>
@@ -14221,6 +14223,7 @@ var cestisFeatureConfig = {
     file: 'Pages/Import-Exam.html',
     onMount: function() {
       cestisSafe('populateCourseDropdowns');
+      cestisSafe('importExamLimitCourses');
     }
   },
   'attendance': {
@@ -14573,7 +14576,7 @@ function showPage(pageId) {
   }
   const titles = {
     dashboard:'Dashboard',video:'Video Conference',students:'Student Progress',
-    training:'Training Centres','course-duration':'Course / Training Centre Duration','transfer-trainees':'Transfer Trainees','enrolment-registers':'Enrolment Registers','a-resources':'Resource Manager',exams:'Online Exams',invigilator:'Exam Invigilator','i-invigilator':'Exam Invigilator','as-invigilator':'Exam Invigilator','import-exam':'Import Exam',certificates:'Certificate Tracking','cert-downloads':'Certificate Downloads',
+    training:'Training Centres','course-duration':'Course / Training Centre Duration','transfer-trainees':'Transfer Trainees','enrolment-registers':'Enrolment Registers','a-resources':'Resource Manager',exams:'Online Exams',invigilator:'Exam Invigilator','i-invigilator':'Exam Invigilator','as-invigilator':'Exam Invigilator','import-exam':'Import Exam','i-import-exam':'Import Exam',certificates:'Certificate Tracking','cert-downloads':'Certificate Downloads',
     reports:'Reports & Analytics','verify-users':'Verify Users',settings:'Settings',
     attendance:'Attendance Management',announcements:'Announcements',calendar:'Calendar & Schedule',
     's-dashboard':'My Dashboard','s-video':'My Classes','s-progress':'My Progress',
@@ -16297,6 +16300,11 @@ function buildInstructorPages() {
   <!-- INSTRUCTOR ONLINE EXAMS -->
   <section class="page" id="page-i-exams">
     <div class="cestis-mount" data-feature="i-exams" data-prefix="instructor"></div>
+  </section>
+
+  <!-- INSTRUCTOR: IMPORT EXAM (their own programme) — markup in Pages/Import-Exam.html -->
+  <section class="page" id="page-i-import-exam">
+    <div class="cestis-mount" data-feature="import-exam" data-prefix="instructor"></div>
   </section>
 
   <!-- EXAM INVIGILATOR (Instructor: their programmes' exams) -->
@@ -27388,6 +27396,7 @@ function renderExams(filter) {
     if (!_resultsByExam.has(r.examId)) _resultsByExam.set(r.examId, []);
     _resultsByExam.get(r.examId).push(r);
   });
+  try { examDraftBanner(); } catch (e) {}
   tbody.innerHTML = filtered.map(function(e) {
     // Buttons name the exam by id, not by its position in the list.
     var idx = jsArg(e.id);
@@ -27407,6 +27416,7 @@ function renderExams(filter) {
       actionBtns += '<button class="btn btn-sm btn-secondary" style="margin-left:4px;" onclick="viewExamResults('+idx+')">Results ('+resultsForExam.length+')</button>' +
         '<button class="btn btn-sm btn-secondary" style="margin-left:4px;" onclick="editExam('+idx+')" title="Edit exam">Edit</button>';
     }
+    if(hasQuestions) actionBtns += '<button class="btn btn-sm btn-secondary" style="margin-left:4px;" onclick="copyExamToBuilder('+idx+')" title="Copy this test for another intake: every question and answer, no results">Copy</button>';
     actionBtns += '<button class="btn btn-sm" style="margin-left:4px;background:#e74c3c;color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;" onclick="deleteExam('+idx+')" title="Delete exam">✕</button>';
     return '<tr><td><strong>'+escapeHtml(e.title)+'</strong>'+(hasQuestions?'<br><span style="font-size:11px;color:var(--green);">✓ Questions added</span>':'')+'</td><td>'+escapeHtml(e.course)+'</td><td>'+escapeHtml(e.date)+' @ '+escapeHtml(e.time)+'</td><td>'+escapeHtml(e.duration)+' min</td><td>'+escapeHtml(qCount)+'</td><td><span class="badge '+(e.status==='upcoming'?'badge-blue':e.status==='active'?'badge-red':'badge-green')+'"><span class="badge-dot"></span>'+(e.status==='active'?'In Progress':e.status==='completed'?'Completed ✓':'Scheduled')+'</span>'+(e.status==='completed'&&livePass?'<br><span style="font-size:11px;color:var(--text-muted);">Pass: '+escapeHtml(livePass)+'</span>':'')+'</td><td>'+actionBtns+'</td></tr>';
   }).join('');
@@ -27451,6 +27461,7 @@ function renderInstructorExams(filter) {
       '<div class="stat-card"><div class="stat-icon" style="background:var(--accent-dim);color:var(--accent);">📊</div><div class="stat-value">'+avgScore+'%</div><div class="stat-label">Avg Score</div></div>';
   }
 
+  try { examDraftBanner(); } catch (e) {}
   tbody.innerHTML = filtered.map(function(e) {
     var idx = jsArg(e.id);
     var qCount = CESTISCore.exams.questionCount(e);
@@ -27481,6 +27492,9 @@ function renderInstructorExams(filter) {
         actionBtns += '<button class="btn btn-sm btn-secondary" style="margin-left:4px;" onclick="editExam('+idx+')" title="Edit exam">Edit</button>';
       }
     }
+    // The same paper for the next intake: a new test with every question and
+    // its key, no results (copyExamToBuilder).
+    if(hasQuestions) actionBtns += '<button class="btn btn-sm btn-secondary" style="margin-left:4px;" onclick="copyExamToBuilder('+idx+')" title="Copy this test for another intake: every question and answer, no results">Copy</button>';
     if(isOwner) {
       actionBtns += '<button class="btn btn-sm" style="margin-left:4px;background:#e74c3c;color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;" onclick="deleteExam('+idx+')" title="Delete exam">✕</button>';
     }
@@ -27505,6 +27519,10 @@ var editingExamId = null;   // the exam open in the builder, by id; null = creat
 function examBuilderOpening() {
   var btn = document.getElementById('createExamPublishBtn');
   examBuilderOpen = {};
+  // Each opening writes its own draft, so reopening never writes over one.
+  examBuilderDraftId = (editingExamId != null ? 'edit:' + editingExamId + ':' : 'new:') + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  if (typeof examDraftStartTimer === 'function') examDraftStartTimer();
+  setTimeout(function(){ try { examBuilderDraftNote(); } catch (e) {} }, 0);
   if (editingExamId != null) {
     examSettingsHeading();
     if (btn) btn.textContent = 'Save changes';
@@ -27539,7 +27557,175 @@ function examBuilderOpening() {
   if (btn) btn.textContent = 'Publish Exam';
   goToExamStep1();
 }
-function examBuilderClosed() { editingExamId = null; examBuilderQuestions = []; }
+function examBuilderClosed() {
+  // Whatever was built so far stays on this computer (examDraftSave) until it
+  // is saved or discarded: closing the builder by mistake loses nothing.
+  try { examDraftSave(true); } catch (e) {}
+  editingExamId = null; examBuilderQuestions = []; examBuilderNewId = null; examBuilderCopiedFrom = null;
+  examBuilderDraftId = null;
+  if (typeof examDraftStopTimer === 'function') examDraftStopTimer();
+  setTimeout(function(){ try { examDraftBanner(); } catch (e) {} }, 0);
+}
+
+/* ---- "Copy test" (audit IN-6) ----
+   Re-using last intake's test meant typing it again: ~20 minutes and 147
+   actions for 20 questions. Copy opens the builder with every question and
+   its answer key copied (CESTISCore.exams.copyExam: new ids, the settings
+   kept, nothing of the old sitting — no results, not active, no pass rate,
+   no early release), dated from now, as the copier's own new test. Nothing
+   is published until Save; meanwhile it is kept on this computer. */
+var examBuilderNewId = null, examBuilderCopiedFrom = null;
+function copyExamToBuilder(examId) {
+  var e = examFind(examId);
+  if(!e || !Array.isArray(e.questionData) || !e.questionData.length) { showToast('That test has no questions to copy.', 'warning'); return; }
+  var by = currentRole === 'instructor' && currentInstructor ? currentInstructor.id : (currentRole === 'admin' ? 'admin' : (currentLoggedInUser && currentLoggedInUser.id) || 'unknown');
+  var d = CESTISCore.exams.defaultStart(Date.now() + 7 * 86400000, examCentreOffset());
+  var c = CESTISCore.exams.copyExam(e, { id: cestisGenId('EXAM-'), title: e.title + ' (copy)', date: d.date, time: d.time, by: by, byRole: currentRole || 'admin' });
+  // An instructor's copy is for her own programme.
+  if(currentRole === 'instructor' && currentInstructor && currentInstructor.course && !instructorCourseMatch(c.course, currentInstructor.course)) c.course = currentInstructor.course;
+  editingExamId = null;
+  openModal('createExamModal');                 // a clean new-exam form ...
+  examBuilderFillFrom(c);                       // ... filled with the copy
+  examBuilderNewId = c.id; examBuilderCopiedFrom = e.id;
+  examBuilderDraftId = 'copy:' + c.id;
+  examBuilderQuestions = c.questionData;
+  examDraftSave(true);
+  showToast('Copied "' + e.title + '": ' + CESTISCore.exams.questionCount(c) + ' questions with their answers. Change the title and date, then Publish.');
+}
+function examBuilderFillFrom(e) {
+  var set = function(id, v) { var el = document.getElementById(id); if (el) el.value = v == null ? '' : v; };
+  set('examTitle', e.title); set('examCourse', e.course); set('examDate', e.date || ''); set('examTime', e.time || '');
+  set('examDuration', e.duration || 90); set('examPassMark', e.passMark || 60); set('examShuffle', e.shuffleQuestions ? 'true' : 'false');
+  set('examInstructions', e.instructions || ''); set('examAnswersRelease', e.answersRelease || 'after-close');
+  set('examPerPage', String(parseInt(e.questionsPerPage) || 0)); set('examShuffleOptions', e.shuffleOptions ? 'true' : 'false');
+  set('examAllowFlag', e.allowFlag === false ? 'false' : 'true');
+  var ce = document.getElementById('examCloseEnabled'); if (ce) ce.checked = !!e.closeDate;
+  set('examCloseDate', e.closeDate || ''); set('examCloseTime', e.closeDate ? (e.closeTime || '23:59') : '');
+  try { examCloseToggle(); } catch (x) {}
+}
+
+/* ---- The builder's draft, kept on THIS computer as it is built ----
+   A reload, a crash or a closed tab part-way through used to lose every
+   question (the audit: 5 questions typed, reload, 0). What is in the builder
+   is written to this browser (key 'cestisExamBuilderDraft', one draft per
+   person) as it changes. It never leaves the device: it is a device-only key
+   (CESTISCore.isSnapshotableKey / cestis-page-cloud.js DEVICE_KEYS), so no
+   backup, sync or other person's device ever holds a half-built test or its
+   answers. Saving the test clears it; so does Discard. */
+var EXAM_DRAFT_KEY = 'cestisExamBuilderDraft';
+var _examDraftTimer = null, _examDraftDebounce = null;
+// Which draft the open builder is writing: 'edit:<exam id>:<n>',
+// 'copy:<new id>' or 'new:<n>' — several unsaved tests can wait side by side,
+// and starting another never writes over one of them.
+var examBuilderDraftId = null;
+var EXAM_DRAFT_FIELDS = ['examTitle', 'examCourse', 'examDate', 'examTime', 'examDuration', 'examPassMark', 'examShuffle', 'examInstructions',
+  'examAnswersRelease', 'examPerPage', 'examShuffleOptions', 'examAllowFlag', 'examCloseDate', 'examCloseTime'];
+function examDraftOwner() { return (currentLoggedInUser && currentLoggedInUser.id) || (currentInstructor && currentInstructor.id) || currentRole || 'staff'; }
+function examDraftAll() {
+  try { var v = JSON.parse(localStorage.getItem(EXAM_DRAFT_KEY) || '{}'); return v && typeof v === 'object' && !Array.isArray(v) ? v : {}; } catch (e) { return {}; }
+}
+function examDraftWrite(all) {
+  try { if (Object.keys(all).length) localStorage.setItem(EXAM_DRAFT_KEY, JSON.stringify(all)); else localStorage.removeItem(EXAM_DRAFT_KEY); return true; } catch (e) { return false; }
+}
+// This person's unsaved tests, the most recent first.
+function examDraftList() {
+  var mine = examDraftAll()[examDraftOwner()];
+  if (!mine || typeof mine !== 'object') return [];
+  return Object.keys(mine).map(function(k) { return mine[k]; }).filter(examDraftHasContent)
+    .sort(function(a, b) { return String(b.savedAt || '') < String(a.savedAt || '') ? -1 : 1; });
+}
+function examDraftMine(id) {
+  var l = examDraftList();
+  return id ? (l.filter(function(d) { return d.id === id; })[0] || null) : (l[0] || null);
+}
+function examDraftHasContent(d) {
+  return !!(d && ((d.fields && String(d.fields.examTitle || '').trim()) || (Array.isArray(d.questions) && d.questions.length)));
+}
+// force: write even when the builder is not showing (closing it).
+function examDraftSave(force) {
+  if (!examBuilderDraftId) return false;
+  var modal = document.getElementById('createExamModal');
+  if (!force && !(modal && modal.classList.contains('active'))) return false;
+  var f = {};
+  EXAM_DRAFT_FIELDS.forEach(function(id) { var el = document.getElementById(id); if (el) f[id] = el.value; });
+  var ce = document.getElementById('examCloseEnabled'); f.examCloseEnabled = !!(ce && ce.checked);
+  var d = { v: 1, id: examBuilderDraftId, savedAt: new Date().toISOString(), editingExamId: editingExamId, newId: examBuilderNewId, copiedFrom: examBuilderCopiedFrom,
+    fields: f, questions: JSON.parse(JSON.stringify(examBuilderQuestions || [])) };
+  // An empty form is not a draft (and never replaces one).
+  if (!examDraftHasContent(d)) return false;
+  var all = examDraftAll(), me = examDraftOwner();
+  if (!all[me] || typeof all[me] !== 'object') all[me] = {};
+  all[me][examBuilderDraftId] = d;
+  return examDraftWrite(all);
+}
+function examDraftSoon() { clearTimeout(_examDraftDebounce); _examDraftDebounce = setTimeout(function(){ examDraftSave(); }, 400); }
+function examDraftStartTimer() {
+  examDraftStopTimer();
+  _examDraftTimer = setInterval(function(){ examDraftSave(); }, 4000);
+  var modal = document.getElementById('createExamModal');
+  if (modal && !modal._cestisDraftWired) {
+    modal._cestisDraftWired = true;
+    modal.addEventListener('input', examDraftSoon, true);
+    modal.addEventListener('change', examDraftSoon, true);
+    modal.addEventListener('click', examDraftSoon, true);
+  }
+}
+function examDraftStopTimer() { if (_examDraftTimer) { clearInterval(_examDraftTimer); _examDraftTimer = null; } }
+function examDraftClear(id) {
+  id = id || examBuilderDraftId;
+  var all = examDraftAll(), me = examDraftOwner();
+  if (!id || !all[me] || !(id in all[me])) return;
+  delete all[me][id];
+  if (!Object.keys(all[me]).length) delete all[me];
+  examDraftWrite(all);
+}
+function examDraftRestore(id) {
+  var d = examDraftMine(id);
+  if (!d) return false;
+  var editing = d.editingExamId != null ? exams.find(function(e){ return e && e.id === d.editingExamId; }) : null;
+  editingExamId = editing ? editing.id : null;
+  openModal('createExamModal');
+  examBuilderDraftId = d.id;
+  var f = d.fields || {};
+  EXAM_DRAFT_FIELDS.forEach(function(k) { var el = document.getElementById(k); if (el && f[k] != null) el.value = f[k]; });
+  var ce = document.getElementById('examCloseEnabled'); if (ce) ce.checked = !!f.examCloseEnabled;
+  try { examCloseToggle(); } catch (e) {}
+  examBuilderQuestions = Array.isArray(d.questions) ? d.questions : [];
+  examBuilderNewId = d.newId || null; examBuilderCopiedFrom = d.copiedFrom || null;
+  var btn = document.getElementById('createExamPublishBtn'); if (btn) btn.textContent = editing ? 'Save changes' : 'Publish Exam';
+  var note = document.getElementById('examBuilderDraftNote'); if (note) note.remove();
+  if (examBuilderQuestions.length) goToExamStep2(); else goToExamStep1();
+  showToast('Restored "' + (f.examTitle || 'your test') + '" with ' + examBuilderQuestions.length + ' question' + (examBuilderQuestions.length !== 1 ? 's' : '') + ', as it was at ' + new Date(d.savedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + '.');
+  return true;
+}
+function examDraftDiscard(id) {
+  var d = examDraftMine(id);
+  if (!d) return;
+  if (!confirm('Discard "' + ((d.fields && d.fields.examTitle) || 'the unsaved test') + '" (' + ((d.questions || []).length) + ' questions)? It has not been published and cannot be brought back.')) return;
+  examDraftClear(d.id);
+  examDraftBanner();
+  showToast('Unsaved test discarded.');
+}
+/* The clear prompt: on the Exams page (after a reload or a crash) and at the
+   top of the builder, "You have an unsaved test …: Continue building /
+   Discard". */
+function examDraftBanner() {
+  var list = examDraftList(), d = list[0] || null, has = !!d;
+  var modal = document.getElementById('createExamModal');
+  var inBuilder = modal && modal.classList.contains('active');
+  ['iExamListView', 'examListView'].forEach(function(id) {
+    var host = document.getElementById(id);
+    if (!host) return;
+    var b = host.querySelector('.exam-draft-banner');
+    if (!has || inBuilder) { if (b) b.remove(); return; }
+    if (!b) { b = document.createElement('div'); b.className = 'alert-item alert-warning exam-draft-banner'; b.setAttribute('role', 'status'); host.insertBefore(b, host.firstChild); }
+    var n = (d.questions || []).length, when = new Date(d.savedAt);
+    b.innerHTML = '<div class="alert-icon">📝</div><div class="alert-body" style="flex:1;"><div class="alert-msg">You have an unsaved test on this computer: "' + escapeHtml((d.fields && d.fields.examTitle) || 'Untitled') + '", ' + n + ' question' + (n !== 1 ? 's' : '') + (list.length > 1 ? ' (and ' + (list.length - 1) + ' more)' : '') + '</div>' +
+      '<div class="alert-time" style="color:var(--text-muted);">Last changed ' + escapeHtml(when.toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })) + '. It is not published until you save it.</div></div>' +
+      '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;"><button class="btn btn-sm btn-primary" id="examDraftContinue" onclick="examDraftRestore(' + jsArg(d.id) + ')">Continue building</button>' +
+      '<button class="btn btn-sm btn-secondary" onclick="examDraftDiscard(' + jsArg(d.id) + ')">Discard</button></div>';
+  });
+}
 
 // Staff decide when trainees may see the correct answers: after the exam
 // closes (the default), straight away, or never.
@@ -27574,6 +27760,24 @@ function examArchiveResultsOf(examId, title) {
   return n;
 }
 
+// At the top of a NEW test's builder: the unsaved test waiting on this
+// computer, with the choice to bring it back.
+function examBuilderDraftNote() {
+  var host = document.getElementById('examStep1');
+  if (!host) return;
+  var old = document.getElementById('examBuilderDraftNote');
+  var d = examDraftList().filter(function(x) { return x.id !== examBuilderDraftId; })[0] || null;
+  var show = editingExamId == null && !examBuilderNewId && !!d && !(examBuilderQuestions || []).length &&
+    !String((document.getElementById('examTitle') || {}).value || '').trim();
+  if (!show) { if (old) old.remove(); return; }
+  var n = (d.questions || []).length;
+  var el = old || document.createElement('div');
+  el.id = 'examBuilderDraftNote'; el.className = 'alert-item alert-warning'; el.setAttribute('role', 'status');
+  el.innerHTML = '<div class="alert-icon">📝</div><div class="alert-body" style="flex:1;"><div class="alert-msg">Unsaved test found on this computer: "' + escapeHtml((d.fields && d.fields.examTitle) || 'Untitled') + '", ' + n + ' question' + (n !== 1 ? 's' : '') + '</div>' +
+    '<div class="alert-time" style="color:var(--text-muted);">Restore it, or carry on with a new test (it stays here until you discard it).</div></div>' +
+    '<button class="btn btn-sm btn-primary" onclick="examDraftRestore(' + jsArg(d.id) + ')">Restore it</button>';
+  if (!old) host.insertBefore(el, host.firstChild);
+}
 function goToExamStep1() {
   document.getElementById('examStep1').style.display='block';
   document.getElementById('examStep2').style.display='none';
@@ -27603,7 +27807,7 @@ var EXAM_TYPE_HELP = {
   match: 'Prompts on the left, each with a drop-down of answers on the right. Each row the trainee gets right earns its share of the marks. Marked automatically.',
   shortanswer: 'The trainee types a word or short phrase. Marked automatically against the answers you accept: capitals and extra spaces do not matter, and * stands for any letters (arrest* accepts arrestor and arrester).',
   numerical: 'The trainee types a number. Right when it is within the tolerance you set (± 0 means exactly). Marked automatically.',
-  fill: 'A sentence with a gap. Your expected answer is suggested to the marker, who confirms it.',
+  fill: 'A sentence with a gap. An answer that is your expected answer word for word (capitals and spaces around it aside) is marked right at once; any other answer waits for the marker, with your expected answer beside it.',
   short: 'An essay or written answer, marked by an instructor. You can add a model answer for the marker.',
   info: 'Text with no answer and no marks — a scenario, instructions or a heading that introduces the questions after it. Shown as "i" in the navigation.'
 };
@@ -28059,7 +28263,9 @@ function createExam() {
   } else {
     var creatorId = currentRole === 'instructor' && currentInstructor ? currentInstructor.id : (currentRole === 'admin' ? 'admin' : 'unknown');
     var newExam = {
-      id: cestisGenId('EXAM-'),
+      // A copied test keeps the new id it was given when copied (and says
+      // which test it came from); its questions already have new ids.
+      id: examBuilderNewId && !exams.some(function(x){ return x && x.id === examBuilderNewId; }) ? examBuilderNewId : cestisGenId('EXAM-'),
       title: title,
       course: course,
       date: dateVal,
@@ -28080,6 +28286,7 @@ function createExam() {
       createdByRole: currentRole || 'admin'
     };
     if(closeOn) { newExam.closeDate = closeDate; newExam.closeTime = closeTime; }
+    if(examBuilderCopiedFrom) newExam.copiedFrom = examBuilderCopiedFrom;
     exams.unshift(newExam);
     showToast('Exam "'+title+'" created with '+newExam.questions+' questions!');
     addNotification('New exam created: "' + title + '" — ' + newExam.questions + ' questions', 'exam', null, ['admin','instructor']);
@@ -28087,6 +28294,10 @@ function createExam() {
 
   editingExamId = null;
   examBuilderQuestions = [];
+  examBuilderNewId = null; examBuilderCopiedFrom = null;
+  // Saved: the copy kept on this computer while it was being built goes.
+  if (typeof examDraftClear === 'function') examDraftClear();
+  examBuilderDraftId = null;
   closeModal('createExamModal');
   renderExams(editing ? undefined : 'upcoming');
   refreshContentDependentViews();
@@ -34040,6 +34251,23 @@ function updateImportSummary() {
 }
 
 // ---- Finalize Import ----
+// An instructor imports for her own programme(s) only: the programme list
+// offers just those (audit IN-6: Import Exam was the Administrator's alone).
+function importExamInstructorCourses() {
+  if (currentRole !== 'instructor' || !currentInstructor) return null;
+  var out = [];
+  [currentInstructor.course, currentInstructor.programme].concat(Array.isArray(currentInstructor.courses) ? currentInstructor.courses : [])
+    .forEach(function(c) { c = String(c || '').trim(); if (c && out.indexOf(c) === -1) out.push(c); });
+  return out;
+}
+function importExamLimitCourses() {
+  var mine = importExamInstructorCourses();
+  var sel = document.getElementById('importExamCourse');
+  if (!mine || !sel) return;
+  var keep = Array.prototype.slice.call(sel.options || []).filter(function(o) { return mine.some(function(c) { return o.value === c || instructorCourseMatch(o.value, c); }); });
+  sel.innerHTML = (keep.length ? keep.map(function(o) { return '<option value="' + escapeAttr(o.value) + '">' + escapeHtml(o.textContent) + '</option>'; }).join('')
+    : mine.map(function(c) { return '<option value="' + escapeAttr(c) + '">' + escapeHtml(c) + '</option>'; }).join(''));
+}
 function finalizeImportExam() {
   var title = document.getElementById('importExamTitle').value.trim();
   if(!title) { alert('Please enter an exam title.'); return; }
@@ -34058,6 +34286,13 @@ function finalizeImportExam() {
   var unkeyed = CESTISCore.exams.keyProblems(importedQuestions);
   if(unkeyed.length) { alert('Select the correct answer for question' + (unkeyed.length > 1 ? 's ' : ' ') + unkeyed.join(', ') + ' before importing.'); return; }
 
+  // An instructor imports for her own programme only.
+  var _mine = importExamInstructorCourses();
+  var _course = document.getElementById('importExamCourse').value;
+  if (_mine && !_mine.some(function(c) { return _course === c || instructorCourseMatch(_course, c); })) {
+    alert('You can import an exam for your own programme only (' + _mine.join(', ') + ').');
+    return;
+  }
   // Build exam object. A blank date or time means "from now", Centre time.
   var examId = cestisGenId('EXAM-');
   var dflt = CESTISCore.exams.defaultStart(Date.now(), examCentreOffset());
@@ -34101,10 +34336,10 @@ function finalizeImportExam() {
   var fileInput = document.getElementById('importFileInput');
   if(fileInput) fileInput.value = '';
 
-  // Navigate to exams page
+  // Navigate to exams page (the instructor's own)
   goToImportStep(1);
-  showPage('exams');
-  renderExams('upcoming');
+  if (currentRole === 'instructor') { showPage('i-exams'); try { renderInstructorExams('upcoming'); } catch (e) {} }
+  else { showPage('exams'); renderExams('upcoming'); }
 }
 
 // ============================================

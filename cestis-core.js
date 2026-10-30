@@ -1770,7 +1770,10 @@
     // work held here until they sign in.
     'cestisGateNs', 'cestisGateMode', 'cestisGateToken', 'cestisGateSessionKey', 'cestisGateAddress',
     'cestisDeviceKind', 'cestisGatePublished', 'cestisGatePublishQueue', 'cestisGateCollected',
-    'cestisGateUnassigned', 'cestisGateQuarantine', 'cestisStudentIdMoves'];
+    'cestisGateUnassigned', 'cestisGateQuarantine', 'cestisStudentIdMoves',
+    // A test being built, kept on this computer until it is saved (index.html
+    // examDraftSave): a half-built test and its answers go nowhere else.
+    'cestisExamBuilderDraft'];
 
   Core._parseArr = function (raw) {
     try { var v = JSON.parse(raw || 'null'); return Array.isArray(v) ? v : []; }

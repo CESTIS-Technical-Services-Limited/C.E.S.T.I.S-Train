@@ -98,7 +98,7 @@ const PAGE_FNS = [
   'examReviewGoTo', 'examOptionText', 'examResultsTableHtml', 'examSettingsHeading', 'examSettingsReset', 'examSettingsSections',
   'examSettingsSyncExpand', 'examCloseToggle', 'examKeyProblemText', 'examTypeLabel',
   'autoSaveExamProgress', 'submitExam', 'showExamResult', 'viewExamResultDetail', 'renderStudentExams', 'submitGrading', 'examGraderName', 'examRecordManualMarks', 'notifyMarkingAudience', 'closeGradingPanel',
-  'getFilteredNotifications', 'notifViewerId', 'exportExamResults', 'detectQuestionsFromText', 'removeImportOption', 'finalizeImportExam', 'updateImportSummary',
+  'getFilteredNotifications', 'notifViewerId', 'exportExamResults', 'detectQuestionsFromText', 'removeImportOption', 'finalizeImportExam', 'importExamInstructorCourses', 'updateImportSummary',
   'clearSensitiveStudentData',
   // A test in progress that follows the trainee (CESTISCore.exams attempts).
   'safeJsonParse', 'examStampNow', 'examReadDraftRaw', 'examCurrentAttempt', 'examRetireLocalDraft', 'examAttemptRecord',
@@ -155,7 +155,7 @@ function makePage(opts) {
     exams: [], examResults: [], students: [], userAccounts: [], notifications: [], systemSettings: {},
     currentRole: 'admin', currentStudent: null, currentInstructor: null, currentLoggedInUser: null,
     currentExamSession: null, examTimerInterval: null, _isExamPreviewMode: false, _examDraftTimer: null,
-    examBuilderQuestions: [], editingExamId: null, importedQuestions: [], importRawTextContent: '', importSelectedFile: null,
+    examBuilderQuestions: [], editingExamId: null, examBuilderNewId: null, examBuilderCopiedFrom: null, examBuilderDraftId: null, importedQuestions: [], importRawTextContent: '', importSelectedFile: null,
     EXAM_OUTBOX_KEY: 'cestisExamOutbox', _sessionWiped: false,
     examAttempts: [], EXAM_PUBLISH_MS: 30000, _examPublishTimer: null, _examLastPublish: 0, _examDraftFirstAt: 0, scheduleDebouncedCloudSave() {},
     _examEventSeq: 0, _examLeft: null, _examBlurTimer: null, _examOffline: null, _examWatchers: {}, EXAM_WATCH_MS: 75000, _examPulseAt: 0, _examPulseTimer: null, lmsChatRTReady: false,
