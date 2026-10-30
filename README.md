@@ -25,6 +25,10 @@ migration), `docs/03-VERIFICATION.md` (gate-by-gate proof with actual outputs).
   that wraps its own save function(s): in *shadow* mode local writes flow into the record book
   and remote changes mirror back into legacy storage; in *legacy* mode (no broker configured,
   or migration not sealed) pages behave byte-identically to today.
+- **Loaded only where a broker is set up.** No broker is deployed, so MegaData is dormant: the
+  everyday pages load only `megadata/loader.js` (about 1.5 KB on the wire), which fetches the
+  page's MegaData scripts (listed in its tag) only on a device whose browser holds broker
+  settings from `MegaData-Admin.html`. The two MegaData admin pages load everything as before.
 
 **October 2026 upgrade:** what changed across the whole platform, what the Centre must do before
 deploying, what is still open, and the UI and feature roadmap are in

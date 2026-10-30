@@ -54,8 +54,9 @@ const EXCLUDE = [
   /^node_modules\//,
   /^cert\//,                               // a machine's own certificate, never shipped
   // MegaData's migration tooling: run once by an operator with internet, from
-  // the main build. The browser-side MegaData files DO ship — every page loads
-  // them, and with no broker configured they stay in legacy mode.
+  // the main build. The browser-side MegaData files DO ship — the MegaData
+  // admin pages load them, and the everyday pages' megadata/loader.js fetches
+  // them only on a device where a broker has been set up (none is, today).
   /^megadata\/broker-appsscript\//, /^megadata\/(bootstrap-|drive-fetch|adapters\.js)/,
   /^megadata-bootstrap-staging\//, /^megadata-sources\//, /^megadata-broker-url\.txt$/,
   /^[0-9]-[A-Z0-9-]+\.bat$/,               // the MegaData migration scripts
