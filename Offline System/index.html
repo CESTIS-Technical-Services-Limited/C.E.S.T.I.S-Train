@@ -28100,10 +28100,19 @@ function examDraftSave(force) {
     fields: f, questions: JSON.parse(JSON.stringify(examBuilderQuestions || [])) };
   // An empty form is not a draft (and never replaces one).
   if (!examDraftHasContent(d)) return false;
+  // An exam opened for Edit and not changed is not unsaved work.
+  if (editingExamId != null && examDraftUnchanged(d, exams.find(function(e){ return e && e.id === editingExamId; }))) { examDraftClear(); return false; }
   var all = examDraftAll(), me = examDraftOwner();
   if (!all[me] || typeof all[me] !== 'object') all[me] = {};
   all[me][examBuilderDraftId] = d;
   return examDraftWrite(all);
+}
+function examDraftUnchanged(d, e) {
+  if (!d || !e) return false;
+  var f = d.fields || {}, same = function(a, b) { return String(a == null ? '' : a) === String(b == null ? '' : b); };
+  return same(f.examTitle, e.title) && same(f.examDate, e.date) && same(f.examTime, e.time) && same(f.examDuration, e.duration) &&
+    same(f.examPassMark, e.passMark) && same(f.examInstructions, e.instructions || '') &&
+    JSON.stringify(d.questions || []) === JSON.stringify(Array.isArray(e.questionData) ? e.questionData : []);
 }
 function examDraftSoon() { clearTimeout(_examDraftDebounce); _examDraftDebounce = setTimeout(function(){ examDraftSave(); }, 400); }
 function examDraftStartTimer() {

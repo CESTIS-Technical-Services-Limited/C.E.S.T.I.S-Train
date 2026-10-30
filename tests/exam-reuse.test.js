@@ -93,7 +93,7 @@ function page(userId) {
   vm.runInContext('var EXAM_DRAFT_KEY = "cestisExamBuilderDraft"; var _examDraftTimer = null, _examDraftDebounce = null; var examBuilderDraftId = null;' +
     'var EXAM_DRAFT_FIELDS = ' + JSON.stringify(['examTitle', 'examCourse', 'examDate', 'examTime', 'examDuration', 'examPassMark', 'examShuffle', 'examInstructions',
       'examAnswersRelease', 'examPerPage', 'examShuffleOptions', 'examAllowFlag', 'examCloseDate', 'examCloseTime']) + ';' +
-    ['examDraftOwner', 'examDraftAll', 'examDraftWrite', 'examDraftList', 'examDraftMine', 'examDraftHasContent', 'examDraftSave', 'examDraftClear', 'examDraftRestore', 'examDraftDiscard'].map(fn).join('\n'), sb);
+    ['examDraftOwner', 'examDraftAll', 'examDraftWrite', 'examDraftList', 'examDraftMine', 'examDraftHasContent', 'examDraftUnchanged', 'examDraftSave', 'examDraftClear', 'examDraftRestore', 'examDraftDiscard'].map(fn).join('\n'), sb);
   return { sb, els, ls };
 }
 {
@@ -130,6 +130,20 @@ function page(userId) {
   after.sb.confirmAnswer = true;
   vm.runInContext('examDraftDiscard("new:b")', after.sb);
   assert(!('cestisExamBuilderDraft' in page.ls), 'and "yes" removes it (and the key, once empty)');
+}
+{
+  // An exam opened for Edit and closed unchanged is not unsaved work.
+  page.ls = {};
+  const { sb, els, ls } = page('USR-INS-IAN');
+  const ex = { id: 'EXAM-U5', title: 'Unit 5 Theory Test', date: '2026-10-27', time: '09:00', duration: 60, passMark: 60, instructions: '', questionData: [{ id: 'Q1', type: 'tf', text: 'x', points: 1, correctAnswer: true }] };
+  vm.runInContext('exams = ' + JSON.stringify([ex]) + '; editingExamId = "EXAM-U5"; examBuilderDraftId = "edit:EXAM-U5:a"; examBuilderQuestions = ' + JSON.stringify(ex.questionData), sb);
+  Object.assign(els.examTitle, { value: ex.title }); els.examDate.value = ex.date; els.examTime.value = ex.time; els.examDuration.value = '60'; els.examPassMark.value = '60';
+  assert(vm.runInContext('examDraftSave(true)', sb) === false && !('cestisExamBuilderDraft' in ls), 'Edit, then close with nothing changed: no "unsaved test" is left behind');
+  els.examTitle.value = 'Unit 5 Theory Test (revised)';
+  assert(vm.runInContext('examDraftSave(true)', sb) === true, 'a change is kept as a draft of that edit');
+  els.examTitle.value = ex.title;
+  vm.runInContext('examDraftSave(true)', sb);
+  assert(!('cestisExamBuilderDraft' in ls), 'and changed back, the draft goes again');
 }
 {
   // The wiring.
