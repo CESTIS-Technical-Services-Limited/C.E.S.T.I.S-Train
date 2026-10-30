@@ -424,6 +424,7 @@ console.log('Reports: the Programme return as the administrator sees and downloa
   assert(/80%<span class="pr-of">of 25 active<\/span>/.test(body) && /74%<span class="pr-of">of 31 marked · 12 awaiting marking<\/span>/.test(body),
     'Welding: attendance 80% of 25 active, pass 74% of 31 marked · 12 awaiting (hand count: ' + T.returnQ3['Welding & Fabrication'].attendance.rate + '%, ' + T.returnQ3['Welding & Fabrication'].pass.rate + '%)');
   assert(/\$271,000/.test(body) && /\$304,000<span class="pr-of">18 owing/.test(body), 'Welding: $271,000 collected in the quarter, $304,000 owed (18 owing)');
+  assert(/class="pr-section">Trainees</.test(body) && /class="pr-section">Attendance, tests and fees</.test(body), 'on screen: the trainees, then attendance, tests and fees');
   assert(/class="pr-section">By gender</.test(body) && /class="pr-section">By age band \(as at 28 Oct 2026\)</.test(body), 'breakdowns by gender and by age band');
   assert(/<td>Not recorded<\/td>/.test(body), '"Not recorded" is its own row');
   assert(/Not on this return \(did not run in this period\): 03\. Cosmetology/.test(body), 'the left-out intake is named under the table');

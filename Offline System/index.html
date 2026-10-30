@@ -1910,7 +1910,8 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 .pr-filter .form-control { text-transform:none; letter-spacing:normal; font-weight:500; }
 .pr-heading { font-size:15px; font-weight:700; color:var(--text-primary); margin:6px 0 4px; line-height:1.4; }
 .pr-sub { font-size:12px; color:var(--text-muted); margin-bottom:12px; line-height:1.5; font-weight:400; }
-.pr-table td, .pr-table th { white-space:nowrap; text-align:right; }
+.pr-table td, .pr-table th { white-space:nowrap; text-align:right; padding:8px 7px; }
+.pr-table th { white-space:normal; vertical-align:bottom; font-size:12px; letter-spacing:0.2px; line-height:1.3; }
 .pr-table td:first-child, .pr-table th:first-child { text-align:left; white-space:normal; min-width:160px; }
 .pr-table .pr-of { display:block; font-size:12px; color:var(--text-muted); font-weight:400; }
 .pr-table tr.pr-total td { font-weight:700; border-top:2px solid var(--border-light); }
@@ -31766,19 +31767,28 @@ function renderProgrammeReturn() {
     return;
   }
   var cell = function (v, of) { return '<td>' + escapeHtml(v) + (of ? '<span class="pr-of">' + escapeHtml(of) + '</span>' : '') + '</td>'; };
-  var rowHtml = function (row, total) {
+  var nameCell = function (row) { return '<td>' + escapeHtml(row.intake) + (row.dates ? '<span class="pr-of" style="text-align:left;">' + escapeHtml(row.dates) + '</span>' : '') + '</td>'; };
+  // On screen the return is two tables that each fit the page — the trainees,
+  // then attendance, tests and fees. The CSV and PDF carry it as one table.
+  var rowsOf = function (fn) {
+    return d.r.rows.map(function (row) { return fn(row, false); }).join('') + (d.r.rows.length > 1 ? fn(d.r.total, true) : '');
+  };
+  var trainees = function (row, total) {
+    return '<tr' + (total ? ' class="pr-total"' : '') + '>' + nameCell(row) +
+      PR_COUNTS.map(function (c) { return '<td>' + row[c[0]] + '</td>'; }).join('') + cell(prRates(row).completion, prRates(row).completionOf) + '</tr>';
+  };
+  var results = function (row, total) {
     var t = prRates(row);
-    return '<tr' + (total ? ' class="pr-total"' : '') + '><td>' + escapeHtml(row.intake) + (row.dates ? '<span class="pr-of" style="text-align:left;">' + escapeHtml(row.dates) + '</span>' : '') + '</td>' +
-      PR_COUNTS.map(function (c) { return '<td>' + row[c[0]] + '</td>'; }).join('') +
-      cell(t.completion, t.completionOf) + cell(t.attendance, t.attendanceOf) + cell(t.pass, t.passOf) +
+    return '<tr' + (total ? ' class="pr-total"' : '') + '>' + nameCell(row) +
+      cell(t.attendance, t.attendanceOf) + cell(t.pass, t.passOf) +
       cell(m(row.fees.billed), row.fees.accounts ? row.fees.accounts + ' fee account' + (row.fees.accounts === 1 ? '' : 's') : 'no fee accounts') +
       cell(m(row.fees.collected), '') + cell(m(row.fees.owed), row.fees.debtors + ' owing') + '</tr>';
   };
-  var h = '<div class="table-wrapper"><table class="tbl-phone pr-table"><thead><tr><th>Programme / intake</th>' +
-    PR_COUNTS.map(function (c) { return '<th>' + c[1] + '</th>'; }).join('') +
-    '<th>Completion</th><th>Attendance</th><th>Test pass rate</th><th>Fees billed</th><th>Collected' + (d.period.from ? ' in period' : '') + '</th><th>Owed (as at today)</th></tr></thead><tbody>' +
-    d.r.rows.map(function (row) { return rowHtml(row, false); }).join('') +
-    (d.r.rows.length > 1 ? rowHtml(d.r.total, true) : '') + '</tbody></table></div>';
+  var h = '<div class="pr-section">Trainees</div><div class="table-wrapper"><table class="tbl-phone pr-table"><thead><tr><th>Programme / intake</th>' +
+    PR_COUNTS.map(function (c) { return '<th>' + c[1] + '</th>'; }).join('') + '<th>Completion</th></tr></thead><tbody>' + rowsOf(trainees) + '</tbody></table></div>';
+  h += '<div class="pr-section">Attendance, tests and fees</div><div class="table-wrapper"><table class="tbl-phone pr-table"><thead><tr><th>Programme / intake</th>' +
+    '<th>Attendance</th><th>Test pass rate</th><th>Fees billed</th><th>Collected' + (d.period.from ? ' in period' : '') + '</th><th>Owed (as at today)</th></tr></thead><tbody>' +
+    rowsOf(results) + '</tbody></table></div>';
   var groupTable = function (title, groups) {
     return '<div class="pr-section">' + escapeHtml(title) + '</div><div class="table-wrapper"><table class="tbl-phone pr-table"><thead><tr><th>' + escapeHtml(title.split(' (')[0]) + '</th>' +
       PR_COUNTS.map(function (c) { return '<th>' + c[1] + '</th>'; }).join('') + '</tr></thead><tbody>' +

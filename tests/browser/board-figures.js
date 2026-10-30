@@ -229,6 +229,8 @@ const STORE_COUNT = () => {
       period: document.getElementById('prPeriod').value }));
     ok(r.intakes === 6 && r.periods >= 9, 'Reports: an intake filter (all + 5 intakes) and a period filter (' + r.periods + ' choices)');
     ok(/^Programme return — All intakes — 1 Oct – 31 Dec 2026 \(Q3, FY 2026\/2027\)/.test(r.heading), 'a plain heading: "' + r.heading + '"');
+    ok(await page.evaluate(() => Array.from(document.querySelectorAll('#prBody .table-wrapper')).every(w => w.scrollWidth <= w.clientWidth + 1)),
+      'on a 1366-wide screen every table of the return fits without scrolling sideways');
     await page.selectOption('#prPeriod', 'q:2026/2027:3');
     await page.waitForTimeout(300);
     const [csvDl] = await Promise.all([page.waitForEvent('download', { timeout: 15000 }).catch(() => null), page.click('text=Download CSV')]);
