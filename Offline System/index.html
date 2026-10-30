@@ -14791,11 +14791,11 @@ function showPage(pageId) {
     if(iframeEl && !iframeEl.getAttribute('data-src-loaded')) {
       iframeEl.src = iframeInfo.src;
       iframeEl.setAttribute('data-src-loaded', '1');
-      // First load: the iframe drops its own privacy screen on DOMContentLoaded.
+      // First load: the page opens uncovered (the clerk is using it).
     } else if(iframeEl && (pageId === 'fee-management' || pageId === 'as-fee-management')) {
-      // Already loaded once and kept alive — ask the School Fee page to re-show
-      // its privacy screen so financial data stays covered until the user
-      // clicks "Activate Window" each time they navigate back to the page.
+      // Already loaded once and kept alive — tell the School Fee page the clerk
+      // is back. It covers its records only if nobody has used it for its idle
+      // time meanwhile (OF-8: it used to cover on every visit).
       try { iframeEl.contentWindow.postMessage({ type: 'cestis-show-privacy' }, '*'); } catch(e){}
     }
   }

@@ -3580,14 +3580,14 @@
         </div>
     </div>
 
-    <!-- Inactivity Privacy Screen (covers dashboard after 30s idle) -->
+    <!-- Privacy screen: covers the fee records after 5 minutes nobody has used the page -->
     <div id="inactivityOverlay" class="inactivity-overlay">
         <div id="dvdLogo" class="dvd-logo">
             <img src="https://drive.google.com/thumbnail?id=1P-DmK6T37lr6ryEfWBMDfOoa3-pqeWIG&sz=w500" alt="CESTIS Logo"
                  onerror="if(!this.dataset.fb){this.dataset.fb='1';this.src='CESTI%20Logo%202-Photoroom%20(1).png';}else{this.replaceWith(Object.assign(document.createElement('div'),{className:'dvd-logo-fallback',textContent:'CESTIS'}));}">
         </div>
-        <div class="inactivity-message">User inactive, please activate page when ready</div>
-        <button id="activateWindowBtn" class="activate-window-btn" onclick="deactivateInactivityScreen()">Activate Window</button>
+        <div class="inactivity-message">Hidden after 5 minutes without use, so nobody passing by can read the fee records.</div>
+        <button id="activateWindowBtn" class="activate-window-btn" onclick="deactivateInactivityScreen()">Show the page</button>
     </div>
 
     <script>
@@ -3724,10 +3724,20 @@
         let dvdAnimationFrame = null;
         let inactivityScreenActive = false;
 
+        /* The cover comes down only after REAL idle time (office audit OF-8).
+           It used to cover the page on every visit — on entry and each time
+           the clerk came back from another page, even two seconds later — and
+           told a clerk who was busy at the desk "User inactive". Now it covers
+           the fee records after 5 minutes nobody has used this page (moved
+           the mouse, typed, scrolled or touched it), wherever the clerk was
+           meanwhile, and says why. */
+        let _feeLastActivityAt = Date.now();
+        function feeIdleForMs() { return Date.now() - _feeLastActivityAt; }
         function resetInactivityTimer() {
             // While the privacy screen is up, ignore activity — the user must
-            // click "Activate Window" to dismiss it.
+            // press "Show the page" to dismiss it.
             if (inactivityScreenActive) return;
+            _feeLastActivityAt = Date.now();
             if (inactivityIdleTimer) clearTimeout(inactivityIdleTimer);
             inactivityIdleTimer = setTimeout(showInactivityScreen, SESSION_TIMEOUT_MS);
         }
@@ -5703,11 +5713,10 @@
             initializeCloudSync();
             startSessionTimer();
 
-            // Privacy screen on entry: drop the black privacy cover the moment
-            // the page loads (i.e. right after login / when the user first
-            // navigates here) so on-screen financial data is never revealed
-            // until the user explicitly clicks "Activate Window".
-            showInactivityScreen();
+            // No cover on entry (OF-8): the clerk who opened the page is using
+            // it. The idle timer (startSessionTimer, above) covers the records
+            // after 5 minutes without use.
+            _feeLastActivityAt = Date.now();
 
             loadData();
             normalizeFeeKeysToVoctrain(); // align legacy fee keys to exact VocTrain course names
@@ -6691,8 +6700,11 @@
                 // the user navigates back to this page. The iframe is loaded
                 // once and kept alive, so DOMContentLoaded won't fire again —
                 // this message is how we re-cover the page on each visit.
+                // Coming back from another page: covered only if this page has
+                // gone unused for the idle time meanwhile (OF-8) — never two
+                // seconds after the clerk left it.
                 if (d.type === 'cestis-show-privacy') {
-                    showInactivityScreen();
+                    if (feeIdleForMs() >= SESSION_TIMEOUT_MS) showInactivityScreen();
                     return;
                 }
                 if (d.type !== 'cestis-lms-students' || !Array.isArray(d.students)) return;
