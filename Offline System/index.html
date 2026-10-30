@@ -45,11 +45,24 @@
             (document.head || document.documentElement).appendChild(el);
           });
         });
-      }, Promise.resolve()).then(function () { if (!have()) throw new Error('the staff modules did not load'); })
+      }, Promise.resolve()).then(function () { if (!have()) throw new Error('the staff modules did not load'); keepOffline(); })
         .catch(function (e) { pending = null; throw e; });
       return pending;
     }
   };
+  // Keep them for opening with no connection (sw.js). On a computer's first
+  // visit they load before the offline worker is running, and the worker's
+  // own first-visit list leaves them out (see the note below), so the page
+  // asks the worker to keep them once it is ready. Staff pages only.
+  function keepOffline() {
+    try {
+      if (!('serviceWorker' in navigator) || !navigator.serviceWorker.ready) return;
+      navigator.serviceWorker.ready.then(function (reg) {
+        if (reg && reg.active) reg.active.postMessage({ cestisKeep: FILES });
+      }).catch(function () {});
+    } catch (e) {}
+  }
+  if (!trainee) { try { window.addEventListener('load', keepOffline); } catch (e) {} }
   // Written as ordinary script tags, so they load (and run) before the rest of
   // the page exactly as the three tags here used to. (The tag name is built so
   // the service worker's first-visit list does not take these files: a
