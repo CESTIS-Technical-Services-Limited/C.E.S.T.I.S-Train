@@ -17,7 +17,7 @@ What you need:
 
 > For whoever installs it: the program is `trainee-gate/PASTE-GATE.gs`. It is built from
 > `cestis-core.js` and `trainee-gate/Gate.gs` by `npm run build:gate` — never edit the paste by
-> hand. Its first line says `mode: allowlist` (only the shared rules the gate runs, ~270 KB) or
+> hand. Its first line says `mode: allowlist` (only the shared rules the gate runs, ~360 KB) or
 > `mode: full` (all of `cestis-core.js`, ~0.9 MB).
 
 ---
@@ -124,7 +124,7 @@ open the dashboard's own site in Chrome, press **F12**, click **Console**, paste
   fetch(GATE, { method: 'POST', body: JSON.stringify({ op: 'health' }) })
     .then(r => r.json()).then(j => console.log('OK', j)).catch(e => console.log('FAILED', e));
   ```
-- **Expect:** `OK {ok: true, service: "cestis-trainee-gate", version: 1, …}`. (A text body is sent
+- **Expect:** `OK {ok: true, service: "cestis-trainee-gate", version: 2, …}`. (A text body is sent
   as `text/plain`, so the browser asks no permission first.)
 - **If FAILED with "CORS" or "blocked":** check that step 5 said **Who has access: Anyone**, and
   that the address ends in `/exec` (not `/dev`). Fix with **Deploy → Manage deployments → ✏ → Who

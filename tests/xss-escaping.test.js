@@ -443,7 +443,8 @@ console.log('Attendance registers (admin, instructor, admin staff, CMC)');
   run('cmcBuildAttendanceDetail', ['cmcBuildAttendanceDetail'], common, 'cmcBuildAttendanceDetail()');
   run('cmcBuildAttendanceDetail (weekly rows only)', ['cmcBuildAttendanceDetail'], Object.assign({}, common, { attendanceRegister: [] }), 'cmcBuildAttendanceDetail()');
   run('cmcBuildAttendanceDetail (no records)', ['cmcBuildAttendanceDetail'], Object.assign({}, common, { attendanceRecords: [], attendanceRegister: [] }), 'cmcBuildAttendanceDetail()');
-  render('cmcBuildFeesDetail', ['cmcBuildFeesDetail'], common, 'cmcBuildFeesDetail()');
+  // (The GPA column shows the figure the marks produce — studentGpaFigure.)
+  render('cmcBuildFeesDetail', ['cmcBuildFeesDetail', 'studentGpaFigure', 'studentCourseworkSummary'], Object.assign({ instructorAssignments: [], examResults: [] }, common), 'cmcBuildFeesDetail()');
 }
 
 console.log('Certificates: the QR verify link and the admin pages');
