@@ -157,7 +157,9 @@ for (const [w, C] of BUILDS) {
   h = B.health(Object.assign({}, good, { gate: { setUp: false } }));
   assert(L('gate').tone === 'warn' && /Not set up/.test(L('gate').text), w + ': not set up: amber');
   h = B.health({ now, lan: true, lastExport: now });
-  eq(h.lines.map(l => l.key), ['weekly', 'master', 'gate', 'export'], w + ': on the Centre\'s own network: no storage or computers lines (not measured there)');
+  eq(h.lines.map(l => l.key), ['weekly', 'export'], w + ': on the Centre\'s own network: no whole-Centre backup, storage or computers lines (not kept or measured there), and no trainee sign-in line until it is set up');
+  h = B.health({ now, lan: true, lastExport: now, gate: { setUp: true, enabled: true, statusTone: 'ok', statusText: 'Ready — version 3' } });
+  eq(h.lines.map(l => l.key), ['weekly', 'gate', 'export'], w + ': ...a trainee sign-in that is set up is shown there too');
   [good, amber, red].forEach((x, i) => B.health(x).lines.forEach(l => {
     [l.title, l.text, l.todo].concat((l.items || []).map(it => it.text)).forEach(t => assert(!FORBIDDEN.test(t), w + ': no place named (' + i + '/' + l.key + '): "' + t + '"'));
   }));

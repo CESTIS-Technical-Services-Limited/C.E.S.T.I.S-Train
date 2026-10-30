@@ -17757,9 +17757,12 @@
         lines.push({ key: 'weekly', tone: w.tone, title: 'Weekly backup', text: w.text.replace(/^Last backup: /, 'Last made ') + (w.week ? ' · week ' + w.week.slice(-2).replace(/^0/, '') : ''),
           todo: w.prompt || 'Nothing to do — one is made each week, and the last 12 are kept.' });
       }
-      // 2. The whole-Centre backup (the master snapshot).
+      // 2. The whole-Centre backup (the master snapshot; on the Centre's own
+      //    network every save is merged into its files instead: no line).
       var m = s.master;
-      if (m && ms(m.savedAt)) {
+      if (s.lan) {
+        // (nothing: see the weekly copies above)
+      } else if (m && ms(m.savedAt)) {
         var md = daysSince(m.savedAt, now);
         lines.push({ key: 'master', tone: md > 7 ? 'bad' : md >= 3 ? 'warn' : 'ok', title: 'Whole-Centre backup',
           text: 'Saved ' + dayTime(m.savedAt) + ' (' + ago(m.savedAt, now) + ')' + (m.savedBy ? ' by ' + str(m.savedBy) : '') +
@@ -17771,7 +17774,9 @@
       }
       // 3. Trainee sign-in from anywhere (the trainee gate).
       var g = s.gate || {}, bellGate = '';
-      if (!g.setUp) {
+      if (s.lan && !g.setUp) {
+        // (the Centre's own network signs trainees in by itself)
+      } else if (!g.setUp) {
         lines.push({ key: 'gate', tone: 'warn', title: 'Trainee sign-in', text: 'Not set up — trainees cannot sign in from home yet.',
           todo: 'When you are ready: Settings → Trainee Sign-in from Anywhere (about one supervised hour).' });
       } else {
