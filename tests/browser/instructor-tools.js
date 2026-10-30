@@ -157,6 +157,7 @@ const NOT_HANDED_IN = ['Leon Stewart', 'Kerry-Ann Palmer', 'Marlon Wright', 'Sas
     if (!SHOTS) return;
     opts = opts || {};
     const was = page.viewportSize();
+    await page.evaluate(() => document.querySelectorAll('#toastContainer > *').forEach(t => t.remove())).catch(() => {});
     for (const vp of [{ n: 'desktop', w: 1366, h: 768 }, { n: 'phone', w: 390, h: 844 }]) {
       await page.setViewportSize({ width: vp.w, height: vp.h });
       for (const theme of ['dark', 'light']) {
@@ -421,7 +422,7 @@ const NOT_HANDED_IN = ['Leon Stewart', 'Kerry-Ann Palmer', 'Marlon Wright', 'Sas
     const hist = await I.evaluate(id => CESTISCore.coursework.gradeHistory(instructorAssignments.find(x => x.id === 'ASN-WK10'), id).map(h => h.previous + '>' + h.points).join(','), tameka);
     ok(hist === 'null>78,78>80', 'the change keeps its history (' + hist + ')');
     await I.evaluate(() => renderInstructorGradebook());
-    await shot(I, 'b2-gradebook-marked-with-comment', { focus: '#iCustomAssignmentsList > .card .gb-sub-row' });
+    await shot(I, 'b2-gradebook-marked-with-comment', { focus: '#iCustomAssignmentsList .gb-history' });
     // Remind one of the four.
     await I.locator('#iCustomAssignmentsList > .card', { hasText: 'Week 10' }).locator('.gb-missing-row', { hasText: 'Sasha Walker' }).locator('button').click();
     const draft = await until(() => I.evaluate(() => { const i = document.getElementById('instructorChatInput'); return i && document.getElementById('page-i-lms-chat').classList.contains('active') ? i.value : null; }), 10000);
