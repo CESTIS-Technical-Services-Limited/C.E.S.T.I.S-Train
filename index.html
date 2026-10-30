@@ -22553,7 +22553,7 @@ function renderInstructorCustomResources() {
       adminGrouped[key].push(r);
     });
 
-    html += '<div style="margin-bottom:16px;"><h3 style="font-size:15px;color:var(--text-secondary);margin-bottom:10px;">📚 Admin-Uploaded Resources <span style="font-size:12px;font-weight:400;color:var(--accent);background:var(--accent-dim);padding:2px 10px;border-radius:10px;margin-left:6px;">' + adminResources.length + ' items</span></h3>';
+    html += '<div style="margin-bottom:16px;"><h3 style="font-size:15px;color:var(--text-secondary);margin-bottom:10px;">📚 Uploaded Files &amp; Links <span style="font-size:12px;font-weight:400;color:var(--accent);background:var(--accent-dim);padding:2px 10px;border-radius:10px;margin-left:6px;">' + adminResources.length + ' items</span></h3>';
     Object.keys(adminGrouped).forEach(function(cat) {
       html += '<div class="card" style="margin-bottom:12px;border-left:3px solid var(--accent);">' +
         '<div class="card-header"><h3>' + (adminCatIcons[cat]||'📁') + ' ' + escapeHtml(adminCatLabels[cat]||cat) + ' <span style="font-size:11px;font-weight:400;color:var(--accent);background:var(--accent-dim);padding:2px 8px;border-radius:10px;margin-left:6px;">🔄 Synced</span></h3><span style="font-size:12px;color:var(--text-muted);">' + adminGrouped[cat].length + ' items</span></div>' +
@@ -22566,7 +22566,7 @@ function renderInstructorCustomResources() {
             '<div style="font-size:13.5px;">' + escapeHtml(r.name) + '</div>' +
             '<div style="font-size:11px;color:var(--text-muted);">' +
               '<span style="background:var(--accent-dim);color:var(--accent);padding:1px 6px;border-radius:8px;font-size:10px;font-weight:700;font-family:monospace;margin-right:4px;">' + escapeHtml(r.resourceId) + '</span>' +
-              escapeHtml(adminCatLabels[r.category]||r.category) + ' &bull; ' + escapeHtml(r.format) + ' &bull; Added ' + escapeHtml(dateStr) +
+              escapeHtml(adminCatLabels[r.category]||r.category) + ' &bull; ' + escapeHtml(r.format) + ' &bull; Added ' + escapeHtml(dateStr) + (r.uploadedBy && r.uploadedBy !== 'Admin' ? ' by ' + escapeHtml(r.uploadedBy) : '') +
               (r.description ? ' &bull; ' + escapeHtml(r.description) : '') +
             '</div>' +
           '</div>';
@@ -22681,6 +22681,8 @@ function generateResourceId() {
         sel.innerHTML = '<option value="">— Select Programme —</option>';
         getCourseList().forEach(function(c) { var o = document.createElement('option'); o.value = c; o.textContent = c; sel.appendChild(o); });
         if(currentVal) sel.value = currentVal;
+        // An instructor uploads for her own programme(s) only.
+        if (typeof driveUploadLimitCourses === 'function') driveUploadLimitCourses();
       }
       document.getElementById('driveResId').value = generateResourceId();
       _driveSelectedFile = null;
@@ -22691,6 +22693,16 @@ function generateResourceId() {
   window.openModal = function(id) { document.getElementById(id).classList.add('active'); patchedOpen(id); };
 })();
 
+// The Upload Resource form's programme list, for an instructor: her own.
+function driveUploadLimitCourses() {
+  var mine = typeof importExamInstructorCourses === 'function' ? importExamInstructorCourses() : null;
+  var sel = document.getElementById('driveResCourse');
+  if (!mine || !sel) return;
+  var keep = Array.prototype.slice.call(sel.options || []).filter(function(o) { return o.value && mine.some(function(c) { return o.value === c || instructorCourseMatch(o.value, c); }); });
+  sel.innerHTML = (keep.length ? keep.map(function(o) { return '<option value="' + escapeAttr(o.value) + '">' + escapeHtml(o.textContent) + '</option>'; }).join('')
+    : mine.map(function(c) { return '<option value="' + escapeAttr(c) + '">' + escapeHtml(c) + '</option>'; }).join(''));
+  sel.value = sel.options.length ? sel.options[0].value : '';
+}
 function handleDriveFileSelect(e) {
   const file = e.target.files[0];
   if (!file) return;
@@ -23084,6 +23096,13 @@ async function uploadResourceToDrive() {
 
   if (!name) { showToast('Please enter a resource name'); return; }
   if (!course) { showToast('Please select a programme / class'); return; }
+  // An instructor adds resources for her own programme(s) only (audit IN-9):
+  // the list offers only those, and the choice is checked again here.
+  var _mine = typeof importExamInstructorCourses === 'function' ? importExamInstructorCourses() : null;
+  if (_mine && !_mine.some(function(c) { return course === c || instructorCourseMatch(course, c); })) {
+    showToast('You can add resources for your own programme only (' + _mine.join(', ') + ').', 'warning');
+    return;
+  }
   if (!_driveSelectedFile && !url) { showToast('Please select a file or enter a link'); return; }
   // Only a web link: a javascript: "link" ran in whoever clicked Open.
   if (url && !/^https?:\/\//i.test(url)) { showToast('The link must start with http:// or https://'); return; }
@@ -23137,7 +23156,8 @@ async function uploadResourceToDrive() {
       driveFileName: driveFileName || '',
       classFolderId: folderId,
       description: desc || '',
-      uploadedBy: 'Admin',
+      uploadedBy: currentRole === 'instructor' && currentInstructor ? currentInstructor.name : 'Admin',
+      uploadedByRole: currentRole || 'admin',
       uploadedAt: new Date().toISOString()
     };
 
@@ -23163,6 +23183,7 @@ async function uploadResourceToDrive() {
       var selEl = document.getElementById('driveFileSelected');
       if (selEl) { selEl.style.display = 'none'; selEl.textContent = ''; }
       renderAdminResources();
+      if (currentRole === 'instructor') renderInstructorCustomResources();
       refreshContentDependentViews();
     }, 800);
   } catch(err) {

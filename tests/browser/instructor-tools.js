@@ -34,6 +34,7 @@ const os = require('os');
 const path = require('path');
 const { spawn } = require('child_process');
 const { chromium } = require('playwright-core');
+const { FakeDrive } = require('./fake-drive');
 
 const ROOT = process.env.CESTIS_ROOT ? path.resolve(process.env.CESTIS_ROOT) : path.join(__dirname, '..', '..');
 const OFF = path.join(ROOT, 'Offline System');
@@ -572,6 +573,45 @@ const NOT_HANDED_IN = ['Leon Stewart', 'Kerry-Ann Palmer', 'Marlon Wright', 'Sas
     ok(/Registers not taken on/.test(t) && /waiting to be marked/.test(t), 'her Needs Attention page carries the registers not taken and the marking');
     ok(/Damion Lewis/.test(t) && /Brandon Lee/.test(t) && /owes/i.test(t), 'and every programme\'s trainees who need attention, with what they owe');
     await shot(S, 'b9-adminstaff-needs-attention', { focus: '#page-as-needs-attention' });
+  });
+
+  /* ----------------------------------------------------------- uploads */
+  await section('uploads', 'An instructor uploads a file for his own programme, never another', async () => {
+    // His laptop has sync turned on (an in-memory stand-in for the shared copy).
+    const drive = new FakeDrive();
+    await laptop.route(/^https:\/\/(www\.googleapis\.com|oauth2\.googleapis\.com)\//, r => drive.handle(r));
+    await I.evaluate(() => { googleAccessToken = 'test-token'; });
+    await go(I, 'i-resources');
+    await until(() => I.evaluate(() => !!document.getElementById('iCustomResourcesList')), 8000);
+    ok(!!(await I.$('#page-i-resources button:has-text("+ Upload File")')) && !!(await I.$('#page-i-resources button:has-text("+ Add Link")')), 'his Resources page has "+ Upload File" and "+ Add Link"');
+    await I.click('#page-i-resources button:has-text("+ Upload File")');
+    await I.waitForTimeout(300);
+    const opts = await I.evaluate(() => Array.from(document.getElementById('driveResCourse').options).map(o => o.value));
+    ok(opts.length === 1 && opts[0] === W, 'the upload form offers his programme only (' + opts.join(', ') + ')');
+    await I.fill('#driveResName', 'Plasma cutter safety guide');
+    await I.selectOption('#driveResCategory', 'document');
+    await I.setInputFiles('#driveFileInput', { name: 'plasma-cutter-safety.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4 made-up safety guide') });
+    await I.fill('#driveResDesc', 'Read before Thursday\'s practical.');
+    await shot(I, 'b7-instructor-upload-file');
+    await I.click('#driveUploadBtn');
+    const r = await until(() => I.evaluate(() => (driveResources || []).find(x => x.name === 'Plasma cutter safety guide')), 15000);
+    ok(!!r && r.course === W && r.uploadedBy === 'Ian Barrett' && !!r.driveFileId, 'the file is uploaded and listed for Welding, by Ian (' + JSON.stringify(r && { course: r.course, by: r.uploadedBy, id: r.driveFileId }) + ')');
+    ok(Object.values(drive.files).some(f => /plasma-cutter-safety\.pdf$/.test(f.name || '')), 'the file itself reached the shared copy');
+    await I.waitForTimeout(900);
+    await I.evaluate(() => renderInstructorCustomResources());
+    ok(/Plasma cutter safety guide[^]*by Ian Barrett/.test(await txt(I, '#iCustomResourcesList')), 'his Resources page lists it, with his name');
+    await shot(I, 'b7-instructor-resources-list', { focus: '#iCustomResourcesList' });
+    // Another programme: refused even if the list were tampered with.
+    await I.evaluate(() => openModal('driveUploadModal'));
+    await I.evaluate(() => { const sel = document.getElementById('driveResCourse'); const o = document.createElement('option'); o.value = 'Plumbing'; o.textContent = 'Plumbing'; sel.appendChild(o); sel.value = 'Plumbing'; });
+    await I.fill('#driveResName', 'Pipe threading notes');
+    await I.fill('#driveResUrl', 'https://example.org/pipe-threading');
+    const before = await I.evaluate(() => driveResources.length);
+    await I.click('#driveUploadBtn');
+    await I.waitForTimeout(800);
+    ok(await I.evaluate(n => driveResources.length === n && !driveResources.some(r => r.course === 'Plumbing'), before), 'an upload to Plumbing is refused: nothing saved');
+    ok(/your own programme only/.test(await I.evaluate(() => document.getElementById('toastContainer').innerText)), 'and he is told why');
+    await I.evaluate(() => { closeModal('driveUploadModal'); googleAccessToken = null; });
   });
 
   /* ----------------------------------------------------------- notices */
