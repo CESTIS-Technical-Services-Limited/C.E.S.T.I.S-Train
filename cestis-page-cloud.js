@@ -148,6 +148,19 @@
     this.state = { connected: false, lastPull: '', lastPush: '', error: '', keys: 0, shared: 0 };
     this._timer = null;
     this._sharedIds = {};        // shared file name -> Drive file id, cached per session
+    // key -> the value this page's file is known to hold, and this device too
+    // (set by a pull or a push). Writing that same value again is not an edit;
+    // writing a value the file is NOT known to hold — one another page on this
+    // device changed — still goes up, as it always did. See watch().
+    this._agreed = {};
+  }
+  /* What the file and this device now both hold, after a pull or a push. */
+  function noteAgreed(pg, fileData, localData) {
+    if (!pg._agreed) pg._agreed = {};
+    Object.keys(localData || {}).forEach(function (k) {
+      if (fileData && Object.prototype.hasOwnProperty.call(fileData, k) && fileData[k] === localData[k]) pg._agreed[k] = localData[k];
+      else delete pg._agreed[k];
+    });
   }
 
   /* Find any file in the folder by name. */
@@ -410,6 +423,7 @@
               try { store().setItem(k, res.data[k]); } catch (e) {}
             });
           } finally { API._applying = false; }
+          noteAgreed(self, payload.data, res.data);
           // Always record stamps after a pull, even when nothing changed, so the
           // next pull is judged on recency rather than treated as a first sync.
           self.setStamps(res.stamps && Object.keys(res.stamps).length ? res.stamps : { __synced: new Date().toISOString() });
@@ -464,6 +478,7 @@
             self.state.keys = payload.keyCount;
             // Anything the cloud contributed is now local too.
             tellPageOfPushMerge(self, writeBackFromPush(self, data, merged, false));
+            noteAgreed(self, merged.data, merged.data);
           }
           return ok;
         };
@@ -496,15 +511,16 @@
     if (s && typeof s.setItem === 'function' && !s.__pageCloudWrapped) {
       var orig = s.setItem.bind(s);
       s.setItem = function (k, v) {
-        // The value as it stood (EF-5): writing the same value again is not an
-        // edit. The dashboard rewrites every collection on each save, and each
-        // of those rewrites was stamped as new and sent — the whole dashboard
-        // file and the whole-store file, again, for one changed mark.
+        // The value as it stood (EF-5): writing the same value again, when the
+        // page's file already holds it, is not an edit. The dashboard rewrites
+        // every collection on each save, and each of those rewrites was
+        // stamped as new and sent — the whole dashboard file and the
+        // whole-store file, again, for one changed mark.
         var prev;
         try { prev = (typeof s.getItem === 'function') ? s.getItem(k) : undefined; } catch (e) { prev = undefined; }
         var r = orig(k, v);
         try {
-          if (prev != null && prev === String(v)) return r;
+          var same = prev != null && prev === String(v);
           // A pull writing the cloud's own copy back into storage is not an edit
           // made on this device. Without this test each of those writes was
           // stamped "now" and scheduled straight back up, so the value just
@@ -517,7 +533,13 @@
           // locally only — see setAuthorPolicy().
           if (lan.on && API._authorPolicy && !API._authorPolicy(String(k))) return r;
           (root.CESTISPageCloud._pages || []).forEach(function (pg) {
-            if (core().ownsKey(pg.spec, String(k))) { pg.touch([String(k)]); pg.schedulePush(); }
+            if (!core().ownsKey(pg.spec, String(k))) return;
+            // The same value again, and this page's file already holds it: not
+            // an edit, nothing to stamp or send (EF-5). The same value that the
+            // file does NOT hold yet (another page on this device changed it)
+            // is stamped and sent as before, so the file catches up.
+            if (same && pg._agreed && pg._agreed[String(k)] === prev) return;
+            pg.touch([String(k)]); pg.schedulePush();
           });
         } catch (e) {}
         return r;
@@ -791,6 +813,7 @@
     try {
       res.changed.forEach(function (k) { try { store().setItem(k, res.data[k]); } catch (e) {} });
     } finally { API._applying = false; }
+    noteAgreed(self, payload.data, res.data);
     self.setStamps(res.stamps && Object.keys(res.stamps).length ? res.stamps : { __synced: lanNow() });
     self.state.lastPull = lanNow();
     self.state.keys = Object.keys(res.data).length;
@@ -836,7 +859,7 @@
       // payload's own savedAt is new on every call, which made the old
       // "nothing to upload" test impossible to pass.
       var sig = JSON.stringify([merged.data, merged.stamps]);
-      if (sig === self._lanLastSig && got.same) { lanSaved(); return true; }
+      if (sig === self._lanLastSig && got.same) { noteAgreed(self, merged.data, merged.data); lanSaved(); return true; }
       var meta = {
         savedAt: lanNow(),
         savedBy: (root.currentLoggedInUser && root.currentLoggedInUser.username) || root.currentRole || 'offline'
@@ -860,7 +883,7 @@
         Object.keys(merged.stamps).forEach(function (k) {
           if (!(k in merged.data) && merged.stamps[k] !== rs[k]) { dStamps[k] = merged.stamps[k]; n++; }
         });
-        if (!n) { self._lanLastSig = sig; lanSaved(); return true; }   // the server holds all of it already
+        if (!n) { self._lanLastSig = sig; noteAgreed(self, merged.data, merged.data); lanSaved(); return true; }   // the server holds all of it already
         partial = C.buildPayload(self.spec, dData, dStamps, meta);
         partial.partial = true;
         // What the server's merge will leave, if the file is still the version read.
@@ -880,6 +903,7 @@
         self.state.lastPush = payload.savedAt;
         self.state.keys = payload.keyCount;
         tellPageOfPushMerge(self, writeBackFromPush(self, data, merged, true));
+        noteAgreed(self, merged.data, merged.data);
         lanSaved();
         return true;
       });

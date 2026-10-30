@@ -116,6 +116,16 @@ function device(name) {
     for (let i = 0; i < 20; i++) A.set('tp_key' + i, A.get('tp_key' + i));     // as saveState does
     await A.api.saveNow();
     assertEq(A.log.puts.length - putsBefore, 0, 'every key written again with the same value: nothing sent');
+    // The same value written again — but one the server's file does not hold
+    // yet (another page on this device changed it, out of this page's sight):
+    // it goes up, as it always did, so the file catches up.
+    A.map.set('tp_key5', JSON.stringify([{ id: 'R5', text: 'changed by another page on this device' }]));
+    putsBefore = A.log.puts.length;
+    A.set('tp_key5', A.get('tp_key5'));
+    await A.api.saveNow();
+    const caught = A.log.puts.slice(putsBefore).filter(p => p.file === SPEC.file);
+    assert(caught.length === 1 && caught[0].keys.join() === 'tp_key5' && JSON.parse(onServer().data.tp_key5)[0].text === 'changed by another page on this device',
+      'the same value written again, which the server\'s file did not hold yet: it is sent (' + JSON.stringify(caught.map(p => p.keys)) + ')');
 
     console.log('2. A change sends only what changed');
     putsBefore = A.log.puts.length;
