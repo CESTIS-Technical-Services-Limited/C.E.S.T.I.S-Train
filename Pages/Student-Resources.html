@@ -19,8 +19,9 @@
       <div class="tab" onclick="filterStudentResources('worksheet',this)">Worksheets</div>
     </div>
 
-    <div style="margin-bottom:14px;display:flex;gap:10px;align-items:center;">
-      <input type="text" class="form-control" id="sResSearch" placeholder="Search by name or resource ID..." style="max-width:340px;" oninput="renderStudentDriveResources()">
+    <div style="margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+      <label for="sResSearch" style="font-size:13px;font-weight:600;color:var(--text-secondary);">Search resources</label>
+      <input type="text" class="form-control" id="sResSearch" placeholder="Name or resource ID" style="max-width:340px;" oninput="renderStudentDriveResources()">
     </div>
 
     <!-- Drive-uploaded resources for this student's class -->

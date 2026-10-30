@@ -2,12 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<script src="cestis-core.js?v=20261030a"></script>
+<script src="cestis-core.js?v=20261030b"></script>
 <script src="cestis-form-modal.js?v=20261028d" defer></script>
 <!-- Inert until a page registers: the CMC Board registers as a READ-ONLY reader
      so the operating pages' books reach its dashboards without anyone syncing. -->
 <script src="cestis-page-cloud.js?v=20261028e"></script>
-<script src="cestis-gate-client.js?v=20261029a" defer></script>
+<script src="cestis-gate-client.js?v=20261030b" defer></script>
 <script src="staff-appraisals.js?v=20261028d"></script>
 <script src="cmc-portal.js?v=20261029b"></script>
 <script src="cert-template-seed.js?v=20260802b"></script>
@@ -909,6 +909,30 @@ html[data-theme="light"] #landingPage {
    no Sync Now, and a trainee's own device is not asked to sync at all. */
 body.gate-trainee .role-cards.sync-pending #studentCard { opacity:1; filter:none; pointer-events:auto; transform:none; }
 body.gate-trainee-only #loginSyncBar, body.gate-trainee-only #loginSyncWhy { display:none; }
+/* Opened from the trainees' link, or on a trainee's own device: the student
+   form, open, first, with Sign in right under the password (the extras —
+   forgot password, email account, register — below it). The staff cards are
+   one tap away ("Staff sign-in"). The link used to open on the Administrator
+   card and four dimmed staff cards, the trainee's Sign in button below the
+   bottom of a phone's screen. */
+.staff-cards-toggle { display:none; }
+body.trainee-first .role-cards .role-card:not(#studentCard) { display:none; }
+body.trainee-first .staff-cards-toggle { display:inline-flex; align-items:center; justify-content:center; min-height:44px; margin:14px auto 0; }
+body.trainee-first #studentCard .role-login-form { display:flex; flex-direction:column; }
+body.trainee-first #studentLogin.active { display:contents; }
+body.trainee-first #studentCard .role-login-form > * , body.trainee-first #studentLogin > * { order:0; }
+body.trainee-first #studentCard .role-enter-btn { order:1; align-self:center; margin:4px 0 6px; min-height:48px; }
+body.trainee-first #studentLogin > .register-link, body.trainee-first #studentLogin > .gmail-divider,
+body.trainee-first #studentLogin > .gmail-btn, body.trainee-first #studentLogin > .gate-register-note { order:2; }
+body.trainee-first #studentCard > p { display:none; }
+body.trainee-first #studentCard .role-icon { width:56px; height:56px; font-size:28px; margin-bottom:10px; }
+@media (max-width:600px) {
+  body.trainee-first .landing-subtitle { display:none; }
+  body.trainee-first .landing-logo-group { margin-bottom:12px; }
+}
+@media (min-width:601px) {
+  body.trainee-first .landing-subtitle { margin-bottom:20px; }
+}
 /* Registering, with the gate on: only with the trainee's own email account
    (DESIGN.md §17) — today's "Register here" form is not offered; on the
    Centre's own network (no email-account sign-in there) the office creates
@@ -1196,11 +1220,15 @@ html[data-theme="light"] .theme-ico-moon, html[data-theme="light"] .theme-to-dar
   90% { transform:rotate(-2deg); }
   100% { transform:rotate(0); }
 }
-@keyframes bellGlow {
-  0%,100% { box-shadow:0 0 4px rgba(240,165,0,0.3); }
-  50% { box-shadow:0 0 14px rgba(240,165,0,0.7), 0 0 28px rgba(240,165,0,0.3); }
-}
-.topbar-btn.notif-active { animation:bellGlow 2s ease-in-out infinite; border-radius:var(--radius-sm); }
+/* Unread notices: the bell glows three times, then keeps a quiet steady ring.
+   It used to glow for ever by animating box-shadow, which repaints on the
+   main thread every frame — 15.6 s of every minute on a slow phone sitting
+   on its dashboard. Only the glow layer's opacity moves now (the compositor
+   does that), and only three times; prefers-reduced-motion: not at all. */
+@keyframes bellGlow { 0%,100% { opacity:0; } 50% { opacity:1; } }
+.topbar-btn.notif-active { border-radius:var(--radius-sm); box-shadow:0 0 4px rgba(240,165,0,0.3); }
+.topbar-btn.notif-active::after { content:''; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+  box-shadow:0 0 14px rgba(240,165,0,0.7), 0 0 28px rgba(240,165,0,0.3); opacity:0; animation:bellGlow 2s ease-in-out 3; }
 .topbar-btn.notif-shake svg { animation:bellShake 0.6s ease-in-out; transform-origin:top center; }
 .logout-btn {
   display:flex; align-items:center; gap:6px;
@@ -1773,9 +1801,13 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
   transition:all 0.4s ease;
 }
 .stage-circle.completed { border-color:var(--green); background:var(--green-dim); }
-.stage-circle.current { border-color:var(--accent); background:var(--accent-dim); box-shadow:0 0 16px var(--accent-glow); animation:pulseGlow 2s infinite; }
+/* "Where you are now": three soft pulses of a glow layer's opacity, then still
+   (it pulsed box-shadow for ever, repainting every frame). */
+.stage-circle.current { position:relative; border-color:var(--accent); background:var(--accent-dim); box-shadow:0 0 12px var(--accent-glow); }
+.stage-circle.current::after { content:''; position:absolute; inset:-3px; border-radius:50%; pointer-events:none;
+  box-shadow:0 0 20px var(--accent-glow); opacity:0; animation:pulseGlow 2s ease-in-out 3; }
 .stage-circle.locked { opacity:0.4; }
-@keyframes pulseGlow { 0%,100%{box-shadow:0 0 8px var(--accent-glow);} 50%{box-shadow:0 0 20px var(--accent-glow);} }
+@keyframes pulseGlow { 0%,100%{opacity:0;} 50%{opacity:1;} }
 .stage-label { font-size:12px; font-weight:600; color:var(--text-muted); text-align:center; max-width:70px; }
 .stage-label.active-label { color:var(--accent); }
 .stage-connector {
@@ -4768,8 +4800,82 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
    device asks for less motion. Spinners keep turning: they say "working". */
 @media (prefers-reduced-motion: reduce) {
   .landing-bg .orb, .pulse-dot, #toastContainer .toast, .modal, .cestis-alert-box { animation:none !important; }
+  .topbar-btn.notif-active::after, .stage-circle.current::after, .topbar-btn.notif-shake svg, .live-dot, .home-now-card .live-dot { animation:none !important; }
   .cestis-alert-overlay, .cestis-alert-box { transition:none !important; }
 }
+
+/* Her home screen's "now" cards: a live class, an open test. One big button
+   each, at the very top, on a phone and on a desktop. */
+.home-now:empty, .home-now-card[hidden] { display:none; }
+.home-now { display:flex; flex-direction:column; gap:12px; margin-bottom:16px; }
+.home-now-card { display:flex; align-items:center; gap:16px; padding:16px 18px; border-radius:var(--radius); border:1px solid var(--border); background:var(--bg-card); }
+.home-now-live { border-color:var(--red); background:linear-gradient(135deg, var(--red-dim), var(--bg-card) 70%); }
+.home-now-test { border-color:var(--green); background:linear-gradient(135deg, var(--green-dim), var(--bg-card) 70%); }
+.home-now-text { flex:1; min-width:0; }
+.home-now-kicker { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.6px; color:var(--text-secondary); display:flex; align-items:center; gap:6px; }
+.home-now-live .home-now-kicker { color:var(--red); }
+.home-now-test .home-now-kicker { color:var(--green); }
+.home-now-title { font-size:20px; font-weight:700; color:var(--text-primary); margin-top:2px; }
+.home-now-sub { font-size:13px; color:var(--text-secondary); margin-top:2px; overflow-wrap:anywhere; }
+/* (#sHomeNow: never shrunk by the 44 px rule for her other buttons below.) */
+#sHomeNow .home-now-btn { min-height:52px; padding:0 26px; font-size:16px; font-weight:700; border:none; border-radius:var(--radius-sm); cursor:pointer; white-space:nowrap; display:inline-flex; align-items:center; justify-content:center; }
+.home-now-join { background:#c0392b; color:#fff; }
+.home-now-join:hover { background:#a93226; }
+.home-now-start { background:#1e7e46; color:#fff; }
+.home-now-start:hover { background:#196a3b; }
+.home-now-live .live-dot { animation-iteration-count:6; }
+@media (max-width:600px) {
+  .home-now-card { flex-direction:column; align-items:stretch; text-align:left; }
+  #sHomeNow .home-now-btn { width:100%; min-height:56px; font-size:17px; }
+}
+
+/* On a phone a finger needs about 44 px to hit a control (WCAG 2.5.5). The
+   trainee's own pages (page-s-...) and the sign-in page's footer links were
+   28-30 px buttons ("Open", "Play", "Download", "Join") and 14 px links (her
+   files, Privacy, Support). Only on touch screens and narrow windows: a
+   mouse on a desktop keeps today's compact look. */
+@media (pointer: coarse), (max-width: 600px) {
+  [id^="page-s-"] .btn-sm, [id^="page-s-"] .btn, #pendingApprovalScreen .btn { min-height:44px; display:inline-flex; align-items:center; justify-content:center; }
+  [id^="page-s-"] a.cw-file-link, [id^="page-s-"] .cert-download-btn { min-height:44px; display:inline-flex; align-items:center; padding-top:0; padding-bottom:0; }
+  .landing-footer a { display:inline-flex; align-items:center; min-height:44px; min-width:44px; padding:0 10px; justify-content:center; }
+  .role-enter-btn, .cert-check-btn { min-height:44px; }
+}
+/* A label that is there for screen readers but takes no room on screen. */
+.home-sr-only { position:absolute !important; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+.home-field-label { display:block; font-size:13px; font-weight:600; color:var(--text-secondary); margin-bottom:6px; }
+/* Her work on its way (T2): a bar that grows by transform only. (Its window's
+   buttons are display:inline-flex, so "hidden" needs saying firmly.) */
+#submitAssignmentModal [hidden] { display:none !important; }
+.submit-progress { margin-top:4px; padding:14px; border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--bg-input); }
+.submit-progress-bar, .home-upload-bar { display:block; height:8px; border-radius:4px; background:var(--w-06); overflow:hidden; }
+.submit-progress-bar span, .home-upload-bar span { display:block; height:100%; background:var(--accent-fill, var(--accent)); transform-origin:left center; transform:scaleX(0); transition:transform .3s ease-out; }
+.submit-progress-text { font-size:13px; color:var(--text-secondary); margin-top:10px; line-height:1.45; }
+.home-upload-line { display:flex; flex-direction:column; gap:6px; margin-top:8px; font-size:12px; color:var(--text-secondary); }
+.home-upload-line.is-refused { flex-direction:row; flex-wrap:wrap; align-items:center; color:var(--red); }
+.home-upload-line.is-refused span { flex:1; min-width:180px; }
+.submit-file-note { font-size:12px; color:var(--text-muted); padding:6px 2px; }
+.submit-file-remove { min-width:40px; min-height:40px; padding:0 8px; font-size:13px; }
+/* Home study (group C): only in a trainee's own sign-in from home. */
+.tam-gate-only { display:none; }
+html.gate-ns .tam-gate-only { display:flex; }
+/* Her fees (OF-12) */
+.home-fees-sum .ps-value { font-size:22px; }
+.home-fees-list { list-style:none; margin:0; padding:0; }
+.home-fee-row { display:flex; align-items:center; gap:12px; padding:12px 16px; border-top:1px solid var(--border); }
+.home-fee-row:first-child { border-top:none; }
+.home-fee-amt { font-size:16px; font-weight:700; color:var(--text-primary); min-width:110px; }
+.home-fee-meta { flex:1; font-size:13px; color:var(--text-secondary); overflow-wrap:anywhere; }
+.home-fees-note { font-size:12px; color:var(--text-muted); margin:12px 2px 0; }
+.home-fees-empty { text-align:center; padding:32px 20px; color:var(--text-muted); font-size:14px; }
+@media (max-width:600px) { .home-fee-row { flex-direction:column; align-items:flex-start; gap:2px; } }
+.home-pw-hint { font-size:12px; color:var(--text-muted); margin-top:6px; line-height:1.4; }
+.home-pw-say { font-size:13px; color:var(--red); min-height:18px; margin-top:4px; }
+.home-pw-say.is-status { color:var(--text-secondary); }
+/* Her certificate at home (T4) */
+.cert-download-btn.home-cert-collect { opacity:1; cursor:default; background:var(--bg-input); color:var(--text-primary); border:1px solid var(--border); box-shadow:none; }
+.home-cert-why { font-size:12px; color:var(--text-muted); margin-top:8px; }
+/* The office will email her (T6) */
+.pending-when { font-size:14px; line-height:1.5; color:var(--text-primary); background:var(--accent-dim); border-radius:var(--radius-sm); padding:12px 14px; margin:0 0 16px; text-align:left; overflow-wrap:anywhere; }
 
 /* Skip to content link for accessibility */
 .skip-to-content {
@@ -5300,6 +5406,7 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
       </div>
 
     </div>
+    <button type="button" class="register-link staff-cards-toggle" onclick="homeShowStaffCards()">Staff sign-in</button>
   </div>
 
   <!-- Certificate Check Button -->
@@ -5598,6 +5705,7 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
           <button type="button" role="menuitem" class="tam-item" onclick="closeAccountMenu(); lockSessionNow()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>Lock</span></button>
           <button type="button" role="menuitem" class="tam-item" data-theme-toggle onclick="cestisToggleTheme()"><svg class="theme-ico-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/></svg><svg class="theme-ico-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><span class="theme-to-light">Light mode</span><span class="theme-to-dark">Dark mode</span></button>
           <button type="button" role="menuitem" class="tam-item" onclick="closeAccountMenu(); tfaOpenManage()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg><span>Two-Step Verification</span></button>
+          <button type="button" role="menuitem" class="tam-item tam-gate-only" id="tamChangePassword" onclick="closeAccountMenu(); homePasswordOpen()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M10.85 12.15 19 4"/><path d="M18 5l2 2"/><path d="M15 8l2 2"/></svg><span>Change Password</span></button>
           <button type="button" role="menuitem" class="tam-item tam-signout" onclick="closeAccountMenu(); logout()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span>Sign Out</span></button>
         </div>
       </div>
@@ -6174,19 +6282,43 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
     <div class="modal-header"><h3>Submit Assignment</h3><button class="modal-close" onclick="closeModal('submitAssignmentModal')">✕</button></div>
     <input type="hidden" id="submitAssignId">
     <div id="submitAssignTitle" style="font-size:15px;font-weight:600;margin-bottom:12px;"></div>
-    <div class="form-group"><label>Upload Your Work</label>
-      <div style="border:2px dashed var(--border);border-radius:var(--radius);padding:16px;text-align:center;cursor:pointer;" onclick="document.getElementById('submitFileInput').click()">
-        <div style="font-size:24px;margin-bottom:4px;">📤</div>
-        <div style="font-size:13px;color:var(--text-muted);">Click to upload your completed document(s) (up to 5 MB each)</div>
-        <input type="file" id="submitFileInput" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.jpg,.png" style="display:none;" onchange="submitFileSelected(this)">
+    <div class="form-group" id="submitPickArea"><label for="submitFileInput">Upload Your Work</label>
+      <div role="button" tabindex="0" style="border:2px dashed var(--border);border-radius:var(--radius);padding:16px;text-align:center;cursor:pointer;" onclick="document.getElementById('submitFileInput').click()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}">
+        <div style="font-size:24px;margin-bottom:4px;" aria-hidden="true">📤</div>
+        <div style="font-size:13px;color:var(--text-muted);">Tap to add your work — a photo, a PDF or a document (up to 5 MB each). Photos are made smaller for sending.</div>
+        <input type="file" id="submitFileInput" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.jpg,.jpeg,.png,.heic,.heif,.webp,image/*" style="display:none;" onchange="submitFileSelected(this)">
       </div>
       <div id="submitFileList" style="margin-top:8px;"></div>
     </div>
-    <div class="form-group"><label>Comment (optional)</label><textarea class="form-control" id="submitComment" placeholder="Add a note for your instructor..." rows="2"></textarea></div>
+    <div class="form-group" id="submitCommentGroup"><label for="submitComment">Comment (optional)</label><textarea class="form-control" id="submitComment" placeholder="Add a note for your instructor..." rows="2"></textarea></div>
+    <!-- Her work on its way (T2, from home): what has gone, and what happens if the signal drops. -->
+    <div class="submit-progress" id="submitProgress" hidden>
+      <span class="submit-progress-bar" aria-hidden="true"><span id="submitProgressFill"></span></span>
+      <div class="submit-progress-text" id="submitProgressText" role="status" aria-live="polite"></div>
+    </div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
-      <button class="btn btn-secondary" onclick="closeModal('submitAssignmentModal')">Cancel</button>
+      <button class="btn btn-secondary" id="submitCancelBtn" onclick="closeModal('submitAssignmentModal')">Cancel</button>
       <button class="btn btn-primary" id="submitAssignBtn" onclick="submitStudentAssignment()">Submit</button>
     </div>
+  </div>
+</div>
+
+<!-- CHANGE PASSWORD at home (OF-12): her current password proved, the new one set. -->
+<div class="modal-overlay" id="homePasswordModal">
+  <div class="modal" style="max-width:440px;" role="dialog" aria-modal="true" aria-labelledby="homePwTitle">
+    <div class="modal-header"><h3 id="homePwTitle">Change Password</h3><button class="modal-close" onclick="closeModal('homePasswordModal')" aria-label="Close">✕</button></div>
+    <form id="homePwForm" onsubmit="event.preventDefault(); homePasswordSubmit();" novalidate>
+      <input type="text" id="homePwUser" autocomplete="username" hidden>
+      <div class="form-group"><label for="homePwOld">Current password</label><input type="password" class="form-control" id="homePwOld" autocomplete="current-password"></div>
+      <div class="form-group"><label for="homePwNew">New password</label><input type="password" class="form-control" id="homePwNew" autocomplete="new-password" aria-describedby="homePwRule">
+        <div class="home-pw-hint" id="homePwRule">At least 6 characters, with a capital letter and a number.</div></div>
+      <div class="form-group"><label for="homePwNew2">Type the new password again</label><input type="password" class="form-control" id="homePwNew2" autocomplete="new-password"></div>
+      <div class="home-pw-say" id="homePwSay" role="alert" aria-live="polite"></div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('homePasswordModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="homePwBtn">Change password</button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -11724,7 +11856,13 @@ function updateNotificationDot() {
   const unread = roleNotifications.filter(n=>!CESTISCore.comms.isRead(n, viewer)).length;
   dot.style.display = unread > 0 ? 'flex' : 'none';
   dot.textContent = unread > 99 ? '99+' : unread;
-  if(btn) { if(unread > 0) btn.classList.add('notif-active'); else btn.classList.remove('notif-active'); }
+  if(btn) {
+    // A new notice glows again (three times); the same count just stays lit.
+    var prev = Number(btn.getAttribute('data-unread') || 0);
+    if(unread > 0 && unread > prev && btn.classList.contains('notif-active')) { btn.classList.remove('notif-active'); void btn.offsetWidth; }
+    if(unread > 0) btn.classList.add('notif-active'); else btn.classList.remove('notif-active');
+    btn.setAttribute('data-unread', String(unread));
+  }
 }
 
 function exportCSV(data, headers, filename) {
@@ -11811,6 +11949,10 @@ function signInSay(card, msg) {
     box = document.getElementById(card + 'LoginError');
     var panel = document.getElementById(card + 'Login');
     shown = !!(box && panel && panel.getClientRects && panel.getClientRects().length);
+    // A trainee's own form on her phone lays its parts out in the card itself
+    // (display: contents, so Sign in sits under the password): it has no box
+    // of its own, but it is on screen — the message goes in it, never an alert.
+    if (!shown && box && panel && getComputedStyle(panel).display === 'contents') shown = !!(panel.parentElement && panel.parentElement.getClientRects().length);
   } catch(e) { shown = false; }
   if(!shown) { alert(msg); return; }
   box.textContent = String(msg == null ? '' : msg);
@@ -13229,6 +13371,9 @@ function showPendingApprovalScreen(user, opts) {
     '<div class="pending-icon" id="pendingApprovalIcon">' + (n.tone === 'warn' ? '⚠️' : '📋') + '</div>' +
     '<h2 id="pendingApprovalTitle">' + escapeHtml(n.title) + '</h2>' +
     '<div class="pending-msg" id="pendingApprovalMsg" role="status" aria-live="polite">' + escapeHtml(n.message) + '</div>' +
+    // Registered from home (T6): how long it usually takes, and — when the
+    // gate said it will — that an email tells her when she can sign in.
+    (opts.home ? '<div class="pending-when" id="pendingApprovalWhen">' + escapeHtml(CESTISCore.homeStudy.approvalWait({ email: user.email, notify: opts.notify === true })) + '</div>' : '') +
     '<div class="pending-email">Registered as: <strong>' + escapeHtml(user.email) + '</strong> (' + escapeHtml(user.role) + ')</div>' +
     // (Through the trainee gate the device is told only "waiting": the line is
     // left out rather than shown with nothing in it.)
@@ -13612,6 +13757,7 @@ function approveUser(userId) {
   addNotification('Account approved: ' + user.name + ' (' + user.role + ')', 'success', null, ['admin']);
   // A trainee who signs in from home: their records are sent at once.
   try { gatePublishSoon(); } catch(e) {}
+  try { if (user.registeredVia === 'home-registration') gateNudgeApprovalMail(); } catch(e) {}
 }
 
 function rejectUser(userId) {
@@ -13670,6 +13816,7 @@ function approveAllPending() {
   refreshStudentDependentViews();
   // Flag the approved accounts that still cannot sign in because no password was
   // ever set for them (fee-sync / chat-backfill records).
+  try { if (pending.some(function(u) { return u.registeredVia === 'home-registration'; })) gateNudgeApprovalMail(); } catch(e) {}
   var noPw = pending.filter(function(u) { return !CESTISCore.accountAccess.hasPassword(u); });
   showToast(pending.length + ' account(s) approved!' + (noPw.length ? ' ' + noPw.length + ' still need a password.' : ''));
   if(noPw.length) {
@@ -14049,6 +14196,8 @@ function buildStudentSidebar() {
     <div class="nav-item" data-page="s-certificate" onclick="showPage('s-certificate')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>My Certificate</div>
     <div class="nav-section-label">Account</div>
+    <div class="nav-item" data-page="s-fees" onclick="showPage('s-fees')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="6" y1="15" x2="10" y2="15"/></svg>My Fees</div>
     <div class="nav-item" data-page="s-profile" onclick="showPage('s-profile')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>My Profile</div>
     <div class="nav-item" data-page="s-calendar" onclick="showPage('s-calendar')">
@@ -14587,7 +14736,7 @@ function showPage(pageId) {
     attendance:'Attendance Management',announcements:'Announcements',calendar:'Calendar & Schedule',
     's-dashboard':'My Dashboard','s-video':'My Classes','s-progress':'My Progress',
     's-resources':'My Resources','s-assignments':'My Assignments','s-exams':'My Exams','s-certificate':'My Certificate',
-    's-profile':'My Profile','s-calendar':'My Calendar','s-announcements':'Announcements',
+    's-profile':'My Profile','s-calendar':'My Calendar','s-announcements':'Announcements','s-fees':'My Fees',
     'i-dashboard':'Instructor Dashboard','i-classes':'Video Conference','i-students':'My Students',
     'i-attendance':'Class Attendance','i-gradebook':'Gradebook','i-resources':'Course Resources','i-exams':'Online Exams',
     'i-duties':'My Assigned Tasks','i-announcements':'Announcements','i-calendar':'Calendar','i-profile':'My Profile',
@@ -14618,7 +14767,8 @@ function showPage(pageId) {
   if(pageId === 'i-document-hub') renderDocumentHubInstructor();
   if(pageId === 'as-document-hub') renderDocumentHubAdmin();
   if(pageId === 's-resources') renderStudentResourcesPage();
-  if(pageId === 's-progress') renderStudentAssignments();
+  if(pageId === 's-progress') { renderStudentAssignments(); try { renderStudentProgressPage(); } catch (e) {} }
+  if(pageId === 's-fees') renderStudentFeesPage(true);
   if(pageId === 's-dashboard' && typeof renderStudentDurationNotice === 'function') renderStudentDurationNotice();
   // LMS Chat and Video Conference for every role are loaded from their own HTML
   // files and initialised by the mount onMount hooks (see the .cestis-mount block
@@ -15560,9 +15710,14 @@ function renderStudentCertificate(){
       // download must be recorded centrally. "Refresh from Cloud" below is
       // the sync that switches it on.
       var _dlOk = certDownloadAllowed(s);
+      if (_dlOk.collect) dlBlock = homeCertCollectBlock(_dlOk.reason);
+      else
       dlBlock = '<button class="cert-download-btn" id="certPublicDownloadBtn" ' + (_dlOk.allowed ? '' : 'disabled ') + 'title="' + _certEsc(_dlOk.reason) + '" onclick="if(certDownloadAllowed(currentStudent).allowed)generateCertificatePDF('+jsArg(s.id)+')">' + CERT_DOWNLOAD_ICON + ' Download Certificate</button>' +
         '<div id="certDownloadHint" style="font-size:12px;color:var(--accent);margin-top:8px;' + (_dlOk.allowed ? 'display:none;' : '') + '">' + _certEsc(_dlOk.reason) + '</div>' +
         '<div id="certPublicDownloadStatus" style="display:none;font-size:13px;margin-top:8px;padding:10px 14px;border-radius:8px;"></div>';
+    } else if (typeof cestisGateSession === 'function' && cestisGateSession()) {
+      // At home, with no download approved: where to get it, said on the button itself.
+      dlBlock = homeCertCollectBlock('Its download has not been approved yet.');
     } else {
       dlBlock = '<p style="font-size:13px;color:var(--text-muted);margin-top:8px;">Certificate download not yet approved. Contact administration.</p>';
     }
@@ -15651,6 +15806,12 @@ function buildStudentPages() {
   mc.innerHTML = `
   <!-- STUDENT DASHBOARD -->
   <section class="page active" id="page-s-dashboard">
+    <!-- What needs her NOW, above everything else (renderStudentHomeNow):
+         her class is live — Join; a test is open for her — Start. -->
+    <div id="sHomeNow" class="home-now">
+      <div class="home-now-card home-now-live" id="sHomeLiveClass" role="region" aria-label="Your class is live" hidden></div>
+      <div class="home-now-card home-now-test" id="sHomeOpenTest" role="region" aria-label="Test open now" hidden></div>
+    </div>
     <div class="student-welcome-banner">
       <h2>Welcome back, ${escapeHtml(s.name.split(' ')[0])}! 👋</h2>
       <p>Programme: <strong>${escapeHtml(s.course)}</strong> &nbsp;•&nbsp; ID: <strong>${escapeHtml(s.id)}</strong> &nbsp;•&nbsp; Instructor: <strong>${escapeHtml(s.instructor)}</strong></p>
@@ -15754,25 +15915,18 @@ function buildStudentPages() {
 
   <!-- STUDENT PROGRESS -->
   <section class="page" id="page-s-progress">
-    <div class="stats-grid stats-grid-4">
-      <div class="stat-card"><div class="stat-icon" style="background:var(--accent-dim);color:var(--accent);">📊</div><div class="stat-value">${s.progress}%</div><div class="stat-label">Overall Progress</div></div>
-      <div class="stat-card"><div class="stat-icon" style="background:var(--blue-dim);color:var(--blue);">📅</div><div class="stat-value">${escapeHtml(s.attendance)}%</div><div class="stat-label">Attendance</div></div>
-      <div class="stat-card"><div class="stat-icon" style="background:var(--green-dim);color:var(--green);">✅</div><div class="stat-value">${escapeHtml(s.score || 'N/A')}</div><div class="stat-label">Last Test Score</div></div>
-      <div class="stat-card"><div class="stat-icon" style="background:var(--purple-dim);color:var(--purple);">🏷️</div><div class="stat-value" style="font-size:18px;">${stageLabels[s.stage]}</div><div class="stat-label">Current Status</div></div>
-    </div>
-
-    <!-- Detailed progress -->
-    <div class="card">
-      <div class="card-header"><h3>Course Modules Progress</h3></div>
-      ${(function(){ var tpl = certTemplates[s.course] || certTemplates[Object.keys(certTemplates).find(function(k){return instructorCourseMatch(k,s.course);})||''] || {}; return (tpl.modules && tpl.modules.length > 0 ? tpl.modules.map(function(m){return typeof m === 'string' ? m : m.name || m.title || 'Module';}) : ['Module 1','Module 2','Module 3','Module 4','Module 5','Module 6','Module 7','Module 8']); })().map((mod,i) => {
-        const pct = i < Math.floor(s.progress/12.5) ? 100 : (i === Math.floor(s.progress/12.5) ? (s.progress % 12.5)/12.5*100 : 0);
-        return `<div style="display:flex;align-items:center;gap:14px;padding:10px 0;${i<7?'border-bottom:1px solid var(--border);':''}">
-          <div style="width:200px;font-size:13px;">${mod}</div>
-          <div class="progress-bar progress-bar-lg" style="flex:1;"><div class="fill" style="width:${pct.toFixed(0)}%;background:${pct>=100?'var(--green)':pct>0?'var(--accent)':'var(--border-light)'};"></div></div>
-          <div style="width:50px;text-align:right;font-size:12px;font-weight:600;color:${pct>=100?'var(--green)':pct>0?'var(--accent)':'var(--text-muted)'};">${pct.toFixed(0)}%</div>
-          <span class="badge ${pct>=100?'badge-green':pct>0?'badge-amber':'badge-blue'}" style="width:90px;justify-content:center;">${pct>=100?'Complete':pct>0?'In Progress':'Locked'}</span>
-        </div>`;
-      }).join('')}
+    <!-- Her real figures (renderStudentProgressPage): units competent, her
+         attendance from the register, her MARKED test results, her coursework.
+         It used to show one hand-typed "progress" sliced into eight made-up
+         module bars and "Last Test Score N/A" beside six marked tests. -->
+    <div id="sProgressSummary" class="stats-grid stats-grid-4"></div>
+    <div class="grid-2col">
+      <div class="card"><div class="card-header"><h3>Marked tests</h3><button class="btn btn-sm btn-secondary" onclick="showPage('s-exams')">My Exams</button></div>
+        <div id="sProgressTests"></div>
+      </div>
+      <div class="card"><div class="card-header"><h3>Units</h3><button class="btn btn-sm btn-secondary" onclick="showPage('s-transcript-grades')">Transcript</button></div>
+        <div id="sProgressUnits"></div>
+      </div>
     </div>
 
     <!-- Assignments (dynamic from instructor-created assignments) -->
@@ -15810,6 +15964,11 @@ function buildStudentPages() {
   <!-- STUDENT CERTIFICATE -->
   <section class="page" id="page-s-certificate">
     <div class="cestis-mount" data-feature="s-certificate" data-prefix="student"></div>
+  </section>
+
+  <!-- MY FEES (OF-12): her own fee record's figures and her receipts (renderStudentFeesPage). -->
+  <section class="page" id="page-s-fees">
+    <div id="sFeesContent"></div>
   </section>
 
   <section class="page" id="page-s-profile">
@@ -15877,6 +16036,188 @@ function buildStudentPages() {
   renderStudentAssignmentsPage();
   renderStudentAnnouncements();
   renderStudentDeadlines();
+  try { renderStudentProgressPage(); } catch (e) { console.warn('[Progress] ' + (e && e.message)); }
+  try { renderStudentHomeNow(); } catch (e) { console.warn('[HomeNow] ' + (e && e.message)); }
+  homeNowWatch();
+}
+
+/* ---- Her home screen's "now" cards (T1, T13) ----
+   A live class is invisible on a phone until she goes looking (the sidebar
+   with its LIVE badge is folded away there), and an open test sat in the
+   seventh card of the dashboard with no button. Now the top of her home
+   screen says it, with one big button: "Your class is live — Join class",
+   "Test open now — Start test". Worked out from the records she holds, on
+   the clock her exams use; drawn at sign-in, after every refresh of her
+   records (renderStudentDashboard, which the gate's refresh calls), on
+   another device's save, and every 30 seconds while her dashboard is open
+   (a test that opens at 9:00 shows at 9:00 without asking anybody). */
+function studentLiveClasses(s) {
+  if (!s) return [];
+  try { return CESTISCore.ui.liveSessionsFor(classSessions, { role: 'student', course: s.course }, localDateStr(), instructorCourseMatch); } catch (e) { return []; }
+}
+function studentOpenTests(s) {
+  if (!s) return [];
+  var out = [], X = CESTISCore.exams, gate = typeof cestisGateSession === 'function' && cestisGateSession();
+  (exams || []).forEach(function(e) {
+    if (!e || !(e.course === s.course || instructorCourseMatch(e.course, s.course))) return;
+    if ((examResults || []).some(function(r) { return r && !r.archived && r.examId === e.id && r.studentId === s.id; })) return;
+    if (gate) { var d = examReadDraftRaw(s.id, e.id); if (d && X.attemptIsRetired(d) && !d.resultId) return; }
+    var cur = null;
+    try { cur = examCurrentAttempt(s.id, e.id); } catch (x) { cur = null; }
+    if (cur && cur.attempt) {
+      var left = Math.max(0, Math.floor(((cur.attempt.deadline || 0) - Date.now()) / 1000));
+      out.push({ exam: e, action: 'continue', leftS: left });
+      return;
+    }
+    var has = typeof gateExamHasQuestions === 'function' ? gateExamHasQuestions(e) : !!(e.questionData && e.questionData.length);
+    if (examStatusNow(e) === 'active' && has) {
+      var w = null;
+      try { w = X.windowOf(e, examCentreOffset()); } catch (x) { w = null; }
+      out.push({ exam: e, action: 'start', endsAt: w && w.end ? w.end : null });
+    }
+  });
+  return out;
+}
+function homeClock(ms) {
+  try { var p = CESTISCore.exams.centreParts(ms, examCentreOffset()); var t = p.time.split(':').map(Number); return (t[0] % 12 || 12) + ':' + String(t[1]).padStart(2, '0') + (t[0] >= 12 ? ' pm' : ' am'); }
+  catch (e) { return ''; }
+}
+function renderStudentHomeNow() {
+  var s = currentStudent;
+  var live = document.getElementById('sHomeLiveClass'), test = document.getElementById('sHomeOpenTest');
+  if (!s || !live || !test || currentRole !== 'student') return;
+  var cls = studentLiveClasses(s);
+  var lh = '';
+  if (cls.length) {
+    var c = cls[0];
+    lh = '<div class="home-now-text"><div class="home-now-kicker"><span class="live-dot" aria-hidden="true"></span> Live now</div>' +
+      '<div class="home-now-title">Your class is live</div>' +
+      '<div class="home-now-sub">' + escapeHtml((c.name || c.course || 'Class') + (c.createdBy ? ' · ' + c.createdBy : '')) + (cls.length > 1 ? ' · ' + (cls.length - 1) + ' more live' : '') + '</div></div>' +
+      '<button type="button" class="btn home-now-btn home-now-join" onclick="homeJoinLiveClass(' + jsArg(c.id) + ')">Join class</button>';
+  }
+  if (live.getAttribute('data-html') !== lh) { live.innerHTML = lh; live.setAttribute('data-html', lh); }
+  live.hidden = !lh;
+  var tests = studentOpenTests(s);
+  var th = '';
+  if (tests.length) {
+    var t = tests[0], e = t.exam;
+    var sub = escapeHtml(e.title || 'Test') + (t.action === 'continue'
+      ? ' · ' + (t.leftS > 0 ? Math.floor(t.leftS / 60) + ' min left' : 'time is up — send your saved answers')
+      : (t.endsAt ? ' · open until ' + escapeHtml(homeClock(t.endsAt)) : '') + (e.duration ? ' · ' + escapeHtml(e.duration) + ' minutes' : ''));
+    th = '<div class="home-now-text"><div class="home-now-kicker">' + (t.action === 'continue' ? 'In progress' : 'Your test') + '</div>' +
+      '<div class="home-now-title">' + (t.action === 'continue' ? 'Your test is waiting for you' : 'Test open now') + '</div>' +
+      '<div class="home-now-sub">' + sub + (tests.length > 1 ? ' · ' + (tests.length - 1) + ' more open' : '') + '</div></div>' +
+      '<button type="button" class="btn home-now-btn home-now-start" onclick="homeStartTest(' + jsArg(e.id) + ')">' + (t.action === 'continue' ? 'Continue test' : 'Start test') + '</button>';
+  }
+  if (test.getAttribute('data-html') !== th) { test.innerHTML = th; test.setAttribute('data-html', th); }
+  test.hidden = !th;
+}
+// The refresh after new records arrive (the gate's refresh calls this).
+function renderStudentDashboard() {
+  if (currentRole !== 'student') return;
+  try { renderStudentHomeNow(); } catch (e) {}
+  try { renderStudentProgressPage(); } catch (e) {}
+}
+var _homeNow = { timer: null, wired: false };
+function homeNowWatch() {
+  if (!_homeNow.wired) {
+    _homeNow.wired = true;
+    try { if (window.CESTISCore && typeof CESTISCore.on === 'function') CESTISCore.on('cestis:state-saved', function() { if (currentRole === 'student') renderStudentHomeNow(); }); } catch (e) {}
+  }
+  if (_homeNow.timer) clearInterval(_homeNow.timer);
+  _homeNow.timer = setInterval(function() {
+    if (currentRole !== 'student') { clearInterval(_homeNow.timer); _homeNow.timer = null; return; }
+    if (document.visibilityState === 'hidden') return;
+    var pg = document.getElementById('page-s-dashboard');
+    if (pg && pg.classList.contains('active')) { try { renderStudentHomeNow(); } catch (e) {} }
+  }, 30000);
+}
+// Run fn once the page's fragment (fetched the first time) holds `sel`.
+function homeAfterMount(sel, fn) {
+  var t0 = Date.now();
+  (function tick() {
+    if (document.querySelector(sel)) { fn(); return; }
+    if (Date.now() - t0 > 8000) { showToast('That page did not open. Please try again.', 'warning'); return; }
+    setTimeout(tick, 120);
+  })();
+}
+function homeJoinLiveClass(id) {
+  var c = (classSessions || []).find(function(x) { return x && x.id === id; });
+  if (!c) { showToast('That class has ended.', 'warning'); renderStudentHomeNow(); return; }
+  showPage('s-video');
+  homeAfterMount('#sVideoRoom', function() { enterVideoRoom(c.name || c.course, 'student', c.roomCode || undefined); });
+}
+function homeStartTest(examId) {
+  showPage('s-exams');
+  homeAfterMount('#studentUpcomingExams', function() { startStudentExam(examId); });
+}
+
+/* My Progress, from her real records (CESTISCore.homeStudy.progress): the
+   units of her plan she is competent in (the transcript's own reading), her
+   attendance from the register (the one rate rule every view uses), her
+   marked tests (final results only — one awaiting marking is not a score
+   yet) and her coursework (CESTISCore.coursework, as the instructor's views
+   count it). Nothing hand-typed. Drawn again after every refresh of her
+   records (renderStudentDashboard). */
+function studentProgressFigures(s) {
+  var tr = null;
+  try {
+    var read = function (k, d) { try { var v = JSON.parse(CESTISStore.getItem(k) || 'null'); return v == null ? d : v; } catch (e) { return d; } };
+    tr = CESTISCore.Transcript.transcriptReadiness(s, { catalogs: read('voctrain_unitCatalogs', []), grades: read('voctrain_transcriptGrades', []),
+      profiles: read('voctrain_transcriptProfiles', {}), exams: (typeof exams !== 'undefined' ? exams : []), examResults: (typeof examResults !== 'undefined' ? examResults : []) });
+  } catch (e) { tr = null; }
+  return CESTISCore.homeStudy.progress({ student: s, transcript: tr,
+    register: (typeof attendanceRegister !== 'undefined' ? attendanceRegister : []),
+    examResults: (typeof examResults !== 'undefined' ? examResults : []), exams: (typeof exams !== 'undefined' ? exams : []),
+    coursework: studentCourseworkSummary(s), gpa: studentEffectiveGpa(s) });
+}
+function renderStudentProgressPage() {
+  var s = currentStudent, box = document.getElementById('sProgressSummary');
+  if (!s || !box || currentRole !== 'student') return;
+  var f = studentProgressFigures(s);
+  var card = function (icon, tone, value, label, sub) {
+    return '<div class="stat-card"><div class="stat-icon" style="background:var(--' + tone + '-dim);color:var(--' + tone + ');">' + icon + '</div>' +
+      '<div class="stat-value">' + value + '</div><div class="stat-label">' + label + '</div>' + (sub ? '<div class="stat-sub" style="font-size:12px;color:var(--text-muted);margin-top:4px;">' + sub + '</div>' : '') + '</div>';
+  };
+  var u = f.units, a = f.attendance, t = f.tests, c = f.coursework;
+  box.innerHTML =
+    (u.known ? card('🎯', 'green', escapeHtml(u.competent + ' of ' + u.total), 'Units competent',
+        escapeHtml([u.pending ? u.pending + ' awaiting marking' : '', u.nyc ? u.nyc + ' not yet competent' : '', !u.pending && !u.nyc ? (u.total - u.competent) + ' still to do' : ''].filter(Boolean).join(' · ')))
+      : card('🎯', 'green', '—', 'Units competent', 'Your programme\'s units are not listed yet')) +
+    card('📅', 'blue', a.pct == null ? '—' : escapeHtml(a.pct + '%'), 'Attendance',
+      a.source === 'register' ? escapeHtml(a.attended + ' of ' + a.held + ' classes attended' + (a.late ? ' (' + a.late + ' late)' : '')) : (a.pct == null ? 'No classes marked yet' : '')) +
+    card('✅', 'accent', t.last ? escapeHtml(t.last.score + '%') : '—', 'Last marked test',
+      t.last ? escapeHtml(t.last.title + (t.count > 1 ? ' · average ' + t.average + '% over ' + t.count + ' tests' : '')) : 'No marked tests yet') +
+    card('📝', 'purple', escapeHtml(c.graded + '/' + c.total), 'Assignments marked',
+      escapeHtml((c.percent == null ? '' : c.percent + '% average') + (f.gpa && parseFloat(f.gpa) > 0 ? (c.percent == null ? '' : ' · ') + 'GPA ' + f.gpa : '')));
+  var tests = document.getElementById('sProgressTests');
+  if (tests) {
+    tests.innerHTML = !t.count ? '<p style="color:var(--text-muted);padding:12px;">No marked tests yet. Your results show here once they are marked.</p>' :
+      '<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">' + escapeHtml(t.passed + ' of ' + t.count + ' passed · average ' + t.average + '%') + '</div>' +
+      t.list.slice(0, 8).map(function (r) {
+        return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">' +
+          '<div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:600;">' + escapeHtml(r.title) + '</div><div style="font-size:12px;color:var(--text-muted);">' + escapeHtml(r.date) + '</div></div>' +
+          '<div style="font-weight:700;font-size:15px;">' + escapeHtml(r.score + '%') + '</div>' +
+          '<span class="badge ' + (r.passed ? 'badge-green' : 'badge-red') + '">' + (r.passed ? 'Passed' : 'Not passed') + '</span></div>';
+      }).join('') + (t.count > 8 ? '<div style="font-size:12px;color:var(--text-muted);padding-top:8px;">' + (t.count - 8) + ' more in My Exams</div>' : '');
+  }
+  var units = document.getElementById('sProgressUnits');
+  if (units) {
+    if (!u.known) { units.innerHTML = '<p style="color:var(--text-muted);padding:12px;">Your programme\'s units are not listed yet. Ask your instructor.</p>'; }
+    else {
+      var w = function (n) { return (u.total ? Math.round(n / u.total * 1000) / 10 : 0) + '%'; };
+      var rest = Math.max(0, u.total - u.competent - u.nyc - u.pending);
+      units.innerHTML = '<div style="font-size:13px;margin-bottom:8px;">' + escapeHtml(u.title || s.course) + '</div>' +
+        '<div class="progress-bar progress-bar-lg" role="img" aria-label="' + escapeAttr(u.competent + ' of ' + u.total + ' units competent') + '" style="display:flex;overflow:hidden;">' +
+          '<div style="width:' + w(u.competent) + ';background:var(--green);"></div><div style="width:' + w(u.pending) + ';background:var(--accent);"></div><div style="width:' + w(u.nyc) + ';background:var(--red);"></div></div>' +
+        '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px;font-size:13px;">' +
+          '<div><span class="badge badge-green">' + u.competent + '</span> Competent</div>' +
+          '<div><span class="badge badge-amber">' + u.pending + '</span> Awaiting marking</div>' +
+          '<div><span class="badge badge-red">' + u.nyc + '</span> Not yet competent</div>' +
+          '<div><span class="badge badge-blue">' + rest + '</span> Still to do</div>' +
+        '</div>' + (u.average != null ? '<div style="font-size:12px;color:var(--text-muted);margin-top:10px;">' + escapeHtml('Average mark on graded units: ' + u.average + '%') + '</div>' : '');
+    }
+  }
 }
 
 // Announcements a trainee may read: aimed at students, for their programme or
@@ -21433,9 +21774,14 @@ function renderStudentAssignments() {
     var mayUpload = CESTISCore.coursework.canSubmit(a, !!mySub, myGrade);
     var isPastDue = CESTISCore.coursework.isPastDue(a.dueDate); // due = by the end of that day, here (not UTC midnight)
     var attachCount = (a.attachments && a.attachments.length) || 0;
+    // Her work for it, still on its way from this device (T2).
+    var sending = typeof homeUploadFor === 'function' ? homeUploadFor(a.id, s.id) : null;
+    if (sending && sending.state === 'wait') mayUpload = false;
 
     var statusBadge = '';
-    if (myGrade !== null) {
+    if (sending && sending.state === 'wait') {
+      statusBadge = '<span class="badge badge-amber">Sending…</span>';
+    } else if (myGrade !== null) {
       var pct = Math.round(myGrade / a.maxPoints * 100);
       statusBadge = '<span class="badge badge-green">Graded: ' + myGrade + '/' + escapeHtml(a.maxPoints) + ' (' + pct + '%)</span>';
     } else if (mySub) {
@@ -21464,6 +21810,7 @@ function renderStudentAssignments() {
       html += '</div>';
     }
 
+    if (sending) html += homeUploadLine(sending);
     // Show own submission
     var myFiles = mySub ? (mySub.files || []).concat(mySub.driveFiles || []) : [];
     if (myFiles.length > 0) {
@@ -21490,26 +21837,52 @@ function openSubmitAssignment(assignmentId, title) {
   document.getElementById('submitAssignId').value = assignmentId;
   document.getElementById('submitAssignTitle').textContent = title;
   _submitPendingFiles = [];
+  _submitGen++;
   var listEl = document.getElementById('submitFileList');
   if (listEl) listEl.innerHTML = '';
   document.getElementById('submitComment').value = '';
   document.getElementById('submitFileInput').value = '';
+  // The window as it opens: choosing files, nothing on its way.
+  var prog = document.getElementById('submitProgress'); if (prog) prog.hidden = true;
+  ['submitPickArea', 'submitCommentGroup'].forEach(function(id) { var el = document.getElementById(id); if (el) el.hidden = false; });
+  var sb = document.getElementById('submitAssignBtn'); if (sb) { sb.hidden = false; sb.disabled = false; sb.textContent = 'Submit'; }
+  var cb = document.getElementById('submitCancelBtn'); if (cb) cb.textContent = 'Cancel';
   openModal('submitAssignmentModal');
 }
 
+/* The files she chose; a photo is made smaller first (homeShrinkImage, T2),
+   so a 4–5 MB camera photo is no longer turned away as too big. */
+var _submitShrinking = 0, _submitGen = 0;
 function submitFileSelected(input) {
-  for (var i = 0; i < input.files.length; i++) {
-    if (courseworkFileTooBig(input.files[i])) continue;
-    _submitPendingFiles.push(input.files[i]);
-  }
+  var picked = Array.prototype.slice.call((input && input.files) || []);
+  // The same photo can be chosen again after it was removed.
+  if (input && input.tagName) { try { input.value = ''; } catch (e) {} }
+  if (!picked.length) { submitRenderFileList(); return Promise.resolve(); }
+  var gen = _submitGen;
+  _submitShrinking++;
+  submitRenderFileList();
+  return picked.reduce(function(p, f) {
+    return p.then(function() { return homeShrinkImage(f); }).then(function(g) {
+      if (gen !== _submitGen) return;
+      if (!courseworkFileTooBig(g)) _submitPendingFiles.push(g);
+    });
+  }, Promise.resolve()).catch(function(e) { console.warn('[Submit] could not read a file:', e); }).then(function() {
+    _submitShrinking = Math.max(0, _submitShrinking - 1);
+    submitRenderFileList();
+  });
+}
+function submitRenderFileList() {
   var listEl = document.getElementById('submitFileList');
   if (!listEl) return;
-  listEl.innerHTML = _submitPendingFiles.map(function(f, i) {
-    var size = f.size < 1024 ? f.size + ' B' : f.size < 1048576 ? (f.size/1024).toFixed(1) + ' KB' : (f.size/1048576).toFixed(1) + ' MB';
+  var html = _submitPendingFiles.map(function(f, i) {
+    var size = homeSizeLabel(f.size);
+    var note = f._homeFrom ? homeSizeLabel(f._homeFrom) + ' \u2192 ' + size + ', made smaller for sending' : size;
     return '<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg-input);border-radius:var(--radius-sm);margin-bottom:4px;">' +
-      '<span style="font-size:16px;">📄</span><span style="flex:1;font-size:12px;">' + escapeHtml(f.name) + ' <span style="color:var(--text-muted);">(' + size + ')</span></span>' +
-      '<button class="btn btn-sm btn-danger" style="padding:2px 8px;font-size:11px;" onclick="_submitPendingFiles.splice(' + i + ',1);submitFileSelected({files:[]})">✕</button></div>';
+      '<span style="font-size:16px;" aria-hidden="true">📄</span><span style="flex:1;font-size:12px;overflow-wrap:anywhere;">' + escapeHtml(f.name) + ' <span style="color:var(--text-muted);">(' + escapeHtml(note) + ')</span></span>' +
+      '<button type="button" class="btn btn-sm btn-danger submit-file-remove" aria-label="Remove ' + escapeAttr(f.name) + '" onclick="_submitPendingFiles.splice(' + i + ',1);submitRenderFileList()">✕</button></div>';
   }).join('');
+  if (_submitShrinking > 0) html += '<div class="submit-file-note" role="status">Making your photo smaller for sending…</div>';
+  listEl.innerHTML = html;
 }
 
 // One submission at a time: a second tap on Submit while the first is still
@@ -21517,6 +21890,7 @@ function submitFileSelected(input) {
 var _submitInFlight = false;
 function submitStudentAssignment() {
   if (_submitInFlight) return;
+  if (typeof _submitShrinking !== 'undefined' && _submitShrinking > 0) { showToast('One moment — your photo is still being made smaller.'); return; }
   var assignmentId = document.getElementById('submitAssignId').value;
   var comment = (document.getElementById('submitComment')?.value || '').trim();
   var s = currentStudent;
@@ -21560,6 +21934,13 @@ function submitStudentAssignment() {
     // kind and size), and the submission names them. Nothing is saved until
     // they have gone — the files stay chosen, to try again.
     if ((typeof cestisGateSession === 'function' && cestisGateSession())) {
+      // From home (T2): kept on this device and sent in parts; her submission
+      // is saved once every file is in. Never lost if the signal drops.
+      var gs = CESTISGate.session();
+      if (gs && gs.base && gs.base.kind !== 'lan' && typeof CESTISGate.uploadQueue === 'function') {
+        await homeQueueSubmission(submission, files, a, s, prior);
+        return;
+      }
       var up = await gateUploadFiles(pending, files, submission.id);
       if (!up.ok) { showToast(up.message, 'warning'); return; }
       if (!up.inline) { submission.driveFiles = up.files; submission.files = []; }
@@ -21646,11 +22027,11 @@ function courseworkFileLink(f, cls, style, label) {
   if (!f) return '';
   var name = f.origName || f.name || 'file';
   if (f.dataUrl) {
-    return '<a href="' + escapeAttr(safeUrl(f.dataUrl, {data:true})) + '" download="' + escapeAttr(name) + '" class="' + escapeAttr(cls || '') + '" style="' + escapeAttr(style || '') + '">' + label + '</a>';
+    return '<a href="' + escapeAttr(safeUrl(f.dataUrl, {data:true})) + '" download="' + escapeAttr(name) + '" class="cw-file-link ' + escapeAttr(cls || '') + '" style="' + escapeAttr(style || '') + '">' + label + '</a>';
   }
   var id = f.driveId || f.id;
   if (!id) return '';
-  return '<a href="#" class="' + escapeAttr(cls || '') + '" style="' + escapeAttr(style || '') + '" title="Open this file" onclick="event.preventDefault();cestisOpenDriveFile(' + jsArg(id) + ',' + jsArg(name) + ',' + jsArg(f.webViewLink || f.url || '') + ')">' + label + '</a>';
+  return '<a href="#" class="cw-file-link ' + escapeAttr(cls || '') + '" style="' + escapeAttr(style || '') + '" title="Open this file" onclick="event.preventDefault();cestisOpenDriveFile(' + jsArg(id) + ',' + jsArg(name) + ',' + jsArg(f.webViewLink || f.url || '') + ')">' + label + '</a>';
 }
 
 // ============================== STUDENT ASSIGNMENTS PAGE ==============================
@@ -21703,10 +22084,15 @@ function renderStudentAssignmentsPage() {
     var mayUpload = CESTISCore.coursework.canSubmit(a, !!mySub, myGrade);
     var isPastDue = CESTISCore.coursework.isPastDue(a.dueDate); // due = by the end of that day, here (not UTC midnight)
     var attachCount = (a.attachments && a.attachments.length) || 0;
+    // Her work for it, still on its way from this device (T2).
+    var sending = typeof homeUploadFor === 'function' ? homeUploadFor(a.id, s.id) : null;
+    if (sending && sending.state === 'wait') mayUpload = false;
 
     var statusBadge = '';
     var borderColor = 'var(--accent)';
-    if (myGrade !== null) {
+    if (sending && sending.state === 'wait') {
+      statusBadge = '<span class="badge badge-amber">Sending…</span>';
+    } else if (myGrade !== null) {
       var pct = Math.round(myGrade / a.maxPoints * 100);
       statusBadge = '<span class="badge badge-green">Graded: ' + myGrade + '/' + escapeHtml(a.maxPoints) + ' (' + pct + '%)</span>';
       borderColor = 'var(--green)';
@@ -21746,6 +22132,7 @@ function renderStudentAssignmentsPage() {
       html += '</div>';
     }
 
+    if (sending) html += '<div style="padding:8px 16px;border-bottom:1px solid var(--border);">' + homeUploadLine(sending) + '</div>';
     // Show own submission files
     if (mySub && ((mySub.files && mySub.files.length) || (mySub.driveFiles && mySub.driveFiles.length))) {
       var myAttempts = CESTISCore.coursework.submissionHistory(assignmentSubmissions, a.id, s.id).length;
@@ -37937,7 +38324,7 @@ var GATE_CONFIG_FILE = 'CESTIS_GATE.json';
 var GATE_FOLDER_MIME = 'application/vnd.google-apps.folder';
 // Must equal GATE_VERSION in trainee-gate/Gate.gs (tests/gate-card-ready.test.js checks it):
 // a gate older than this shows "A newer version is available" on the Settings card.
-var GATE_EXPECTED_VERSION = 2;
+var GATE_EXPECTED_VERSION = 3;
 var GATE_LIMITS = {
   gapMs: 500,                 // at most 2 writes a second
   perTick: 120,               // and 120 in one turn
@@ -37960,7 +38347,9 @@ var GATE_STORE_KEYS = ['voctrain_users', 'voctrain_deletedUserIds', 'voctrain_st
   'voctrain_driveResources', 'voctrain_transcriptGrades', 'voctrain_unitCatalogs', 'voctrain_certTranscriptRequests',
   'voctrain_certDownloadApprovals', 'voctrain_support_messages', 'voctrain_chatRooms', 'voctrain_chatMessages',
   'voctrain_skillAreas', 'voctrain_instructorData', 'voctrain_transcriptProfiles', 'voctrain_studentProfiles',
-  'voctrain_certTemplates'];
+  'voctrain_certTemplates',
+  // Her fees at home (CESTISCore.gate.home.buildFees): read only, and only on a PC that holds the fee roll.
+  'cestiSchoolFeeStudents', 'cestiSchoolFeePayments', 'cestiSchoolFeeDeletedPaymentIds'];
 // This page's own state for the gate (never stored: it is rebuilt after a reload).
 var _gateRun = { publishing: false, collecting: false, cfg: null, cfgAt: 0, cfgMissing: false, built: null, builtAt: 0,
   buildWrites: -1, buildMs: 0, remoteAt: 0, collectAt: 0, refetchAt: 0, healthAt: 0, drive: 0, killed: undefined,
@@ -38027,12 +38416,14 @@ function gateOlder(a, b) {
 }
 function gateFileName(kind, key) {
   if (kind === 'slice') return 'from-centre.json';
+  if (kind === 'fees') return CESTISCore.gate.home.FEES_FILE;
   if (kind === 'catalogue') return 'catalogue.json';
   return kind + '.' + key + '.json';
 }
 function gateFileProps(kind, item) {
   var p = { cestisGate: '1', cestisKind: kind, h: String(item.h), s: String(item.s || 0) };
-  if (kind === 'slice') p.acct = item.acct;
+  if (kind === 'fees') p.t = String(item.t || 0);
+  if (kind === 'slice' || kind === 'fees') p.acct = item.acct;
   else if (kind === 'room') p.roomId = item.key;
   else if (kind === 'catalogue') p.catalogue = item.key;
   else p.examId = item.key;
@@ -38067,16 +38458,17 @@ function gateIndexListing(st, files, cfg, full) {
   });
   list.forEach(function(f) {
     var p = f.appProperties, kind = p.cestisKind;
-    var key = kind === 'slice' ? p.acct : (kind === 'room' ? p.roomId : (kind === 'paper' || kind === 'key' ? p.examId : (kind === 'catalogue' ? p.catalogue : '')));
+    var key = (kind === 'slice' || kind === 'fees') ? p.acct : (kind === 'room' ? p.roomId : (kind === 'paper' || kind === 'key' ? p.examId : (kind === 'catalogue' ? p.catalogue : '')));
     if (!key) return;
     var path = kind + ':' + key;
     var parent = Array.isArray(f.parents) && f.parents.length ? String(f.parents[0]) : '';
     // A trainee's records in a folder that is not theirs (a younger duplicate)
     // are left where they are: nobody reads them.
-    if (kind === 'slice' && (!st.folders[key] || st.folders[key].id !== parent)) return;
+    if ((kind === 'slice' || kind === 'fees') && (!st.folders[key] || st.folders[key].id !== parent)) return;
     var ent = { id: f.id, h: String(p.h || ''), s: Number(p.s) || 0, parent: parent, created: String(f.createdTime || ''), modified: String(f.modifiedTime || '') };
+    if (kind === 'fees') ent.t = Number(p.t) || 0;
     var cur = st.files[path];
-    if (!cur || cur.id === f.id || (cur.parent && cur.parent !== parent && kind === 'slice')) { st.files[path] = ent; return; }
+    if (!cur || cur.id === f.id || (cur.parent && cur.parent !== parent && (kind === 'slice' || kind === 'fees'))) { st.files[path] = ent; return; }
     if (st.dups[f.id]) return;
     if (older(ent, cur)) {
       st.dups[cur.id] = { kind: 'file', path: path, of: ent.id, name: gateFileName(kind, key) };
@@ -38105,6 +38497,17 @@ async function gateBuild(storeMap, nowMs, opts, pause, every) {
     r.slice.access.rooms.forEach(function(id) { rooms[id] = 1; (inRooms[id] = inRooms[id] || []).push(t.acct); });
     if (pause && (i + 1) % every === 0) await pause();
   }
+  /* Her fees (from-centre-fees.json in her folder): only from a PC that holds
+     the office's fee roll, only her own real record and receipts
+     (CESTISCore.gate.home.buildFees) — a PC without it publishes nothing, so
+     it never replaces what one with it published. */
+  try {
+    var fees = G.home.buildFees(storeMap, ctx.trainees.filter(function(t) { return out.items['slice:' + t.acct]; }).map(function(t) { return { acct: t.acct, stu: t.stu, student: t.student }; }),
+      ctx.now, { builtBy: opts && opts.builtBy }).byAcct;
+    Object.keys(fees).forEach(function(acct) {
+      out.items['fees:' + acct] = { kind: 'fees', key: acct, acct: acct, h: fees[acct].h, s: fees[acct].s, t: fees[acct].t, body: fees[acct].file };
+    });
+  } catch (e) { console.warn('[TraineeGate] fees not built: ' + (e && e.message)); }
   ctx.L.voctrain_exams.forEach(function(e) {
     var id = String(e.id);
     if (!papers[id] || out.items['paper:' + id]) return;
@@ -38170,15 +38573,16 @@ function gatePlan(built, st) {
       ops.push({ op: 'rename', path: 'folder:' + acct, acct: acct, name: want.name, desc: want.desc });
     }
   };
-  ['key', 'paper', 'slice', 'room', 'catalogue'].forEach(function(kind) {
+  ['key', 'paper', 'slice', 'fees', 'room', 'catalogue'].forEach(function(kind) {
     paths.filter(function(p) { return p.indexOf(kind + ':') === 0; }).sort().forEach(function(path) {
       var it = built.items[path], cur = st.files[path] || null;
-      var fold = kind === 'slice' ? (st.folders[it.acct] || null) : null;
-      if (kind === 'slice' && cur && (!fold || cur.parent !== fold.id)) cur = null;
-      var d = G.publishDecision({ h: it.h, s: it.s }, cur ? { h: cur.h, s: cur.s } : null);
+      var fold = (kind === 'slice' || kind === 'fees') ? (st.folders[it.acct] || null) : null;
+      if ((kind === 'slice' || kind === 'fees') && cur && (!fold || cur.parent !== fold.id)) cur = null;
+      var d = kind === 'fees' ? G.home.feesDecision({ h: it.h, s: it.s, t: it.t }, cur ? { h: cur.h, s: cur.s, t: cur.t } : null)
+        : G.publishDecision({ h: it.h, s: it.s }, cur ? { h: cur.h, s: cur.s } : null);
       seen[d] = (seen[d] || 0) + 1;
       if (kind === 'slice' && (d === 'write' || d === 'skip')) folderOp(it.acct, { name: G.folderName(it.name, it.stu), desc: G.folderDescription(it.acct, '') }, true);
-      if (d === 'write') ops.push({ op: 'put', path: path, kind: kind, key: it.key, acct: it.acct || '', h: it.h, s: it.s });
+      if (d === 'write') ops.push({ op: 'put', path: path, kind: kind, key: it.key, acct: it.acct || '', h: it.h, s: it.s, t: it.t });
     });
   });
   // Registrations from home not taking records yet: their folder's name and mark.
@@ -38248,7 +38652,7 @@ async function gateDoOp(op, env) {
     var it = built && built.items ? built.items[op.path] : null;
     if (!it || it.h !== op.h) return 'wait';
     var parent = '';
-    if (op.kind === 'slice') {
+    if (op.kind === 'slice' || op.kind === 'fees') {
       var f2 = st.folders[op.acct];
       if (!f2) return 'wait';
       parent = f2.id;
@@ -38267,7 +38671,7 @@ async function gateDoOp(op, env) {
     } else {
       meta = await drive.create({ name: gateFileName(op.kind, op.key), mimeType: 'application/json', parents: [parent], appProperties: props }, text);
     }
-    st.files[op.path] = { id: (meta && meta.id) || (cur && cur.id), h: it.h, s: it.s, parent: parent,
+    st.files[op.path] = { id: (meta && meta.id) || (cur && cur.id), h: it.h, s: it.s, t: it.t, parent: parent,
       created: (cur && cur.created) || String((meta && meta.createdTime) || new Date(now).toISOString()),
       modified: String((meta && meta.modifiedTime) || new Date(now).toISOString()) };
     return 'done';
@@ -38759,6 +39163,29 @@ function gateAddRegistrations(list) {
   try { renderVerifyUsersPage(); } catch (e) {}
   return true;
 }
+/* A trainee who registered from home and has just been approved is emailed
+   by the gate (T6): it notices when it next reads the accounts list, and
+   sends from its health answer. So after an approval this PC asks for that
+   answer a few times — 20 s, 1, 2 and 5 minutes on, while the accounts list
+   reaches the gate — and stops once nothing waits. Never with the gate off. */
+var _gateMailNudge = { timers: [] };
+function gateNudgeApprovalMail() {
+  var tg = systemSettings && systemSettings.traineeGate;
+  if (!tg || tg.enabled !== true || !tg.url) return false;
+  _gateMailNudge.timers.forEach(function(t) { clearTimeout(t); });
+  _gateMailNudge.timers = [];
+  var done = false;
+  [20, 60, 120, 300].forEach(function(s) {
+    _gateMailNudge.timers.push(setTimeout(function() {
+      if (done) return;
+      fetch(tg.url + (tg.url.indexOf('?') === -1 ? '?' : '&') + 'op=health', { method: 'GET', cache: 'no-store', credentials: 'omit', redirect: 'follow' })
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(j) { if (j && j.mail && j.mail.queued === 0 && s >= 60) done = true; })
+        .catch(function() {});
+    }, s * 1000));
+  });
+  return true;
+}
 // The request queue's own rule: request by request, the copy changed last
 // wins (a trainee withdrawing a request arrives as status 'cancelled').
 function gateMergeRequests(incoming) {
@@ -38776,17 +39203,20 @@ function gateMergeRequests(incoming) {
 // reaches every device through the account rule.
 function gateApplyOps(list) {
   var store = { voctrain_announcements: announcements, voctrain_notifications: notifications, voctrain_chatMessages: lmsChatMessages,
-    voctrain_chatFollows: lmsChatFollows, voctrain_chatFollowLog: lmsChatFollowLog, voctrain_users: userAccounts };
-  var applied = 0, changed = {}, touched = {};
+    voctrain_chatFollows: lmsChatFollows, voctrain_chatFollowLog: lmsChatFollowLog, voctrain_users: userAccounts,
+    voctrain_certDownloadApprovals: (typeof certDownloadApprovals !== 'undefined' && Array.isArray(certDownloadApprovals)) ? certDownloadApprovals : [] };
+  var applied = 0, changed = {}, touched = {}, stamped = {};
   (list || []).forEach(function(x) {
     var r = CESTISCore.gate.applyOps(store, [x.op], x.me);
     applied += r.applied;
     r.changed.forEach(function(k) { changed[k] = 1; });
     r.touchedAccounts.forEach(function(a) { touched[a] = 1; });
+    (r.stampedAccounts || []).forEach(function(a) { stamped[a] = 1; });
   });
   lmsChatFollows = store.voctrain_chatFollows; lmsChatFollowLog = store.voctrain_chatFollowLog;
   Object.keys(touched).forEach(function(id) { touchAccount(userAccounts.find(function(u) { return u && String(u.id) === id; })); });
-  if (Object.keys(touched).length) saveUserAccounts();
+  // A password a trainee changed at home is already stamped with its own moment (never re-stamped now).
+  if (Object.keys(touched).length || Object.keys(stamped).length) saveUserAccounts();
   if (changed.voctrain_notifications) saveNotifications();
   if (applied) saveState();
   return applied;
@@ -39195,6 +39625,25 @@ function gateTraineeCard() {
   // A device holding none of the Centre's records (a trainee's own phone):
   // "Sync before signing in" is not for them.
   if (!gateDeviceHoldsCentre()) document.body.classList.add('gate-trainee-only');
+  homeTraineeFirst();
+}
+/* The trainees' link just opened, or a trainee's own device: her form, open
+   and first; the staff cards one tap away. (Never on a lab PC that holds the
+   Centre's records, where staff sign in too.) */
+function homeTraineeFirst() {
+  if (!_gateT.base || cestisGateSession()) return false;
+  if (!(_gateT.fromLink || document.body.classList.contains('gate-trainee-only'))) return false;
+  if (_gateT.staffCards) return false;
+  document.body.classList.add('trainee-first');
+  var f = document.getElementById('studentLogin');
+  if (f && !f.classList.contains('active')) { f.classList.add('active'); studentLoginShown = true; }
+  return true;
+}
+function homeShowStaffCards() {
+  _gateT.staffCards = true;
+  document.body.classList.remove('trainee-first');
+  var c = document.getElementById('adminCard');
+  if (c && c.scrollIntoView) { try { c.scrollIntoView({ block: 'start' }); } catch (e) {} }
 }
 function gateCardWorking(on, text) {
   var card = document.getElementById('studentCard');
@@ -39254,7 +39703,7 @@ function gateTraineeAnswer(res, ctx) {
   }
   if (code === 'pending') {
     var who = ctx.login || '';
-    showPendingApprovalScreen({ email: /@/.test(who) ? who : (who || ''), role: 'student', programme: '', createdAt: '' }, { state: 'waiting' });
+    showPendingApprovalScreen({ email: /@/.test(who) ? who : (who || ''), role: 'student', programme: '', createdAt: '' }, { state: 'waiting', home: true });
     return;
   }
   // Signed in with an email account no trainee account uses: they may be new —
@@ -39340,7 +39789,7 @@ function gateRegisterAnswer(res, ctx) {
   if (res && res.ok && res.state === 'submitted') { gateRegisterReached(res); return; }
   var code = (res && res.error) || 'unreachable';
   if (code === 'pending') {
-    showPendingApprovalScreen({ email: (ctx.profile && ctx.profile.email) || '', role: 'student', programme: '', createdAt: '' }, { state: 'waiting' });
+    showPendingApprovalScreen({ email: (ctx.profile && ctx.profile.email) || '', role: 'student', programme: '', createdAt: '' }, { state: 'waiting', home: true });
     return;
   }
   signInSay('student', gateRegSay(code));
@@ -39349,7 +39798,7 @@ function gateRegisterAnswer(res, ctx) {
 function gateRegisterReached(res) {
   gateRegisterClose();
   var day = String(res.submittedAt || '').slice(0, 10);
-  showPendingApprovalScreen({ email: res.email || '', role: 'student', programme: res.programme || '', createdAt: day || localDateStr() }, { state: 'sent' });
+  showPendingApprovalScreen({ email: res.email || '', role: 'student', programme: res.programme || '', createdAt: day || localDateStr() }, { state: 'sent', home: true, notify: res.notify === true });
 }
 function gateRegisterClose() {
   var m = document.getElementById('gateRegModal');
@@ -39410,7 +39859,7 @@ async function gateRegisterSubmit() {
   if (res && res.ok && res.state === 'submitted') { gateRegisterReached(res); return; }
   var code = (res && res.error) || 'unreachable';
   if (code === 'bad-form') { gateRegFormSay(GATE_REG_FIELD[res.field] || gateRegSay('unreachable')); return; }
-  if (code === 'pending') { gateRegisterClose(); showPendingApprovalScreen({ email: _gateReg.email, role: 'student', programme: programme, createdAt: '' }, { state: 'waiting' }); return; }
+  if (code === 'pending') { gateRegisterClose(); showPendingApprovalScreen({ email: _gateReg.email, role: 'student', programme: programme, createdAt: '' }, { state: 'waiting', home: true }); return; }
   if (code === 'bad-token') { gateRegFormSay(GATE_REG_SAY['token-ended']); return; }
   gateRegFormSay(gateRegSay(code));
 }
@@ -39586,13 +40035,37 @@ function gateEnterPortal() {
   gateBootScreenHide();
   enterApp('student');
 }
+/* How often this phone asks for her records (T1): every minute from 10
+   minutes before to 30 minutes after a class of her programme is due to
+   start (CESTISCore.homeStudy.classPollDelay), else every 5 minutes as
+   before — so a class going live reaches her within about a minute, without
+   asking every minute all day. Worked out again after every ask. */
+function homePullDelay() {
+  var slow = CESTISGate.PULL_EVERY_MS;
+  try {
+    var s = currentStudent;
+    if (!s) return slow;
+    return CESTISCore.homeStudy.classPollDelay(classSessions, s.course, CESTISGate.now(), { matchCourse: instructorCourseMatch, offsetMin: examCentreOffset(), slowMs: slow });
+  } catch (e) { return slow; }
+}
+function homePullSchedule() {
+  if (_gateT.pullTimer) clearTimeout(_gateT.pullTimer);
+  var ms = homePullDelay();
+  _gateT.pullDelay = ms;
+  _gateT.pullTimer = setTimeout(function() {
+    _gateT.pullTimer = null;
+    if (!cestisGateSession() || !currentRole || _gateT.reloading) return;
+    if (document.visibilityState !== 'hidden') gatePullSoon(0);
+    homePullSchedule();
+  }, ms);
+}
 // After enterApp: the gate does what the 5-second save and the sign-in sync do for staff.
 function gateSessionStart() {
   if (_gateT.started) return;
   _gateT.started = true;
   CESTISGate.wire({ onVisible: function() { if (Date.now() - (_gateT.pulledAt || 0) > 60 * 1000) gatePullSoon(0); } });
-  if (_gateT.pullTimer) clearInterval(_gateT.pullTimer);
-  _gateT.pullTimer = setInterval(function() { if (document.visibilityState !== 'hidden') gatePullSoon(0); }, CESTISGate.PULL_EVERY_MS);
+  homePullSchedule();
+  try { homeUploadsWire(); } catch (e) {}
   CESTISGate.capture().then(function() { CESTISGate.deliver(); });
   CESTISGate.status().then(function(st) { _gateT.status = st; try { refreshSyncChip(); } catch (e) {} });
   try { examAfterSignIn(); } catch (e) {}
@@ -39670,13 +40143,19 @@ async function gateSignOutFlow(opts) {
   try { stopSessionExpiryCheck(); } catch (e) {}
   try { if (typeof lmsChatRTStop === 'function') lmsChatRTStop(); } catch (e) {}
   try { lmsChatStopPolling(); } catch (e) {}
-  if (_gateT.pullTimer) { clearInterval(_gateT.pullTimer); _gateT.pullTimer = null; }
+  if (_gateT.pullTimer) { clearTimeout(_gateT.pullTimer); _gateT.pullTimer = null; }
   gateBootScreen('Signing out…');
   var sleep = function(ms) { return new Promise(function(r) { setTimeout(r, ms); }); };
+  // Her files on their way (T2): a last try; whatever is left stays on this
+  // device and goes on at her next sign-in here.
+  try { if (sess && typeof CESTISGate.uploadPump === 'function') await Promise.race([CESTISGate.uploadPump({ force: true }), sleep(8000)]); } catch (e) {}
   try { await CESTISGate.capture(); } catch (e) {}
   try { await Promise.race([CESTISGate.deliver({ force: true }), sleep(8000)]); } catch (e) {}
   var waiting = [];
   try { waiting = sess ? await CESTISGate.pending(sess.acct) : []; } catch (e) { waiting = [1]; }
+  var upWaiting = 0;
+  try { upWaiting = sess && typeof CESTISGate.uploads === 'function' ? (await CESTISGate.uploads(sess.acct)).filter(function(u) { return u.state === 'wait'; }).length : 0; } catch (e) { upWaiting = 0; }
+  if (upWaiting && !opts.quiet) { gateBootScreen('Your work is saved on this device. It will finish sending the next time you sign in here.'); await sleep(3000); }
   try { await Promise.race([CESTISGate.signOut(), sleep(5000)]); } catch (e) {}
   _gateT.reloading = true;
   try { await CESTISGate.leave({ keepData: waiting.length > 0 }); } catch (e) {}
@@ -39829,6 +40308,421 @@ async function gateUploadFiles(pending, files, refId) {
   }
   return { ok: true, files: out };
 }
+/* ===================== HOME STUDY (group C) =====================
+   Her photos made small, her work kept until it is sent, her fees, her
+   password, her certificate. */
+
+/* ---- Her photos, made small before they are sent (T2) ----
+   A phone camera's photo (4–5 MB) becomes about 0.4 MB here
+   (CESTISCore.homeStudy.photoPlan: 1600 px on the long side, JPEG 0.8,
+   down to 0.5 if needed): it goes in seconds on a weak signal, and a page
+   of handwriting stays readable. A picture this browser cannot read (HEIC
+   on most Android phones) is sent as it is; nothing else is changed. */
+function homeIsPhoto(f) {
+  var t = String((f && f.type) || '').toLowerCase(), n = String((f && f.name) || '').toLowerCase();
+  if (/^image\/(gif|svg)/.test(t) || /\.(gif|svg)$/.test(n)) return false;
+  return /^image\//.test(t) || /\.(jpe?g|png|heic|heif|webp)$/.test(n);
+}
+function homeDecodeImage(file) {
+  var viaImg = function() {
+    return new Promise(function(resolve, reject) {
+      var url = URL.createObjectURL(file), img = new Image(), done = false, timer = null;
+      var end = function(ok) {
+        if (done) return;
+        done = true; clearTimeout(timer);
+        if (ok) resolve({ src: img, w: img.naturalWidth, h: img.naturalHeight, close: function() { URL.revokeObjectURL(url); } });
+        else { URL.revokeObjectURL(url); reject(new Error('undecodable')); }
+      };
+      timer = setTimeout(function() { end(false); }, 20000);
+      img.onload = function() { end(img.naturalWidth > 0); };
+      img.onerror = function() { end(false); };
+      img.src = url;
+    });
+  };
+  if (typeof createImageBitmap !== 'function') return viaImg();
+  var bm;
+  try { bm = createImageBitmap(file, { imageOrientation: 'from-image' }); } catch (e) { return viaImg(); }
+  return Promise.resolve(bm).then(function(b) { return { src: b, w: b.width, h: b.height, close: function() { try { b.close(); } catch (e) {} } }; }, viaImg);
+}
+function homeCanvasJpeg(canvas, q) {
+  return new Promise(function(resolve) {
+    try { canvas.toBlob(function(b) { resolve(b || null); }, 'image/jpeg', q); } catch (e) { resolve(null); }
+  });
+}
+function homeShrinkImage(file) {
+  if (!file || !homeIsPhoto(file) || typeof document === 'undefined') return Promise.resolve(file);
+  var H = CESTISCore.homeStudy;
+  return homeDecodeImage(file).then(function(d) {
+    var plan = H.photoPlan({ w: d.w, h: d.h, size: file.size, type: file.type });
+    if (plan.keep) { d.close(); return file; }
+    var c = document.createElement('canvas');
+    c.width = plan.w; c.height = plan.h;
+    var g = c.getContext('2d');
+    // A see-through picture goes on white (a JPEG has no see-through; it would turn black).
+    g.fillStyle = '#ffffff'; g.fillRect(0, 0, plan.w, plan.h);
+    try { g.imageSmoothingQuality = 'high'; } catch (e) {}
+    g.drawImage(d.src, 0, 0, plan.w, plan.h);
+    d.close();
+    var q = plan.quality;
+    var step = function(best) {
+      return homeCanvasJpeg(c, q).then(function(b) {
+        if (b && (!best || b.size < best.size)) best = b;
+        if (!b || b.size <= plan.target || q - plan.step < plan.minQuality - 1e-9) return best;
+        q = Math.round((q - plan.step) * 100) / 100;
+        return step(best);
+      });
+    };
+    return step(null).then(function(b) {
+      c.width = 0; c.height = 0;
+      if (H.photoPick({ size: file.size, type: file.type }, { size: b ? b.size : 0 }) !== 'made') return file;
+      var name = String(file.name || 'photo').replace(/\.[A-Za-z0-9]{1,5}$/, '') + '.jpg';
+      var out;
+      try { out = new File([b], name, { type: 'image/jpeg', lastModified: Date.now() }); } catch (e) { out = b; try { out.name = name; } catch (x) {} }
+      try { out._homeFrom = file.size; out._homeFromName = file.name; } catch (e) {}
+      return out;
+    });
+  }).catch(function() { return file; });
+}
+function homeSizeLabel(n) {
+  n = Number(n) || 0;
+  if (n < 1024) return n + ' B';
+  if (n < 100 * 1024) return Math.round(n / 1024) + ' KB';
+  return (n / 1048576).toFixed(1) + ' MB';
+}
+
+/* ---- Her work, never lost on a weak signal (T2) ----
+   From home, a submission's files are kept on this device and sent in parts
+   (CESTISGate.uploadQueue): a dropped connection costs one part, and the
+   sending carries on by itself when the signal is back — at her next
+   sign-in on this device too. Her submission is saved into her records once
+   every file is in, and then sent like any other change of hers. Until
+   then her assignment says "Sending…". On the Centre's own network nothing
+   changes. */
+var _homeUploads = [], _homeSubmitWatch = null;
+var HOME_UPLOAD_SAY = {
+  sending: 'Sending your work…',
+  slowTail: 'On a slow connection this can take a few minutes. Your work is saved on this device, so you can close this and carry on.',
+  waiting: 'No signal just now. Your work is saved on this device and will finish sending by itself when the signal is back — you can close this and carry on.',
+  waitingLine: 'Waiting for signal — your work is saved on this device and will be sent by itself.',
+  quota: 'You have sent as many files as allowed today. Your work is saved on this device and will be sent by itself later.'
+};
+function homeUploadsOn() { return typeof cestisGateSession === 'function' && cestisGateSession() && !!window.CESTISGate && typeof CESTISGate.uploads === 'function' && !!CESTISGate.session(); }
+function homeUploadsRefresh() {
+  if (!homeUploadsOn()) { _homeUploads = []; return Promise.resolve([]); }
+  var sess = CESTISGate.session();
+  return CESTISGate.uploads(sess.acct).then(function(list) {
+    _homeUploads = Array.isArray(list) ? list : [];
+    try { renderStudentAssignments(); } catch (e) {}
+    try { renderStudentAssignmentsPage(); } catch (e) {}
+    return _homeUploads;
+  }, function() { return _homeUploads; });
+}
+function homeUploadFor(assignmentId, studentId) {
+  var mine = (_homeUploads || []).filter(function(u) { return u && u.rec && String(u.rec.assignmentId) === String(assignmentId) && String(u.rec.studentId) === String(studentId); });
+  mine.sort(function(x, y) { return String(y.createdAt).localeCompare(String(x.createdAt)); });
+  return mine[0] || null;
+}
+function homeUploadPct(u) { return u && u.bytes ? Math.min(100, Math.round(u.bytesSent / u.bytes * 100)) : 0; }
+// What an assignment shows while its work is on its way (or was turned away).
+function homeUploadLine(u) {
+  if (!u) return '';
+  if (u.state === 'refused') {
+    return '<div class="home-upload-line is-refused" role="status"><span>' + escapeHtml(GATE_UPLOAD_SAY[u.reason] || GATE_UPLOAD_SAY['type-not-allowed']) + '</span>' +
+      '<button type="button" class="btn btn-sm btn-secondary" onclick="homeUploadDrop(' + jsArg(u.id) + ')">Remove</button></div>';
+  }
+  var waiting = u.tries > 0 && u.reason && u.reason !== 'retry';
+  return '<div class="home-upload-line" role="status"><span class="home-upload-bar" aria-hidden="true"><span style="transform:scaleX(' + (homeUploadPct(u) / 100) + ')"></span></span>' +
+    '<span>' + escapeHtml(waiting ? (u.reason === 'quota' ? HOME_UPLOAD_SAY.quota : HOME_UPLOAD_SAY.waitingLine)
+      : 'Sending your work — ' + homeUploadPct(u) + '%. It is saved on this device and finishes by itself.') + '</span></div>';
+}
+function homeUploadDrop(id) {
+  if (!confirm('Remove this work from this device? It was not sent, so choose the file again to hand it in.')) return;
+  CESTISGate.uploadDrop(id).then(function() { homeUploadsRefresh(); });
+}
+async function homeQueueSubmission(submission, files, a, s, prior) {
+  var rec = Object.assign({}, submission, { files: [], driveFiles: [] });
+  var view = null;
+  try {
+    view = await CESTISGate.uploadQueue({ refId: rec.id, purpose: 'submission',
+      files: files.map(function(f) { return { name: f.name, type: f.type, dataUrl: f.dataUrl, origName: f.name }; }),
+      then: { key: 'voctrain_submissions', rec: rec } });
+  } catch (e) { view = null; }
+  if (!view) { showToast('Your work could not be kept on this device. Please try again.', 'error'); return false; }
+  if (prior && a.gradeMeta && a.gradeMeta[s.id] && a.grades && a.grades[s.id] != null) {
+    // Marked work came back: flag it so the instructor knows to re-mark.
+    a.gradeMeta[s.id].resubmittedAt = rec.submittedAt;
+    saveState();
+  }
+  _submitPendingFiles = [];
+  _homeSubmitWatch = { id: view.id, assignmentId: rec.assignmentId, startedAt: Date.now(), last: view };
+  homeSubmitProgress(view, 'queued');
+  homeUploadsRefresh();
+  setTimeout(function() {
+    if (_homeSubmitWatch && _homeSubmitWatch.id === view.id) { _homeSubmitWatch.slow = true; homeSubmitProgress(null, 'progress'); }
+  }, 20000);
+  // A small file usually goes at once: wait a little for it (the window then
+  // closes with "submitted", as before). Whatever is left goes on by itself.
+  try { await Promise.race([CESTISGate.uploadPump(), new Promise(function(r) { setTimeout(r, 15000); })]); } catch (e) {}
+  return true;
+}
+// The submit window while her work is on its way.
+function homeSubmitProgress(view, kind) {
+  var w = _homeSubmitWatch, box = document.getElementById('submitProgress'), forId = document.getElementById('submitAssignId');
+  if (!w || !box || !forId || forId.value !== w.assignmentId) return;
+  if (view) w.last = view;
+  var v = w.last, fill = document.getElementById('submitProgressFill'), text = document.getElementById('submitProgressText');
+  box.hidden = false;
+  ['submitPickArea', 'submitCommentGroup'].forEach(function(id) { var el = document.getElementById(id); if (el) el.hidden = true; });
+  var sb = document.getElementById('submitAssignBtn'); if (sb) sb.hidden = true;
+  var cb = document.getElementById('submitCancelBtn'); if (cb) cb.textContent = 'Close';
+  if (fill && v) fill.style.transform = 'scaleX(' + (homeUploadPct(v) / 100) + ')';
+  if (!text) return;
+  if (kind === 'waiting') { text.textContent = v && v.reason === 'quota' ? HOME_UPLOAD_SAY.quota : HOME_UPLOAD_SAY.waiting; return; }
+  if (kind === 'refused') { text.textContent = (GATE_UPLOAD_SAY[v && v.reason] || GATE_UPLOAD_SAY['type-not-allowed']) + ' Close this, remove it from your assignment and choose another file.'; return; }
+  text.textContent = (v ? 'Sending your work — ' + homeSizeLabel(v.bytesSent) + ' of ' + homeSizeLabel(v.bytes) + ' (' + homeUploadPct(v) + '%).' : HOME_UPLOAD_SAY.sending) +
+    (w.slow ? ' ' + HOME_UPLOAD_SAY.slowTail : '');
+}
+function homeUploadEvent(ev) {
+  if (!ev || !ev.entry || !homeUploadsOn()) return;
+  var sess = CESTISGate.session();
+  if (!sess || ev.entry.a !== sess.acct) return;
+  if (ev.type === 'filed') {
+    // Her submission, now naming its files: into what this page holds, at once.
+    if (ev.key === 'voctrain_submissions' && ev.rec && ev.rec.id) {
+      var i = assignmentSubmissions.findIndex(function(x) { return x && x.id === ev.rec.id; });
+      if (i === -1) assignmentSubmissions.push(ev.rec); else assignmentSubmissions[i] = ev.rec;
+    }
+    return;
+  }
+  var w = _homeSubmitWatch && _homeSubmitWatch.id === ev.entry.id ? _homeSubmitWatch : null;
+  if (ev.type === 'done') {
+    var rec = ev.entry.rec || {};
+    var a = (instructorAssignments || []).find(function(x) { return x && x.id === rec.assignmentId; });
+    if (w) {
+      _homeSubmitWatch = null;
+      var m = document.getElementById('submitAssignmentModal'), forId = document.getElementById('submitAssignId');
+      if (m && m.classList.contains('active') && forId && forId.value === rec.assignmentId) closeModal('submitAssignmentModal');
+    }
+    showToast(w ? (rec.attempt > 1 ? 'Resubmitted — your earlier attempt is kept too.' : 'Assignment submitted successfully!')
+      : 'Your work for "' + ((a && a.title) || 'your assignment') + '" has been sent.');
+    try { if (currentStudent && a) addNotification(currentStudent.name + (rec.attempt > 1 ? ' resubmitted' : ' submitted') + ' work for "' + a.title + '"', 'exam', null, ['admin','instructor']); } catch (e) {}
+    try { refreshContentDependentViews(); } catch (e) {}
+  } else if (w) homeSubmitProgress(ev.entry, ev.type);
+  homeUploadsRefresh();
+}
+function homeUploadsWire() {
+  if (_gateT.uploadsWired || !homeUploadsOn() || typeof CESTISGate.onUpload !== 'function') return;
+  _gateT.uploadsWired = true;
+  CESTISGate.onUpload(homeUploadEvent);
+  homeUploadsRefresh().then(function(list) {
+    if ((list || []).some(function(u) { return u.state === 'wait'; })) CESTISGate.uploadPump({ force: true });
+  });
+}
+
+/* ---- Her fees (OF-12) ----
+   Her own fee record's figures and her own receipts, nothing else. From
+   home: what the office's computers sent for her (CESTISGate.fees, kept on
+   this device for when there is no signal). On a computer that holds the
+   fee roll: worked out here by the same rule (CESTISCore.gate.home.buildFees).
+   The figures are added up from her receipts (CESTISCore.homeStudy.feeView). */
+var _homeFees = { busy: false, err: '' };
+function homeMoney(n) {
+  var v = Number(n) || 0;
+  try { return '$' + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); } catch (e) { return '$' + v.toFixed(2); }
+}
+function homeDay(d) {
+  var t = Date.parse(String(d || '').slice(0, 10) + 'T12:00:00');
+  if (!t) return String(d || '');
+  try { return new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }); } catch (e) { return String(d).slice(0, 10); }
+}
+function homeLocalFees() {
+  var s = currentStudent, u = currentLoggedInUser;
+  if (!s) return null;
+  var map = {};
+  ['cestiSchoolFeeStudents', 'cestiSchoolFeePayments', 'cestiSchoolFeeDeletedPaymentIds'].forEach(function(k) { try { map[k] = CESTISStore.getItem(k); } catch (e) {} });
+  var acct = String((u && u.id) || s.id);
+  try {
+    var r = CESTISCore.gate.home.buildFees(map, [{ acct: acct, stu: s.id, student: s }], Date.now());
+    return r.byAcct[acct] ? r.byAcct[acct].file.fees : null;
+  } catch (e) { return null; }
+}
+var HOME_FEE_BADGE = { 'paid': 'badge-green', 'part-paid': 'badge-amber', 'owing': 'badge-red', 'not-priced': 'badge-blue' };
+function homeFeesHtml(fees, o) {
+  o = o || {};
+  var v = CESTISCore.homeStudy.feeView(fees);
+  if (!v) {
+    var say = o.loading ? 'Getting your fees…'
+      : o.err === 'unknown-op' || o.err === 'not-available' ? 'Your fees cannot be shown here yet. Ask the office for your balance.'
+      : o.err && !o.none ? 'Could not get your fees right now. Try again when you have signal.'
+      : 'Your fees are not on record yet. If you have paid, ask the office and bring your receipt.';
+    return '<div class="card home-fees-empty" role="status">' + escapeHtml(say) + '</div>';
+  }
+  var html = '<div class="stats-grid stats-grid-4 home-fees-sum">' +
+    '<div class="profile-stat"><div class="ps-value">' + escapeHtml(homeMoney(v.tuition)) + '</div><div class="ps-label">Programme fee</div></div>' +
+    '<div class="profile-stat"><div class="ps-value" style="color:var(--green);">' + escapeHtml(homeMoney(v.paid)) + '</div><div class="ps-label">Paid</div></div>' +
+    '<div class="profile-stat"><div class="ps-value" style="color:' + (v.balance > 0 ? 'var(--red)' : 'var(--green)') + ';">' + escapeHtml(homeMoney(Math.max(0, v.balance))) + '</div><div class="ps-label">' + (v.credit ? 'Balance (in credit ' + escapeHtml(homeMoney(v.credit)) + ')' : 'Balance') + '</div></div>' +
+    '<div class="profile-stat"><div class="ps-value"><span class="badge ' + (HOME_FEE_BADGE[v.status] || 'badge-blue') + '">' + escapeHtml(v.statusText) + '</span></div><div class="ps-label">' + escapeHtml(v.programme || 'Status') + '</div></div>' +
+    '</div>';
+  html += '<div class="card"><div class="card-header"><h3>My receipts</h3><span style="font-size:13px;color:var(--text-muted);">' + v.receipts.length + (v.receipts.length === 1 ? ' payment' : ' payments') + '</span></div>';
+  if (!v.receipts.length) html += '<p class="home-fees-empty" style="padding:20px;">No payments on record yet.</p>';
+  else {
+    html += '<ul class="home-fees-list">' + v.receipts.map(function(r) {
+      var meta = [homeDay(r.date), r.receipt ? 'Receipt ' + r.receipt : '', r.term, r.method].filter(Boolean).join(' · ');
+      return '<li class="home-fee-row"><span class="home-fee-amt">' + escapeHtml(homeMoney(r.amount)) + '</span><span class="home-fee-meta">' + escapeHtml(meta) + '</span></li>';
+    }).join('') + '</ul>';
+  }
+  html += '</div>';
+  var asOf = o.builtAt ? 'Figures as of ' + homeDay(o.builtAt) + '. ' : '';
+  var stale = o.err ? 'Could not check for newer figures just now. ' : '';
+  html += '<p class="home-fees-note">' + escapeHtml(asOf + stale + 'If something here looks wrong, ask the office and bring your receipt.') + '</p>';
+  return html;
+}
+function renderStudentFeesPage(ask) {
+  var el = document.getElementById('sFeesContent');
+  if (!el) return;
+  var gate = typeof cestisGateSession === 'function' && cestisGateSession() && !!window.CESTISGate && typeof CESTISGate.fees === 'function';
+  var kept = gate ? CESTISGate.storedFees() : null;
+  var fees = gate ? (kept && kept.fees) || null : homeLocalFees();
+  el.innerHTML = homeFeesHtml(fees, { none: gate ? !!(kept && kept.none) : true, builtAt: kept && kept.builtAt, err: gate ? _homeFees.err : '',
+    loading: gate && !kept && (ask || _homeFees.busy) && !_homeFees.err });
+  if (!gate || !ask || _homeFees.busy) return;
+  _homeFees.busy = true;
+  CESTISGate.fees().then(function(res) {
+    _homeFees.busy = false;
+    _homeFees.err = res && res.ok ? '' : ((res && res.error) || 'unreachable');
+    renderStudentFeesPage(false);
+  }, function() { _homeFees.busy = false; _homeFees.err = 'unreachable'; renderStudentFeesPage(false); });
+}
+
+/* ---- Her password, changed at home (OF-12) ----
+   Her current password is proved to the gate (never sent); the new one
+   goes as the dashboard stores one. The office's computers take the change
+   with its own moment; meanwhile the gate signs her in with the new one, and
+   every other session of hers ends. */
+var _homePwBusy = false;
+var HOME_PW_SAY = {
+  'no-match': 'Your current password is not right. Try again.',
+  'locked': 'Too many tries. Wait 15 minutes, then try again.',
+  'too-many': 'Your password has been changed several times today. Try again later.',
+  'same': 'The new password is the same as your current one. Choose a different one.',
+  'weak': 'Your new password must be at least 6 characters, with a capital letter and a number.',
+  'unavailable': 'Changing your password is not available here yet. Ask the office to change it for you.',
+  'signed-out': 'Sign in again, then change your password.',
+  'unreachable': 'Could not change your password right now — you need a connection for this. Try again when you have signal.'
+};
+function homePasswordOpen() {
+  if (!(typeof cestisGateSession === 'function' && cestisGateSession()) || !window.CESTISGate) return;
+  ['homePwOld', 'homePwNew', 'homePwNew2'].forEach(function(id) { var el = document.getElementById(id); if (el) el.value = ''; });
+  var u = document.getElementById('homePwUser');
+  if (u) u.value = (currentLoggedInUser && (currentLoggedInUser.username || currentLoggedInUser.email)) || '';
+  homePwSay('');
+  openModal('homePasswordModal');
+  setTimeout(function() { var el = document.getElementById('homePwOld'); if (el) el.focus(); }, 60);
+}
+function homePwSay(text, status) {
+  var el = document.getElementById('homePwSay');
+  if (!el) return;
+  el.textContent = text || '';
+  el.classList.toggle('is-status', !!status);
+}
+async function homePasswordSubmit() {
+  if (_homePwBusy) return;
+  var v = function(id) { var el = document.getElementById(id); return el ? String(el.value || '') : ''; };
+  var old = v('homePwOld'), pw = v('homePwNew'), pw2 = v('homePwNew2');
+  if (!old) { homePwSay('Type your current password.'); return; }
+  if (pw.length < 6 || !/[A-Z]/.test(pw) || !/[0-9]/.test(pw)) { homePwSay(HOME_PW_SAY.weak); return; }
+  if (pw !== pw2) { homePwSay('The two new passwords do not match.'); return; }
+  if (pw === old) { homePwSay(HOME_PW_SAY.same); return; }
+  _homePwBusy = true;
+  var btn = document.getElementById('homePwBtn'); if (btn) btn.disabled = true;
+  homePwSay('Changing your password…', true);
+  var res = null;
+  try { res = await CESTISGate.changePassword({ oldPassword: old, newPassword: pw }); } catch (e) { res = { ok: false, error: 'unreachable' }; }
+  _homePwBusy = false;
+  if (btn) btn.disabled = false;
+  if (res && res.ok) {
+    ['homePwOld', 'homePwNew', 'homePwNew2'].forEach(function(id) { var el = document.getElementById(id); if (el) el.value = ''; });
+    closeModal('homePasswordModal');
+    showToast('Your password has been changed. Use the new one next time you sign in.', 'success');
+    return;
+  }
+  var code = String((res && res.error) || 'unreachable');
+  if (code === 'bad-form') code = res.field === 'same' ? 'same' : 'weak';
+  else if (code === 'unknown-op' || code === 'not-available') code = 'unavailable';
+  else if (code === 'expired' || code === 'revoked' || code === 'signed-out' || code === 'bad-session') code = 'signed-out';
+  else if (code === 'bad-nonce' || code === 'busy' || gateUnreachable(res)) code = 'unreachable';
+  homePwSay(HOME_PW_SAY[code] || HOME_PW_SAY.unreachable);
+}
+
+/* ---- Her certificate at home (T4) ---- */
+function homeCertLan() {
+  var s = window.CESTISGate && typeof CESTISGate.session === 'function' ? CESTISGate.session() : null;
+  return !!(s && s.base && s.base.kind === 'lan');
+}
+var HOME_COLLECT_ICON = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 21h18"/><path d="M5 21V8l7-5 7 5v13"/><path d="M9 21v-6h6v6"/></svg>';
+function homeCertCollectBlock(reason) {
+  return '<button type="button" class="cert-download-btn home-cert-collect" id="certPublicDownloadBtn" disabled aria-disabled="true">' + HOME_COLLECT_ICON + ' Collect your certificate at the Centre</button>' +
+    (reason ? '<div class="home-cert-why">' + _certEsc(reason) + '</div>' : '') +
+    '<div id="certPublicDownloadStatus" style="display:none;font-size:13px;margin-top:8px;padding:10px 14px;border-radius:8px;"></div>';
+}
+async function homeCertDownload(student) {
+  var v = certDownloadAllowed(student);
+  if (!v.allowed) { _certDownloadStatus(v.collect ? 'Collect your certificate at the Centre.' : v.reason, true); return; }
+  var btn = document.getElementById('certPublicDownloadBtn');
+  var reset = function() { if (btn) { btn.disabled = false; btn.innerHTML = CERT_DOWNLOAD_ICON + ' Download Certificate'; } };
+  var collect = function() { reset(); _certDownloadStatus('Collect your certificate at the Centre — it cannot be made on this device.', true); };
+  if (btn) { btn.disabled = true; btn.innerHTML = '&#9203; Preparing…'; }
+  _certDownloadStatus('Preparing your certificate…', false);
+  try {
+    if (!window.jspdf || !window.jspdf.jsPDF) await cestisNeedLib('jspdf');
+    var key = getCertTemplateKey(student.course);
+    var tpl = certTemplates[key];
+    if (!tpl) { collect(); return; }
+    if (!tpl.bgPage1) {
+      // This device's own copy, from an earlier download.
+      try { (await certImageLoadAll()).forEach(function(img) { var p = String(img.id).split('___'); if (p[0] === key && (p[1] === 'bgPage1' || p[1] === 'bgPage2')) tpl[p[1]] = img.data; }); } catch (e) {}
+    }
+    if (!tpl.bgPage1) {
+      var r1 = await CESTISGate.certTemplate(key, 'bgPage1');
+      if (!r1 || r1.ok !== true || !r1.data) {
+        if (gateUnreachable(r1)) { reset(); _certDownloadStatus('Could not get your certificate right now. Try again when you have signal.', true); }
+        else collect();
+        return;
+      }
+      tpl.bgPage1 = r1.data;
+      try { certImageSave(key, 'bgPage1', r1.data); } catch (e) {}
+      if (tpl.modules && tpl.modules.length && !tpl.bgPage2) {
+        var r2 = await CESTISGate.certTemplate(key, 'bgPage2');
+        if (r2 && r2.ok === true && r2.data) { tpl.bgPage2 = r2.data; try { certImageSave(key, 'bgPage2', r2.data); } catch (e) {} }
+      }
+    }
+    reset();
+    _generateCertPDFInner(student.id);
+  } catch (e) {
+    reset();
+    _certDownloadStatus('Could not make your certificate right now. Try again in a moment.', true);
+  }
+}
+/* Her download, counted for this device as the office counts any other
+   (Core.gate.home.recordHomeDownload): a running count kept on this device
+   (a "Session" key, never in a backup), sent through her outbox. */
+function homeCertRecordDownload(student) {
+  try {
+    var sess = CESTISGate.session();
+    if (!sess || !student || !student.certNo) return false;
+    var dev = String(certDeviceId()).replace(/[^A-Za-z0-9._-]/g, '').slice(0, 60) || 'phone';
+    var k = 'cestisCertHomeCountSession', all = {};
+    try { all = JSON.parse(localStorage.getItem(k) || '{}') || {}; } catch (e) { all = {}; }
+    var slot = sess.acct + '|' + student.certNo;
+    var n = (parseInt(all[slot], 10) || 0) + 1;
+    all[slot] = n;
+    try { localStorage.setItem(k, JSON.stringify(all)); } catch (e) {}
+    CESTISGate.queue('op', { op: { id: 'OP-cd-' + dev.slice(0, 40) + '-' + n, kind: 'certDownload', device: dev, n: n, certNo: String(student.certNo), at: new Date().toISOString() } }, { noCoalesce: true })
+      .catch(function(e) { console.warn('[Certificate] download not queued:', e && e.message); });
+    return true;
+  } catch (e) { return false; }
+}
+
 // Opening a file of the trainee's (their coursework, a resource) through the gate.
 async function gateOpenFile(fileId, name) {
   var res = await CESTISGate.fileGet(fileId);
@@ -39845,11 +40739,16 @@ async function gateOpenFile(fileId, name) {
 
 /* ---- Chat (§5.5): a room's history from its own file, to its members; live
    class chat still goes over the realtime channel. Away from a live class a
-   message takes a minute or two to arrive. ---- */
+   message takes a minute or two to arrive.
+   Asked for while the chat page is open (every 45 s); on any other page only
+   the unread check, every 10 minutes (it was every 2½ minutes on every page,
+   all day, once the chat had been opened); never while the screen is off. ---- */
+var GATE_CHAT_PAGE_MS = 45000, GATE_CHAT_IDLE_MS = 10 * 60 * 1000;
 function gateChatPoll() {
   if (!cestisGateSession() || !window.CESTISGate) return Promise.resolve(false);
+  if (document.visibilityState === 'hidden') return Promise.resolve(false);
   var now = Date.now();
-  var due = lmsChatOnChatPage() ? 45000 : 150000;
+  var due = lmsChatOnChatPage() ? GATE_CHAT_PAGE_MS : GATE_CHAT_IDLE_MS;
   if (now - _gateT.roomAt < due) return Promise.resolve(false);
   _gateT.roomAt = now;
   var slice = safeJsonParse(CESTISStore.getItem('cestisGateSlice'), null);
@@ -39902,7 +40801,7 @@ function gateTraineeInit() {
   try {
     CESTISGate.configure(gateClientHooks());
     // The trainee's link (index.html#gate=…): the address is this device's own.
-    CESTISGate.takeLink();
+    if (CESTISGate.takeLink()) _gateT.fromLink = true;
     if (gateBoot()) return;
     // Work a trainee sealed on this device, waiting for the gate: sent by any
     // session, or none — and a namespace that has nothing left to send goes.
@@ -41062,6 +41961,18 @@ async function findBackupFileInFolderWithToken(folderId, token) {
 
 async function studentRefreshCertData() {
   if (!currentStudent) { showToast('No student session active.'); return; }
+  // At home: her records, asked for again (never a Google sign-in).
+  if (typeof cestisGateSession === 'function' && cestisGateSession() && window.CESTISGate) {
+    var gb = document.getElementById('studentCertRefreshBtn');
+    if (gb) { gb.disabled = true; gb.textContent = '↻ Checking...'; }
+    var gr = await gatePullAndApply();
+    if (gr && gr.ok && gr.applied) gateAfterApply(gr.applied);
+    try { renderStudentCertificate(); } catch (e) {}
+    gb = document.getElementById('studentCertRefreshBtn');
+    if (gb) { gb.disabled = false; gb.textContent = '↻ Check for Updates'; }
+    showToast(gr && gr.ok ? 'Your certificate details are up to date.' : 'Could not check right now. Try again when you have signal.');
+    return;
+  }
 
   var btn = document.getElementById('studentCertRefreshBtn');
   if (btn) { btn.disabled = true; btn.textContent = '↻ Checking...'; }
@@ -48469,12 +49380,14 @@ function certDownloadAllowed(student) {
   if (student && typeof CESTISCore !== 'undefined' && CESTISCore.certs && CESTISCore.certs.isRevoked(student)) return { allowed: false, reason: 'This certificate has been withdrawn. Please contact the administration office.' };
   if (!student || !student.certNo) return { allowed: false, reason: 'No certificate has been issued yet.' };
   var approval = (typeof certDownloadApprovals !== 'undefined' ? certDownloadApprovals : []).find(function (d) { return d && d.studentId === student.id; });
-  if (!(approval && approval.approved)) return { allowed: false, reason: 'Certificate download has not been approved yet. Please contact the administration office.' };
-  if (!certSyncDone()) {
-    // A trainee signed in from home has no Sync Now: tell her what she can do.
-    if (typeof cestisGateSession === 'function' && cestisGateSession()) return { allowed: false, reason: 'Collect your certificate at the Centre, or download it here once the office has finished it.' };
-    return { allowed: false, reason: 'Sync first \u2014 the Download button switches on once this computer has synced.' };
-  }
+  var home = typeof cestisGateSession === 'function' && cestisGateSession();
+  if (!(approval && approval.approved)) return home ? { allowed: false, collect: true, reason: 'Its download has not been approved yet.' } : { allowed: false, reason: 'Certificate download has not been approved yet. Please contact the administration office.' };
+  // At home (T4): her records are the office's own, and the gate checks
+  // again — issued, approved, not withdrawn — before it gives the
+  // certificate's background; the download is recorded through her outbox.
+  // Signed in on the Centre's own network: it is collected there.
+  if (home) return homeCertLan() ? { allowed: false, collect: true, reason: '' } : { allowed: true, reason: '' };
+  if (!certSyncDone()) return { allowed: false, reason: 'Sync first \u2014 the Download button switches on once this computer has synced.' };
   return { allowed: true, reason: '' };
 }
 function certApplyDownloadState(btn, student) {
@@ -49260,6 +50173,8 @@ function _certHasCloudToken() {
 function generateCertificatePDF(studentId) {
   var student = students.find(function(s){ return s.id === studentId; });
   if(!student || !student.certNo) { showToast('Certificate not found'); _certDownloadStatus('Certificate not found.', true); return; }
+  // Her own certificate, at home (T4): its background through the gate.
+  if (typeof cestisGateSession === 'function' && cestisGateSession() && window.CESTISGate) { homeCertDownload(student); return; }
 
   // Gate: require a cloud sync first so every download is recorded centrally.
   if(!certSyncDone()) {
@@ -49376,9 +50291,13 @@ function _generateCertPDFInner(studentId) {
   if(approval) {
     certAlignNumberWithApproval(student, approval);
     // Counted per device, so two devices' downloads add up when they sync
-    // instead of one device's count replacing the other's.
-    CESTISCore.certs.recordDownload(approval, certDeviceId());
-    saveState();
+    // instead of one device's count replacing the other's. At home the count
+    // goes to the office through her outbox (homeCertRecordDownload).
+    if (typeof cestisGateSession === 'function' && cestisGateSession()) homeCertRecordDownload(student);
+    else {
+      CESTISCore.certs.recordDownload(approval, certDeviceId());
+      saveState();
+    }
   }
 
   var certKey = getCertTemplateKey(student.course);

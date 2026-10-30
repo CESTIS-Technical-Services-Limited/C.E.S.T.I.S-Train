@@ -68,6 +68,16 @@
      upload                     {token, name, mime, base64, purpose, refId} → {fileId, size, name}
      file.get                   {token, fileId} → {fileId, name, mime, size, base64}
      signOut                    {token} → {}
+     fees                       {token, have?} → {fees, builtAt, h} | {same, h} | {none}
+                                (her own fee record and receipts, from-centre-fees.json in her folder)
+     password.start             {token} → {nonce, algo, iter, salt}        (a challenge for HER password)
+     password.change            {token, nonce, proof, password:'pbkdf2$…'} → SESSION (a new one: the old ends)
+                                (her old password proved as at sign-in, its tries counted against her
+                                 account; the new check noted in an inbox of hers for the office)
+     cert.template              {token, key, page:'bgPage1'|'bgPage2'} → {data}
+                                (her certificate's background, once it is issued and its download approved)
+     upload.part                {token, uploadId, index, total, size, name, mime, purpose, refId, base64}
+                                → {received} | {fileId, size, name, done:true}  (a file sent in parts)
      catalogue                  {} → {programmes:[name]}           (no sign-in: what a new trainee may register for)
      register.start             {accessToken} → {state:'new', email, programmes} | {state:'submitted', email, programme, submittedAt}
      register.submit            {accessToken, name, programme, phone?, password:'pbkdf2$…'} → {state:'submitted', …}
@@ -85,7 +95,10 @@
    ContentService, HtmlService, Logger */
 
 // 2: registration from home (catalogue, register.start, register.submit), folders named "<Name> (<student ID>)".
-var GATE_VERSION = 2;
+// 3: home study — her fees (fees), her password changed at home (password.start, password.change),
+//    her certificate's background (cert.template), files sent in parts (upload.part), and an email
+//    to a trainee who registered from home once the office approves her (sent from health).
+var GATE_VERSION = 3;
 var GATE_PROTOCOL = [1];
 var GATE_SERVICE = 'cestis-trainee-gate';
 // The dashboard's own sign-in client (index.html GOOGLE_DRIVE_CONFIG.CLIENT_ID) — public by nature.
@@ -114,7 +127,7 @@ var GATE_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // What a trainee may upload (DESIGN.md §5.4): pdf, images, office documents, text, zip.
 var GATE_UPLOAD_TYPES = {
   pdf: ['application/pdf'], png: ['image/png'], jpg: ['image/jpeg'], jpeg: ['image/jpeg'], gif: ['image/gif'],
-  webp: ['image/webp'], heic: ['image/heic', 'image/heif'], txt: ['text/plain'],
+  webp: ['image/webp'], heic: ['image/heic', 'image/heif'], heif: ['image/heif', 'image/heic'], txt: ['text/plain'],
   doc: ['application/msword'], docx: ['application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
   xls: ['application/vnd.ms-excel'], xlsx: ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
   ppt: ['application/vnd.ms-powerpoint'], pptx: ['application/vnd.openxmlformats-officedocument.presentationml.presentation'],
@@ -149,6 +162,8 @@ var GATE_OPS = {
   'auth.2fa': gateAuthTwoStep, 'auth.2fa.send': gateAuthTwoStepSend,
   'pull': gatePull, 'paper': gatePaper, 'attempt.get': gateAttemptGet, 'review': gateReview, 'room.get': gateRoomGet,
   'upload': gateUpload, 'file.get': gateFileGet, 'signOut': gateSignOut, 'deliver': gateDeliver,
+  'fees': gateFees, 'password.start': gatePasswordStart, 'password.change': gatePasswordChange,
+  'cert.template': gateCertTemplate, 'upload.part': gateUploadPart,
   'catalogue': gateCatalogue, 'register.start': gateRegisterStart, 'register.submit': gateRegisterSubmit,
   'diag.echo': gateDiagEcho, 'diag.tokeninfo': gateDiagTokenInfo
 };
@@ -453,11 +468,16 @@ function gateIsOff(G) {
    Core.gate.lookupLogin — the Centre server's gate uses the same two. */
 function gateIndex(G) {
   if (G.idx) return G.idx;
+  var idx = gateIndexRead(G);
+  gatePendingApply(G, idx);
+  return (G.idx = idx);
+}
+function gateIndexRead(G) {
   var cfg = gateReady(G);
   var meta = gateCacheJson(G, 'ix:m');
   if (meta && G.cache.get('ix:c') === String(meta.updated) && meta.ledgerId === cfg.ledgerId) {
     var hot = gateIndexChunks(G, meta);
-    if (hot) return (G.idx = hot);
+    if (hot) return hot;
   }
   var file = gateFileById(cfg.ledgerId);
   if (!file) {
@@ -470,17 +490,19 @@ function gateIndex(G) {
   var updated = file.getLastUpdated().getTime();
   if (meta && meta.updated === updated && meta.ledgerId === cfg.ledgerId) {
     var same = gateIndexChunks(G, meta);
-    if (same) { G.cache.put('ix:c', String(updated), GATE_LIMITS.INDEX_CHECK_S); return (G.idx = same); }
+    if (same) { G.cache.put('ix:c', String(updated), GATE_LIMITS.INDEX_CHECK_S); return same; }
   }
   var led = gateReadJsonFile(file);
   if (!led || !Array.isArray(led.accounts) || Number(led.version || 1) > 1) {
     // Unreadable, or written by a newer dashboard: keep the last good copy, never read it as empty.
     var last = meta ? gateIndexChunks(G, meta) : null;
     gateLog('index', 'accounts list not readable (version ' + (led && led.version) + '); ' + (last ? 'keeping the last good copy' : 'none kept'));
-    if (last) return (G.idx = last);
+    if (last) return last;
     gateFail('busy');
   }
   var idx = gateBuildIndex(G, led, updated, cfg.ledgerId);
+  // Trainees who registered from home and whom the office has just approved: told by email (T6).
+  try { gateMailNoteApprovals(G, led.accounts, led.deletedUserIds); } catch (e) { gateLog('approval mail', e); }
   var text = JSON.stringify(idx), n = Math.ceil(text.length / GATE_LIMITS.CHUNK_CHARS) || 1, parts = {};
   for (var i = 0; i < n; i++) parts['ix:' + updated + ':' + i] = text.slice(i * GATE_LIMITS.CHUNK_CHARS, (i + 1) * GATE_LIMITS.CHUNK_CHARS);
   try {
@@ -488,7 +510,7 @@ function gateIndex(G) {
     G.cache.put('ix:m', JSON.stringify({ ledgerId: cfg.ledgerId, updated: updated, n: n }), GATE_LIMITS.CACHE_MAX_S);
     G.cache.put('ix:c', String(updated), GATE_LIMITS.INDEX_CHECK_S);
   } catch (e) { gateLog('index cache', e); }
-  return (G.idx = idx);
+  return idx;
 }
 function gateIndexChunks(G, meta) {
   var keys = [];
@@ -751,7 +773,8 @@ function gateRegFileOf(G, acct) {
   return r.reg || { unreadable: true };
 }
 function gateRegSubmitted(email, reg) {
-  return { ok: true, state: 'submitted', email: email, programme: gateStr(reg.programme), submittedAt: gateStr(reg.createdAt) };
+  // notify: the office's approval reaches her by email (gateMailSend).
+  return { ok: true, state: 'submitted', email: email, programme: gateStr(reg.programme), submittedAt: gateStr(reg.createdAt), notify: true };
 }
 /* Who is registering: Google's word on the token; then whether the address
    already has a trainee account (→ sign in, or how it stands) or a
@@ -781,7 +804,7 @@ function gateRegisterSubmit(G, req) {
   if (w.out) { if (w.out.state === 'submitted') w.out.already = true; return w.out; }
   var programmes = gateCatalogueNames(G);
   if (!programmes.length) return { ok: false, error: 'not-open' };
-  var chk = G.gate.reg.check({ name: req.name, programme: req.programme, phone: req.phone, password: req.password }, programmes);
+  var chk = G.gate.reg.check({ name: req.name, programme: req.programme, phone: req.phone, password: req.password, link: req.link }, programmes);
   if (!chk.ok) return { ok: false, error: 'bad-form', field: chk.field };
   var akey = 'rga:' + gateAcctKey(G, w.acct), hkey = 'rgh:' + Math.floor(G.now / 3600000), skey = 'rg6:' + Math.floor(G.now / 21600000);
   if (gateCountOf(G, akey) >= GATE_REG.PER_ADDRESS_PER_HOUR || gateCountOf(G, hkey) >= GATE_REG.PER_HOUR || gateCountOf(G, skey) >= GATE_REG.PER_6H) {
@@ -1131,6 +1154,270 @@ function gateSignOut(G, req) {
   return { ok: true };
 }
 
+/* ---------------------------------------------- home study (group C, v3)
+   Her fees, her password, her certificate's background, files in parts, and
+   the email that tells a trainee who registered from home that she may sign
+   in. Every rule is Core.gate.home; here, the reading and writing. */
+
+// fees: her own from-centre-fees.json (written by the office's computers that hold the fee roll).
+function gateFees(G, req) {
+  var s = gateSession(G, req);
+  var file = gateNewest(s.folder.getFilesByName(G.gate.home.FEES_FILE));
+  if (!file) return { ok: true, none: true };
+  var f = G.gate.home.readFees(gateJsonOf(G, file, 'fe:' + s.me.acct), s.me);
+  if (!f) return { ok: true, none: true };
+  if (req.have && gateStr(req.have) === gateStr(f.hash)) return { ok: true, same: true, h: f.hash };
+  return { ok: true, fees: f.fees, builtAt: gateStr(f.builtAt), h: f.hash };
+}
+
+/* Her password, changed at home (OF-12). A challenge for HER account — the
+   same PBKDF2 proof as signing in, its starts and wrong tries counted against
+   her account with the sign-in's limits (5 wrong: 15 minutes). The new check
+   comes as the dashboard stores one. Then, under the script lock: the change
+   is kept here until the accounts list shows it (PW_PENDING — sign-in uses it
+   at once, and every other session of hers ends), and noted for the office in
+   an inbox of hers that only the gate writes (CESTISINBOX.L-pw-<session>).
+   She gets a new session in the answer. */
+var GATE_PW = { PER_6H: 5, PROP: 'PW_PENDING', CACHE: 'pwp', LOCK_MS: 10000 };
+function gatePwLogin(acct) { return 'acct:' + acct; }
+function gatePasswordStart(G, req) {
+  var s = gateSession(G, req), key = gateAcctKey(G, s.me.acct);
+  if (gateLocked(G, key)) return { ok: false, error: 'locked', retryAfter: GATE_LIMITS.LOCK_S };
+  if (gateBusy(G)) return { ok: false, error: 'busy', retry: true };
+  if (gateCount(G, 's:' + key, GATE_LIMITS.LOCK_S) > GATE_LIMITS.START_MAX) return { ok: false, error: 'locked', retryAfter: GATE_LIMITS.LOCK_S };
+  var nonce = gateRandomHex(32);
+  G.cache.put('n:' + nonce, JSON.stringify({ l: gatePwLogin(s.me.acct) }), GATE_LIMITS.NONCE_S);
+  var ch = G.gate.proof.challenge(s.entry.pw || null, gatePwLogin(s.me.acct), gateCfg(G).secret, G.crypto);
+  return { ok: true, nonce: nonce, algo: ch.algo, iter: ch.iter, salt: ch.salt };
+}
+function gatePwPending(G) {
+  var hit = gateCacheJson(G, GATE_PW.CACHE);
+  if (hit && typeof hit === 'object') return hit;
+  var p = {};
+  try { p = JSON.parse(G.props.getProperty(GATE_PW.PROP) || '{}') || {}; } catch (e) { p = {}; }
+  gateCachePut(G, GATE_PW.CACHE, p, 600);
+  return p;
+}
+function gatePwPendingSave(G, p) {
+  if (Object.keys(p).length) G.props.setProperty(GATE_PW.PROP, JSON.stringify(p)); else G.props.deleteProperty(GATE_PW.PROP);
+  gateCachePut(G, GATE_PW.CACHE, p, 600);
+}
+/* Every reading of the index: a change the accounts list does not show yet
+   stands in for the old password (Core.gate.home.pendingPasswords); one the
+   list now shows, or one the office replaced, is let go. If the list was
+   written again since and still holds the password she replaced, her note is
+   written again so the office's computers take it (never lost). */
+function gatePendingApply(G, idx) {
+  var p = gatePwPending(G);
+  if (!Object.keys(p).length) return;
+  var r = G.gate.home.pendingPasswords(idx, p, G.crypto), changed = false;
+  r.done.concat(r.dropped).forEach(function (a) { delete p[a]; changed = true; });
+  r.applied.forEach(function (a) {
+    var x = p[a];
+    if (!x || !x.lane || !idx.updated || Number(x.led) >= Number(idx.updated) || Number(x.nudged) >= Number(idx.updated)) return;
+    try {
+      var folder = gateTraineeFolder(G, a, idx.a[a]);
+      var file = folder ? gateNewest(folder.getFilesByName(GATE_NAMES.inbox + '.' + x.lane + '.json')) : null;
+      var lane = file ? gateReadJsonFile(file) : null;
+      if (lane && lane.format === G.gate.FORMAT.inbox) { gateLaneWrite(G, folder, x.lane, file, lane); x.nudged = idx.updated; changed = true; }
+    } catch (e) { gateLog('password note', e); }
+  });
+  if (changed) gatePwPendingSave(G, p);
+}
+function gatePasswordChange(G, req) {
+  var s = gateSession(G, req), acct = s.me.acct, key = gateAcctKey(G, acct), nonce = gateStr(req.nonce);
+  if (!/^[0-9a-f]{32}$/.test(nonce)) gateFail('bad-request');
+  if (gateLocked(G, key)) return { ok: false, error: 'locked', retryAfter: GATE_LIMITS.LOCK_S };
+  if (gateBusy(G)) return { ok: false, error: 'busy', retry: true };
+  var held = gateCacheJson(G, 'n:' + nonce);
+  G.cache.remove('n:' + nonce);
+  if (!held || held.l !== gatePwLogin(acct)) return { ok: false, error: 'bad-nonce' };
+  var e = s.entry;
+  if (!e.pw || !G.gate.proof.verify(e.pw, nonce, gatePwLogin(acct), gateStr(req.proof), G.crypto)) {
+    gateFailed(G, key);
+    return { ok: false, error: 'no-match' };
+  }
+  G.cache.remove('f:' + key);
+  var pw = gateStr(req.password);
+  if (!G.gate.home.storedPasswordOk(pw)) return { ok: false, error: 'bad-form', field: 'password' };
+  if (pw === e.pw) return { ok: false, error: 'bad-form', field: 'same' };
+  if (gateCount(G, 'pwc:' + key, GATE_LIMITS.CACHE_MAX_S) > GATE_PW.PER_6H) return { ok: false, error: 'too-many', retryAfter: GATE_LIMITS.CACHE_MAX_S };
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(GATE_PW.LOCK_MS)) gateFail('busy');
+  try {
+    var place = { folder: s.folder, slice: s.slice };
+    var at = gateIso(G.now), op = G.gate.home.passwordChangeOp(pw, e.pw, at);
+    var laneId = 'L-pw-' + gateStr(s.claims.sid).replace(/[^A-Za-z0-9._-]/g, '').slice(0, 60);
+    var laneFile = gateNewest(place.folder.getFilesByName(GATE_NAMES.inbox + '.' + laneId + '.json'));
+    var lane = laneFile ? gateReadJsonFile(laneFile) : null;
+    if (!lane || lane.format !== G.gate.FORMAT.inbox) lane = gateLaneNew(G, acct, s.me.stu, laneId);
+    if (!Array.isArray(lane.ops)) lane.ops = [];
+    if (!lane.ops.some(function (o) { return o && o.id === op.id; })) lane.ops.push(op);
+    gateLaneWrite(G, place.folder, laneId, laneFile, lane);
+    var p = gatePwPending(G);
+    p[acct] = { h: pw, at: at, was: op.was, lane: laneId, led: gateIndex(G).updated || 0 };
+    gatePwPendingSave(G, p);
+    // From now on her account has the new password here: a new credential version, a new session.
+    var e2 = {};
+    Object.keys(e).forEach(function (k) { e2[k] = e[k]; });
+    e2.pw = pw; e2.cv = G.gate.home.cvWith(e, pw, G.crypto); e2.sd = 0;
+    if (G.idx && G.idx.a && G.idx.a[acct]) G.idx.a[acct] = e2;
+    var out = gateIssue(G, acct, e2, place, []);
+    out.changedAt = at;
+    return out;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/* Her certificate's background picture (T4): only once her certificate is
+   issued, not withdrawn, and its download approved — as her own records say
+   (her slice) — and only her programme's template (a key her slice lists).
+   The template's picture is the one the office uploaded
+   (cert_template_<key>_<page>.txt); it holds nothing about anybody. */
+function gateCertTemplate(G, req) {
+  var s = gateSession(G, req), page = gateStr(req.page), key = gateStr(req.key);
+  if (page !== 'bgPage1' && page !== 'bgPage2') gateFail('bad-request');
+  var d = s.slice.data || {}, me = s.me;
+  var stu = (d.voctrain_students || []).filter(function (x) { return x && gateStr(x.id) === me.stu; })[0];
+  var appr = (d.voctrain_certDownloadApprovals || []).filter(function (x) { return x && gateStr(x.studentId) === me.stu; })[0];
+  if (!stu || !stu.certNo || G.gate.home.certRevoked(stu) || !appr || appr.approved !== true) return { ok: false, error: 'not-yours' };
+  var tpls = d.voctrain_certTemplates && typeof d.voctrain_certTemplates === 'object' ? d.voctrain_certTemplates : {};
+  if (!key || !Object.prototype.hasOwnProperty.call(tpls, key)) return { ok: false, error: 'not-found' };
+  var name = 'cert_template_' + key.replace(/[^a-zA-Z0-9]/g, '_') + '_' + page + '.txt';
+  var file = gateNewest(DriveApp.getFilesByName(name));
+  if (!file) return { ok: false, error: 'not-found' };
+  if (file.getSize() > GATE_LIMITS.FILE_GET_MAX) return { ok: false, error: 'too-large' };
+  var data = gateReadText(file);
+  if (!/^data:image\//.test(data)) return { ok: false, error: 'not-found' };
+  return { ok: true, key: key, page: page, data: data };
+}
+
+/* A file sent in parts (T2): on a slow line one request per part (about
+   375 KB each), each confirmed, so a dropped connection costs one part, not
+   the whole file. The parts wait in files/.parts; the last one puts the file
+   together — the same checks and limits as upload — and the parts go. Sending
+   a part again, or the last one after the file was made, answers the same. */
+var GATE_PARTS = { MAX_PART: 400 * 1024, FOLDER: '.parts', KEEP_MS: 3 * 24 * 3600 * 1000 };
+function gatePartsFolder(G, files) {
+  return gateOldest(files.getFoldersByName(GATE_PARTS.FOLDER)) || files.createFolder(GATE_PARTS.FOLDER);
+}
+function gateUploadPart(G, req) {
+  var s = gateSession(G, req);
+  var uid = gateSafeId(req.uploadId, 64), index = Number(req.index), total = Number(req.total), size = Number(req.size);
+  if (!uid || !(total >= 1 && total <= Math.ceil(GATE_LIMITS.UPLOAD_MAX / (300 * 1024)) + 1) || !(index >= 0 && index < total) || Math.floor(index) !== index || Math.floor(total) !== total) gateFail('bad-request');
+  if (!(size > 0)) gateFail('bad-request');
+  if (size > GATE_LIMITS.UPLOAD_MAX) return { ok: false, error: 'too-large', max: GATE_LIMITS.UPLOAD_MAX };
+  var name = gateSafeName(req.name), ext = (/\.([A-Za-z0-9]{1,5})$/.exec(name) || [])[1];
+  ext = ext ? ext.toLowerCase() : '';
+  var kinds = Object.prototype.hasOwnProperty.call(GATE_UPLOAD_TYPES, ext) ? GATE_UPLOAD_TYPES[ext] : null;
+  var mime = gateLower(req.mime);
+  if (!kinds) return { ok: false, error: 'type-not-allowed' };
+  if (!mime || mime === 'application/octet-stream') mime = kinds[0];
+  if (kinds.indexOf(mime) === -1) return { ok: false, error: 'type-not-allowed' };
+  var purpose = req.purpose === 'chat' ? 'chat' : req.purpose === 'submission' ? 'submission' : null;
+  if (!purpose) gateFail('bad-request');
+  var ref = gateSafeId(req.refId, 64) || 'x', fileName = ref + '-' + name, doneKey = 'upd:' + s.me.acct + ':' + uid;
+  var files = gateFilesFolder(G, s.folder, true);
+  // Made already (an answer that was lost): the same file.
+  var made = G.cache.get(doneKey);
+  if (made) { var mf = gateFileById(made); if (mf) return { ok: true, done: true, fileId: mf.getId(), size: mf.getSize(), name: mf.getName() }; }
+  var byName = files.getFilesByName(fileName);
+  while (byName.hasNext()) {
+    var cand = byName.next();
+    if (!cand.isTrashed() && gateStr(cand.getDescription()).indexOf(' upload=' + uid) !== -1) return { ok: true, done: true, fileId: cand.getId(), size: cand.getSize(), name: cand.getName() };
+  }
+  var b64 = gateStr(req.base64).replace(/^data:[^,]*,/, '').replace(/\s+/g, '');
+  if (!b64 || /[^A-Za-z0-9+\/=_-]/.test(b64)) gateFail('bad-request');
+  if (b64.length > Math.ceil(GATE_PARTS.MAX_PART / 3) * 4 + 4) return { ok: false, error: 'too-large', max: GATE_PARTS.MAX_PART };
+  var bytes = /[-_]/.test(b64) ? Utilities.base64DecodeWebSafe(b64) : Utilities.base64Decode(b64);
+  if (!bytes.length) gateFail('bad-request');
+  var own = gateOwnUploads(G, s);
+  if (own.n >= GATE_LIMITS.UPLOADS_PER_DAY || own.bytes + size > GATE_LIMITS.UPLOAD_BYTES_PER_DAY) return { ok: false, error: 'quota' };
+  var parts = gatePartsFolder(G, files), partName = uid + '.' + index + '.part';
+  var have = gateOldest(parts.getFilesByName(partName));
+  if (!have) {
+    have = parts.createFile(Utilities.newBlob(bytes, 'application/octet-stream', partName));
+    try { have.setDescription('cestis-part acct=' + s.me.acct + ' upload=' + uid + ' total=' + total); } catch (e) {}
+  }
+  // Every part here? Then the file, in order.
+  var got = [];
+  for (var i = 0; i < total; i++) { var f = gateOldest(parts.getFilesByName(uid + '.' + i + '.part')); if (!f) return { ok: true, received: index, parts: total }; got.push(f); }
+  var all = [];
+  got.forEach(function (f) { var b = f.getBlob().getBytes(); for (var k = 0; k < b.length; k++) all.push(b[k]); });
+  if (all.length !== size || all.length > GATE_LIMITS.UPLOAD_MAX) {
+    got.forEach(function (f) { try { f.setTrashed(true); } catch (e) {} });
+    return { ok: false, error: all.length > GATE_LIMITS.UPLOAD_MAX ? 'too-large' : 'bad-parts', retry: all.length <= GATE_LIMITS.UPLOAD_MAX };
+  }
+  var file = files.createFile(Utilities.newBlob(all, mime, fileName));
+  try { file.setDescription('cestis-upload acct=' + s.me.acct + ' purpose=' + purpose + ' upload=' + uid); } catch (e) {}
+  G.cache.put(doneKey, file.getId(), GATE_LIMITS.CACHE_MAX_S);
+  own.ids.push(file.getId()); own.n++; own.bytes += all.length;
+  gateCachePut(G, 'own:' + s.me.acct, own, GATE_LIMITS.CACHE_MAX_S);
+  got.forEach(function (f) { try { f.setTrashed(true); } catch (e) {} });
+  // Parts of uploads given up long ago go too (only ever .part files of this trainee).
+  try {
+    var old = parts.getFiles();
+    while (old.hasNext()) { var o = old.next(); if (!o.isTrashed() && G.now - o.getDateCreated().getTime() > GATE_PARTS.KEEP_MS) o.setTrashed(true); }
+  } catch (e) {}
+  return { ok: true, done: true, fileId: file.getId(), size: all.length, name: fileName };
+}
+
+/* The email to a trainee who registered from home, once the office approves
+   her (T6). When the gate reads the accounts list again, every account that
+   registered from home and was approved in the last 14 days, not emailed yet,
+   goes on a short list (MAIL_QUEUE); health — which the office's dashboard
+   asks for just after an approval — sends up to 5 at a time. Each trainee is
+   emailed once (MAILED, kept 30 days). The Centre's own account sends it
+   (MailApp, the same as the emailed sign-in codes; about 100 a day on a free
+   account), and it says nothing of where anything is kept. */
+var GATE_MAIL = { QUEUE: 'MAIL_QUEUE', MAILED: 'MAILED', WINDOW_MS: 14 * 86400000, KEEP_MS: 30 * 86400000, PER_CALL: 5 };
+function gateMailJson(G, name) { try { var v = JSON.parse(G.props.getProperty(name) || 'null'); return v && typeof v === 'object' ? v : null; } catch (e) { return null; } }
+function gateMailNoteApprovals(G, accounts, deletedIds) {
+  var mailed = gateMailJson(G, GATE_MAIL.MAILED) || {}, queue = gateMailJson(G, GATE_MAIL.QUEUE) || {};
+  var gone = {};
+  (Array.isArray(deletedIds) ? deletedIds : []).forEach(function (id) { gone[gateStr(id)] = 1; });
+  var changed = false;
+  (Array.isArray(accounts) ? accounts : []).forEach(function (a) {
+    if (!a || a.id == null || gone[gateStr(a.id)] || gateLower(a.role) !== 'student' || a.registeredVia !== 'home-registration') return;
+    var id = gateStr(a.id);
+    if (mailed[id] || queue[id]) return;
+    if (G.core.accountAccess.check(a).reason !== 'ok') return;
+    var when = gateMs(a.approvedAt) || gateMs(a.updatedAt);
+    if (!when || G.now - when > GATE_MAIL.WINDOW_MS) return;
+    if (!GATE_EMAIL_RE.test(gateStr(a.email).trim())) return;
+    queue[id] = { email: gateStr(a.email).trim(), name: gateStr(a.name), programme: gateStr(a.programme) };
+    changed = true;
+  });
+  if (changed) G.props.setProperty(GATE_MAIL.QUEUE, JSON.stringify(queue));
+}
+function gateMailSend(G) {
+  var queue = gateMailJson(G, GATE_MAIL.QUEUE) || {}, ids = Object.keys(queue);
+  if (!ids.length) return { queued: 0, sent: 0 };
+  var mailed = gateMailJson(G, GATE_MAIL.MAILED) || {}, sent = 0, left = 0;
+  try { left = MailApp.getRemainingDailyQuota(); } catch (e) { left = 0; }
+  ids.slice(0, Math.min(GATE_MAIL.PER_CALL, left)).forEach(function (id) {
+    var q = queue[id], reg = null;
+    try { reg = gateRegFileOf(G, id); } catch (e) { reg = null; }
+    var link = reg && /^https:\/\/[^\s"'<>]{1,400}#gate=[A-Za-z0-9_-]+={0,2}$/.test(gateStr(reg.link)) ? gateStr(reg.link) : '';
+    var first = gateStr(q.name).trim().split(/\s+/)[0] || 'there';
+    try {
+      MailApp.sendEmail({ to: q.email, subject: 'You can sign in now — your registration is approved',
+        body: 'Hello ' + first + ',\n\nThe office has approved your registration' + (q.programme ? ' for ' + q.programme : '') + '. You can sign in now.\n\n' +
+          (link ? 'Open your sign-in link: ' + link + '\n\n' : 'Open the sign-in link you used to register.\n\n') +
+          'Choose "Sign in with your email account" and pick this email address, or sign in with your email address and the password you chose when you registered.\n\n' +
+          'If you did not register, please ignore this email.' });
+      mailed[id] = gateIso(G.now); delete queue[id]; sent++;
+    } catch (err) { gateLog('approval mail', err); }
+  });
+  Object.keys(mailed).forEach(function (id) { if (G.now - gateMs(mailed[id]) > GATE_MAIL.KEEP_MS) delete mailed[id]; });
+  var set = {};
+  set[GATE_MAIL.MAILED] = JSON.stringify(mailed);
+  set[GATE_MAIL.QUEUE] = JSON.stringify(queue);
+  G.props.setProperties(set);
+  return { queued: Object.keys(queue).length, sent: sent };
+}
+
 /* -------------------------------------------- what trainees send (§5.1)
    deliver {items, lane?}: sealed items from a device's outbox, any session,
    any account, no token. For each session: its id must be one this gate
@@ -1321,8 +1608,11 @@ function gateHealth(G) {
     try { var idx = gateIndex(G); ready.trainees = idx.n; ready.ledgerUpdated = gateIso(idx.updated); }
     catch (e) { ready.ledger = false; }
   }
-  return { ok: true, service: GATE_SERVICE, version: GATE_VERSION, protocol: GATE_PROTOCOL.slice(), time: gateIso(G.now),
-    ready: ready, accepting: !gateIsOff(G) };
+  var out = { ok: true, service: GATE_SERVICE, version: GATE_VERSION, protocol: GATE_PROTOCOL.slice(), time: gateIso(G.now),
+    ready: ready, accepting: !gateIsOff(G), features: ['fees', 'password', 'cert.template', 'upload.part', 'approval-mail'] };
+  // The office's dashboard asks for this just after it approves a registration from home.
+  if (ready.ledger) { try { out.mail = gateMailSend(G); } catch (e) { gateLog('approval mail', e); } }
+  return out;
 }
 /* The administrator's page (DESIGN.md §10.3): ✓/✗ lines, counts only — no
    names, no ids. It names no place either: it is a screen. */

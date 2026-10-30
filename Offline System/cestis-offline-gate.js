@@ -59,7 +59,12 @@
      signOut {token}            → {}
      deliver {items, lane?}     → {receipts:[{id, ok, reason?, retry?, dup?, already?, result?, retired?}]}
                                   (no token: each item carries its own seal)
-     auth.email, auth.2fa.send, upload, file.get → {ok:false, error:'not-available'}
+     fees {token, have?}        → {fees, builtAt, h} | {same, h} | {none}   (her fee record and receipts,
+                                  built when she asks from the School Fee records this server holds)
+     password.start {token}     → {nonce, algo, iter, salt}
+     password.change {token, nonce, proof, password} → SESSION (a new one; the change is written into
+                                  her account in the records file at once, as a spent backup code is)
+     auth.email, auth.2fa.send, upload, upload.part, file.get, cert.template → {ok:false, error:'not-available'}
      catalogue, register.start, register.submit → {ok:false, error:'not-available'}
        (registration from home needs the trainee's own email account, signed
         in with Google: never here — the office creates the account instead)
@@ -73,7 +78,10 @@ const path = require('path');
 const nodeCrypto = require('crypto');
 
 // 2 with the online gate: registration from home (answered 'not-available' here).
-const GATE_VERSION = 2;
+// 3 with the online gate: home study — her fees, her password changed (both answered here);
+//   her certificate's background, files in parts, approval emails (online only).
+const GATE_VERSION = 3;
+const FEES_FILE = 'CESTIS_School_Fees.json';
 const PROTOCOL = [1];
 const SERVICE = 'cestis-trainee-gate';
 const LMS_FILE = 'CESTIS_LMS_Dashboard.json';
@@ -501,6 +509,88 @@ function create(opts) {
     return { ok: true };
   }
 
+  /* ---------------------------------------------------------- home study (v3) */
+  /* Her fees (OF-12): built when she asks, by the same rule the office's
+     computers publish with online (Core.gate.home.buildFees), from the School
+     Fee records this server holds (that page's own file; the trainee roll's
+     copy of the fee roll when there is none) — only her own record and her
+     own receipts. */
+  let feeData = { stamp: null, map: null };
+  function feeMap(c) {
+    const file = path.join(dataDir, FEES_FILE), st = statStamp(file);
+    if (feeData.stamp !== st) {
+      let map = null;
+      if (st !== 'none') { try { const p = parsePage(fs.readFileSync(file, 'utf8')); map = p ? p.data : null; } catch (e) { map = null; } }
+      feeData = { stamp: st, map };
+    }
+    const m = Object.assign({}, c.map);
+    if (feeData.map) ['cestiSchoolFeeStudents', 'cestiSchoolFeePayments', 'cestiSchoolFeeDeletedPaymentIds'].forEach(k => { if (feeData.map[k] != null) m[k] = feeData.map[k]; });
+    return m;
+  }
+  function fees(req, t) {
+    const s = session(req, t);
+    const stu = (s.slice.data.voctrain_students || [])[0];
+    if (!stu) return { ok: true, none: true };
+    const r = G.home.buildFees(feeMap(s.c), [{ acct: s.me.acct, stu: s.me.stu, student: stu }], t, { builtBy: 'centre-server' }).byAcct[s.me.acct];
+    if (!r) return { ok: true, none: true };
+    if (req.have && str(req.have) === str(r.h)) return { ok: true, same: true, h: r.h };
+    return { ok: true, fees: r.file.fees, builtAt: r.file.builtAt, h: r.h };
+  }
+  /* Her password, changed (OF-12): her old one proved as at sign-in (its
+     starts and wrong tries counted against her account, the sign-in's
+     limits), the new one as the dashboard stores one. Here this server is
+     the office's computer: the change goes straight into her account in the
+     records file — over the password it replaced only, stamped with this
+     moment — and she is given a new session (the old ones end). */
+  const pwLogin = acct => 'acct:' + acct;
+  function passwordStart(req, t) {
+    const s = session(req, t), key = 'acct|' + s.me.acct;
+    if (locked(key, t)) return LOCKED();
+    if (busy(t)) return { ok: false, error: 'busy', retry: true };
+    if (count('s:' + key, LIMITS.LOCK_S * 1000, t) > LIMITS.START_MAX) return LOCKED();
+    const nonce = randomHex(32);
+    remember(nonces, nonce, { l: pwLogin(s.me.acct), exp: t + LIMITS.NONCE_MS }, t);
+    const ch = G.proof.challenge(s.entry.pw || null, pwLogin(s.me.acct), SECRET, crypto);
+    return { ok: true, nonce, algo: ch.algo, iter: ch.iter, salt: ch.salt };
+  }
+  const pwChanges = new Map();      // account → changes today (day, n)
+  function passwordChange(req, t) {
+    const s = session(req, t), acct = s.me.acct, key = 'acct|' + acct, nonce = str(req.nonce);
+    if (!/^[0-9a-f]{32}$/.test(nonce)) fail('bad-request');
+    if (locked(key, t)) return LOCKED();
+    if (busy(t)) return { ok: false, error: 'busy', retry: true };
+    const held = nonces.get(nonce);
+    nonces.delete(nonce);
+    if (!held || held.exp <= t || held.l !== pwLogin(acct)) return { ok: false, error: 'bad-nonce' };
+    const e = s.entry;
+    if (!e.pw || !G.proof.verify(e.pw, nonce, pwLogin(acct), str(req.proof), crypto)) { failed(key, t); return { ok: false, error: 'no-match' }; }
+    counters.delete('f:' + key);
+    const pw = str(req.password);
+    if (!G.home.storedPasswordOk(pw)) return { ok: false, error: 'bad-form', field: 'password' };
+    if (pw === e.pw) return { ok: false, error: 'bad-form', field: 'same' };
+    const day = Math.floor(t / 86400000), seen = pwChanges.get(acct);
+    const n = seen && seen.day === day ? seen.n + 1 : 1;
+    if (n > 5) return { ok: false, error: 'too-many', retryAfter: 86400 };
+    remember(pwChanges, acct, { day, n, exp: t + 86400000 }, t);
+    const op = G.home.passwordChangeOp(pw, e.pw, iso(t));
+    let wrote = false;
+    return saveRecords(storedText => {
+      const c = context(t, storedText);
+      const account = (Array.isArray(c.map.voctrain_users) ? c.map.voctrain_users : []).filter(a => a && str(a.id) === acct)[0];
+      if (!c.payload || !account) return null;
+      const copyOf = copy(account);
+      if (!G.home.applyPasswordChange(copyOf, op)) return null;
+      wrote = true;
+      return payloadWith(c.payload, { voctrain_users: [copyOf] }, t);
+    }).then(() => {
+      if (!wrote) return { ok: false, error: 'retry', retry: true };
+      const e2 = Object.assign({}, e, { pw, cv: G.home.cvWith(e, pw, crypto), sd: 0 });
+      const out = issue(acct, e2, s.slice, t);
+      out.changedAt = iso(t);
+      return out;
+    });
+  }
+
   /* ---------------------------------------------------------- delivering */
   /* Everything a delivery changes, gathered while its items are checked
      one by one, so a submission later in the same delivery sees an answer
@@ -733,7 +823,7 @@ function create(opts) {
     // staffOnly (this server only): whether its records are kept for staff
     // devices (cestis-offline-server.js) — then a trainee's device signs in here.
     return { ok: true, service: SERVICE, version: GATE_VERSION, protocol: PROTOCOL.slice(), time: iso(t), ready: r,
-      accepting: !!G && selfOk && !killed(), staffOnly: !!staffOnly() };
+      accepting: !!G && selfOk && !killed(), features: ['fees', 'password'], staffOnly: !!staffOnly() };
   }
   // The administrator's page: ✓ / ✗ lines, counts only — no names, no ids.
   function selfcheckPage(t) {
@@ -765,6 +855,9 @@ function create(opts) {
     'auth.start': authStart, 'auth.password': authPassword, 'auth.2fa': authTwoStep,
     'pull': pull, 'paper': paper, 'attempt.get': attemptGet, 'review': review, 'room.get': roomGet,
     'signOut': signOutOp, 'deliver': deliver,
+    'fees': fees, 'password.start': passwordStart, 'password.change': passwordChange,
+    // A certificate's background and files in parts need the internet: not here (her certificate is collected at the Centre).
+    'cert.template': () => ({ ok: false, error: 'not-available' }), 'upload.part': () => ({ ok: false, error: 'not-available' }),
     // Need the internet or Google Drive: not on the Centre's own network.
     'auth.email': () => ({ ok: false, error: 'not-available' }), 'auth.2fa.send': () => ({ ok: false, error: 'not-available' }),
     'upload': () => ({ ok: false, error: 'not-available' }), 'file.get': () => ({ ok: false, error: 'not-available' }),

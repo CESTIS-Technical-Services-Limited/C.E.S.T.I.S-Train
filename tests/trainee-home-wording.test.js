@@ -75,16 +75,24 @@ function forgotPage(opts) {
   }
 
   console.log('The certificate\'s Download button, before this device has the latest');
-  function certPage(gate) {
-    const sb = { console: console, certDownloadApprovals: [{ studentId: 'STU-1', approved: true }], certSyncDone: () => false,
+  // (Home study, T4, supersedes the earlier wording: at home, an issued and
+  // approved certificate downloads there and then — no syncing; signed in on
+  // the Centre's own network, or not approved yet, the button itself says
+  // "Collect your certificate at the Centre".)
+  function certPage(gate, kind, approved) {
+    const sb = { console: console, certDownloadApprovals: [{ studentId: 'STU-1', approved: approved !== false }], certSyncDone: () => false,
       cestisGateSession: () => gate, CESTISCore: { certs: { isRevoked: () => false } } };
+    sb.CESTISGate = { session: () => (gate ? { base: { kind: kind || 'online' } } : null) };
+    sb.window = { CESTISGate: sb.CESTISGate };
     vm.createContext(sb);
-    vm.runInContext(extractFunction('certDownloadAllowed'), sb);
+    vm.runInContext(extractFunction('homeCertLan') + '\n' + extractFunction('certDownloadAllowed'), sb);
     return sb.certDownloadAllowed({ id: 'STU-1', certNo: 'C-1' });
   }
-  const home = certPage(true), lab = certPage(false);
-  assert(home.allowed === false && home.reason === 'Collect your certificate at the Centre, or download it here once the office has finished it.', 'at home: what she can do (' + home.reason + ')');
-  assert(!/sync/i.test(home.reason), 'at home: nothing about syncing');
+  const home = certPage(true), homeLan = certPage(true, 'lan'), homeNotYet = certPage(true, 'online', false), lab = certPage(false);
+  assert(home.allowed === true, 'at home: issued and approved — she downloads it there (' + JSON.stringify(home) + ')');
+  assert(homeLan.allowed === false && homeLan.collect === true && homeNotYet.allowed === false && homeNotYet.collect === true,
+    'signed in on the Centre\'s own network, or not approved yet: "Collect your certificate at the Centre" (' + JSON.stringify([homeLan, homeNotYet]) + ')');
+  assert(![home, homeLan, homeNotYet].some(r => /sync/i.test(r.reason)), 'at home: nothing about syncing');
   assert(lab.allowed === false && /^Sync first/.test(lab.reason), 'on a Centre PC: unchanged (' + lab.reason + ')');
 
   console.log('\n' + passed + ' passed, ' + failed + ' failed');

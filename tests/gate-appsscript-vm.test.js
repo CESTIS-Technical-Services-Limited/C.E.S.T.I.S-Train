@@ -206,7 +206,7 @@ const hasKey = v => JSON.stringify(v).indexOf('"correctAnswer"') !== -1;
 function sSetup(src) {
   section('The pasted file runs in a simulated Apps Script runtime; its first request makes the secret, the folders and CESTIS_GATE.json');
   const env = gateWorld(src, { publish: false }), w = env.w, h = env.health;
-  assertEq([h.ok, h.service, h.version, h.protocol, h.accepting], [true, 'cestis-trainee-gate', 2, [1], true], 'health answers who it is (version 2: registration from home)');
+  assertEq([h.ok, h.service, h.version, h.protocol, h.accepting], [true, 'cestis-trainee-gate', 3, [1], true], 'health answers who it is (version 3: home study — fees, password, certificate, parts, approval email)');
   const led = w.drive.json(env.ledger.id);
   assertEq(h.ready, { secret: true, folders: true, ledger: true, ledgerUpdated: iso(w.clock.now), trainees: expectedTrainees(led) },
     'ready: secret, folders, the accounts list and its trainee accounts');
@@ -222,7 +222,7 @@ function sSetup(src) {
   assert(/^[0-9a-f]{64}$/.test(env.secret()), 'a 64-hex secret is made and kept in Script Properties');
   assert(JSON.stringify(h).indexOf(env.secret()) === -1 && w.drive.read(env.cfgFile().id).indexOf(env.secret()) === -1, 'and never shown or written to a file');
   const state = w.drive.json(w.drive.child(sub('_gate').id, 'gate-state.json', 'file').id);
-  assertEq([state.format, state.gateVersion, state.ledgerFileId, state.upgrades.map(u => u.version)], ['cestis-gate-state', 2, env.ledger.id, [2]], 'gate-state.json records the version and the list used');
+  assertEq([state.format, state.gateVersion, state.ledgerFileId, state.upgrades.map(u => u.version)], ['cestis-gate-state', 3, env.ledger.id, [3]], 'gate-state.json records the version and the list used');
   assertEq(w.props.store.LEDGER_FOUND_ID, env.ledger.id, 'of two accounts lists, the one beside the main backup is used');
   assert(/2 copies/.test(w.props.store.LEDGER_NOTE), 'and the check page can say so');
 
@@ -950,9 +950,164 @@ function sRegister(src) {
   assertEq(w.post({ op: 'pull', token: pw.token }).slice.studentId, stu, 'her own records');
 }
 
+/* ---------- Version 3: home study (the owner's group C) ---------- */
+function sHome(src) {
+  const env = gateWorld(src), { w, C } = env;
+  const T1 = C.trainees[1], T3 = C.trainees[3], T10 = C.trainees[10], T13 = C.trainees[13];
+  const pwStart = sess => w.post({ op: 'password.start', token: sess.token });
+  const change = (sess, T, oldPw, newStored) => {
+    const ch = pwStart(sess);
+    if (!ch.ok) return ch;
+    return w.post({ op: 'password.change', token: sess.token, nonce: ch.nonce, proof: deviceProof(oldPw, ch, ch.nonce, 'acct:' + T.acct.id), password: newStored });
+  };
+  const pending = () => JSON.parse(w.props.store.PW_PENDING || '{}');
+
+  section('Her password, changed at home: her old one proved, the new one as the dashboard stores it; signs in at once; noted for the office');
+  const S = signIn(env, T1.acct.username, T1.pw);
+  assert(S.ok, 'she is signed in');
+  const NEW = pbkdf2('New-Home-Pass1', 'c3'.repeat(16), 100000);
+  const ch = pwStart(S);
+  assertEq([ch.ok, ch.algo, ch.iter], [true, 'pbkdf2-sha256', 1000], 'password.start: the challenge for her own stored password');
+  assertEq(w.post({ op: 'password.change', token: S.token, nonce: ch.nonce, proof: 'f'.repeat(64), password: NEW }).error, 'no-match', 'a wrong old password: no change');
+  assertEq(change(S, T1, T1.pw, 'pbkdf2$1000$' + 'ab'.repeat(16) + '$' + 'cd'.repeat(32)).field, 'password', 'a new check with too few rounds is refused');
+  assertEq(w.post({ op: 'password.change', token: S.token, nonce: 'a'.repeat(32), proof: 'f'.repeat(64), password: NEW }).error, 'bad-nonce', 'a challenge she was not given');
+  const P = change(S, T1, T1.pw, NEW);
+  assertEq([P.ok, P.account && P.account.id, !!P.token, !!P.sessionKey, !!P.changedAt], [true, T1.acct.id, true, true, true], 'changed: a new session in the answer');
+  assertEq(w.post({ op: 'pull', token: S.token }).error, 'revoked', 'her old session has ended (every other session of hers too)');
+  assertEq(w.post({ op: 'pull', token: P.token }).ok, true, 'the new one reads her records');
+  assertEq(signIn(env, T1.acct.username, T1.pw).error, 'no-match', 'her old password no longer signs in');
+  assertEq(signIn(env, T1.acct.username, 'New-Home-Pass1').ok, true, 'her new one does — before the office\'s computers have taken it');
+  assertEq(pending()[T1.acct.id].h, NEW, 'the gate keeps the change until the accounts list shows it');
+  const note = inboxFiles(env, T1.acct.id, 'CESTISINBOX.L-pw-');
+  const lane = note.length === 1 ? w.drive.json(note[0].id) : null;
+  const op = lane && lane.ops[0];
+  assertEq([note.length, op && op.kind, op && op.password, op && op.was, op && op.at], [1, 'passwordChange', NEW, G.home.pwFingerprint(T1.acct.password), iso(w.clock.now)],
+    'one note in her inbox, written by the gate: the new check, which password it replaced, the gate\'s moment');
+  const users = J(C.store.voctrain_users);
+  const got = G.collect([{ fileId: note[0].id, version: '1', modifiedTime: iso(w.clock.now), folderAcct: T1.acct.id, json: lane }], { accounts: users, students: C.store.voctrain_students });
+  const ap = G.applyOps({ voctrain_users: users }, got.ops.map(x => x.op), { acct: T1.acct.id, stu: T1.stu.id });
+  assertEq([ap.applied, account({ accounts: users }, T1.acct.id).password, ap.stampedAccounts], [1, NEW, [T1.acct.id]], 'the office\'s collector takes it into her account (Core.gate.applyOps)');
+  assertEq(G.applyOps({ voctrain_users: users }, got.ops.map(x => x.op), { acct: T1.acct.id, stu: T1.stu.id }).applied, 0, '… and taking it twice changes nothing');
+  const shown = signIn(env, T1.acct.username, 'New-Home-Pass1');
+  // The accounts list is written again — by an office computer that has NOT taken her change yet.
+  const before = note[0].updated;
+  w.advance(2000);
+  updateLedger(env, led => { account(led, T3.acct.id).phone = '876-555-0303'; });
+  w.advance(61 * 1000);
+  assertEq(signIn(env, T1.acct.username, 'New-Home-Pass1').ok, true, 'the list written again without her change: her new password still signs in');
+  assert(w.drive.get(note[0].id).updated > before, '… and her note is written again, so the office\'s computers take it (never lost)');
+  // … and then with it.
+  updateLedger(env, led => { const a = account(led, T1.acct.id); a.password = NEW; a.updatedAt = op.at; a.passwordChangedAt = op.at; });
+  w.advance(61 * 1000);
+  const after = signIn(env, T1.acct.username, 'New-Home-Pass1');
+  assertEq([after.ok, pending()[T1.acct.id]], [true, undefined], 'the list shows it: the gate lets its own copy go; she signs in as before');
+  assertEq([w.post({ op: 'pull', token: P.token }).ok, w.post({ op: 'pull', token: shown.token }).ok], [true, true], 'the session the change gave her goes on (the same credential version)');
+
+  section('The office resets a password a trainee changed at home: the office\'s stands');
+  const S3 = signIn(env, T3.acct.username, T3.pw);
+  const HOME3 = pbkdf2('Home-Three-3', 'd4'.repeat(16), 100000), OFFICE3 = pbkdf2('Office-Set-3', 'e5'.repeat(16), 1000);
+  assertEq(change(S3, T3, T3.pw, HOME3).ok, true, 'she changes it at home');
+  updateLedger(env, led => { const a = account(led, T3.acct.id); a.password = OFFICE3; a.updatedAt = iso(w.clock.now + 5000); });
+  w.advance(61 * 1000);
+  assertEq([signIn(env, T3.acct.username, 'Home-Three-3').error, signIn(env, T3.acct.username, 'Office-Set-3').ok, pending()[T3.acct.id]], ['no-match', true, undefined],
+    'the office set another one since: hers is dropped, the office\'s signs in');
+  const u3 = J(C.store.voctrain_users), off = account({ accounts: u3 }, T3.acct.id);
+  off.password = OFFICE3; off.updatedAt = iso(w.clock.now);
+  const n3 = inboxFiles(env, T3.acct.id, 'CESTISINBOX.L-pw-')[0];
+  assertEq(G.applyOps({ voctrain_users: u3 }, w.drive.json(n3.id).ops, { acct: T3.acct.id, stu: T3.stu.id }).applied, 0,
+    '… and an office computer that collects her note later never puts it over the office\'s');
+
+  section('The sign-in\'s limits hold: five wrong old passwords lock her account for 15 minutes');
+  const S13 = signIn(env, T13.acct.username, T13.pw);
+  for (let i = 0; i < 5; i++) { const c = pwStart(S13); w.post({ op: 'password.change', token: S13.token, nonce: c.nonce, proof: 'e'.repeat(64), password: NEW }); }
+  assertEq([pwStart(S13).error, w.post({ op: 'auth.start', login: T13.acct.username }).error], ['locked', 'locked'], 'locked — for changing and for signing in alike');
+
+  section('Her fees: her own record and receipts, from her own folder; nobody else\'s');
+  C.store.cestiSchoolFeeStudents = [
+    { id: T1.stu.id, lmsId: T1.stu.id, name: T1.stu.name, skillArea: T1.p.name, tuitionFee: 60000, nationalId: 'TRN-123', updatedAt: iso(NOW - 5 * DAY) },
+    { id: T3.stu.id, lmsId: T3.stu.id, name: T3.stu.name, skillArea: T3.p.name, tuitionFee: 55000, updatedAt: iso(NOW - 5 * DAY) }];
+  C.store.cestiSchoolFeePayments = [
+    { id: 'PAY-1', studentId: T1.stu.id, amount: 20000, date: '2026-09-04', method: 'Cash', term: 'Term 1', receiptNumber: 'R-0101', notes: 'private note', createdAt: iso(NOW - 50 * DAY) },
+    { id: 'PAY-3', studentId: T3.stu.id, amount: 55000, date: '2026-09-02', method: 'Cheque', receiptNumber: 'R-0099', createdAt: iso(NOW - 60 * DAY) }];
+  const built = G.home.buildFees(C.store, C.trainees.map(t => ({ acct: t.acct.id, stu: t.stu.id, student: t.stu })), w.clock.now, { builtBy: 'dev-test' }).byAcct;
+  Object.keys(built).forEach(a => w.drive.put(folderOf(env, a).id, 'from-centre-fees.json', built[a].file));
+  const fe = w.post({ op: 'fees', token: after.token });
+  assertEq([fe.ok, fe.fees.tuition, fe.fees.paid, fe.fees.balance, fe.fees.status, fe.fees.receipts.map(r => r.receipt)], [true, 60000, 20000, 40000, 'part-paid', ['R-0101']],
+    'her figures and her receipt');
+  assert(JSON.stringify(fe).indexOf('TRN-123') === -1 && JSON.stringify(fe).indexOf('private note') === -1 && JSON.stringify(fe).indexOf('R-0099') === -1,
+    'no contact or ID details, no notes, nobody else\'s receipt');
+  assertEq(w.post({ op: 'fees', token: after.token, have: fe.h }), { ok: true, same: true, h: fe.h }, '"same" when her phone has it');
+  w.drive.put(folderOf(env, T10.acct.id).id, 'from-centre-fees.json', Object.assign(J(built[T1.acct.id].file), { builtAt: iso(w.clock.now + 1) }));
+  const S10 = signIn(env, T10.acct.email, T10.pw);
+  assertEq(w.post({ op: 'fees', token: S10.token }), { ok: true, none: true }, 'a fees file in her folder that names another trainee is never served');
+
+  section('Her certificate\'s background: once it is issued and its download approved, her programme\'s only');
+  const keyOf = T => T.p.name;
+  w.drive.put('root', 'cert_template_' + keyOf(T10).replace(/[^a-zA-Z0-9]/g, '_') + '_bgPage1.txt', 'data:image/png;base64,QkFDS0dST1VORDE=', { mime: 'text/plain' });
+  assertEq(w.post({ op: 'cert.template', token: S10.token, key: keyOf(T10), page: 'bgPage1' }).error, 'not-yours', 'not issued yet: nothing');
+  const stu10 = C.store.voctrain_students.filter(s => s.id === T10.stu.id)[0];
+  Object.assign(stu10, { stage: 'certified', certNo: 'WF-2026-0010-ZZ', lastModified: iso(w.clock.now) });
+  env.publish();
+  const ct = w.post({ op: 'cert.template', token: S10.token, key: keyOf(T10), page: 'bgPage1' });
+  assertEq([ct.ok, ct.data], [true, 'data:image/png;base64,QkFDS0dST1VORDE='], 'issued and approved: the background');
+  assertEq(w.post({ op: 'cert.template', token: S10.token, key: C.PROGRAMMES[2].name, page: 'bgPage1' }).error, 'not-found', 'another programme\'s template: no');
+  assertEq(w.post({ op: 'cert.template', token: S10.token, key: keyOf(T10), page: 'bgPage2' }).error, 'not-found', 'a page that was never uploaded');
+  assertEq(w.post({ op: 'cert.template', token: S10.token, key: keyOf(T10), page: 'x' }).error, 'bad-request', 'only the two pages');
+  Object.assign(stu10, { certRevokedAt: iso(w.clock.now), lastModified: iso(w.clock.now + 1) });
+  w.advance(1000);
+  env.publish();
+  assertEq(w.post({ op: 'cert.template', token: S10.token, key: keyOf(T10), page: 'bgPage1' }).error, 'not-yours', 'withdrawn: nothing');
+  // Her download, counted for her device (applyOps), once however often the note is read.
+  const appr = { studentId: T10.stu.id, approved: true, downloadCount: 2 };
+  const dl = { id: 'OP-dl-x', kind: 'certDownload', device: 'D-phone1', n: 1, certNo: 'WF-2026-0010-ZZ', at: iso(w.clock.now) };
+  G.applyOps({ voctrain_certDownloadApprovals: [appr] }, [dl, dl], { acct: T10.acct.id, stu: T10.stu.id });
+  assertEq([appr.downloadCount, appr.downloadsByDevice], [3, { _earlier: 2, 'home-D-phone1': 1 }], 'her download at home is counted, once, for her device');
+
+  section('A file in parts: each part confirmed; the last one makes the file; sent again, the same file');
+  const bytes = Buffer.alloc(700 * 1024);
+  for (let i = 0; i < bytes.length; i++) bytes[i] = (i * 7 + 13) & 255;
+  const parts = [bytes.slice(0, 300 * 1024), bytes.slice(300 * 1024, 600 * 1024), bytes.slice(600 * 1024)];
+  const part = (i, extra) => w.post(Object.assign({ op: 'upload.part', token: after.token, uploadId: 'UP-test01', index: i, total: 3, size: bytes.length, name: 'butt-joint.jpg',
+    mime: 'image/jpeg', purpose: 'submission', refId: 'SUB-77', base64: parts[i].toString('base64') }, extra || {}));
+  assertEq([part(0).received, part(2).received, part(0).received], [0, 2, 0], 'parts 1 and 3 (and part 1 again): received, waiting for the rest');
+  const made = part(1);
+  assertEq([made.ok, made.done, made.size, made.name], [true, true, bytes.length, 'SUB-77-butt-joint.jpg'], 'part 2: the file is made');
+  const f = w.drive.get(made.fileId);
+  assert(f && Buffer.compare(f.content, bytes) === 0 && f.mime === 'image/jpeg', '… byte for byte, in her files');
+  assertEq(part(2).fileId, made.fileId, 'the last part sent again (its answer lost): the same file, not a second');
+  const left = w.drive.find('UP-test01.0.part', 'file').concat(w.drive.find('UP-test01.1.part', 'file')).filter(x => !x.trashed);
+  assertEq(left.length, 0, 'the parts are gone once the file is made');
+  assertEq(w.post({ op: 'file.get', token: after.token, fileId: made.fileId }).ok, true, 'and it is hers to open');
+  assertEq(part(0, { uploadId: 'UP-test02', name: 'notes.exe' }).error, 'type-not-allowed', 'the allowed kinds, as for upload');
+  assertEq(part(0, { uploadId: 'UP-test03', base64: Buffer.alloc(500 * 1024).toString('base64') }).error, 'too-large', 'a part is at most 400 KB');
+  assertEq(part(0, { uploadId: 'UP-test04', size: 6 * 1024 * 1024 }).error, 'too-large', 'a file is at most 5 MB, as for upload');
+
+  section('Approved from home: the trainee is emailed — once — when the office\'s dashboard next asks the gate (health)');
+  const REG_ID = 'USR-home-' + 'ab'.repeat(10);
+  w.drive.put(env.cfg.registrationsId, 'CESTISREG.' + REG_ID + '.json', { format: G.FORMAT.registration, version: 1, accountId: REG_ID, name: 'Shanice Walters',
+    email: 'shanice.walters@mail.test', programme: T1.p.name, password: NEW, createdAt: iso(w.clock.now - DAY), link: 'https://centre.example/index.html#gate=aHR0cHM6Ly9zY3JpcHQ' });
+  updateLedger(env, led => {
+    led.accounts.push({ id: REG_ID, name: 'Shanice Walters', role: 'student', username: 'shanice.walters', email: 'shanice.walters@mail.test', programme: T1.p.name,
+      status: 'active', password: NEW, registeredVia: 'home-registration', approvedAt: '2026-11-02', updatedAt: iso(w.clock.now) });
+    led.accounts.push({ id: 'USR-home-' + 'cd'.repeat(10), name: 'Still Waiting', role: 'student', email: 'waiting@mail.test', status: 'pending', password: NEW, registeredVia: 'home-registration', updatedAt: iso(w.clock.now) });
+    led.accounts.push({ id: 'USR-home-' + 'ef'.repeat(10), name: 'Long Ago', role: 'student', email: 'longago@mail.test', status: 'active', password: NEW, registeredVia: 'home-registration', approvedAt: '2026-09-01', updatedAt: iso(NOW - 60 * DAY) });
+  });
+  w.advance(61 * 1000);
+  const sent0 = w.mail.sent.length;
+  const h = w.get({ op: 'health' });
+  const mails = w.mail.sent.slice(sent0);
+  assertEq([h.mail && h.mail.sent, mails.length, mails[0] && mails[0].to], [1, 1, 'shanice.walters@mail.test'], 'health sends the one email: to her, approved just now (not a pending one, not one approved long ago)');
+  assert(mails[0] && /approved/.test(mails[0].subject) && /Hello Shanice/.test(mails[0].body) && mails[0].body.indexOf('https://centre.example/index.html#gate=aHR0cHM6Ly9zY3JpcHQ') !== -1 &&
+    !/Drive|Google/.test(mails[0].body), 'it says she may sign in, with her sign-in link, and names no place');
+  w.get({ op: 'health' });
+  assertEq(w.mail.sent.length, sent0 + 1, 'once: the next health sends nothing');
+  const reg = w.post({ op: 'register.start', accessToken: 'nobody' });
+  assert(reg.error !== 'unknown-op', 'registration still answers');
+}
+
 function runAll(src) {
   TRANSCRIPT = []; itemSeq = 0;
-  sSetup(src); sPassword(src); sEmail(src); sTwoStep(src); sLockout(src); sPull(src); sFolders(src); sDeliver(src); sExams(src); sUploads(src); sMisc(src); sRegister(src);
+  sSetup(src); sPassword(src); sEmail(src); sTwoStep(src); sLockout(src); sPull(src); sFolders(src); sDeliver(src); sExams(src); sUploads(src); sMisc(src); sRegister(src); sHome(src);
   return TRANSCRIPT;
 }
 

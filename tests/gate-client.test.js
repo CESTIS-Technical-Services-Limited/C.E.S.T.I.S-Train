@@ -64,9 +64,11 @@ const NSStore = {
 };
 globalThis.indexedDB = { deleteDatabase() { const r = {}; setTimeout(() => r.onsuccess && r.onsuccess(), 0); return r; } };
 const GATE_URL = 'https://script.google.com/macros/s/FAKE/exec';
-let WORLD = null, DOWN = false;
+let WORLD = null, DOWN = false, PART_BUDGET = Infinity;
 globalThis.fetch = async (url, opts) => {
   if (DOWN) throw new TypeError('Failed to fetch');
+  // A signal that drops part-way through her files: the next part does not go.
+  if (opts && /"op":"upload\.part"/.test(String(opts.body || '')) && PART_BUDGET-- <= 0) throw new TypeError('Failed to fetch');
   if (String(url).indexOf(GATE_URL) !== 0) throw new TypeError('blocked ' + url);
   const body = opts && opts.body;
   const out = opts && opts.method === 'POST' ? WORLD.post(body) : WORLD.get({ op: 'health' });
@@ -331,6 +333,80 @@ Gate.configure({ outboxBackend: backend, store: null, client: 'test' });
   // Sign-out: the namespace goes once nothing of hers waits.
   await Gate.leave({ keepData: false });
   assert(!LS.getItem('cestisGateNs') && !Array.from(LS._m.keys()).some(k => /^g1::(?!cestisGateDrop$)/.test(k)) && LS.getItem('g1::cestisGateDrop') === '1', 'signed out: the control key and her records go (and the database is noted to be removed)');
+
+  /* ============== home study (gate version 3): her files, her fees, her password */
+  console.log('Home study: her files kept until the gate has them all (in parts, resumed by itself); her fees; her password changed');
+  {
+    const s1c = await Gate.signIn({ login: T1.acct.username, password: 'new-pw-1' });
+    assert(s1c.ok && await Gate.enter(s1c), 'signed in again, into her namespace');
+    await Gate.applyPull(await Gate.pull());
+    const events = [];
+    Gate.onUpload(ev => events.push(ev.type));
+    // A phone photo already made small (about 0.9 MB: three parts) and a short note.
+    const big = nodeCrypto.randomBytes(900 * 1024).toString('base64'), small = Buffer.from('My notes on the butt joint.').toString('base64');
+    eq(P.partsOf(big).length, 3, 'a 0.9 MB file goes in three parts of 384 KB');
+    eq(P.b64Size(big), 900 * 1024, 'its size, read from the text');
+    const rec = { id: 'SUB-HOME-1', assignmentId: 'ASG-2', studentId: T1.stu.id, studentName: T1.stu.name, course: T1.stu.course, files: [], driveFiles: [], comment: 'From home', submittedAt: iso(WORLD.clock.now), attempt: 1 };
+    PART_BUDGET = 1;          // the signal drops after the first part
+    const view = await Gate.uploadQueue({ refId: rec.id, purpose: 'submission', files: [{ name: 'butt-joint.jpg', type: 'image/jpeg', base64: big }, { name: 'notes.txt', type: 'text/plain', base64: small }], then: { key: 'voctrain_submissions', rec } });
+    assert(view && view.state === 'wait' && view.parts === 4 && !/"data"|base64/.test(JSON.stringify(view)), 'kept on the device (the page is shown sizes and names, never the bytes)');
+    await Gate.uploadPump({ force: true });
+    let up = (await Gate.uploads(T1.acct.id))[0];
+    assert(up && up.state === 'wait' && up.partsSent === 1 && up.tries === 1 && events.indexOf('waiting') !== -1, 'the signal drops: one part in, the rest kept, tried again later (' + JSON.stringify(up && { s: up.state, p: up.partsSent, t: up.tries }) + ')');
+    assert(!(JSON.parse(NSStore.getItem('voctrain_submissions') || '[]')).some(r => r.id === rec.id), 'her submission is not saved until every file is in');
+    eq((await Gate.uploads('USR-SOMEONE-ELSE')).length, 0, 'another trainee signed in here sees nothing of it');
+    PART_BUDGET = Infinity;   // back
+    await Gate.uploadPump({ force: true });
+    eq((await Gate.uploads(T1.acct.id)).length, 0, 'the signal is back: the rest goes by itself, and the device lets the files go');
+    const saved = (JSON.parse(NSStore.getItem('voctrain_submissions') || '[]')).find(r => r.id === rec.id);
+    assert(saved && saved.driveFiles.length === 2 && saved.files.length === 0 && saved.comment === 'From home', 'her submission is saved naming both files (and carrying no bytes)');
+    eq(events.filter(t => t === 'filed' || t === 'done'), ['filed', 'done'], 'the page is told: filed (at once, to take it into what it shows), then done');
+    const folder1 = WORLD.drive.children(cfg.traineesId, 'folder').find(f => /acct=USR-T02(\s|$)/.test(f.description));
+    const filesDir = WORLD.drive.children(folder1.id, 'folder').find(f => f.name === 'files');
+    const made = filesDir && WORLD.drive.children(filesDir.id, 'file').find(f => f.id === saved.driveFiles[0].driveFileId);
+    assert(made && made.content.equals(Buffer.from(big, 'base64')), 'the photo is in her own folder, byte for byte as it was sent');
+    const partsDir = filesDir && WORLD.drive.children(filesDir.id, 'folder').find(f => f.name === '.parts');
+    assert(partsDir && WORLD.drive.children(partsDir.id, 'file').every(x => x.trashed), 'its parts are let go once it is whole');
+    res = await Gate.deliver({ force: true });
+    const lanes1 = WORLD.drive.children(folder1.id, 'file').filter(f => f.name.indexOf('CESTISINBOX.L-') === 0);
+    assert(res.done === 1 && lanes1.some(f => ((WORLD.drive.json(f.id).records || {}).voctrain_submissions || []).some(r => r.id === rec.id && r.driveFiles.length === 2)),
+      'and reaches her lane like any change of hers, for the office (the gate checks the files are her own: ' + JSON.stringify(res) + ')');
+    // A file the gate turns away for good (its kind) is kept, marked, until she lets it go.
+    await Gate.uploadQueue({ refId: 'SUB-HOME-2', purpose: 'submission', files: [{ name: 'virus.exe', type: 'application/octet-stream', base64: small }], then: { key: 'voctrain_submissions', rec: Object.assign({}, rec, { id: 'SUB-HOME-2' }) } });
+    await Gate.uploadPump({ force: true });
+    up = (await Gate.uploads(T1.acct.id))[0];
+    assert(up && up.state === 'refused' && up.reason === 'type-not-allowed', 'a kind of file the gate does not take: kept and marked, never dropped by itself');
+    assert(await Gate.uploadDrop(up.id) && (await Gate.uploads(T1.acct.id)).length === 0, 'she lets it go');
+
+    // Her fees: none published yet, then hers.
+    let f = await Gate.fees();
+    assert(f.ok && f.none && Gate.storedFees().none, 'no fees file yet: said so, and kept');
+    const feeStore = { cestiSchoolFeeStudents: [{ id: T1.stu.id, lmsId: T1.stu.id, name: T1.stu.name, skillArea: T1.stu.course, tuitionFee: 60000, updatedAt: iso(NOW - DAY) }],
+      cestiSchoolFeePayments: [{ id: 'PAY-1', studentId: T1.stu.id, amount: 20000, date: '2026-09-04', method: 'Cash', receiptNumber: 'R-0101', notes: 'private note', createdAt: iso(NOW - 5 * DAY) }] };
+    const built = G.home.buildFees(feeStore, [{ acct: T1.acct.id, stu: T1.stu.id, student: T1.stu }], WORLD.clock.now).byAcct[T1.acct.id];
+    WORLD.drive.put(folder1.id, G.home.FEES_FILE, built.file);
+    WORLD.cache.clear();
+    f = await Gate.fees();
+    assert(f.ok && f.fees && f.fees.balance === 40000 && !/private note/.test(JSON.stringify(f)) && Gate.storedFees().fees.paid === 20000, 'her fees: balance and receipts (never the office\'s notes), kept on the device');
+    f = await Gate.fees();
+    assert(f.ok && f.same, 'asked again: "the same" (nothing sent twice)');
+
+    // Her password, changed at home.
+    eq((await Gate.changePassword({ oldPassword: 'not-it', newPassword: 'Welder2026' })).error, 'no-match', 'a wrong current password: no-match');
+    const before = Gate.session();
+    await Gate.queue('rec', { key: 'voctrain_support_messages', rec: { id: 'SUP-HOME-PW', subject: 'Before the change', message: 'kept', timestamp: WORLD.clock.now } }, { noKick: true });
+    const ch = await Gate.changePassword({ oldPassword: 'new-pw-1', newPassword: 'Welder2026' });
+    const after = Gate.session();
+    assert(ch.ok && ch.token && after.token === ch.token && after.sid !== before.sid && after.token !== before.token, 'changed: this device takes its new session at once');
+    const waitingNow = await Gate.outbox();
+    assert(waitingNow.length === 1 && waitingNow[0].state === 'wait' && waitingNow[0].item.sid === after.sid, 'what waited is sealed again under the new session');
+    res = await Gate.deliver({ force: true });
+    assert(res.done === 1, 'and taken (' + JSON.stringify(res) + ')');
+    eq((await Gate.signIn({ login: T1.acct.username, password: 'new-pw-1' })).error, 'no-match', 'the old password no longer signs her in');
+    assert((await Gate.signIn({ login: T1.acct.username, password: 'Welder2026' })).ok, 'the new one does, at once (before the office has it)');
+    eq((await Gate.certTemplate('Welding', 'bgPage1')).error, 'not-yours', 'no certificate issued: no certificate background');
+    await Gate.leave({ keepData: false });
+  }
 
   /* ============================== the page, in a gate session */
   console.log('In a gate session the page cloud does nothing, and no built-in login is seeded');

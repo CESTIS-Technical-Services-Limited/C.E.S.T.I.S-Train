@@ -20,6 +20,12 @@
      CESTISGate.pull / applyPull        the trainee's records, into that namespace
      CESTISGate.paper / attempt / review / upload / fileGet / roomGet
      CESTISGate.queue / deliver         the device-wide outbox
+     CESTISGate.fees / changePassword / certTemplate
+                                        home study (gate version 3): her fees, her
+                                        password, her certificate's background
+     CESTISGate.uploadQueue / uploads / uploadPump
+                                        her files, kept on the device until the gate
+                                        has them all, sent in parts; then her record
      CESTISGate.capture                 what the trainee changed, sealed into the outbox
      CESTISGate.signOut / leave         out of the namespace again
 
@@ -55,7 +61,9 @@
   var NS = 'g1';
   var NS_PREFIX = NS + '::';
   var LAN_PATH = '/_cestis/gate';
-  var OUTBOX_DB = 'CESTIS_GATE_OUTBOX', OUTBOX_STORE = 'items';
+  var OUTBOX_DB = 'CESTIS_GATE_OUTBOX', OUTBOX_STORE = 'items', UPLOAD_STORE = 'uploads', OUTBOX_DB_VERSION = 2;
+  // A file goes in parts of 384 KB (512 KB as text): about 8 seconds each on a 500 kbps line.
+  var PART_BYTES = 384 * 1024, PART_TIMEOUT_MS = 60000;
   var BACKOFF_MIN_MS = 2000, BACKOFF_MAX_MS = 5 * 60 * 1000;
   var RETRY_EVERY_MS = 30 * 1000;
   var PULL_EVERY_MS = 5 * 60 * 1000;
@@ -424,12 +432,17 @@
     return ob;
   }
   function memoryBackend() {
-    var m = {};
+    var m = {}, u = {};
     return {
       all: function () { return Object.keys(m).map(function (k) { return copy(m[k]); }); },
       put: function (e) { m[e.id] = copy(e); },
       del: function (id) { delete m[id]; },
-      _m: m
+      uploads: {
+        all: function () { return Object.keys(u).map(function (k) { return copy(u[k]); }); },
+        put: function (e) { u[e.id] = copy(e); },
+        del: function (id) { delete u[id]; }
+      },
+      _m: m, _u: u
     };
   }
   function idbBackend() {
@@ -438,8 +451,13 @@
       if (dbp) return dbp;
       dbp = new Promise(function (resolve, reject) {
         try {
-          var req = root.indexedDB.open(OUTBOX_DB, 1);
-          req.onupgradeneeded = function (ev) { var d = ev.target.result; if (!d.objectStoreNames.contains(OUTBOX_STORE)) d.createObjectStore(OUTBOX_STORE, { keyPath: 'id' }); };
+          var req = root.indexedDB.open(OUTBOX_DB, OUTBOX_DB_VERSION);
+          // Version 2 adds her files waiting to be sent (additive: the items are kept as they are).
+          req.onupgradeneeded = function (ev) {
+            var d = ev.target.result;
+            if (!d.objectStoreNames.contains(OUTBOX_STORE)) d.createObjectStore(OUTBOX_STORE, { keyPath: 'id' });
+            if (!d.objectStoreNames.contains(UPLOAD_STORE)) d.createObjectStore(UPLOAD_STORE, { keyPath: 'id' });
+          };
           req.onsuccess = function (ev) { resolve(ev.target.result); };
           req.onerror = function () { reject(req.error || new Error('outbox')); };
         } catch (e) { reject(e); }
@@ -447,10 +465,11 @@
       dbp.catch(function () { dbp = null; });
       return dbp;
     };
-    var tx = function (mode, fn) {
+    var tx = function (mode, fn, storeName) {
       return open().then(function (db) {
         return new Promise(function (resolve, reject) {
-          var t = db.transaction(OUTBOX_STORE, mode), os = t.objectStore(OUTBOX_STORE), out;
+          var name = storeName || OUTBOX_STORE;
+          var t = db.transaction(name, mode), os = t.objectStore(name), out;
           out = fn(os);
           t.oncomplete = function () { resolve(out && out.result !== undefined ? out.result : undefined); };
           t.onerror = t.onabort = function () { reject(t.error || new Error('outbox')); };
@@ -460,7 +479,12 @@
     return {
       all: function () { return tx('readonly', function (os) { return os.getAll(); }).then(function (l) { return l || []; }); },
       put: function (e) { return tx('readwrite', function (os) { os.put(e); }); },
-      del: function (id) { return tx('readwrite', function (os) { os.delete(id); }); }
+      del: function (id) { return tx('readwrite', function (os) { os.delete(id); }); },
+      uploads: {
+        all: function () { return tx('readonly', function (os) { return os.getAll(); }, UPLOAD_STORE).then(function (l) { return l || []; }); },
+        put: function (e) { return tx('readwrite', function (os) { os.put(e); }, UPLOAD_STORE); },
+        del: function (id) { return tx('readwrite', function (os) { os.delete(id); }, UPLOAD_STORE); }
+      }
     };
   }
 
@@ -499,7 +523,7 @@
     onSession: null,          // fn(code): the session can no longer read ('expired' | 'revoked' | 'signed-out')
     client: ''
   };
-  var outbox = null;
+  var outbox = null, outboxBackend = null;
   var lanProbe = null;
   var run = { flushing: false, holdUntil: 0, fails: 0, lastPull: 0, lastPullOk: 0, lastDeliver: 0, timer: null, kickTimer: null, wired: false, captureTimer: null };
   var tabLane = '';
@@ -513,9 +537,11 @@
     if (outbox) return outbox;
     var be = cfg.outboxBackend || null;
     try { if (!be && root.indexedDB && typeof root.indexedDB.open === 'function') be = idbBackend(); } catch (e) { be = null; }
-    outbox = makeOutbox(be || memoryBackend());
+    outboxBackend = be || memoryBackend();
+    outbox = makeOutbox(outboxBackend);
     return outbox;
   }
+  function uploadStore() { getOutbox(); return outboxBackend && outboxBackend.uploads ? outboxBackend.uploads : null; }
   function clientStamp() {
     if (cfg.client) return cfg.client;
     try {
@@ -729,7 +755,10 @@
       if (b.kind === 'lan') return { ok: false, error: 'not-available' };
       return storedPassword(o.password).then(function (pw) {
         if (!/^pbkdf2\$/.test(str(pw))) return { ok: false, error: 'bad-form', field: 'password' };
-        return call(b, 'register.submit', { accessToken: str(o.accessToken), name: str(o.name), programme: str(o.programme), phone: str(o.phone), password: pw });
+        // The sign-in link she registered from: the office's approval email carries it (gate version 3).
+        var link = '';
+        try { if (root.location && /^https:$/.test(root.location.protocol)) link = root.location.origin + root.location.pathname + '#gate=' + G.b64url(G.utf8(b.url)); } catch (e) { link = ''; }
+        return call(b, 'register.submit', { accessToken: str(o.accessToken), name: str(o.name), programme: str(o.programme), phone: str(o.phone), password: pw, link: link });
       });
     });
   }
@@ -911,6 +940,211 @@
     if (sess && sess.base && sess.base.kind === 'lan') return Promise.resolve({ ok: false, error: 'not-available' });
     return signed('file.get', { fileId: str(fileId) }, { timeout: UPLOAD_TIMEOUT_MS });
   }
+  /* ---- Home study (gate version 3) ---- */
+  // Her fees and receipts: kept in the namespace (cestisGateFees) for when she is offline.
+  function fees() {
+    var s = store(), have = s ? parse(s.getItem('cestisGateFees'), {}).h : '';
+    return signed('fees', have ? { have: have } : {}).then(function (res) {
+      if (res && res.ok && store()) {
+        if (res.fees) store().setItem('cestisGateFees', JSON.stringify({ h: res.h, fees: res.fees, builtAt: res.builtAt, at: new Date().toISOString() }));
+        else if (res.none) store().setItem('cestisGateFees', JSON.stringify({ none: true, at: new Date().toISOString() }));
+        else if (res.same) { var cur = parse(store().getItem('cestisGateFees'), {}); cur.at = new Date().toISOString(); store().setItem('cestisGateFees', JSON.stringify(cur)); }
+      }
+      return res;
+    });
+  }
+  function storedFees() { return store() ? parse(store().getItem('cestisGateFees'), null) : null; }
+  /* Her password, changed (OF-12): her old one proved to the gate (a
+     challenge for her own account), the new one sent as the dashboard stores
+     one (worked out here: the password itself never leaves the device). The
+     gate answers with a new session; this device takes it at once and seals
+     again, under it, whatever of hers is still waiting to be sent. */
+  function changePassword(o) {
+    o = o || {};
+    var sess = session();
+    if (!sess || !sess.token) return Promise.resolve({ ok: false, error: 'signed-out' });
+    return signed('password.start', {}).then(function (ch) {
+      if (!ch || ch.ok !== true) return ch;
+      return Promise.all([proofFor(o.oldPassword, ch, ch.nonce, 'acct:' + sess.acct), storedPassword(o.newPassword)]).then(function (pair) {
+        if (!/^pbkdf2\$/.test(str(pair[1]))) return { ok: false, error: 'bad-form', field: 'password' };
+        return signed('password.change', { nonce: ch.nonce, proof: pair[0], password: pair[1] });
+      });
+    }).then(function (res) {
+      if (!res || res.ok !== true || !res.token || !res.sessionKey) return res;
+      return adoptSession(res).then(function () { return res; });
+    });
+  }
+  function adoptSession(res) {
+    var s = store(), cur = session();
+    if (!s || !cur) return Promise.resolve(false);
+    cur.token = str(res.token); cur.sid = str(res.sid); cur.lane = str(res.lane); cur.exp = Number(res.exp) || cur.exp;
+    cur.readable = true; cur.why = '';
+    var t = msOf(res.serverTime); if (t) cur.offset = t - Date.now();
+    saveSession(cur);
+    s.setItem(SESSION_KEYS.key, str(res.sessionKey));
+    var ob = getOutbox();
+    // What waits, sealed under the session that just ended, is sealed again under the new one.
+    return ob.all().then(function (list) {
+      return Promise.all(list.filter(function (e) { return e.a === cur.acct && e.state === 'wait' && e.base === (cur.base && cur.base.url) && e.sid !== cur.sid; })
+        .map(function (e) { var n = copy(e); n.state = 'revoked'; return ob.put(n); }));
+    }).then(function () { return reseal(session(), str(res.sessionKey)); }).then(function () { changed(); kick(); return true; }, function () { return true; });
+  }
+  // Her certificate's background (T4): only once it is issued and its download approved.
+  function certTemplate(key, page) {
+    var sess = session();
+    if (sess && sess.base && sess.base.kind === 'lan') return Promise.resolve({ ok: false, error: 'not-available' });
+    return signed('cert.template', { key: str(key), page: str(page) }, { timeout: UPLOAD_TIMEOUT_MS });
+  }
+
+  /* ---- Her files, never lost (T2) ----
+     A submission with files is kept on this device (IndexedDB, beside the
+     outbox) until the gate has every file; each file goes in parts, each
+     part confirmed, so a dropped connection costs one part and the work
+     goes on by itself when the signal is back. When the last file is in,
+     her submission is written into her records and sealed into the outbox
+     like any other change of hers — so it too waits until the gate confirms
+     it. Entry: { id, a, base, refId, purpose, files: [{name, mime, size, data
+     (base64), origName, type, uploadId, total, sent: [], fileId}], then: {key,
+     rec}, state: 'wait'|'refused', reason, tries, nextAt, createdAt }. */
+  function b64Size(b64) { var s = str(b64), pad = /==$/.test(s) ? 2 : /=$/.test(s) ? 1 : 0; return Math.floor(s.length * 3 / 4) - pad; }
+  function partsOf(b64) {
+    var step = PART_BYTES / 3 * 4, out = [];
+    for (var i = 0; i < b64.length; i += step) out.push(b64.slice(i, i + step));
+    return out.length ? out : [''];
+  }
+  var pump = { running: null, listeners: [] };
+  function onUpload(fn) { if (typeof fn === 'function') pump.listeners.push(fn); }
+  function tellUpload(ev) { pump.listeners.forEach(function (fn) { try { fn(ev); } catch (e) {} }); }
+  function uploadQueue(o) {
+    o = o || {};
+    var sess = session(), us = uploadStore();
+    if (!sess || !us) return Promise.reject(new Error('no session'));
+    var entry = { id: 'UQ-' + Date.now().toString(36) + '-' + randomId(8), a: sess.acct, base: sess.base && sess.base.url, refId: str(o.refId),
+      purpose: o.purpose === 'chat' ? 'chat' : 'submission', state: 'wait', tries: 0, nextAt: 0, createdAt: new Date().toISOString(),
+      files: (o.files || []).map(function (f, i) {
+        var data = str(f.base64 || f.dataUrl).replace(/^data:[^,]*,/, '');
+        return { name: str(f.name), mime: str(f.mime || f.type), type: str(f.type || f.mime), size: b64Size(data), origName: str(f.origName || f.name), data: data,
+          uploadId: 'UP-' + randomId(12) + i, total: partsOf(data).length, sent: [], fileId: '' };
+      }),
+      then: o.then ? copy(o.then) : null };
+    return Promise.resolve(us.put(entry)).then(function () { tellUpload({ type: 'queued', entry: entryView(entry) }); uploadPump(); return entryView(entry); });
+  }
+  // What the page may show of an entry (never the bytes).
+  function entryView(e) {
+    var parts = 0, done = 0, bytes = 0, sentBytes = 0;
+    (e.files || []).forEach(function (f) {
+      parts += f.total; bytes += f.size;
+      var n = f.fileId ? f.total : (f.sent || []).filter(Boolean).length;
+      done += n; sentBytes += f.fileId ? f.size : Math.min(f.size, n * PART_BYTES);
+    });
+    return { id: e.id, a: e.a, refId: e.refId, state: e.state, reason: e.reason || '', parts: parts, partsSent: done, bytes: bytes, bytesSent: sentBytes,
+      files: (e.files || []).map(function (f) { return { name: f.origName || f.name, size: f.size, sent: !!f.fileId }; }), rec: e.then && e.then.rec ? e.then.rec : null,
+      tries: e.tries || 0, createdAt: e.createdAt };
+  }
+  function uploads(acct) {
+    var us = uploadStore();
+    if (!us) return Promise.resolve([]);
+    return Promise.resolve(us.all()).then(function (l) { return (l || []).filter(function (e) { return !acct || e.a === acct; }).map(entryView); }, function () { return []; });
+  }
+  // Refused for good (the file itself is the matter); anything else is tried again.
+  var REFUSE = { 'type-not-allowed': 1, 'too-large': 1, 'not-yours': 1 };
+  var QUOTA_WAIT_MS = 60 * 60 * 1000;
+  /* Send what waits, one file and one part at a time, for the trainee signed
+     in here (her token is needed). Stops at the first part that does not go
+     through, and tries again later (2 s → 5 min), on 'online', on coming back
+     to the page and at her next sign-in. */
+  function uploadPump(opts) {
+    opts = opts || {};
+    if (pump.running) return pump.running;
+    var sess = session(), us = uploadStore();
+    if (!sess || !sess.token || !us) return Promise.resolve({ sent: 0 });
+    pump.running = Promise.resolve(us.all()).then(function (list) {
+      var now = Date.now();
+      var due = (list || []).filter(function (e) { return e.a === sess.acct && e.base === (sess.base && sess.base.url) && e.state === 'wait' && (opts.force || !e.nextAt || e.nextAt <= now); });
+      return due.reduce(function (p, e) { return p.then(function (stop) { return stop ? stop : sendEntry(e, us); }); }, Promise.resolve(false));
+    }).then(function (stop) { pump.running = null; return { stopped: !!stop }; }, function (err) { pump.running = null; return { error: String(err && err.message || err) }; });
+    return pump.running;
+  }
+  function sendEntry(e, us) {
+    var fail = function (res) {
+      var code = str(res && res.error) || 'unreachable';
+      if (REFUSE[code]) { e.state = 'refused'; e.reason = code; }
+      // Today's allowance used up: kept, and tried again in an hour.
+      else if (code === 'quota') { e.tries = (e.tries || 0) + 1; e.nextAt = Date.now() + QUOTA_WAIT_MS; e.reason = code; }
+      else { e.tries = (e.tries || 0) + 1; e.nextAt = Date.now() + backoffMs(e.tries); e.reason = code; }
+      return Promise.resolve(us.put(e)).then(function () { tellUpload({ type: e.state === 'refused' ? 'refused' : 'waiting', entry: entryView(e), error: code }); return true; });
+    };
+    var fileStep = function (fi) {
+      if (fi >= e.files.length) return Promise.resolve(null);
+      var f = e.files[fi];
+      if (f.fileId) return fileStep(fi + 1);
+      var chunks = partsOf(f.data);
+      var partStep = function (pi) {
+        if (f.fileId) return fileStep(fi + 1);
+        // Every part sent and still no file (the gate lost a part): all of them again, later.
+        if (pi >= chunks.length) { f.sent = []; return Promise.resolve(us.put(e)).then(function () { return { ok: false, error: 'retry' }; }); }
+        if (f.sent[pi]) return partStep(pi + 1);
+        return signed('upload.part', { uploadId: f.uploadId, index: pi, total: chunks.length, size: f.size, name: f.name, mime: f.mime, purpose: e.purpose,
+          refId: e.refId, base64: chunks[pi] }, { timeout: PART_TIMEOUT_MS }).then(function (res) {
+          // An older gate (before version 3): the file in one request.
+          if (res && res.ok === false && res.error === 'unknown-op') return wholeFile(f).then(function (r) { return r ? r : fileStep(fi + 1); });
+          // The gate could not put the parts together (it let them go): all of them again.
+          if (res && res.ok === false && res.error === 'bad-parts') { f.sent = []; return Promise.resolve(us.put(e)).then(function () { return res; }); }
+          if (!res || res.ok !== true) return res || { ok: false, error: 'unreachable' };
+          if (res.done && res.fileId) { f.fileId = str(res.fileId); f.name = str(res.name || f.name); }
+          else f.sent[pi] = true;
+          return Promise.resolve(us.put(e)).then(function () { tellUpload({ type: 'progress', entry: entryView(e) }); return partStep(pi + 1); });
+        });
+      };
+      return partStep(0);
+    };
+    var wholeFile = function (f) {
+      return signed('upload', { name: f.name, mime: f.mime, base64: f.data, purpose: e.purpose, refId: e.refId }, { timeout: Math.max(UPLOAD_TIMEOUT_MS, 30000 + f.size / 20) })
+        .then(function (res) {
+          if (!res || res.ok !== true) return res || { ok: false, error: 'unreachable' };
+          f.fileId = str(res.fileId); f.name = str(res.name || f.name);
+          return Promise.resolve(us.put(e)).then(function () { tellUpload({ type: 'progress', entry: entryView(e) }); return null; });
+        });
+    };
+    return fileStep(0).then(function (res) {
+      if (res && res.ok === false) return fail(res);
+      if (!e.files.every(function (f) { return !!f.fileId; })) return false;
+      return finishEntry(e, us).then(function () { return false; });
+    }, function () { return fail({ error: 'unreachable' }); });
+  }
+  /* Every file is in: her record names them (and carries no bytes), into her
+     records here, sealed into the outbox by the watcher like any change of
+     hers; then the entry goes (the outbox keeps the record until the gate
+     confirms it). */
+  function finishEntry(e, us) {
+    var s = store(), sess = session();
+    var files = e.files.map(function (f) { return { id: f.fileId, driveFileId: f.fileId, name: f.name, origName: f.origName, size: f.size, type: f.type }; });
+    var done = function () { return Promise.resolve(us.del(e.id)).then(function () { tellUpload({ type: 'done', entry: entryView(e), files: files }); }); };
+    if (!e.then || !e.then.key || !e.then.rec) return done();
+    if (!s || !sess || sess.acct !== e.a) return Promise.resolve(false);
+    var rec = copy(e.then.rec);
+    rec.driveFiles = files; rec.files = [];
+    var key = str(e.then.key), list = parse(s.getItem(key), []);
+    if (!Array.isArray(list)) list = [];
+    var at = -1;
+    list.forEach(function (r, i) { if (r && str(r.id) === str(rec.id)) at = i; });
+    if (at === -1) list.push(rec); else list[at] = rec;
+    s.setItem(key, JSON.stringify(list));
+    // At once, before anything else can run: the page takes her record into what it holds.
+    tellUpload({ type: 'filed', entry: entryView(e), files: files, key: key, rec: rec });
+    return capture().then(done, done);
+  }
+  // Her own file that the gate refused for good (its kind, its size): she lets it go.
+  function uploadDrop(id) {
+    var sess = session(), us = uploadStore();
+    if (!sess || !us) return Promise.resolve(false);
+    return Promise.resolve(us.all()).then(function (l) {
+      var e = (l || []).filter(function (x) { return x.id === id && x.a === sess.acct && x.state === 'refused'; })[0];
+      if (!e) return false;
+      return Promise.resolve(us.del(e.id)).then(function () { tellUpload({ type: 'dropped', entry: entryView(e) }); return true; });
+    });
+  }
+
   // This room's messages, merged into the namespace's chat (keeping this trainee's unsent ones).
   function applyRoom(res) {
     var s = store(), sess = session();
@@ -1084,6 +1318,7 @@
     try {
       root.addEventListener('online', function () {
         run.holdUntil = 0; run.fails = 0;
+        if (inNamespace()) uploadPump({ force: true });
         getOutbox().all().then(function (l) {
           return Promise.all(l.filter(function (e) { return e.state === 'wait' && e.nextAt; }).map(function (e) { var n = copy(e); n.nextAt = 0; return getOutbox().put(n); }));
         }).then(function () { deliver(); });
@@ -1093,6 +1328,7 @@
       if (root.document) root.document.addEventListener('visibilitychange', function () {
         if (!visible()) { if (inNamespace()) capture(); return; }
         deliver();
+        if (inNamespace()) uploadPump();
         if (inNamespace() && typeof opts.onVisible === 'function') { try { opts.onVisible(); } catch (e) {} }
       });
       root.addEventListener('storage', function (ev) {
@@ -1103,7 +1339,7 @@
     } catch (e) {}
     run.timer = setInterval(function () {
       if (!visible()) return;
-      if (inNamespace()) capture();
+      if (inNamespace()) { capture(); uploadPump(); }
       getOutbox().all().then(function (l) { if (l.some(function (e) { return e.state === 'wait'; })) deliver(); });
     }, RETRY_EVERY_MS / 2);
     // The store's own writes to the keys the watcher reads.
@@ -1135,6 +1371,8 @@
     pull: pull, applyPull: function (res) { applying = true; return applyPull(res).then(function (r) { applying = false; return r; }, function (e) { applying = false; throw e; }); },
     paper: paper, storedPaper: storedPaper, attempt: attempt, review: review, roomGet: roomGet, applyRoom: applyRoom,
     upload: upload, fileGet: fileGet, signOut: signOut,
+    fees: fees, storedFees: storedFees, changePassword: changePassword, certTemplate: certTemplate,
+    uploadQueue: uploadQueue, uploads: uploads, uploadPump: uploadPump, uploadDrop: uploadDrop, onUpload: onUpload, PART_BYTES: PART_BYTES,
     queue: queue, deliver: deliver, deliverNow: deliverNow, kick: kick, capture: capture, status: status,
     pending: function (acct) { return getOutbox().pendingFor(acct); },
     outbox: function () { return getOutbox().all(); },
@@ -1144,7 +1382,7 @@
       parseGateFragment: parseGateFragment, stripGateFragment: stripGateFragment, coalesceKey: coalesceKey,
       planApply: planApply, mergeOwnList: mergeOwnList, mergeOwnMap: mergeOwnMap, mergeResults: mergeResults, mergeSettings: mergeSettings,
       mergeRoom: mergeRoom, ownedRecords: ownedRecords, diff: diff, baseFor: baseFor, makeOutbox: makeOutbox, memoryBackend: memoryBackend,
-      sealItem: sealItem, hmacHex: hmacHex, pbkdf2Hex: pbkdf2Hex, sha256Hex: sha256Hex, proofFor: proofFor,
+      sealItem: sealItem, hmacHex: hmacHex, pbkdf2Hex: pbkdf2Hex, sha256Hex: sha256Hex, proofFor: proofFor, partsOf: partsOf, b64Size: b64Size, entryView: entryView,
       BACKOFF_MIN_MS: BACKOFF_MIN_MS, BACKOFF_MAX_MS: BACKOFF_MAX_MS, WATCHED: WATCHED
     }
   };
