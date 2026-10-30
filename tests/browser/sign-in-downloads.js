@@ -85,6 +85,12 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
       const r = await pageA.evaluate(() => _lastAutoSaveResult && _lastAutoSaveResult.reason);
       const copies = Object.values(drive.files).filter(f => f.name === BACKUP).length;
       if (copies >= 5 && Object.values(drive.files).some(f => f.name === MASTER) && (r === 'nothing-new' || r === 'unchanged')) break;
+      // A change goes to the Main copy only; the four other copies and the
+      // master follow every 30 minutes or at sign-out (EF-2). As at a
+      // sign-out, they are written now, with what the Main copy holds.
+      if (r === 'nothing-new' || r === 'unchanged') {
+        await pageA.evaluate(async () => { _copiesFlushRequested = true; try { await autoSaveToAllFolders(); } finally { _copiesFlushRequested = false; } });
+      }
     }
     const nCopies = Object.values(drive.files).filter(f => f.name === BACKUP).length;
     ok(nCopies === 5 && Object.values(drive.files).some(f => f.name === MASTER), 'PC A has written the five copies and the master');

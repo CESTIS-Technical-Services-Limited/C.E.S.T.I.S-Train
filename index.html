@@ -34030,6 +34030,11 @@ async function cestisConfirmCopyMerged(fileId, meta) {
    never wrote the note — and it goes up as before. */
 var _mainHeadMd5 = null;     // the Main copy's checksum, as read during this save's pull
 var _mainUploadMd5 = null;   // the checksum Drive gave this device's own last Main write
+// The heading (time, by whom) of what this device last put in the Main copy,
+// with its data's hash: extra copies written later from the same data carry
+// the same heading, so they are byte for byte the Main copy and a sign-in
+// downloads those bytes once (EF-2 with EF-3).
+var _lastMainMeta = null;
 var AUTO_SAVE_INTERVAL_MS = 5000; // 5 seconds
 var _debouncedCloudSaveTimer = null;
 var _lastAutoSaveHash = null; // hash of last data successfully pushed to the cloud (dirty-check)
@@ -37897,6 +37902,7 @@ async function autoSaveToAllFolders() {
       try { _lastUp = JSON.parse(CESTISStore.getItem('cestisLastUploadHash') || 'null'); } catch (e) { _lastUp = null; }
       if (_lastUp && _lastUp.md5 && _lastUp.md5 === _mainHeadMd5 && _lastUp.h === _curHash && _lastUp.n === _dataStr.length) {
         _lastAutoSaveHash = _curHash;
+        if (_lastUp.ts && typeof _lastMainMeta !== 'undefined') _lastMainMeta = { hash: _curHash, timestamp: _lastUp.ts, savedBy: _lastUp.by, savedByRole: _lastUp.role };
         console.log('[AutoSave] The Main copy already holds exactly what this device would send; not sending it again.');
       }
     }
@@ -37910,6 +37916,13 @@ async function autoSaveToAllFolders() {
       // The extra copies behind the Main copy (signing out, or their 30
       // minutes up): they get what the Main copy holds now (the same payload).
       if (_flushBehind) {
+        // The same data as the Main copy's: the same heading too, so these
+        // are the very bytes the Main copy holds.
+        if (typeof _lastMainMeta !== 'undefined' && _lastMainMeta && _lastMainMeta.hash === _curHash && _lastMainMeta.timestamp) {
+          backupData.timestamp = _lastMainMeta.timestamp;
+          backupData.savedBy = _lastMainMeta.savedBy;
+          backupData.savedByRole = _lastMainMeta.savedByRole;
+        }
         await cestisMaybeWriteExtraCopies(new Blob([JSON.stringify(backupData, stripSecretFields)], { type: 'application/json' }), { mainOk: null, flush: (typeof _copiesFlushRequested !== 'undefined') && !!_copiesFlushRequested, results: null });
       }
       return; // unchanged — nothing to push; finally{} clears _isAutoSaving
@@ -37940,6 +37953,7 @@ async function autoSaveToAllFolders() {
       // The checksum Drive gave these bytes — read at once, before anything
       // else can write the Main copy (noted below, 'cestisLastUploadHash').
       _upMd5 = (_mainOk && typeof _mainUploadMd5 !== 'undefined') ? _mainUploadMd5 : null;
+      if (_mainOk && typeof _lastMainMeta !== 'undefined') _lastMainMeta = { hash: _curHash, timestamp: backupData.timestamp, savedBy: backupData.savedBy, savedByRole: backupData.savedByRole };
     }
     var _flushNow = (typeof _copiesFlushRequested !== 'undefined') && !!_copiesFlushRequested;
     var _urgentNow = (typeof _copiesUrgent !== 'undefined') && !!_copiesUrgent;
@@ -37986,7 +38000,7 @@ async function autoSaveToAllFolders() {
       // bytes' checksum. Only when the Main copy itself took this payload.
       if (_mainOk && _upMd5) {
         cestisBookkeeping(function() {
-          try { CESTISStore.setItem('cestisLastUploadHash', JSON.stringify({ h: _curHash, n: _dataStr.length, md5: _upMd5 })); } catch (e) {}
+          try { CESTISStore.setItem('cestisLastUploadHash', JSON.stringify({ h: _curHash, n: _dataStr.length, md5: _upMd5, ts: backupData.timestamp, by: backupData.savedBy, role: backupData.savedByRole })); } catch (e) {}
         });
       }
     }

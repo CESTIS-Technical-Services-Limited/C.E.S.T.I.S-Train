@@ -95,7 +95,7 @@ for (const page of PAGES) {
   console.log('The page\'s 5-second save (' + w + ')');
   const names = ['autoSaveToAllFolders', 'cestisBookkeeping', 'cestisMarkUploaded', 'cestisMarkPendingUpload', 'cestisHashString', 'cestisMaybeWriteExtraCopies'];
   const src = names.map(n => extractFunction(page.src, n, w)).join('\n') +
-    '\nvar _copyState = { writtenAt: Date.now(), behind: false, mainFailAt: 0 }, _copiesFlushRequested = false, _copiesUrgent = false;';
+    '\nvar _copyState = { writtenAt: Date.now(), behind: false, mainFailAt: 0 }, _copiesFlushRequested = false, _copiesUrgent = false, _lastMainMeta = null;';
   const FOLDERS = [{ id: 'MAIN', label: 'Main Backup' }, { id: 'EXAMS', label: 'Online Exams' }, { id: 'CHAT', label: 'LMS Chat' }, { id: 'REC', label: 'Class Recording' }, { id: 'ASG', label: 'Assignments' }];
   function world() {
     const data = {};
@@ -161,6 +161,7 @@ for (const page of PAGES) {
     const extra = t.ups.slice(n + 1);
     assertEq(extra.map(u => u.folderId).sort(), ['ASG', 'CHAT', 'EXAMS', 'REC'], w + ': 30 minutes on with nothing new, the four folders get what the Main copy holds');
     assert(extra.every(u => t.phoneIn(u) === 'v5'), w + ': (the latest)');
+    assert(extra.every(u => u.text === t.ups[n].text), w + ': byte for byte the Main copy (the same heading too), so a sign-in downloads those bytes once');
     const m = t.ups.length;
     for (let i = 0; i < 4; i++) await t.ctx.autoSaveToAllFolders();
     assertEq(t.ups.length - m, 0, w + ': once');
@@ -184,6 +185,7 @@ for (const page of PAGES) {
     vm.runInContext('_copiesFlushRequested = true', t2.ctx);
     await t2.ctx.autoSaveToAllFolders();
     assertEq(t2.at('EXAMS').map(t2.phoneIn), ['v1'], w + ': nothing new at sign-out, but the copies behind: written');
+    assert(t2.at('EXAMS')[0].text === t2.at('MAIN').slice(-1)[0].text, w + ': and they are byte for byte the Main copy');
     // Up to date at sign-out: nothing.
     const n2 = t2.ups.length;
     await t2.ctx.autoSaveToAllFolders();
