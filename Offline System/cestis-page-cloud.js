@@ -596,6 +596,8 @@
     'voctrain_sessionUpgradeCarried',
     // This screen's light/dark choice: one person's Light never reaches another device.
     'cestisTheme',
+    // Which menu groups are open on this screen.
+    'cestisNavOpen',
     // The trainee gate's part on this device (CESTISCore.gate.DEVICE_KEYS).
     'cestisGateNs', 'cestisGateMode', 'cestisGateToken', 'cestisGateSessionKey', 'cestisGateAddress',
     'cestisDeviceKind', 'cestisGatePublished', 'cestisGatePublishQueue', 'cestisGateCollected',
@@ -955,7 +957,7 @@
       // Who is signed in HERE, and this screen's own preferences. Syncing these
       // would sign people in as each other and fight over dark mode.
       'isLoggedIn', 'loggedInUser', 'cestisCurrentUser', 'cestiCurrentUser',
-      'cestisAttendanceCurrentUser', 'darkMode', 'cestisTimeDarkMode', 'cestisTheme',
+      'cestisAttendanceCurrentUser', 'darkMode', 'cestisTimeDarkMode', 'cestisTheme', 'cestisNavOpen',
       // One-off "I have seen this" dismissals.
       'firstTimeSyncDismissed', 'cestisFirstTimeDismissed',
       'postLoginSyncCompleted', 'cloudSyncCompleted', 'cestisAutoSyncEnabled',

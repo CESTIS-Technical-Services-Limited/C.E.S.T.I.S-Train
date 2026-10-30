@@ -1762,6 +1762,8 @@
   var DEVICE_ONLY_KEYS = ['isLoggedIn', 'loggedInUser', 'cestisCurrentUser', 'cestiCurrentUser',
     'cestisAttendanceCurrentUser', 'cestisTimeDarkMode', 'cestisTheme', 'firstTimeSyncDismissed', 'cestisFirstTimeDismissed',
     'postLoginSyncCompleted', 'cloudSyncCompleted', 'cestisAutoSyncEnabled',
+    // Which menu groups are open on THIS screen (the office's sidebar).
+    'cestisNavOpen',
     // "this device holds work not yet uploaded" — true of THIS device only.
     'cestisPendingUpload', 'cestisUnsyncedOnSignOut',
     // The trainee gate's part on THIS device (Core.gate.DEVICE_KEYS): its
@@ -14152,6 +14154,110 @@
       return 'Receipt ' + String(number).trim() + ' is already used for ' + (p.studentName || 'another payment') + (p.date ? ' on ' + p.date : '') + '. Use it again?';
     }
     return { usedBy: usedBy, question: question };
+  })();
+
+  // ===================== THE OFFICE'S DAY: what is waiting =====================
+  // The office's work was invisible on both office dashboards: 12 home
+  // registrations and 6 certificate/transcript requests waiting showed no sign
+  // on the first screen (office audit OF-1, management M10). These are the
+  // counts the "Office today" box shows; the page decides which lines the
+  // person signed in may act on, and where each one opens.
+  Core.officeToday = (function () {
+    var DAY = 86400000;
+    // Trainees still with the Centre: the details are needed for the
+    // registers, the fee record and the certificate.
+    var ENROLLED = { testing: 1, interview: 1, training: 1 };
+    function blank(v) { return v == null || String(v).trim() === ''; }
+    function msOf(v) { var t = Date.parse(v || ''); return isNaN(t) ? 0 : t; }
+    function nameKey(v) { return String(v == null ? '' : v).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim(); }
+
+    /* Whole days from `fromIso` to `nowMs` (0 the same day). */
+    function daysWaiting(fromIso, nowMs) {
+      var t = msOf(fromIso);
+      if (!t) return 0;
+      var now = typeof nowMs === 'number' ? nowMs : Date.now();
+      return Math.max(0, Math.floor((now - t) / DAY));
+    }
+    /* "3 days waiting", "1 day waiting", "since today". */
+    function waitingText(days) {
+      if (!days) return 'since today';
+      return days + ' day' + (days === 1 ? '' : 's') + ' waiting';
+    }
+
+    /* Which of the four details a trainee's records lack: telephone, email,
+       date of birth, gender. A detail typed on the fee record (or the
+       trainee's profile) counts — the office typed it once. */
+    function missingDetails(student, fee, profile) {
+      var s = student || {}, f = fee || {}, p = profile || {};
+      var out = [];
+      if (blank(s.phone) && blank(f.contact) && blank(p.phone)) out.push('telephone');
+      if (blank(s.email) && blank(f.email) && blank(p.email)) out.push('email');
+      if (blank(s.dob) && blank(f.dateOfBirth)) out.push('date of birth');
+      if (blank(s.gender) && blank(f.gender)) out.push('gender');
+      return out;
+    }
+    /* Trainees still with the Centre whose records lack any of the four.
+       feeOf(student) -> its fee record or null; profileOf(student) -> its
+       profile or null. -> [{ student, missing: [...] }] */
+    function recordsMissingDetails(students, feeOf, profileOf) {
+      var out = [];
+      (Array.isArray(students) ? students : []).forEach(function (s) {
+        if (!s || !ENROLLED[s.stage || 'training']) return;
+        var miss = missingDetails(s, feeOf ? feeOf(s) : null, profileOf ? profileOf(s) : null);
+        if (miss.length) out.push({ student: s, missing: miss });
+      });
+      return out;
+    }
+
+    /* The requests waiting for the office (pending or processing — the same
+       rule as the menu's count), oldest first. -> { count, oldestDays, oldest } */
+    function openRequests(requests, nowMs) {
+      var open = (Array.isArray(requests) ? requests : []).filter(function (r) {
+        return r && (r.status === 'pending' || r.status === 'processing');
+      }).sort(function (a, b) { return msOf(a.requestedAt) - msOf(b.requestedAt); });
+      return { count: open.length, oldest: open[0] || null, oldestDays: open.length ? daysWaiting(open[0].requestedAt, nowMs) : 0, list: open };
+    }
+
+    /* Certified trainees whose certificate has not been handed over yet. */
+    function certificatesToHandOut(students) {
+      return (Array.isArray(students) ? students : []).filter(function (s) {
+        return s && s.stage === 'certified' && !s.certCollected;
+      });
+    }
+
+    /* Programmes taking trainees that have no fee set (no entry with a total
+       above 0 under the programme's name, written any way, or under one of
+       its intakes' labels — "02. Cosmetology"). */
+    function programmesWithoutFee(programmes, feeStructure) {
+      var priced = {};
+      Object.keys(feeStructure || {}).forEach(function (k) {
+        var e = feeStructure[k];
+        if (!e || !(parseFloat(e.total) > 0)) return;
+        priced[nameKey(k)] = 1;
+        var m = /^(\d{1,4})\s*[.)]\s*(.+)$/.exec(String(k).trim());
+        if (m) priced[nameKey(m[2])] = 1;
+      });
+      var seen = {};
+      return (Array.isArray(programmes) ? programmes : []).filter(function (p) {
+        var k = nameKey(p);
+        if (!k || seen[k]) return false;
+        seen[k] = 1;
+        var m = /^(\d{1,4})\s*[.)]\s*(.+)$/.exec(String(p).trim());
+        return !priced[k] && !(m && priced[nameKey(m[2])]);
+      });
+    }
+
+    /* "Akeem Williams, Brianna Grant and 3 more" */
+    function someNames(names, max) {
+      var list = (names || []).filter(Boolean);
+      max = max || 3;
+      if (list.length <= max) return list.length > 1 ? list.slice(0, -1).join(', ') + ' and ' + list[list.length - 1] : (list[0] || '');
+      return list.slice(0, max).join(', ') + ' and ' + (list.length - max) + ' more';
+    }
+
+    return { daysWaiting: daysWaiting, waitingText: waitingText, missingDetails: missingDetails,
+      recordsMissingDetails: recordsMissingDetails, openRequests: openRequests,
+      certificatesToHandOut: certificatesToHandOut, programmesWithoutFee: programmesWithoutFee, someNames: someNames };
   })();
 
   // ===================== COMMUNICATIONS: announcements, agenda, bell =====================

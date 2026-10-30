@@ -1943,6 +1943,32 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 .alert-item .alert-body .alert-msg { font-size:13px; color:var(--text-primary); line-height:1.4; }
 .alert-item .alert-body .alert-time { font-size:12px; color:var(--text-muted); margin-top:4px; }
 
+/* ============================== OFFICE TODAY (administrator and Admin Staff dashboards) ==============================
+   What is waiting for the office, each line one click from its page. */
+.ot-card { padding:18px 20px; }
+.ot-card .card-header { margin-bottom:10px; }
+.ot-card .ot-sub { font-size:12px; color:var(--text-muted); }
+.ot-lines { display:flex; flex-direction:column; gap:8px; }
+.ot-line {
+  display:flex; align-items:center; gap:12px; width:100%; text-align:left;
+  padding:12px 14px; min-height:44px; border:1px solid var(--border); border-left:3px solid var(--accent);
+  background:var(--bg-secondary); color:var(--text-primary); border-radius:0 var(--radius-sm) var(--radius-sm) 0;
+  font:inherit; cursor:pointer; transition:background var(--transition);
+}
+.ot-line:hover, .ot-line:focus-visible { background:var(--bg-card-hover); }
+.ot-line .ot-count { min-width:34px; font-size:20px; font-weight:800; color:var(--accent); text-align:center; }
+.ot-line .ot-text { flex:1; min-width:0; }
+.ot-line .ot-msg { font-size:14px; font-weight:600; line-height:1.35; }
+.ot-line .ot-detail { font-size:12px; color:var(--text-muted); margin-top:2px; line-height:1.4; overflow-wrap:anywhere; }
+.ot-line .ot-go { font-size:12px; font-weight:600; color:var(--accent); white-space:nowrap; }
+.ot-line.ot-urgent { border-left-color:var(--red); }
+.ot-line.ot-urgent .ot-count { color:var(--red); }
+.ot-line.ot-clear { border-left-color:var(--green); }
+.ot-line.ot-clear .ot-count { color:var(--green); font-size:16px; }
+.ot-line.ot-clear .ot-msg { font-weight:500; color:var(--text-secondary); }
+.ot-new-staff { font-size:13px; color:var(--text-secondary); line-height:1.5; }
+@media (max-width: 600px) { .ot-line .ot-go { display:none; } .ot-card { padding:14px; } }
+
 /* ============================== TOP PERFORMERS WIDGET ============================== */
 .performer-row {
   display:flex; align-items:center; gap:12px;
@@ -8670,6 +8696,8 @@ function lmsChatFlushDriveSyncNow() {
 var AS_ACCESS_DEFAULTS = { attendance:false, announcements:false, calendar:false, students:false, studentsmanage:false, certificates:false, reports:false, training:false, exams:false, invigilation:false, video:true, resources:false, supportmessages:false, traineeaccounts:true };
 function adminStaffAccessDefaults() { return Object.assign({}, AS_ACCESS_DEFAULTS); }
 var adminStaffAccessSettings = adminStaffAccessDefaults();
+// The sections the Admin Staff member signed in on this device may use.
+function asAccessForMe() { return adminStaffAccessSettings || {}; }
 
 /* Adopt a set of access settings from anywhere they arrive — local storage, a
    cloud restore, a merge — and put them on screen.
@@ -13925,6 +13953,39 @@ function toggleNavSection(labelEl) {
   if (group && group.classList.contains('nav-section-group')) {
     group.classList.toggle('collapsed', collapsed);
   }
+  navGroupsRemember();
+}
+/* Which menu groups are open is remembered on THIS device (OF-1): the
+   Administrator's Management and Administration groups started collapsed at
+   every sign-in, hiding the counts of what was waiting. A device-only
+   preference ('cestisNavOpen', localStorage): never in a backup or the
+   Centre's shared files (CESTISCore DEVICE_ONLY_KEYS, cestis-page-cloud.js
+   DEVICE_KEYS). One list per role: { admin: ['Management', ...] }. */
+var NAV_OPEN_KEY = 'cestisNavOpen';
+function navGroupsRead() {
+  try { var v = JSON.parse(localStorage.getItem(NAV_OPEN_KEY) || '{}'); return v && typeof v === 'object' && !Array.isArray(v) ? v : {}; } catch(e) { return {}; }
+}
+function navGroupLabel(el) { return String((el && el.textContent) || '').replace(/\s+/g, ' ').trim(); }
+function navGroupsRemember() {
+  if(!currentRole) return;
+  try {
+    var open = [];
+    document.querySelectorAll('#sidebarNav .nav-section-toggle').forEach(function(l) { if(!l.classList.contains('collapsed')) open.push(navGroupLabel(l)); });
+    var all = navGroupsRead();
+    all[currentRole] = open;
+    localStorage.setItem(NAV_OPEN_KEY, JSON.stringify(all));
+  } catch(e) {}
+}
+function navGroupsRestore(role) {
+  var open = navGroupsRead()[role || currentRole];
+  if(!Array.isArray(open)) return;
+  document.querySelectorAll('#sidebarNav .nav-section-toggle').forEach(function(l) {
+    var on = open.indexOf(navGroupLabel(l)) !== -1;
+    l.classList.toggle('collapsed', !on);
+    l.setAttribute('aria-expanded', on ? 'true' : 'false');
+    var g = l.nextElementSibling;
+    if(g && g.classList.contains('nav-section-group')) g.classList.toggle('collapsed', !on);
+  });
 }
 
 function buildAdminSidebar() {
@@ -14021,6 +14082,7 @@ function buildAdminSidebar() {
     <div class="nav-item nav-item-standalone" data-page="settings" onclick="showPage('settings')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Settings</div>
   `;
+  navGroupsRestore('admin');
   setTimeout(updateCtrRequestsBadge, 200);
 }
 
@@ -14561,6 +14623,7 @@ function showPage(pageId) {
   if(pg) pg.classList.add('active');
   // Keep the staff-appraisal due indicator fresh whenever the admin dashboard is shown
   if(pageId === 'dashboard') { try { if(typeof sappRenderAdminDueCard === 'function') sappRenderAdminDueCard(); } catch(e) {} }
+  if(pageId === 'dashboard' || pageId === 'as-dashboard') { try { renderOfficeToday(); } catch(e) { console.warn('[Office today] render failed', e); } }
   if(pageId === 'transfer-trainees') { try { renderTransferTraineesPage(); } catch(e) { console.warn('[Transfer] render failed', e); } }
   // Reports counts the roll on every panel, so it is drawn on the way in rather
   // than served from whenever the page happened to be built.
@@ -14742,6 +14805,7 @@ function showPage(pageId) {
 function buildAdminPages() {
   resolveExamStatuses();
   setTimeout(renderVerifyUsersPage, 200);
+  setTimeout(function() { try { renderOfficeToday(); } catch(e) {} }, 250);
   const totalEnrolled = students.length;
   // Certified THIS calendar year, by the certificate's own date — the card
   // used to count every graduate the Centre ever had.
@@ -14769,6 +14833,7 @@ function buildAdminPages() {
   mc.innerHTML = `
   <section class="page active" id="page-dashboard">
     <div id="sappAdminDueCard"></div>
+    <div id="officeTodayCard"></div>
     <div class="stats-grid">
       <div class="stat-card"><div class="stat-icon" style="background:var(--blue-dim);color:var(--blue);">\uD83D\uDC65</div><div class="stat-value" data-count="${totalEnrolled}">0</div><div class="stat-label">Total Enrolled Students</div><div class="stat-change" id="dashActiveLine" style="color:var(--text-muted);">${dashActiveLineText()}</div></div>
       <div class="stat-card"><div class="stat-icon" style="background:var(--green-dim);color:var(--green);">\uD83C\uDF93</div><div class="stat-value" data-count="${totalCertified}">0</div><div class="stat-label">Certified This Year</div><div class="stat-change" style="color:var(--text-muted);">Completed certification</div></div>
@@ -24177,8 +24242,101 @@ function updateCtrRequestsBadge() {
   });
 }
 window.addEventListener('storage', function(e) {
-  if(e.key === 'voctrain_certTranscriptRequests') updateCtrRequestsBadge();
+  if(e.key === 'voctrain_certTranscriptRequests') { updateCtrRequestsBadge(); try { renderOfficeToday(); } catch(x) {} }
 });
+
+/* ---- Office today (office audit OF-1, management M10) ----
+   What is waiting for the office, on the Administrator's and the Admin
+   Staff's dashboards: registrations, certificate/transcript requests (with
+   the oldest one's wait), trainees' records missing details, certificates to
+   hand over, programmes with no fee set. Each line opens its page in one
+   click, and a line is shown only to somebody who may act on it there. */
+// May the person signed in act on this section? (Administrators always; Admin
+// Staff by their ticks — CESTISCore.staffAccess, item OF-2.)
+function officeMay(key) {
+  if(currentRole === 'admin') return true;
+  if(currentRole !== 'adminstaff') return false;
+  try { return !!asAccessForMe()[key]; } catch(e) { return !!(adminStaffAccessSettings && adminStaffAccessSettings[key]); }
+}
+function officeTodayLines() {
+  if(currentRole !== 'admin' && currentRole !== 'adminstaff') return [];
+  var OT = CESTISCore.officeToday, admin = currentRole === 'admin', now = Date.now();
+  var lines = [];
+  var page = function(a, s) { return admin ? a : s; };
+  // 1. Registrations waiting (trainees' only, for Admin Staff — accountReviewAllowed).
+  if(admin || officeMay('traineeaccounts')) {
+    var queue = [];
+    try { queue = CESTISCore.accountAccess.reviewQueue(userAccounts).filter(accountReviewAllowed); } catch(e) { queue = []; }
+    var fromHome = queue.filter(function(u) { return u.registeredVia === 'home-registration'; }).length;
+    lines.push({ key: 'registrations', count: queue.length, page: page('verify-users', 'as-trainee-accounts'),
+      msg: queue.length === 1 ? 'registration waiting for approval' : 'registrations waiting for approval',
+      detail: queue.length ? (fromHome ? fromHome + ' registered from home. ' : '') + OT.someNames(queue.map(function(u) { return u.name; })) : '', clear: 'No registrations waiting' });
+  }
+  // 2. Certificate / transcript requests (every office person has the queue).
+  var reqs = [];
+  try { reqs = JSON.parse(CESTISStore.getItem('voctrain_certTranscriptRequests') || '[]') || []; } catch(e) { reqs = []; }
+  var rq = OT.openRequests(reqs, now);
+  lines.push({ key: 'requests', count: rq.count, page: page('cert-transcript-requests', 'as-cert-transcript-requests'), urgent: rq.oldestDays >= 7,
+    msg: rq.count === 1 ? 'certificate or transcript request waiting' : 'certificate or transcript requests waiting',
+    detail: rq.count ? 'Oldest: ' + (rq.oldest.studentName || 'a trainee') + ', ' + OT.waitingText(rq.oldestDays) : '', clear: 'No requests waiting' });
+  // 3. Trainees still with the Centre whose records lack a telephone, email,
+  //    date of birth or gender (typed on the fee page's Students tab).
+  var fee = [];
+  try { fee = JSON.parse(CESTISStore.getItem('cestiSchoolFeeStudents') || '[]') || []; } catch(e) { fee = []; }
+  var feeByLms = {};
+  fee.forEach(function(f) { if(f && f.lmsId != null) feeByLms[String(f.lmsId)] = f; });
+  var feeOf = function(s) { return feeByLms[String(s.id)] || fee.find(function(f) { return f && CESTISCore.isFeeTwin(s, f); }) || null; };
+  var miss = OT.recordsMissingDetails(students, feeOf, function(s) { return (studentProfiles || {})[s.id] || null; });
+  var tally = {};
+  miss.forEach(function(m) { m.missing.forEach(function(k) { tally[k] = (tally[k] || 0) + 1; }); });
+  lines.push({ key: 'details', count: miss.length, page: page('fee-management', 'as-fee-management'),
+    msg: miss.length === 1 ? 'trainee record missing details' : 'trainee records missing details',
+    detail: miss.length ? Object.keys(tally).map(function(k) { return tally[k] + ' without ' + (k === 'email' ? 'an email' : k === 'telephone' ? 'a telephone' : k === 'gender' ? 'gender' : 'a date of birth'); }).join(' · ') : '',
+    clear: 'Every current trainee\'s record has a telephone, email, date of birth and gender' });
+  // 4. Certificates to hand over (Certificates page).
+  if(admin || officeMay('certificates')) {
+    var certs = OT.certificatesToHandOut(students);
+    lines.push({ key: 'certificates', count: certs.length, page: 'certificates',
+      msg: certs.length === 1 ? 'certificate to hand out' : 'certificates to hand out',
+      detail: certs.length ? OT.someNames(certs.map(function(s) { return s.name; })) : '', clear: 'No certificates waiting to be handed out' });
+  }
+  // 5. Programmes taking trainees with no fee set (School Fee → Fee Structure).
+  var fs = {};
+  try { fs = JSON.parse(CESTISStore.getItem('cestiFeeStructure') || '{}') || {}; } catch(e) { fs = {}; }
+  var progs = [];
+  try { progs = OT.programmesWithoutFee(officeEnrollingProgrammes(), fs); } catch(e) { progs = []; }
+  lines.push({ key: 'fees', count: progs.length, page: page('fee-management', 'as-fee-management'),
+    msg: progs.length === 1 ? 'programme with no fee set' : 'programmes with no fee set',
+    detail: progs.length ? OT.someNames(progs) : '', clear: 'Every programme taking trainees has its fee set' });
+  return lines;
+}
+function renderOfficeToday() {
+  var box = document.getElementById('officeTodayCard');
+  if(!box) return;
+  // Drawn while the dashboard is on screen (and again each time it is shown).
+  var pg = box.closest ? box.closest('.page') : null;
+  if(pg && !pg.classList.contains('active')) return;
+  var lines = officeTodayLines();
+  if(!lines.length) { box.innerHTML = ''; return; }
+  var waiting = lines.filter(function(l) { return l.count > 0; });
+  var clear = lines.filter(function(l) { return !l.count; });
+  var row = function(l) {
+    var cls = 'ot-line' + (l.count ? (l.urgent ? ' ot-urgent' : '') : ' ot-clear');
+    return '<button type="button" class="' + cls + '" data-ot="' + escapeAttr(l.key) + '" onclick="showPage(' + jsArg(l.page) + ')">' +
+      '<span class="ot-count"' + (l.count ? '' : ' aria-hidden="true"') + '>' + (l.count ? l.count : '✓') + '</span>' +
+      '<span class="ot-text"><span class="ot-msg">' + (l.count ? escapeHtml(l.msg) : escapeHtml(l.clear)) + '</span>' +
+      (l.count && l.detail ? '<span class="ot-detail" style="display:block;">' + escapeHtml(l.detail) + '</span>' : '') + '</span>' +
+      (l.count ? '<span class="ot-go">Open →</span>' : '') + '</button>';
+  };
+  box.innerHTML = '<div class="card ot-card"><div class="card-header"><h3>Office today</h3>' +
+    '<span class="ot-sub">' + (waiting.length ? waiting.length + ' of ' + lines.length + ' need' + (waiting.length === 1 ? 's' : '') + ' attention' : 'Nothing waiting') + '</span></div>' +
+    '<div class="ot-lines">' + waiting.concat(clear).map(row).join('') + '</div></div>';
+}
+(function watchOfficeToday() {
+  try {
+    if(window.CESTISCore && typeof CESTISCore.on === 'function') CESTISCore.on('cestis:state-saved', function() { try { renderOfficeToday(); } catch(e) {} });
+  } catch(e) {}
+})();
 
 // ============================== EXTERNAL CHANGE ADOPTION ==============================
 // Another document — an embedded page, another tab — changed data this page also
@@ -45746,6 +45904,9 @@ function buildAdminStaffPages() {
     '<p>Administrative Staff &mdash; ' + escapeHtml(user.email) + '</p>' +
   '</div>';
 
+  // Office today: what is waiting for the office (renderOfficeToday).
+  html += '<div id="officeTodayCard"></div>';
+
   // Duty Stats
   html += '<div class="as-duty-stats">' +
     '<div class="as-duty-stat"><div class="as-ds-val" style="color:var(--accent);">' + myTasks.length + '</div><div class="as-ds-label">Total Duties</div></div>' +
@@ -45754,14 +45915,23 @@ function buildAdminStaffPages() {
     '<div class="as-duty-stat"><div class="as-ds-val" style="color:var(--red);">' + overdueTasks.length + '</div><div class="as-ds-label">Overdue</div></div>' +
   '</div>';
 
-  // Performance Card
-  html += '<div class="card" style="margin-bottom:24px;padding:24px;">' +
+  // Performance Card. A new member of staff with no duties yet has no
+  // performance to show: they were greeted with "0% Performance — Needs
+  // Improvement" before anybody had given them anything to do (OF-1).
+  if(perf.total === 0) {
+    html += '<div class="card" style="margin-bottom:24px;padding:20px 24px;" id="asPerfCard">' +
+      '<div style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px;">Performance</div>' +
+      '<p class="ot-new-staff">No duties have been given to you yet. Your performance appears here once the Administrator assigns you duties and you complete them.</p>' +
+    '</div>';
+  } else {
+  html += '<div class="card" style="margin-bottom:24px;padding:24px;" id="asPerfCard">' +
     '<div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;">' +
       '<div style="text-align:center;"><div style="font-size:42px;font-weight:800;font-family:\'Playfair Display\',serif;color:'+perfColor+';">'+perf.score+'%</div><div style="font-size:12px;color:var(--text-muted);">Performance</div></div>' +
       '<div style="flex:1;min-width:200px;"><div class="adr-staff-perf-bar" style="height:12px;margin-bottom:8px;"><div class="adr-staff-perf-fill" style="width:'+perf.score+'%;background:'+perfColor+';"></div></div>' +
       '<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);"><span>'+perf.onTime+' on time / '+perf.total+' total</span><span class="adr-badge '+badge.cls+'" style="font-size:12px;">'+badge.icon+' '+badge.label+'</span></div></div>' +
     '</div>' +
   '</div>';
+  }
 
   // My Performance Appraisal grade card (rendered by staff-appraisals.js after build)
   html += '<div id="asMyAppraisalCard"></div>';
@@ -46020,6 +46190,7 @@ function buildAdminStaffPages() {
   mc.innerHTML = html;
   loadSupportMessages();
   updateSupportBadge();
+  setTimeout(function() { try { renderOfficeToday(); } catch(e) {} }, 250);
 }
 
 // ---- Admin Staff Student Filter ----
