@@ -27964,8 +27964,10 @@ function viewExamResults(idx) {
   var canRelease = currentRole === 'admin' || currentRole === 'adminstaff' || (currentInstructor && e.createdBy === currentInstructor.id);
   var rel = e.answersRelease || 'after-close';
   var relLabel = rel === 'released' ? 'Correct answers: released to trainees' : rel === 'withheld' ? 'Correct answers: never shown to trainees' : 'Correct answers: shown to trainees after the exam closes';
+  var awaitingQs = CESTISCore.exams.questionsAwaiting ? CESTISCore.exams.questionsAwaiting(e, results) : [];
   view.innerHTML = '<div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap;"><button class="btn btn-secondary" onclick="backToExamList()">← Back to Exams</button><h3 style="flex:1;">'+escapeHtml(e.title)+' — Results</h3>' +
-    (canRelease ? '<button class="btn btn-sm btn-secondary" onclick="examToggleAnswerRelease('+jsArg(e.id)+')">'+(rel === 'released' ? 'Hide correct answers again' : 'Release correct answers now')+'</button>' : '') + '</div>' +
+    (awaitingQs.length ? '<button class="btn btn-sm btn-primary" id="examMarkByQuestionBtn" onclick="openQuestionMarking('+jsArg(e.id)+')" title="Mark one question for every trainee, then the next">Mark by question ('+awaitingQs.length+')</button>' : '') +
+    (canRelease ?'<button class="btn btn-sm btn-secondary" onclick="examToggleAnswerRelease('+jsArg(e.id)+')">'+(rel === 'released' ? 'Hide correct answers again' : 'Release correct answers now')+'</button>' : '') + '</div>' +
     '<div style="font-size:12px;color:var(--text-muted);margin:-12px 0 16px;">'+escapeHtml(relLabel)+'</div>' +
     '<div class="stats-grid">' +
     '<div class="stat-card"><div class="stat-icon" style="background:var(--blue-dim);color:var(--blue);">👥</div><div class="stat-value">'+results.length+'</div><div class="stat-label">Submissions'+(pendingTotal?' ('+pendingTotal+' awaiting marking)':'')+'</div></div>' +
@@ -28385,8 +28387,10 @@ function openGradingPanel(resultId) {
   var footerHtml = '<div class="grading-panel-footer">';
   footerHtml += '<div style="flex:1;font-size:12px;color:var(--text-muted);" id="gpPreviewScore">Preview: '+escapeHtml(result.score)+'%</div>';
   if(pendingCount > 0) {
+    var hasNext = !!(exam && CESTISCore.exams.nextAwaiting && CESTISCore.exams.nextAwaiting(examResults.filter(function(r){ return r && r.examId === exam.id && !r.archived; }), result.id));
     footerHtml += '<button class="btn btn-secondary" onclick="closeGradingPanel()">Cancel</button>';
-    footerHtml += '<button class="btn btn-primary" onclick="submitGrading()">Save Grades</button>';
+    footerHtml += '<button class="btn ' + (hasNext ? 'btn-secondary' : 'btn-primary') + '" onclick="submitGrading()">Save Grades</button>';
+    if(hasNext) footerHtml += '<button class="btn btn-primary" id="gpSaveNext" onclick="submitGrading(true)" title="Save, then open the next trainee whose work waits">Save &amp; next &rarr;</button>';
   } else {
     footerHtml += '<button class="btn btn-secondary" onclick="closeGradingPanel()">Close</button>';
   }
@@ -28402,6 +28406,81 @@ function closeGradingPanel() {
   if(panel) panel.remove();
   if(overlay) overlay.remove();
   gradingResultId = null;
+  questionMarking = null;
+}
+
+/* Marking BY QUESTION: one question, every trainee's answer to it, one Save
+   for the lot — then the next question that waits. (An instructor used to
+   open each trainee in turn: 20 trainees x 2 essays was 20 panels.) Marks are
+   recorded result by result with the same rule as the panel
+   (examRecordManualMarks), and an answer left blank here stays waiting. */
+var questionMarking = null;
+function openQuestionMarking(examId, questionId) {
+  var exam = exams.find(function(x){ return x && x.id === examId; });
+  if(!exam) return;
+  var results = examResults.filter(function(r){ return r && r.examId === exam.id && !r.archived; });
+  var waiting = CESTISCore.exams.questionsAwaiting(exam, results);
+  if(!waiting.length) { closeGradingPanel(); showToast('Every answer to this exam is marked.'); return; }
+  var q = waiting.filter(function(w){ return String(w.id) === String(questionId); })[0] || waiting[0];
+  var entries = CESTISCore.exams.pendingForQuestion(results, q.id, q.number - 1);
+  closeGradingPanel();
+  questionMarking = { examId: exam.id, questionId: q.id, entries: entries };
+  var overlay = document.createElement('div');
+  overlay.className = 'grading-overlay'; overlay.id = 'gradingOverlay'; overlay.onclick = closeGradingPanel;
+  document.body.appendChild(overlay);
+  var panel = document.createElement('div');
+  panel.className = 'grading-panel'; panel.id = 'gradingPanel';
+  var src = (exam.questionData || []).filter(function(x){ return x && String(x.id) === String(q.id); })[0] || {};
+  var model = src.correctAnswer && typeof src.correctAnswer === 'string' ? src.correctAnswer : '';
+  var html = '<div class="grading-panel-header"><div><h3>Mark by question: Q' + q.number + '</h3>' +
+    '<div style="font-size:12px;color:var(--text-muted);">' + escapeHtml(exam.title) + ' &bull; ' + entries.length + ' answer' + (entries.length !== 1 ? 's' : '') + ' waiting</div></div>' +
+    '<button onclick="closeGradingPanel()" aria-label="Close" style="background:none;border:none;color:var(--text-muted);font-size:20px;cursor:pointer;padding:4px;">&times;</button></div>';
+  html += '<div class="grading-panel-body">';
+  html += '<div class="form-group"><label for="qmQuestion">Question</label><select class="form-control" id="qmQuestion" onchange="openQuestionMarking(' + jsArg(exam.id) + ', this.value)">' +
+    waiting.map(function(w){ return '<option value="' + escapeAttr(w.id) + '"' + (String(w.id) === String(q.id) ? ' selected' : '') + '>Q' + w.number + ' — ' + escapeHtml(String(w.text).slice(0, 60)) + ' (' + w.waiting + ' waiting)</option>'; }).join('') + '</select></div>';
+  html += '<div style="font-size:13px;font-weight:600;margin-bottom:6px;">' + escapeHtml(q.text) + '</div>';
+  html += '<div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;">' + escapeHtml(examTypeLabel(q.type)) + ' &bull; ' + q.points + ' pt' + (q.points !== 1 ? 's' : '') + '</div>';
+  if(model) html += '<div style="background:var(--green-dim);border:1px solid rgba(46,204,113,0.2);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:12px;"><div style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:var(--green);margin-bottom:4px;">' + (q.type === 'fill' ? 'Expected Answer' : 'Model Answer') + '</div><div style="font-size:13px;">' + escapeHtml(model) + '</div></div>';
+  entries.forEach(function(en, k) {
+    var a = en.answer, pts = Number(a.points) || 0;
+    var shown = Array.isArray(a.studentAnswer) ? a.studentAnswer.filter(function(x){ return x != null && x !== ''; }).join(', ') : a.studentAnswer;
+    var st = students.find(function(s){ return s.id === en.studentId; });
+    html += '<div class="grade-question-card needs-grade qm-row" id="qmRow-' + k + '">' +
+      '<div style="font-size:13px;font-weight:700;margin-bottom:6px;">' + escapeHtml(st ? st.name : (en.studentName || en.studentId)) + '</div>' +
+      '<div style="background:var(--bg-card);border:1px solid var(--border-light);border-radius:var(--radius-sm);padding:8px 12px;margin-bottom:8px;font-size:13px;white-space:pre-wrap;">' + escapeHtml(shown || '(No answer)') + '</div>' +
+      '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><label for="qmPoints-' + k + '" style="font-size:12px;font-weight:600;">Award:</label>' +
+      '<input type="number" class="grade-points-input" id="qmPoints-' + k + '" min="0" max="' + pts + '" step="0.5" value="' + (a.type === 'fill' && a.autoMatch ? pts : '') + '" placeholder="—">' +
+      '<span style="font-size:12px;color:var(--text-muted);">/ ' + pts + '</span>' +
+      '<span class="grade-quick-btns" style="margin:0;"><button class="full" onclick="qmSet(' + k + ',' + pts + ')">Full</button>' + (pts > 1 ? '<button class="half" onclick="qmSet(' + k + ',' + Math.ceil(pts / 2) + ')">Half</button>' : '') + '<button class="zero" onclick="qmSet(' + k + ',0)">Zero</button></span></div>' +
+      '<textarea class="grade-feedback-input" id="qmFeedback-' + k + '" rows="2" placeholder="Optional feedback for the trainee..."></textarea></div>';
+  });
+  html += '</div>';
+  html += '<div class="grading-panel-footer"><div style="flex:1;font-size:12px;color:var(--text-muted);">An answer left blank stays waiting.</div>' +
+    '<button class="btn btn-secondary" onclick="closeGradingPanel()">Close</button>' +
+    '<button class="btn btn-primary" id="qmSaveAll" onclick="saveQuestionMarking()">Save all &amp; next question</button></div>';
+  panel.innerHTML = html;
+  document.body.appendChild(panel);
+}
+function qmSet(k, pts) { var el = document.getElementById('qmPoints-' + k); if(el) el.value = pts; }
+function saveQuestionMarking() {
+  var qm = questionMarking;
+  if(!qm) return;
+  var exam = exams.find(function(x){ return x && x.id === qm.examId; });
+  var grader = examGraderName(), marked = 0, blank = 0;
+  qm.entries.forEach(function(en, k) {
+    var p = document.getElementById('qmPoints-' + k), f = document.getElementById('qmFeedback-' + k);
+    if(!p || String(p.value).trim() === '') { blank++; return; }
+    var r = examResults.find(function(x){ return x && x.id === en.resultId; });
+    if(!r) return;
+    var m = {}; m[en.index] = { points: p.value, feedback: f ? f.value : '' };
+    if(examRecordManualMarks(r, m, grader, exam).applied) marked++;
+  });
+  if(marked) saveState();
+  showToast(marked + ' answer' + (marked !== 1 ? 's' : '') + ' marked' + (blank ? ', ' + blank + ' left waiting' : ''));
+  if(exam) viewExamResults(exam.id);
+  var left = exam ? CESTISCore.exams.questionsAwaiting(exam, examResults.filter(function(r){ return r && r.examId === exam.id && !r.archived; })) : [];
+  if(exam && left.length) openQuestionMarking(exam.id, (left.filter(function(w){ return String(w.id) !== String(qm.questionId); })[0] || left[0]).id);
+  else closeGradingPanel();
 }
 
 function setGradePoints(qIdx, pts) {
@@ -28437,87 +28516,73 @@ function updateGradingPreview() {
   if(ptsEl) ptsEl.textContent = earnedPts;
 }
 
-function submitGrading() {
+function submitGrading(goNext) {
   if(!gradingResultId) return;
   var resultIdx = examResults.findIndex(function(r){ return r.id === gradingResultId; });
   if(resultIdx < 0) { alert('Result not found'); return; }
   var result = examResults[resultIdx];
   var exam = exams.find(function(e){ return e.id === result.examId; });
 
-  var graderName = 'admin';
-  if(typeof currentInstructor !== 'undefined' && currentInstructor) {
-    graderName = currentInstructor.name;
-  }
+  var graderName = examGraderName();
 
-  // Apply grades
-  var allGraded = true;
+  // Apply grades (CESTISCore.exams.applyManualMarks: each mark held between 0
+  // and the question's points, then the totals worked out again).
+  var marks = {};
   result.answers.forEach(function(a, idx) {
     if(!a.needsManualGrade || a.graded) return;
-
     var ptsInput = document.getElementById('gradePoints-'+idx);
     var fbInput = document.getElementById('gradeFeedback-'+idx);
-
-    if(!ptsInput) { allGraded = false; return; }
-
-    var awarded = Math.min(Math.max(parseInt(ptsInput.value) || 0, 0), a.points);
-    a.awardedPoints = awarded;
-    a.earnedPoints = awarded;
-    a.isCorrect = awarded === a.points;
-    a.graded = true;
-    a.gradedBy = graderName;
-    a.gradedAt = new Date().toISOString();
-    a.feedback = fbInput ? fbInput.value.trim() : '';
+    if(!ptsInput) return;
+    marks[idx] = { points: ptsInput.value === '' ? '0' : ptsInput.value, feedback: fbInput ? fbInput.value : '' };
   });
+  examRecordManualMarks(result, marks, graderName, exam);
+  examResults[resultIdx] = result;
+  saveState();
 
-  // Recalculate totals
-  var earnedPoints = 0;
-  var correctCount = 0;
-  result.answers.forEach(function(a) {
-    earnedPoints += a.earnedPoints || 0;
-    if(a.isCorrect) correctCount++;
-  });
+  // "Save & next": straight on to the next trainee of this exam whose work
+  // waits — the panel used to close after every trainee.
+  var next = goNext && exam ? CESTISCore.exams.nextAwaiting(examResults.filter(function(r){ return r && r.examId === exam.id && !r.archived; }), result.id) : null;
+  closeGradingPanel();
+  showToast('Grades saved! Final score: ' + result.score + '% — ' + (result.passed ? 'PASSED' : 'NOT PASSED') + (next ? ' · next: ' + (next.studentName || 'next trainee') : ''));
 
-  result.earnedPoints = earnedPoints;
-  result.correctCount = correctCount;
-  result.score = result.totalPoints > 0 ? Math.round(earnedPoints / result.totalPoints * 100) : 0;
-  result.passed = result.score >= (exam ? exam.passMark : 60);
+  // Refresh whichever view is showing: the results table, or the dashboard's
+  // "needs review" card (which used to keep offering "Grade Now").
+  if(exam) viewExamResults(exam.id);
+  if(result.pendingCount === 0 && typeof document.querySelectorAll === 'function') {
+    var cards = document.querySelectorAll('[data-pending-result]');
+    for(var ci = 0; ci < cards.length; ci++) { if(cards[ci].getAttribute('data-pending-result') === result.id && cards[ci].parentNode) cards[ci].parentNode.removeChild(cards[ci]); }
+  }
+  if(next) openGradingPanel(next.id);
+}
 
-  var pendingLeft = result.answers.filter(function(a){ return a.needsManualGrade && !a.graded; }).length;
-  result.needsReview = pendingLeft > 0;
-  result.reviewComplete = pendingLeft === 0;
-  result.pendingCount = pendingLeft;
-
-  // Update student score — only once the result is final
+// Who is marking, as the results record it.
+function examGraderName() {
+  if(typeof currentInstructor !== 'undefined' && currentInstructor) return currentInstructor.name;
+  return 'admin';
+}
+/* One result's marks recorded (CESTISCore.exams.applyManualMarks), and what
+   follows from them: the trainee's score once the result is final, the
+   completed exam's pass rate, and the notices — staff see the outcome; the
+   trainee is told their OWN result, addressed to their account alone. Shared
+   by the grading panel and by marking one question across the class. The
+   caller saves. */
+function examRecordManualMarks(result, marks, graderName, exam) {
+  var res = CESTISCore.exams.applyManualMarks(result, marks, { by: graderName, at: new Date().toISOString(), passMark: exam ? exam.passMark : 60 });
+  if(!res.applied) return res;
   var student = students.find(function(s){ return s.id === result.studentId; });
-  if(student && pendingLeft === 0) student.score = result.score + '%';
-  if(pendingLeft === 0) { result.markedBy = graderName; result.markedAt = new Date().toISOString(); }
+  if(student && res.pendingLeft === 0) student.score = result.score + '%';
   // A completed exam's pass rate now includes this result.
   if(exam && exam.status === 'completed') {
     var pr = CESTISCore.exams.passRateOf(examResults.filter(function(r){ return r && r.examId === exam.id; }));
     if(pr) exam.passRate = pr;
   }
-
-  examResults[resultIdx] = result;
-  saveState();
-
-  closeGradingPanel();
-  showToast('Grades saved! Final score: ' + result.score + '% — ' + (result.passed ? 'PASSED' : 'NOT PASSED'));
-  // Staff see the outcome; the trainee is told their OWN result, addressed to
-  // their account alone. It used to go to every trainee in every programme.
   var _mk = notifyMarkingAudience();
   addNotification('Grading completed: ' + result.studentName + ' scored ' + result.score + '% — ' + (result.passed ? 'PASSED' : 'NOT PASSED'), result.passed ? 'grade' : 'warning', null, _mk.roles, null, _mk.aud);
   var traineeUser = examTraineeUserId(result.studentId);
-  if(traineeUser && pendingLeft === 0) {
+  if(traineeUser && res.pendingLeft === 0) {
     addNotificationForUser('Your exam "' + (exam ? exam.title : 'exam') + '" has been marked: ' + result.score + '% — ' + (result.passed ? 'PASSED' : 'NOT PASSED'), result.passed ? 'success' : 'info', null, traineeUser, 'student');
   }
-
-  // Refresh whichever view is showing: the results table, or the dashboard's
-  // "needs review" card (which used to keep offering "Grade Now").
-  if(exam) viewExamResults(exam.id);
-  if(pendingLeft === 0 && typeof document.querySelectorAll === 'function') {
-    var cards = document.querySelectorAll('[data-pending-result]');
-    for(var ci = 0; ci < cards.length; ci++) { if(cards[ci].getAttribute('data-pending-result') === result.id && cards[ci].parentNode) cards[ci].parentNode.removeChild(cards[ci]); }
-  }
+  return res;
 }
 
 // ============================== STUDENT EXAM TAKING ==============================

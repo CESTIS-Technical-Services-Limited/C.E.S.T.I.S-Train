@@ -97,7 +97,7 @@ const PAGE_FNS = [
   'examCloseConfirm', 'examSubmitConfirmed', 'examDurationText', 'examOutcomeLabel', 'examAnswerText', 'examKeyText', 'examReviewAnswerHtml',
   'examReviewGoTo', 'examOptionText', 'examResultsTableHtml', 'examSettingsHeading', 'examSettingsReset', 'examSettingsSections',
   'examSettingsSyncExpand', 'examCloseToggle', 'examKeyProblemText', 'examTypeLabel',
-  'autoSaveExamProgress', 'submitExam', 'showExamResult', 'viewExamResultDetail', 'renderStudentExams', 'submitGrading', 'notifyMarkingAudience', 'closeGradingPanel',
+  'autoSaveExamProgress', 'submitExam', 'showExamResult', 'viewExamResultDetail', 'renderStudentExams', 'submitGrading', 'examGraderName', 'examRecordManualMarks', 'notifyMarkingAudience', 'closeGradingPanel',
   'getFilteredNotifications', 'notifViewerId', 'exportExamResults', 'detectQuestionsFromText', 'removeImportOption', 'finalizeImportExam', 'updateImportSummary',
   'clearSensitiveStudentData',
   // A test in progress that follows the trainee (CESTISCore.exams attempts).

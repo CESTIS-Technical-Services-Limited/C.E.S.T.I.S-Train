@@ -1299,7 +1299,11 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
           autoMatch = typeof key === 'string' && key.trim() !== '' &&
             String(ans == null ? '' : ans).trim().toLowerCase() === key.trim().toLowerCase();
           isCorrect = autoMatch;
-          manual = true; // the instructor confirms every fill-in
+          // The expected answer word for word (case and the spaces around it
+          // aside) is marked right away; anything else waits for a person.
+          // The instructor used to confirm every fill-in, the 32 exact
+          // matches of a 20-trainee test included (owner's decision, IN-8).
+          manual = !autoMatch;
         } else {
           manual = true;
         }
@@ -2039,8 +2043,126 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       return text ? letter + '. ' + text : letter;
     }
 
+    /* A person's marks on the answers of one result that wait for marking —
+       the grading panel's "Save Grades" / "Save & next", and marking one
+       question across every trainee. marks = { <answer index>: { points,
+       feedback } }; an answer with no mark here is left waiting. Each mark is
+       held between 0 and the question's points. The result's totals, score,
+       pass and "awaiting marking" are then worked out again from every
+       answer, exactly as the panel always did (passMark: the exam's).
+       Answers already marked are never changed here.
+       -> { applied, pendingLeft, final } */
+    function applyManualMarks(result, marks, opts) {
+      opts = opts || {};
+      var by = opts.by || 'staff', at = opts.at || new Date().toISOString();
+      var applied = 0;
+      if (!result || !Array.isArray(result.answers)) return { applied: 0, pendingLeft: 0, final: false };
+      result.answers.forEach(function (a, idx) {
+        if (!a || !a.needsManualGrade || a.graded) return;
+        var m = marks ? marks[idx] : null;
+        if (!m || m.points == null || String(m.points).trim() === '') return;
+        var pts = Number(a.points) || 0;
+        var v = Number(String(m.points).trim());
+        if (!isFinite(v)) v = 0;
+        var awarded = round2(Math.min(Math.max(v, 0), pts));
+        a.awardedPoints = awarded;
+        a.earnedPoints = awarded;
+        a.isCorrect = awarded === pts;
+        a.graded = true;
+        a.gradedBy = by;
+        a.gradedAt = at;
+        a.feedback = m.feedback == null ? '' : String(m.feedback).trim();
+        applied++;
+      });
+      var earned = 0, correct = 0;
+      result.answers.forEach(function (a) { if (!a) return; earned += Number(a.earnedPoints) || 0; if (a.isCorrect) correct++; });
+      result.earnedPoints = round2(earned);
+      result.correctCount = correct;
+      result.score = result.totalPoints > 0 ? Math.round(earned / result.totalPoints * 100) : 0;
+      var pm = opts.passMark != null && opts.passMark !== '' && isFinite(Number(opts.passMark)) ? Number(opts.passMark) : 60;
+      result.passed = result.score >= pm;
+      var left = result.answers.filter(function (a) { return a && a.needsManualGrade && !a.graded; }).length;
+      result.needsReview = left > 0;
+      result.reviewComplete = left === 0;
+      result.pendingCount = left;
+      if (!left && applied) { result.markedBy = by; result.markedAt = at; }
+      return { applied: applied, pendingLeft: left, final: left === 0 };
+    }
+
+    /* Where one question of an exam waits for marking, trainee by trainee:
+       the answers are matched to the exam's question by id (a shuffled paper
+       lines up), an older result without ids by its place.
+       -> [{ resultId, studentId, studentName, index, answer }] for every
+          result (archived ones left out) whose answer to it waits. */
+    function pendingForQuestion(results, questionId, questionIndex) {
+      var out = [];
+      (results || []).forEach(function (r) {
+        if (!r || r.archived || !Array.isArray(r.answers)) return;
+        r.answers.forEach(function (a, k) {
+          if (!a || !a.needsManualGrade || a.graded) return;
+          var hit = a.questionId != null ? String(a.questionId) === String(questionId) : k === questionIndex;
+          if (hit) out.push({ resultId: r.id, studentId: r.studentId, studentName: r.studentName || '', index: k, answer: a });
+        });
+      });
+      return out;
+    }
+    /* The questions of an exam that still wait for marking, with how many. */
+    function questionsAwaiting(exam, results) {
+      var qs = (exam && Array.isArray(exam.questionData) ? exam.questionData : []).filter(function (q) { return q && q.type !== 'info'; });
+      return qs.map(function (q, n) {
+        return { id: q.id, number: n + 1, text: q.text || '', type: q.type, points: Number(q.points) || 0,
+          waiting: pendingForQuestion(results, q.id, n).length };
+      }).filter(function (x) { return x.waiting > 0; });
+    }
+    /* The next result of the same exam still awaiting marking after this one
+       (in the order given — the results table's), then from the top. */
+    function nextAwaiting(results, afterId) {
+      var list = (results || []).filter(function (r) { return r && !r.archived && Array.isArray(r.answers) && r.answers.some(function (a) { return a && a.needsManualGrade && !a.graded; }); });
+      if (!list.length) return null;
+      var at = -1;
+      (results || []).forEach(function (r, i) { if (r && r.id === afterId) at = i; });
+      var after = (results || []).slice(at + 1).filter(function (r) { return list.indexOf(r) !== -1 && r.id !== afterId; });
+      if (after.length) return after[0];
+      var rest = list.filter(function (r) { return r.id !== afterId; });
+      return rest.length ? rest[0] : null;
+    }
+
+    /* "Copy test": the same paper for the next intake — a new draft with a
+       new id, every question and its key copied (each question its own new
+       id), the settings kept, and nothing of the old sitting: no results,
+       not active, no pass rate, no release, no activation. The copy is the
+       author's own draft (by, byRole), dated when given (opts.date/time),
+       else as the original. */
+    function copyExam(exam, opts) {
+      opts = opts || {};
+      if (!exam) return null;
+      var id = opts.id || ('EXAM-' + Date.now().toString(36));
+      var c = JSON.parse(JSON.stringify(exam));
+      ['passRate', 'activatedAt', 'students', 'archivedAt', 'deleted', 'updatedAt', 'resultsCount', 'closedAt'].forEach(function (k) { delete c[k]; });
+      c.id = id;
+      c.title = opts.title || ('Copy of ' + (exam.title || 'test'));
+      c.status = 'upcoming';
+      c.answersRelease = exam.answersRelease === 'withheld' ? 'withheld' : 'after-close';
+      if (opts.date) c.date = opts.date;
+      if (opts.time) c.time = opts.time;
+      if (opts.course) c.course = opts.course;
+      if (opts.by != null) c.createdBy = opts.by;
+      if (opts.byRole) c.createdByRole = opts.byRole;
+      c.createdAt = opts.at || new Date().toISOString();
+      c.copiedFrom = exam.id;
+      c.questionData = (Array.isArray(exam.questionData) ? exam.questionData : []).map(function (q, i) {
+        var nq = JSON.parse(JSON.stringify(q));
+        nq.id = 'Q-' + id + '-' + (i + 1);
+        return nq;
+      });
+      c.questions = questionCount(c);
+      return c;
+    }
+
     return {
       optionLabel: optionLabel,
+      applyManualMarks: applyManualMarks, pendingForQuestion: pendingForQuestion, questionsAwaiting: questionsAwaiting,
+      nextAwaiting: nextAwaiting, copyExam: copyExam,
       DEFAULT_OFFSET: DEFAULT_OFFSET, offsetMinutes: offsetMinutes, centreTime: centreTime, centreParts: centreParts,
       defaultStart: defaultStart, windowOf: windowOf, hasQuestions: hasQuestions, statusAt: statusAt,
       sessionDeadline: sessionDeadline, publicQuestions: publicQuestions, mark: mark, keyProblems: keyProblems,
