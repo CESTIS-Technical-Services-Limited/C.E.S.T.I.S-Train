@@ -115,6 +115,59 @@ console.log('One connection per pair, and video only where it is shown');
   assertEq(encodesAfter, 1, 'after: once, for the instructor');
 }
 
+/* ---------- Mobile data: how people start, and what a muted mic costs ---------- */
+console.log('Trainees start muted with the camera off; a muted microphone sends nothing');
+{
+  const t = R.startDevices('student');
+  assert(!t.camera && !t.mic, 'a trainee starts with the camera off and the microphone muted');
+  ['instructor', 'admin', 'adminstaff'].forEach(role => {
+    const s = R.startDevices(role);
+    assert(s.camera && s.mic, role + ' starts with camera and microphone on, as before');
+  });
+  assert(!R.sendSound(false, false), 'muted, nothing shared: no sound is sent at all');
+  assert(R.sendSound(true, false), 'unmuted: sound is sent');
+  assert(R.sendSound(false, true), 'muted but sharing a tab with sound: the tab is still heard');
+  // Trainees still hear each other (a question asked aloud) — voice goes to
+  // everyone; it is the MUTED microphone that now costs nothing.
+  const p2p = R.mediaPlan({ amHost: false, peerIsHost: false });
+  assert(p2p.sendAudio && p2p.receiveAudio && !p2p.sendVideo, 'classmates: sound both ways, never video');
+}
+
+console.log('Recordings are made at a set bitrate (about 270 MB an hour)');
+{
+  const o = R.recorderOptions('video/webm;codecs=vp9,opus');
+  assertEq(o.mimeType, 'video/webm;codecs=vp9,opus', 'the chosen format is kept');
+  assertEq(o.videoBitsPerSecond, 550000, 'picture at 550 kbit/s');
+  assertEq(o.audioBitsPerSecond, 64000, 'sound at 64 kbit/s');
+  assert(!('mimeType' in R.recorderOptions('')), 'no format named when the browser offered none');
+  const mbh = R.recordingMBPerHour();
+  assert(mbh >= 260 && mbh <= 290, 'about 270 MB an hour (' + mbh + ')');
+  assert(mbh * 3 < 1100, 'under a third of the ~1.1 GB an hour recorded before');
+}
+
+console.log('The start screen suggests Large Class above 6 trainees, and says why');
+{
+  const VC = Core.vcCapacity;
+  assertEq(VC.SUGGEST_LARGE_ABOVE, 6, 'the owner\'s threshold: about 6 trainees');
+  [0, 1, 6].forEach(n => {
+    assert(!VC.largeClassAdvice(n, { ownServer: true }).suggest && !VC.largeClassAdvice(n).suggest, n + ' trainees: the built-in room, no suggestion, with or without the Centre\'s own video server');
+  });
+  // The Centre has its own Large Class video server: Large Class first.
+  const a = VC.largeClassAdvice(9, { ownServer: true });
+  assert(a.suggest && a.largeFirst && a.trainees === 9, '9 trainees, the Centre\'s own server: Large Class first');
+  assert(/^Large Class is suggested for 9 trainees: /.test(a.line) && /once per trainee/.test(a.line) && /less data/.test(a.line), 'in one plain line that says why: ' + a.line);
+  assert(a.line.indexOf('\n') === -1 && a.line.length < 200, 'one line');
+  // No server of its own (the public fallback cuts embedded meetings off
+  // after a few minutes): the built-in room stays first, one line explains.
+  const p = VC.largeClassAdvice(9);
+  assert(p.suggest && !p.largeFirst, '9 trainees, no Centre server: the built-in room stays first');
+  assert(/^For more than 6 trainees, Large Class saves everyone data once the Centre’s own video server is added in Settings → Video Conference\.$/.test(p.line), 'and one plain line says what to add: ' + p.line);
+  assert(!VC.largeClassAdvice(9, { ownServer: 'yes' }).largeFirst && !VC.largeClassAdvice(9, {}).largeFirst, 'only a real "own server: yes" puts Large Class first');
+  assert(!/cloud|google|drive|stored|kept/i.test(a.line + p.line), 'neither line says where anything is kept');
+  assert(!VC.largeClassAdvice('x').suggest && !VC.largeClassAdvice(-3).suggest && !VC.largeClassAdvice(null).suggest, 'no size known: no suggestion');
+  assert(VC.SUGGEST_LARGE_ABOVE < VC.MESH_MAX_VIDEO, 'suggested before the built-in room is full');
+}
+
 /* ---------- How much picture ---------- */
 console.log('Phones send a smaller picture; the host shares a budget');
 {
