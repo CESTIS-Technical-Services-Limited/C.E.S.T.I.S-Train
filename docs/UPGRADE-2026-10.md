@@ -88,7 +88,7 @@ shown to the owner in screenshots first, and merged only once approved or decide
 | **Duplicate "Disabled" accounts** | A cleared office PC no longer creates second and third accounts from the fee roll and chat roster. Provable leftovers fold into the real account, with a deletion record so they cannot come back; anything unsure stays for the administrator. | `tests/backfill-stub-fold.test.js` |
 | **"Set a new password"** | The cursor no longer jumps back from "Confirm password" (an intermittent "Passwords do not match" for a first administrator). | `tests/force-change-pw-focus.test.js` |
 | **A test that follows the trainee** | Answers are saved on the device and in the shared copy. Kicked out, crashed or disconnected, the trainee signs in and presses "Continue your attempt"; at another Centre PC too. The original clock stands, the newest answer per question wins, a submitted test cannot be reopened, and there is exactly one result per attempt. A trainee taking a test is not signed out part-way; a test whose time ran out is submitted at the next sign-in. | `tests/exam-attempt-travel.test.js`, `tests/browser/exam-resume.js` |
-| **Shared files' version tags** | Every page asks for the current shared code files (`?v=20261029c`). | — |
+| **Shared files' version tags** | Every page asks for the current shared code files. As of 30 October 2026: `cestis-core.js?v=20261030a`, `cmc-portal.js?v=20261029b`, `cestis-gate-client.js?v=20261029a`, `cestis-page-cloud.js?v=20261028e`, `cestis-form-modal.js?v=20261028d`. | — |
 
 **Decisions the owner made in this round:**
 - Trainees register at the Centre (or the office creates their account). A trainee's own phone
@@ -103,6 +103,26 @@ shown to the owner in screenshots first, and merged only once approved or decide
 `worktree-agent-a2dc79b6e1ddcefed`, commit 8f9f29c, shown in screenshots, not merged).
 
 ---
+
+## The productivity audit round (28–30 October 2026)
+
+Six areas were measured in real browsers with realistic Centre data: management and outcomes,
+instructors, office staff, trainees at home, speed and data use, and upkeep (79 findings). The
+plain bugs were fixed straight away; everything people would see changed only after the owner
+saw screenshots.
+
+| Change | What it does | Where to look |
+|---|---|---|
+| **Audit fixes (PR #349)** | Every trainee reaches a small-room live class; the idle lock leaves a class or an open sitting alone and accepts a trainee's password at home; pass rates from marked results; one counting rule per figure with its denominator; dropouts stay Incomplete; the full gradebook; no default answer key; no false "uploaded"; notices to their programme; contact details carried to the trainee and fee records; a warning before a receipt number is reused. | `tests/vc-small-room-joiners.test.js`, `tests/centre-figures.test.js`, `tests/pass-rate-from-marks.test.js` and the other tests named in each commit |
+| **Live classes on less data (owner approved 30 Oct)** | Trainees start muted with the camera off; a muted microphone sends nothing; a trainee's camera goes to the instructor only; the instructor's picture budget is shared fairly as people join and leave; recordings at about 550 kbit/s; Large Class is put first above 6 trainees only once the Centre has its own video server. Measured, class of 6: a trainee's upload 553 → 6 kbit/s. | `tests/vc-room.test.js`, `tests/vc-page.test.js`, `tests/browser/vc-room.js` |
+
+**Decisions the owner made in this round (29–30 October 2026):**
+- Groups A–F of the audit's recommendations approved: the office (A), instructors (B), trainees at
+  home (C), live classes (D), the board's and regulator's figures (E), keeping records safe for
+  years (F). Each comes back as screenshots before it goes live.
+- Admin Staff may reset **trainee** passwords (never staff or administrator passwords).
+- Receipt numbers look like **R-2026/27-0001** (the financial year, then a sequence).
+- The Centre-network server (Offline System) is kept as it is while there are no lab PCs.
 
 ## Before you deploy — the Centre's checklist
 
@@ -139,6 +159,9 @@ shown to the owner in screenshots first, and merged only once approved or decide
      Video Conference. Nothing paid is required by the code.
    - The *Large Class* option should point at a Jitsi server the Centre controls. The public
      meet.jit.si no longer allows long embedded meetings.
+   - Once the Centre's own Jitsi server is set, the start screen puts Large Class first for
+     classes of more than 6 trainees. Until then the built-in room stays first (it carries up to
+     8 people), with one line saying Large Class will save data once the server is added.
 7. **E-mail (EmailJS).**
    - In the EmailJS dashboard, restrict the allowed origin and set a daily cap (see
      `LONGEVITY-AUDIT.md`).
@@ -179,6 +202,46 @@ shown to the owner in screenshots first, and merged only once approved or decide
   - Recordings attach to their class session.
 - **Class sessions** move scheduled → live → completed, so *Live Now* and *Past Recordings*
   work.
+
+### Live classes on less mobile data (owner's decision, group D)
+Measured first, in headless Chromium with fake cameras and a speech-like fake microphone: an
+instructor and 6 trainees on phone settings, every connection's bytes read from the browser
+(`RTCPeerConnection.getStats()`), plus IP/UDP headers, as a mobile network bills them.
+- **What the measurement found.**
+  - A muted microphone still sent 50 packets of silence a second: about 40 kbit/s (18 MB an
+    hour) to *every* other person in the room. Six muted trainees each uploaded 199 kbit/s of
+    silence.
+  - With the camera on and the microphone open (how everyone joined), a trainee on a phone
+    uploaded about 760 kbit/s in a class of 6 — more than a typical 750 kbit/s mobile uplink.
+  - The instructor's picture budget was worked out once, as each trainee arrived, so the first
+    four kept 1.2 Mbit/s each for the whole class (6.7 Mbit/s in all instead of 5).
+- **What changed.**
+  - Trainees join with the camera **off** (it is not even opened) and the microphone
+    **muted**. The lobby buttons say "Microphone off" / "Camera off" in words; in the room the
+    buttons are red with a line through, and one tap turns them on. Staff start as before.
+  - A muted microphone now sends **nothing** (its sender is stopped, not just silenced). The
+    instructor's Mute, Unmute and Mute All do the same, and the host's camera-off really stops
+    the trainee's camera.
+  - Everyone still hears whoever unmutes (a question asked aloud). Measured against "voice only
+    to the instructor", the difference with everyone muted is 0.9 kbit/s per trainee (about
+    0.4 MB an hour), so the classroom was kept. Trainee cameras go to the instructor only.
+  - The instructor sees who is muted (a 🔇 on the tile and in the participant list) and whose
+    camera is off (their initial instead of a black box).
+  - The instructor's picture budget is shared again whenever someone joins or leaves.
+  - When the class's register has more than 6 trainees and the Centre has its own Large Class
+    video server, the start screen puts **Large Class** first, in one line saying why. Without
+    one (the public fallback cuts embedded meetings off after a few minutes), the built-in room
+    stays first and one line says Large Class will save data once the Centre's own video server
+    is added. The instructor can always choose either.
+  - Recordings are made at 550 kbit/s of picture and 64 kbit/s of sound: at most about 276 MB
+    an hour (it was up to ~1.1 GB). Writing on a whiteboard reads exactly as before.
+- **Measured, class of 6 trainees** (as they join; per trainee): upload 553 → 6 kbit/s;
+  sound from classmates 325 → 1 kbit/s; the instructor's download 1.3 Mbit/s → 35 kbit/s.
+- **Per trainee per hour** (worked out from measured costs per connection, the instructor's
+  picture at its ceiling): about 1.0 GB → 0.4 GB in a class of 6. Almost all of what is left is
+  the instructor's own picture and voice. Recordings measured: a demonstration 4.7 → 1.7 MB a
+  minute, a whiteboard 1.9 → 1.4, a camera-like scene 8.6 → 3.0.
+- Tests: `tests/vc-room.test.js`, `tests/vc-page.test.js`, `tests/browser/vc-room.js`.
 
 ### Attendance
 - **A dated register.** One mark per trainee per actual date for the whole course
@@ -431,8 +494,8 @@ shown to the owner in screenshots first, and merged only once approved or decide
   maintained by hand.
 - **When a shared library changes** (`cestis-core.js`, `cestis-page-cloud.js`,
   `cestis-offline-rtc.js`, `finance-docs.js`, `staff-appraisals.js`, `cmc-portal.js`), bump its
-  `?v=` on every page so browsers fetch the new copy. They are `?v=20261029c` as delivered. The service worker always tries the network
-  first.
+  `?v=` on every page so browsers fetch the new copy (the current tags are listed in the owner's
+  review round table above). The service worker always tries the network first.
 - **New pure logic belongs in `cestis-core.js`** with a Node test, called from the pages. This is
   the pattern the whole upgrade follows.
 - **Certificate signing key:** keep the backup somewhere safe and off the website. Never commit
@@ -466,6 +529,9 @@ These need a real server, or a decision by the Centre. They are documented, not 
   knows a room code can still try to take the host's place online; the instructor is warned and
   told to start a new code. On the Centre network the server now issues hosting only to staff
   who sign in, so this cannot happen there.
+- **A trainee's live-class data is now mostly the instructor's own picture.** In the built-in
+  room each trainee receives it at up to 833 kbit/s in a class of 6 (about 0.4 GB an hour with
+  the voice). A lower ceiling for phones would cut that further; it is the owner's decision.
 - **Files shared publicly by the old code** keep their public links. Nothing was revoked
   automatically.
 - **Clocks.** A device whose clock is wrong by more than a day, with no way to reach Google or
