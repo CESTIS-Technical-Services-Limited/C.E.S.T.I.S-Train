@@ -115,6 +115,7 @@ saw screenshots.
 |---|---|---|
 | **Audit fixes (PR #349)** | Every trainee reaches a small-room live class; the idle lock leaves a class or an open sitting alone and accepts a trainee's password at home; pass rates from marked results; one counting rule per figure with its denominator; dropouts stay Incomplete; the full gradebook; no default answer key; no false "uploaded"; notices to their programme; contact details carried to the trainee and fee records; a warning before a receipt number is reused. | `tests/vc-small-room-joiners.test.js`, `tests/centre-figures.test.js`, `tests/pass-rate-from-marks.test.js` and the other tests named in each commit |
 | **Live classes on less data (owner approved 30 Oct)** | Trainees start muted with the camera off; a muted microphone sends nothing; a trainee's camera goes to the instructor only; the instructor's picture budget is shared fairly as people join and leave; recordings at about 550 kbit/s; Large Class is put first above 6 trainees only once the Centre has its own video server. Measured, class of 6: a trainee's upload 553 → 6 kbit/s. | `tests/vc-room.test.js`, `tests/vc-page.test.js`, `tests/browser/vc-room.js` |
+| **Real figures for the board and the regulator (group E, owner approved)** | The board sees the fee money: billed, collected and owed by programme for the financial year, read only, in "$" (was "D"); three "fee" widgets that counted certificates now show money. "Earlier years still owing: $X (n trainees)" sits beside Outstanding on School Fee, the administrator's dashboard and the board's screens, never added into it. Reports has an intake and a period filter and a one-click **Programme return** (CSV and PDF). Measured on the audit's Centre: $1,785,000 billed / $909,000 collected / $876,000 owed, $140,000 from 10 earlier-year trainees — every figure equal to the hand count. | `tests/board-figures.test.js`, `tests/browser/board-figures.js` |
 
 **Decisions the owner made in this round (29–30 October 2026):**
 - Groups A–F of the audit's recommendations approved: the office (A), instructors (B), trainees at
@@ -385,6 +386,44 @@ instructor and 6 trainees on phone settings, every connection's bytes read from 
 - **External systems** open in their own tab. There is no advice to click past certificate
   warnings.
 
+### Figures for the board and the regulator (owner's decision, group E)
+- **One rule for fee money** (`CESTISCore.centreFigures.fees`), the School Fee page's own:
+  - an account belongs to the financial year (April–March) of its enrolment date, or of the day
+    it was created; an account with no date at all is counted in every year, so nobody is hidden;
+  - **billed**: the tuition of that year's accounts; **owed**: their balances as at today
+    (tuition less every payment recorded for them); **collected**: payments dated in that year;
+  - **earlier years**: accounts of an earlier year that still owe — a separate line, never
+    added into owed;
+  - an account with no fee set and nothing paid is "no fee set yet", never "owes nothing".
+- **The board's money view.** The CMC board's dashboard, Financial Overview and Oversight Portal
+  show billed, collected and owed by programme for the present financial year, with the earlier
+  years beside Owed.
+  - Why the board had no fee figures: the School Fee books were never on the list of books the
+    board's page reads (`CMC_SHARED_FILES` in `cmc-portal.js`). Nothing decided it; they were
+    simply left off, and three widgets labelled as fees were filled with certificate counts.
+  - How it reads them now: exactly like the Cashbook and the other books — the School Fee file
+    is in the board's `reads`, never in its `writes` (which name only the virement register).
+    `CMC_FEE_KEYS` names the fee keys the board may never write. A board member's session also
+    no longer runs the LMS-to-fee mirror, so it never creates or edits a fee record. The browser
+    suite checks the fee roll and payments are byte-identical after every board page.
+  - Money is written "$1,785,000" everywhere on the board's screens (it was "D1785000").
+  - "Fee Completion" (a certificate rate) is now **School Fees Owed**; "Fee Collection Status"
+    (certified against everyone else) is now a doughnut of money collected and owed; "School
+    Fees Details" (a roster of stages and GPAs) is now the money by programme. The roster moved
+    to the Completion card, where it belongs. Programme Breakdown's completion uses the one rule
+    (over ended intakes, with its denominator).
+- **Earlier years still owing** appears under School Fee's Total Outstanding (not under "Every
+  year", which already includes it), on the administrator's dashboard (a new School Fees card)
+  and on the board's screens.
+- **The Programme return** (Reports, top of the page). Choose an intake and a period (a
+  quarter, a whole financial year, or all dates; the present quarter by default), then
+  Download CSV or Download PDF. A plain heading says which intake and period it covers and the
+  day the figures are as at. Per programme and intake: applicants, enrolled (admitted), active,
+  completed, certified, Not Yet Competent, Incomplete/dropouts, completion, attendance, test
+  pass rate, and fees billed, collected in the period and owed — by the Centre's counting rules,
+  each rate with what it is a rate of — and the same counts by gender and by age band, with
+  "Not recorded" as its own row. It is called a "Programme return"; it is not any agency's form.
+
 ### Finance and HR apps
 - **Every "Sync", "Connect" and "Cloud Sync Required" path merges record by record** instead of
   replacing whole datasets. This covers the Cashbook, School Fee, Clock-in and Payslip.
@@ -516,6 +555,16 @@ These need a real server, or a decision by the Centre. They are documented, not 
   automatically.
 - **Clocks.** A device whose clock is wrong by more than a day, with no way to reach Google or
   the Centre server, still has its clock trusted for its own view.
+- **The Programme return for a past quarter** shows enrolment and stages as they stand today:
+  the records keep no history of when a trainee's stage changed. Attendance, marked test results
+  and payments are limited to the period. Attendance follows the one rule (trainees in
+  training), so an intake that has ended shows no attendance figure.
+- **The administrator's School Fees card** reads the fee books this computer holds. They are
+  brought up to date whenever School Fee is opened on it. (The board's screens fetch them in the
+  background, the way they fetch the Cashbook.)
+- **Trainees with no fee record yet.** When the trainee roll is loaded, the dashboard creates a
+  placeholder fee record (no fee set) for any trainee School Fee does not have — applicants
+  included, as before. They count as accounts with "no fee set yet", never as money owed.
 
 ---
 
