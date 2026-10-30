@@ -8049,6 +8049,39 @@
       return (requests || []).filter(function (r) { return r && (r.status === 'pending' || r.status === 'processing') ; }).length;
     };
 
+    /* ---- Requests that run themselves (office audit OF-9, management M12) ---- */
+    // A request that still asks for the office's work, or the trainee's visit.
+    T.isOpenRequest = function (r) { return !!r && (r.status === 'pending' || r.status === 'processing' || r.status === 'ready'); };
+    // Does it include a certificate?
+    T.wantsCertificate = function (r) { return !!r && (r.type === 'certificate' || r.type === 'both'); };
+    /* What the trainee is told in her bell when her request moves on (none
+       for a move back to "pending"). */
+    T.requestNotice = function (r, status) {
+      if (!r) return '';
+      var what = r.type === 'both' ? 'transcript and certificate' : r.type === 'certificate' ? 'certificate' : 'transcript';
+      var note = String(r.adminNote || '').trim();
+      switch (status) {
+        case 'processing': return 'Your ' + what + ' request is being prepared by the office.';
+        case 'ready': return 'Your ' + what + (r.type === 'both' ? ' are' : ' is') + ' ready. Collect ' + (r.type === 'both' ? 'them' : 'it') + ' at the office.';
+        case 'collected': return 'Your ' + what + ' request is complete: collected at the office.';
+        case 'declined': return 'Your ' + what + ' request was declined' + (note ? ': ' + note : '') + '. Ask the office if you have a question.';
+        default: return '';
+      }
+    };
+    /* A certificate handed over (Certificates → Mark Collected): the
+       trainee's open requests that include a certificate are collected too,
+       so the two records can never disagree. Returns { list, changed }. */
+    T.collectCertificateRequests = function (requests, studentId, actor, nowIso) {
+      var now = nowIso || new Date().toISOString(), changed = [];
+      var list = (Array.isArray(requests) ? requests : []).map(function (r) {
+        if (!r || String(r.studentId) !== String(studentId) || !T.wantsCertificate(r) || !T.isOpenRequest(r)) return r;
+        var hit = Object.assign({}, r, { status: 'collected', handledBy: actor || '', handledAt: now, updatedAt: now });
+        changed.push(hit);
+        return hit;
+      });
+      return { list: list, changed: changed };
+    };
+
     return T;
   })();
 

@@ -1541,7 +1541,18 @@ window.addEventListener('message', function (e) {
   if (e.data && (e.data.type === 'transcript-refresh' || e.data.type === 'refresh-students')) {
     loadAll(); renderForRole();
   }
+  // "Open transcript" on a certificate/transcript request (OF-9): this trainee
+  // chosen — the office's view only, from the dashboard only.
+  if (e.data && e.data.type === 'cestis-tg-select' && e.source === window.parent) tgSelectFromOffice(String(e.data.studentId || ''));
 });
+/* Open the office's transcript editor on one trainee (a request's "Open
+   transcript"): instead of finding her among every trainee in the picker. */
+function tgSelectFromOffice(id) {
+  if (!IS_STAFF || !VIEWER.ok || !id) return false;
+  if (!db || !db.students || !studentById(id)) return false;
+  if (sel.studentId !== id) onPickStudent(id);
+  return true;
+}
 /* Safety net for writes that only land in IndexedDB (no storage event). */
 var lastFingerprint = '';
 setInterval(function () {
@@ -1568,6 +1579,9 @@ function boot() {
   if (!VIEWER.ok) { renderForRole(); return; }   // nothing is read, rendered or written without a session
   loadAll();
   renderForRole();
+  // Opened for one trainee (a request's "Open transcript", OF-9).
+  var pick = param('select');
+  if (pick) tgSelectFromOffice(pick);
 }
 
 document.addEventListener('DOMContentLoaded', function () {

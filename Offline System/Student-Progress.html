@@ -1578,7 +1578,19 @@ window.addEventListener('message', function(e){
     filterStudents();
     updatePipelineCounts();
   }
+  // "Certify" on a certificate request (OF-9): this trainee's stage dialog,
+  // set to Certified, with its checklist — from the dashboard only.
+  if(SP_VIEWER.ok && e.data && e.data.type === 'cestis-sp-certify' && e.source === window.parent) spOpenCertify(String(e.data.studentId || ''));
 });
+function spOpenCertify(studentId) {
+  if(!studentId || spRefuseEdit()) return false;
+  var idx = spIndexOfId(studentId);
+  if(idx === -1) { showToast('That trainee is not on the roll on this computer yet.', 'warning'); return false; }
+  openUpdateStage(students[idx].id);
+  var sel = document.getElementById('newStage');
+  if(sel && students[idx].stage !== 'certified' && students[idx].stage !== 'collected') { sel.value = 'certified'; spRenderCertChecklist(idx); }
+  return true;
+}
 
 // Run init when DOM is ready
 if(document.readyState === 'loading'){

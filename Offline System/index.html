@@ -14847,6 +14847,9 @@ function showPage(pageId) {
       var tgSrc = (tgInfo.requests ? 'Cert-Transcript-Requests.html' : 'Transcript-Grades.html') + '?role=' + encodeURIComponent(tgInfo.role);
       var tgActor = (typeof currentLoggedInUser !== 'undefined' && currentLoggedInUser && currentLoggedInUser.name) ? currentLoggedInUser.name : tgInfo.role;
       tgSrc += '&actor=' + encodeURIComponent(tgActor);
+      // "Open transcript" on a request (OF-9): the trainee already chosen.
+      var tgPick = tgEl.getAttribute('data-open-select');
+      if(tgPick && !tgInfo.requests && (tgInfo.role === 'admin' || tgInfo.role === 'adminstaff')) { tgSrc += '&select=' + encodeURIComponent(tgPick); tgEl.removeAttribute('data-open-select'); }
       if(tgInfo.role === 'student' && typeof currentStudent !== 'undefined' && currentStudent) {
         if(currentStudent.id)     tgSrc += '&studentId=' + encodeURIComponent(currentStudent.id);
         if(currentStudent.name)   tgSrc += '&name=' + encodeURIComponent(currentStudent.name);
@@ -24310,7 +24313,77 @@ window.addEventListener('message', function(e) {
     updateCtrRequestsBadge();
     try { scheduleDebouncedCloudSave(); } catch(e2) {}
   }
+  // The requests page (OF-9): a request moved on, or "Open transcript" /
+  // "Certify" pressed on its row.
+  if(e.data && (e.data.type === 'cestis-ctr-status' || e.data.type === 'cestis-ctr-open')) {
+    if (!cestisMessageFromFrames(e, CTR_REQUEST_FRAMES)) return;
+    if (e.data.type === 'cestis-ctr-status') ctrRequestMovedOn(String(e.data.requestId || ''), String(e.data.status || ''), String(e.data.was || ''));
+    else ctrOpenFor(String(e.data.what || ''), String(e.data.studentId || ''));
+  }
 });
+
+/* ---- Certificate / transcript requests that run themselves (OF-9, M12) ----
+   Each request row has "Open transcript", "Certify" and "Mark collected". ONE
+   collected mark updates both the request and the Certificates page, from
+   either side; and the trainee is told in her own bell (hers alone —
+   forUsers) each time her request moves on. */
+var CTR_REQUEST_FRAMES = ['ctrRequestsFrame', 'asCtrRequestsFrame'];
+function ctrReadRequests() {
+  try { var v = JSON.parse(CESTISStore.getItem('voctrain_certTranscriptRequests') || '[]'); return Array.isArray(v) ? v : []; } catch(e) { return []; }
+}
+// Tell the trainee, once per request and status (the same notice raised on two
+// office computers is one: its id is fixed).
+function ctrNotifyTrainee(r, status) {
+  if(!r) return null;
+  var text = CESTISCore.Transcript.requestNotice(r, status);
+  var uid = typeof examTraineeUserId === 'function' ? examTraineeUserId(r.studentId) : null;
+  if(!text || !uid) return null;
+  return addNotificationForUser(text, status === 'declined' ? 'warning' : 'success', '\uD83C\uDF93', uid, 'student', 'CTR-' + r.id + '-' + status);
+}
+// A certificate handed over: the trainee's record says so (as Certificates →
+// Mark Collected does), without asking again.
+function ctrCertificateCollected(studentId) {
+  var s = (students || []).find(function(x) { return x && String(x.id) === String(studentId); });
+  if(!s || s.certCollected || !(s.certNo || s.stage === 'certified' || s.stage === 'collected')) return false;
+  s.certCollected = true; s.stage = 'collected'; s.progress = 100;
+  try { markStageSetByUser(s); } catch(e) {}
+  try { filterCerts(); updatePipelineCounts(); renderCertStats(); } catch(e) {}
+  try { refreshStudentDependentViews(); } catch(e) {}
+  return true;
+}
+function ctrRequestMovedOn(requestId, status, was) {
+  if(currentRole !== 'admin' && currentRole !== 'adminstaff') return;
+  var r = ctrReadRequests().find(function(x) { return x && x.id === requestId; });
+  if(!r || r.status !== status || was === status) return;
+  ctrNotifyTrainee(r, status);
+  var certDone = status === 'collected' && CESTISCore.Transcript.wantsCertificate(r) && ctrCertificateCollected(r.studentId);
+  if(certDone) addNotification('Certificate collected: ' + (r.studentName || '') + (r.course ? ' — ' + r.course : ''), 'cert', null, ['admin']);
+  try { updateCtrRequestsBadge(); renderOfficeToday(); } catch(e) {}
+  saveState();
+}
+/* "Open transcript": Transcript/Grades with the trainee already chosen.
+   "Certify": Student Progress's stage dialog for the trainee, set to
+   Certified, with its checklist (studentProgressManageAllowed). */
+function ctrOpenFor(what, studentId) {
+  if(!studentId || (currentRole !== 'admin' && currentRole !== 'adminstaff')) return;
+  var staff = currentRole === 'adminstaff';
+  var go = function(pageId, frameId, msg, param) {
+    var f = document.getElementById(frameId);
+    var fresh = f && !f.getAttribute('data-src-loaded');
+    if(fresh) f.setAttribute('data-open-' + param, studentId);
+    showPage(pageId);
+    var post = function() { try { f.contentWindow.postMessage(msg, '*'); } catch(e) {} };
+    if(!f) return;
+    if(fresh) f.addEventListener('load', function once() { f.removeEventListener('load', once); setTimeout(post, 300); });
+    else post();
+  };
+  if(what === 'transcript') {
+    go(staff ? 'as-transcript-grades' : 'transcript-grades', staff ? 'asTranscriptGradesFrame' : 'transcriptGradesFrame', { type: 'cestis-tg-select', studentId: studentId }, 'select');
+  } else if(what === 'certify') {
+    if(!studentProgressManageAllowed() || !pageAllowedForRole(staff ? 'as-students' : 'students')) { showToast('Certifying needs "Student Progress" and "Student Progress — manage". Ask the Administrator.', 'warning'); return; }
+    go(staff ? 'as-students' : 'students', staff ? 'asStudentProgressFrame' : 'studentProgressFrame', { type: 'cestis-sp-certify', studentId: studentId }, 'certify');
+  }
+}
 
 // ============================== CERT/TRANSCRIPT REQUEST BADGE ==============================
 // Pending trainee requests for transcripts/certificates, shown on the
@@ -31695,7 +31768,23 @@ function markCollected(id) {
   var idx = -1;
   for (var _mi = 0; _mi < students.length; _mi++) { if (students[_mi] && String(students[_mi].id) === String(id)) { idx = _mi; break; } }
   if (idx === -1) { showToast('That trainee\'s record changed — the list has been refreshed. Please try again.', 'warning'); filterCerts(); return; }
-  students[idx].certCollected=true;students[idx].stage='collected';students[idx].progress=100;markStageSetByUser(students[idx]);filterCerts();updatePipelineCounts();renderCertStats();refreshStudentDependentViews();showToast(`Certificate collected: ${students[idx].name}`);addNotification('Certificate collected: ' + students[idx].name + ' — ' + students[idx].course, 'cert', null, ['admin']);saveState(); }
+  students[idx].certCollected=true;students[idx].stage='collected';students[idx].progress=100;markStageSetByUser(students[idx]);filterCerts();updatePipelineCounts();renderCertStats();refreshStudentDependentViews();showToast(`Certificate collected: ${students[idx].name}`);addNotification('Certificate collected: ' + students[idx].name + ' — ' + students[idx].course, 'cert', null, ['admin']);
+  // ONE collected mark (OF-9): the trainee's open requests for a certificate
+  // are collected too, and she is told.
+  try { ctrCollectRequestsFor(students[idx].id); } catch(e) { console.warn('[Requests] could not mark the request collected', e); }
+  saveState(); }
+function ctrCollectRequestsFor(studentId) {
+  var me = (currentLoggedInUser && (currentLoggedInUser.name || currentLoggedInUser.username)) || 'Admin';
+  var res = CESTISCore.Transcript.collectCertificateRequests(ctrReadRequests(), studentId, me, new Date().toISOString());
+  if(!res.changed.length) return 0;
+  var merged = CESTISCore.Transcript.mergeRequestLists(ctrReadRequests(), res.list);
+  CESTISStore.setItem('voctrain_certTranscriptRequests', JSON.stringify(merged));
+  res.changed.forEach(function(r) { ctrNotifyTrainee(r, 'collected'); });
+  try { updateCtrRequestsBadge(); renderOfficeToday(); } catch(e) {}
+  // The requests page, if it is open, shows it at once.
+  CTR_REQUEST_FRAMES.forEach(function(id) { var f = document.getElementById(id); try { if(f && f.contentWindow) f.contentWindow.postMessage({ type: 'transcript-refresh' }, '*'); } catch(e) {} });
+  return res.changed.length;
+}
 
 /* The programmes every Reports panel counts, worked out ONCE.
 
