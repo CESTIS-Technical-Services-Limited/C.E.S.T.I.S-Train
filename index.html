@@ -1904,6 +1904,12 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
   margin-bottom:10px; transition:all var(--transition);
 }
 .alert-item:hover { background:var(--bg-card-hover); }
+/* An alert that opens the list behind it (Needs Attention, registers not taken). */
+.alert-item.alert-link { cursor:pointer; }
+.alert-item.alert-link:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.alert-item.alert-link .alert-time { color:var(--accent); }
+.attn-table td { vertical-align:top; }
+.attn-table th.num, .attn-table td.num { text-align:right; }
 .alert-item.alert-info { border-left-color:var(--blue); }
 .alert-item.alert-warning { border-left-color:var(--accent); }
 .alert-item.alert-danger { border-left-color:var(--red); }
@@ -13915,6 +13921,8 @@ function buildAdminSidebar() {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>Video Conference<span class="nav-badge nav-live-badge" hidden>LIVE</span></div>
     <div class="nav-item" data-page="students" onclick="showPage('students')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Student Progress</div>
+    <div class="nav-item" data-page="needs-attention" onclick="showPage('needs-attention')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Needs Attention<span class="nav-badge attn-nav-badge" hidden></span></div>
     <div class="nav-item" data-page="announcements" onclick="showPage('announcements')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 17H2a3 3 0 0 0 3-3V9a7 7 0 0 1 14 0v5a3 3 0 0 0 3 3zm-8.27 4a2 2 0 0 1-3.46 0"/></svg>Announcements</div>
     <div class="nav-item" data-page="calendar" onclick="showPage('calendar')">
@@ -13999,6 +14007,7 @@ function buildAdminSidebar() {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Settings</div>
   `;
   setTimeout(updateCtrRequestsBadge, 200);
+  setTimeout(function(){ try { refreshAttentionBadges(); } catch(e) {} }, 300);
 }
 
 function buildStudentSidebar() {
@@ -14046,6 +14055,8 @@ function buildInstructorSidebar() {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>Video Conference<span class="nav-badge nav-live-badge" hidden>LIVE</span></div>
     <div class="nav-item" data-page="i-students" onclick="showPage('i-students')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>My Students</div>
+    <div class="nav-item" data-page="i-needs-attention" onclick="showPage('i-needs-attention')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Needs Attention<span class="nav-badge attn-nav-badge" hidden></span></div>
     <div class="nav-section-label">Teaching</div>
     <div class="nav-item" data-page="i-attendance" onclick="showPage('i-attendance')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>Attendance</div>
@@ -14083,6 +14094,7 @@ function buildInstructorSidebar() {
     <div class="nav-item" data-page="i-profile" onclick="showPage('i-profile')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>My Profile</div>
   `;
+  setTimeout(function(){ try { refreshAttentionBadges(); } catch(e) {} }, 300);
 }
 
 /* ============================== MEDIA PERMISSION CLEANUP ============================== */
@@ -14533,6 +14545,7 @@ function showPage(pageId) {
     vcCleanupMediaIfNeeded();
   }
   vcLastPage = pageId;
+  if(ATTENTION_PAGES[pageId]) { try { ensureAttentionPage(pageId); } catch(e) {} }
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   const pg = document.getElementById('page-'+pageId);
   if(pg) pg.classList.add('active');
@@ -14542,6 +14555,7 @@ function showPage(pageId) {
   // Reports counts the roll on every panel, so it is drawn on the way in rather
   // than served from whenever the page happened to be built.
   if(pageId === 'reports') { try { refreshReportsAnalytics(); } catch(e) { console.warn('[Reports] render failed', e); } }
+  if(ATTENTION_PAGES[pageId]) { try { renderNeedsAttention(pageId); } catch(e) { console.warn('[Needs attention] render failed', e); } }
   if(pageId === 's-announcements') { try { renderStudentAnnouncements(); } catch(e) {} }
   if(pageId === 's-exams') { try { studentExamsShowList(); } catch(e) {} }
   try { examPageSwitched(pageId); } catch(e) {}
@@ -14585,7 +14599,8 @@ function showPage(pageId) {
     'transcript-grades':'Transcript / Grades','s-transcript-grades':'Transcript / Grades','as-transcript-grades':'Transcript / Grades','i-trainee-grades':'Trainee Grades',
     'cert-transcript-requests':'Certificate / Transcript Requests','as-cert-transcript-requests':'Certificate / Transcript Requests',
     'cmc-dashboard':'CMC Analytics Dashboard','cmc-financial':'Financial Overview','cmc-virements':'Virement Approvals','cmc-staff':'Staff & HR','cmc-academic':'Academic Performance','cmc-profile':'My Profile',
-    'tms-system':'TMS System','as-tms-system':'TMS System','nqs-system':'NQS System','as-nqs-system':'NQS System'
+    'tms-system':'TMS System','as-tms-system':'TMS System','nqs-system':'NQS System','as-nqs-system':'NQS System',
+    'needs-attention':'Needs Attention','as-needs-attention':'Needs Attention','i-needs-attention':'Needs Attention'
   };
   document.getElementById('topbarTitle').textContent = titles[pageId]||pageId;
   if(pageId === 'support-messages' || pageId === 'as-support-messages') renderSupportMessagesPage();
@@ -14731,10 +14746,11 @@ function buildAdminPages() {
     .filter(x => x.g != null).sort((a,b) => (parseFloat(b.g) - parseFloat(a.g)) || ((b.p || 0) - (a.p || 0))).slice(0,5)
     .map(x => Object.assign({}, x.s, { gpa: x.g }));
   const incompleteCount = students.filter(s=>s.stage==='incomplete').length;
-  // Only trainees still in training, and only where attendance has been
-  // recorded: graduates and never-registered trainees are not a warning.
-  const lowAttendance = students.filter(s=>s && (s.stage==='testing'||s.stage==='interview'||s.stage==='training') &&
-    s.attendance!==undefined && s.attendance!==null && s.attendance!=='' && parseFloat(s.attendance)<70).length;
+  // Only trainees in training in an intake still running, by the register:
+  // the same rule as the Needs Attention list the alert opens
+  // (CESTISCore.attention) — applicants, graduates and ended intakes are not
+  // a warning.
+  const lowAttendance = attentionLowAttendanceCount();
   const pendingCerts = students.filter(s=>s.stage==='certified'&&!s.certCollected).length;
   // What the course-end rule found in the transcripts of trainees whose course
   // has ended: ready to certify, or still waiting for results to be marked.
@@ -14765,7 +14781,7 @@ function buildAdminPages() {
     </div>
     <div class="grid-2col">
       <div class="card"><div class="card-header"><h3>System Alerts</h3></div>
-        <div class="alert-item alert-danger"><div class="alert-icon">\u26A0\uFE0F</div><div class="alert-body"><div class="alert-msg">${lowAttendance} student${lowAttendance!==1?'s':''} below 70% attendance</div><div class="alert-time">Needs attention</div></div></div>
+        <div class="alert-item alert-danger alert-link" role="button" tabindex="0" id="dashLowAttendanceAlert" onclick="showPage('needs-attention')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showPage('needs-attention');}" title="See who, with their last attendance and phone"><div class="alert-icon">\u26A0\uFE0F</div><div class="alert-body"><div class="alert-msg">${lowAttendance} student${lowAttendance!==1?'s':''} below 70% attendance</div><div class="alert-time">Needs attention — see who &rarr;</div></div></div>
         <div class="alert-item alert-warning"><div class="alert-icon">\uD83D\uDCDD</div><div class="alert-body"><div class="alert-msg">${upcomingExams} exams scheduled this period</div><div class="alert-time">Review schedule</div></div></div>
         ${readyToCertify.length ? `<div class="alert-item alert-success"><div class="alert-icon">\u2705</div><div class="alert-body"><div class="alert-msg">${readyToCertify.length} trainee${readyToCertify.length!==1?'s':''} ready to certify</div><div class="alert-time">Course ended, every core unit competent: ${escapeHtml(someNames(readyToCertify))}</div></div></div>` : ''}
         ${awaitingMarking.length ? `<div class="alert-item alert-warning"><div class="alert-icon">\u23F3</div><div class="alert-body"><div class="alert-msg">${awaitingMarking.length} trainee${awaitingMarking.length!==1?'s':''} awaiting marking after their course ended</div><div class="alert-time">Not marked Not Yet Competent until the results are in: ${escapeHtml(someNames(awaitingMarking))}</div></div></div>` : ''}
@@ -15975,7 +15991,8 @@ function buildInstructorPages() {
   // GPA from the marks (a hand-set GPA still stands) — the same figure the trainee sees.
   const gpaOf = {}; myStudents.forEach(s => { gpaOf[s.id] = studentEffectiveGpa(s); });
   const avgGpa = myStudents.length ? (myStudents.reduce((a,s) => a + (parseFloat(gpaOf[s.id]) || 0), 0) / myStudents.length).toFixed(1) : '0.0';
-  const lowAttStudents = myStudents.filter(s => s.attendance < 70);
+  // By the register, in a running intake: the rule of the Needs Attention list it opens.
+  const lowAttCount = attentionLowAttendanceCount();
   const upcomingExams = myExams.filter(e => e.status === 'upcoming');
   const skill = findSkillAreaForCourse(ins.course);
 
@@ -16023,7 +16040,7 @@ function buildInstructorPages() {
 
     <div class="grid-2col">
       <div class="card"><div class="card-header"><h3>Alerts</h3></div>
-        ${lowAttStudents.length > 0 ? `<div class="alert-item alert-danger"><div class="alert-icon">⚠️</div><div class="alert-body"><div class="alert-msg">${lowAttStudents.length} student${lowAttStudents.length!==1?'s':''} below 70% attendance</div><div class="alert-time">Needs follow-up</div></div></div>` : ''}
+        ${lowAttCount > 0 ? `<div class="alert-item alert-danger alert-link" role="button" tabindex="0" id="iDashLowAttendanceAlert" onclick="showPage('i-needs-attention')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showPage('i-needs-attention');}"><div class="alert-icon">⚠️</div><div class="alert-body"><div class="alert-msg">${lowAttCount} student${lowAttCount!==1?'s':''} below 70% attendance</div><div class="alert-time">Needs follow-up — see who &rarr;</div></div></div>` : ''}
         <div class="alert-item alert-info"><div class="alert-icon">📝</div><div class="alert-body"><div class="alert-msg">${upcomingExams.length} exam${upcomingExams.length!==1?'s':''} scheduled for ${escapeHtml(ins.course)}</div><div class="alert-time">Review schedule</div></div></div>
         <div class="alert-item alert-warning"><div class="alert-icon">📋</div><div class="alert-body"><div class="alert-msg">${myStudents.filter(s=>s.stage==='incomplete').length} student${myStudents.filter(s=>s.stage==='incomplete').length!==1?'s':''} marked incomplete</div><div class="alert-time">Review progress</div></div></div>
         <div class="alert-item alert-info" id="iDashNextClassAlert" style="display:none;"><div class="alert-icon">🔔</div><div class="alert-body"><div class="alert-msg" id="iDashNextClassMsg"></div><div class="alert-time" id="iDashNextClassTime"></div></div></div>
@@ -16068,7 +16085,7 @@ function buildInstructorPages() {
       <button class="btn-export" onclick="exportInstructorStudentsCSV()">📄 Export CSV</button>
     </div>
     <div class="pipeline" style="margin-bottom:20px;"><div class="pipeline-stage s-test"><span class="count" id="ipTest">0</span>Testing</div><div class="pipeline-stage s-interview"><span class="count" id="ipInterview">0</span>Interview</div><div class="pipeline-stage s-training"><span class="count" id="ipTraining">0</span>Training</div><div class="pipeline-stage s-certified"><span class="count" id="ipCertified">0</span>Certified</div><div class="pipeline-stage s-collected"><span class="count" id="ipCollected">0</span>Collected</div><div class="pipeline-stage s-nyc"><span class="count" id="ipNyc">0</span>Not Yet Competent</div><div class="pipeline-stage s-incomplete"><span class="count" id="ipIncomplete">0</span>Incomplete</div></div>
-    <div class="card"><div class="card-header"><h3>My Students</h3><span style="font-size:13px;color:var(--text-muted);" id="iStudentCount">Showing ${myStudents.length} students</span></div><div class="table-wrapper"><table><thead><tr><th>Student</th><th>ID</th><th>Stage</th><th>Test Score</th><th>Attendance</th><th>GPA</th><th>Progress</th></tr></thead><tbody id="iStudentTableBody"></tbody></table></div></div>
+    <div class="card"><div class="card-header"><h3>My Students</h3><span style="font-size:13px;color:var(--text-muted);" id="iStudentCount">Showing ${myStudents.length} students</span></div><div class="table-wrapper"><table><thead><tr><th>Student</th><th>ID</th><th>Stage</th><th>Test Score</th><th>Attendance</th><th>GPA</th><th>Progress</th><th><span class="exam-sr-only">Actions</span></th></tr></thead><tbody id="iStudentTableBody"></tbody></table></div></div>
   </section>
 
   <!-- INSTRUCTOR ATTENDANCE -->
@@ -16345,7 +16362,8 @@ function renderInstructorStudents(data) {
     <td><span class="badge ${stageBadge[s.stage]}"><span class="badge-dot"></span>${escapeHtml(stageLabels[s.stage]||s.stage)}</span></td><td>${escapeHtml(s.score||'\u2014')}</td>
     <td><div style="display:flex;align-items:center;gap:8px;"><div class="progress-bar" style="width:60px;"><div class="fill" style="width:${escapeAttr(s.attendance)}%;background:${s.attendance>=80?'var(--green)':s.attendance>=70?'var(--accent)':'var(--red)'};"></div></div><span style="font-size:12px;">${escapeHtml(s.attendance)}%</span></div></td>
     <td style="font-weight:600;color:${parseFloat(studentEffectiveGpa(s))>=3.0?'var(--green)':'var(--accent)'};">${escapeHtml(studentEffectiveGpa(s))}</td>
-    <td><div style="display:flex;align-items:center;gap:8px;"><div class="progress-bar" style="width:80px;"><div class="fill" style="width:${escapeAttr(s.progress)}%;background:${s.progress>=80?'var(--green)':s.progress>=40?'var(--accent)':'var(--red)'};"></div></div><span style="font-size:12px;color:var(--text-muted);">${escapeHtml(s.progress)}%</span></div></td></tr>
+    <td><div style="display:flex;align-items:center;gap:8px;"><div class="progress-bar" style="width:80px;"><div class="fill" style="width:${escapeAttr(s.progress)}%;background:${s.progress>=80?'var(--green)':s.progress>=40?'var(--accent)':'var(--red)'};"></div></div><span style="font-size:12px;color:var(--text-muted);">${escapeHtml(s.progress)}%</span></div></td>
+    <td><button class="btn btn-sm btn-secondary" onclick="openDirectChatWithTrainee(${jsArg(s.id)})" title="Open a direct chat with ${escapeAttr(s.name)}">💬 Message</button></td></tr>
   `).join('');
   const sc = document.getElementById('iStudentCount');
   if(sc) sc.textContent = 'Showing ' + data.length + ' students';
@@ -16391,6 +16409,163 @@ function examPassFigure(roll) {
 // programme" exactly as this page does (tests/gate-slice.test.js).
 function instructorCourseMatch(studentCourse, instructorCourse) {
   return CESTISCore.enrolment.courseMatch(studentCourse, instructorCourse, findSkillAreaForCourse);
+}
+
+/* "Message": a direct chat with a trainee, opened from wherever staff see
+   her (My Students, Needs attention, an assignment's "Not submitted" list).
+   It used to take eight steps through the chat's member directory (audit
+   IN-15). The chat page for the role is shown, the conversation is found or
+   started (lmsChatStartDM, the chat's own rule), and an optional first
+   message is typed in, ready to send — nothing is sent without the person.
+   A trainee with no account yet cannot be messaged: say so, with her phone
+   when the record has one. */
+function traineeChatUserId(studentId) {
+  var id = typeof examTraineeUserId === 'function' ? examTraineeUserId(studentId) : null;
+  if (id) return id;
+  var st = (students || []).find(function(s){ return s && s.id === studentId; });
+  var u = st && (userAccounts || []).find(function(a){ return a && a.role === 'student' && a.status !== 'disabled' && (!a.studentDataId || a.studentDataId === studentId) && st.email && a.email && String(a.email).trim().toLowerCase() === String(st.email).trim().toLowerCase(); });
+  return u ? u.id : null;
+}
+function openDirectChatWithTrainee(studentId, draft) {
+  var uid = traineeChatUserId(studentId);
+  var st = (students || []).find(function(s){ return s && s.id === studentId; });
+  if (!uid) {
+    showToast((st ? st.name : 'This trainee') + ' has no account to message yet' + (st && st.phone ? ' — telephone ' + st.phone : '') + '.', 'warning');
+    return false;
+  }
+  var page = currentRole === 'admin' ? 'lms-chat' : currentRole === 'adminstaff' ? 'as-lms-chat' : currentRole === 'instructor' ? 'i-lms-chat' : null;
+  if (!page) return false;
+  showPage(page);
+  var tries = 0;
+  (function whenReady() {
+    var slot = document.querySelector('#page-' + page + ' .cestis-mount');
+    var ready = typeof lmsChatStartDM === 'function' && (!slot || slot.getAttribute('data-mounted') === '1');
+    if (!ready && tries++ < 50) { setTimeout(whenReady, 100); return; }
+    try { lmsChatStartDM(uid); } catch (e) { console.warn('[Message] could not open the chat', e); return; }
+    if (draft) {
+      var inp = document.getElementById(lmsChatGetRolePrefix() + 'ChatInput');
+      if (inp && !inp.value) { inp.value = draft; try { inp.focus(); } catch (e) {} }
+    }
+  })();
+  return true;
+}
+
+/* ============================== NEEDS ATTENTION ==============================
+   Who is struggling, most urgent first (CESTISCore.attention): for an
+   instructor her own programme's trainees, for the Administrator and Admin
+   Staff every trainee. The dashboard's "N below 70% attendance" opens it.
+   "What they owe" is shown to the office only (administrator, Admin Staff):
+   an instructor needs to know a trainee is missing classes, not her fee
+   account, so the fee records are not even read on an instructor's page. */
+var ATTENTION_PAGES = { 'needs-attention': 'admin', 'as-needs-attention': 'adminstaff', 'i-needs-attention': 'instructor' };
+function attentionIsOffice() { return currentRole === 'admin' || currentRole === 'adminstaff'; }
+function attentionScope() {
+  if (currentRole === 'instructor' && currentInstructor) {
+    return (students || []).filter(function(s){ return s && (s.instructor === currentInstructor.name || instructorCourseMatch(s.course, currentInstructor.course)); });
+  }
+  return attentionIsOffice() ? (students || []).filter(Boolean) : [];
+}
+function attentionFeeOf() {
+  if (!attentionIsOffice()) return null;
+  var fee = [], pay = [];
+  try { fee = JSON.parse(CESTISStore.getItem('cestiSchoolFeeStudents') || '[]') || []; } catch (e) { fee = []; }
+  try { pay = JSON.parse(CESTISStore.getItem('cestiSchoolFeePayments') || '[]') || []; } catch (e) { pay = []; }
+  if (!Array.isArray(fee) || !fee.length) return function(){ return null; };
+  var idx = null;
+  try { idx = CESTISCore.feeTwinIndex ? CESTISCore.feeTwinIndex(fee) : null; } catch (e) { idx = null; }
+  return function(s) { try { return CESTISCore.attention.owedFrom(s, fee, Array.isArray(pay) ? pay : [], idx); } catch (e) { return null; } };
+}
+function attentionRows() {
+  var endedOf = function(s) { try { return studentCourseStatus(s) === 'ended'; } catch (e) { return false; } };
+  return CESTISCore.attention.list({
+    students: attentionScope(), register: Array.isArray(attendanceRegister) ? attendanceRegister : [], today: localDateStr(), endedOf: endedOf,
+    results: examResults || [], exams: exams || [], assignments: instructorAssignments || [], submissions: assignmentSubmissions || [],
+    sameProgramme: instructorCourseMatch, feeOf: attentionFeeOf()
+  });
+}
+// The number on the dashboards' attendance alert: the same rule as the list
+// it opens (trainees in training in a running intake, by the register).
+function attentionLowAttendanceCount() {
+  try { return attentionRows().filter(function(r){ return r.pct != null && r.pct < CESTISCore.attention.LOW_ATTENDANCE; }).length; } catch (e) { return 0; }
+}
+function ensureAttentionPage(pageId) {
+  if (!ATTENTION_PAGES[pageId] || document.getElementById('page-' + pageId)) return;
+  var mc = document.getElementById('mainContent');
+  if (!mc) return;
+  var sec = document.createElement('section');
+  sec.className = 'page'; sec.id = 'page-' + pageId;
+  sec.innerHTML = '<div class="card"><div class="card-header" style="flex-wrap:wrap;gap:10px;"><div style="flex:1;min-width:220px;"><h3>Needs attention</h3>' +
+    '<div style="font-size:12px;color:var(--text-muted);margin-top:2px;" id="attnRule-' + pageId + '"></div></div>' +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+    (pageId === 'i-needs-attention' ? '' : '<select class="form-control" style="width:220px;" id="attnCourse-' + pageId + '" aria-label="Programme" onchange="renderNeedsAttention(' + jsArg(pageId) + ')"><option value="all">All programmes</option></select>') +
+    '<input type="text" class="form-control" style="width:200px;" id="attnSearch-' + pageId + '" placeholder="Search a name..." aria-label="Search a name" oninput="renderNeedsAttention(' + jsArg(pageId) + ')"></div></div>' +
+    '<div class="table-wrapper"><table class="attn-table"><thead id="attnHead-' + pageId + '"></thead><tbody id="attnBody-' + pageId + '"></tbody></table></div></div>';
+  mc.appendChild(sec);
+}
+function attentionShortDate(d) {
+  if (!d) return '';
+  var p = String(d).split('-');
+  return p.length === 3 ? Number(p[2]) + ' ' + ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][Number(p[1]) - 1] : d;
+}
+function renderNeedsAttention(pageId) {
+  pageId = pageId || (currentRole === 'instructor' ? 'i-needs-attention' : currentRole === 'adminstaff' ? 'as-needs-attention' : 'needs-attention');
+  ensureAttentionPage(pageId);
+  var body = document.getElementById('attnBody-' + pageId), head = document.getElementById('attnHead-' + pageId);
+  if (!body || !head) return;
+  var office = attentionIsOffice(), AT = CESTISCore.attention;
+  var all = attentionRows();
+  var cSel = document.getElementById('attnCourse-' + pageId);
+  if (cSel) {
+    var cur = cSel.value || 'all', seen = {};
+    var opts = ['<option value="all">All programmes</option>'];
+    all.forEach(function(r){ if (r.course && !seen[r.course]) { seen[r.course] = 1; opts.push('<option value="' + escapeAttr(r.course) + '">' + escapeHtml(r.course) + '</option>'); } });
+    cSel.innerHTML = opts.join(''); cSel.value = seen[cur] ? cur : 'all';
+  }
+  var course = cSel ? cSel.value : 'all';
+  var q = String((document.getElementById('attnSearch-' + pageId) || {}).value || '').trim().toLowerCase();
+  var rows = all.filter(function(r){ return (course === 'all' || r.course === course) && (!q || String(r.name).toLowerCase().indexOf(q) !== -1); });
+  var rule = document.getElementById('attnRule-' + pageId);
+  if (rule) rule.textContent = rows.length + ' trainee' + (rows.length !== 1 ? 's' : '') + (office ? '' : ' of your programme') + ', most urgent first. Listed for attendance below ' + AT.LOW_ATTENDANCE + '%, ' + AT.RUN_ALERT +
+    ' or more absences in a row, a mark below the pass mark in the last ' + (AT.RECENT_DAYS / 7) + ' weeks, or work past its due date not handed in. Applicants and intakes that have ended are not listed.';
+  head.innerHTML = '<tr><th>Trainee</th><th>Last attended</th><th class="num">Absent in a row</th><th class="num">Attendance</th><th>Recent marks below the pass mark</th><th>Work not handed in</th>' +
+    (office ? '<th class="num">Owes</th>' : '') + '<th>Phone</th><th><span class="exam-sr-only">Actions</span></th></tr>';
+  if (!rows.length) {
+    body.innerHTML = '<tr><td colspan="' + (office ? 9 : 8) + '" style="text-align:center;color:var(--text-muted);padding:24px;">Nobody needs attention right now.</td></tr>';
+    return;
+  }
+  body.innerHTML = rows.map(function(r) {
+    var since = r.lastAttended ? attentionShortDate(r.lastAttended) + (r.daysSinceAttended != null ? '<div style="font-size:11px;color:var(--text-muted);">' + r.daysSinceAttended + ' day' + (r.daysSinceAttended !== 1 ? 's' : '') + ' ago</div>' : '') : '<span style="color:var(--text-muted);">' + (r.held ? 'Not since the register began' : 'No register yet') + '</span>';
+    var runCls = r.absentRun >= AT.RUN_ALERT ? 'badge badge-red' : '';
+    var pctCls = r.pct == null ? '' : r.pct < AT.LOW_ATTENDANCE ? 'color:var(--red);font-weight:700;' : '';
+    var marks = r.belowPass.slice(0, 3).map(function(b){ return '<div style="font-size:12px;">' + escapeHtml(b.title) + ': <strong style="color:var(--red);">' + b.pct + '%</strong> <span style="color:var(--text-muted);">(pass ' + b.passMark + '%)</span></div>'; }).join('') +
+      (r.belowPass.length > 3 ? '<div style="font-size:11px;color:var(--text-muted);">and ' + (r.belowPass.length - 3) + ' more</div>' : '') || '<span style="color:var(--text-muted);">—</span>';
+    var miss = r.missing.slice(0, 3).map(function(m){ return '<div style="font-size:12px;">' + escapeHtml(m.title) + ' <span style="color:var(--text-muted);">(due ' + escapeHtml(attentionShortDate(m.dueDate)) + ')</span></div>'; }).join('') +
+      (r.missing.length > 3 ? '<div style="font-size:11px;color:var(--text-muted);">and ' + (r.missing.length - 3) + ' more</div>' : '') || '<span style="color:var(--text-muted);">—</span>';
+    var owes = !office ? '' : '<td class="num">' + (r.owed == null ? '<span style="color:var(--text-muted);">—</span>' : r.owed === 'unpriced' ? '<span style="color:var(--text-muted);" title="No fee set on the School Fee record">No fee set</span>' : r.owed > 0 ? '<strong>$' + escapeHtml(Number(r.owed).toLocaleString('en-JM', { minimumFractionDigits: 2, maximumFractionDigits: 2 })) + '</strong>' : 'Paid up') + '</td>';
+    var first = String(r.name).split(' ')[0];
+    var draft = 'Hi ' + first + ', ' + (r.absentRun >= AT.RUN_ALERT ? 'we have missed you in class. ' : '') + (r.missing.length ? 'I have not received "' + r.missing[0].title + '" yet. ' : '') + 'Is everything all right? Let me know how I can help.';
+    return '<tr data-attn-id="' + escapeAttr(r.id) + '"><td><strong>' + escapeHtml(r.name) + '</strong><div style="font-size:11px;color:var(--text-muted);">' + escapeHtml(r.course) + (r.average != null ? ' · average ' + r.average + '%' : '') + '</div></td>' +
+      '<td>' + since + '</td>' +
+      '<td class="num">' + (r.absentRun ? '<span class="' + runCls + '">' + r.absentRun + '</span>' : '0') + '</td>' +
+      '<td class="num" style="' + pctCls + '">' + (r.pct == null ? '—' : r.pct + '%') + '</td>' +
+      '<td>' + marks + '</td><td>' + miss + '</td>' + owes +
+      '<td style="white-space:nowrap;">' + (r.phone ? '<a href="tel:' + escapeAttr(String(r.phone).replace(/[^0-9+]/g, '')) + '">' + escapeHtml(r.phone) + '</a>' : '<span style="color:var(--text-muted);">—</span>') + '</td>' +
+      '<td><button class="btn btn-sm btn-primary" onclick="openDirectChatWithTrainee(' + jsArg(r.id) + ',' + jsArg(draft) + ')">💬 Message</button></td></tr>';
+  }).join('');
+}
+// The Needs Attention page on screen, and the sidebar's count, after a change.
+function refreshAttentionViews() {
+  refreshAttentionBadges();
+  Object.keys(ATTENTION_PAGES).forEach(function(id) {
+    var pg = document.getElementById('page-' + id);
+    if (pg && pg.classList.contains('active')) renderNeedsAttention(id);
+  });
+}
+function refreshAttentionBadges() {
+  var n = 0;
+  try { n = attentionRows().length; } catch (e) { n = 0; }
+  document.querySelectorAll('.attn-nav-badge').forEach(function(b){ b.textContent = n; b.hidden = !n; });
+  return n;
 }
 function filterInstructorStudents() {
   if(!currentInstructor) return;
@@ -24467,7 +24642,8 @@ function refreshContentDependentViews() {
     // added or deleted in another tab has to rebuild them here too — otherwise
     // this page goes on offering a centre that no longer exists.
     'populateCourseDropdowns',
-    'filterCerts','renderCertStats','renderCertDownloadMgmt'
+    'filterCerts','renderCertStats','renderCertDownloadMgmt',
+    'refreshAttentionViews'
   ];
   fns.forEach(function(name){
     try {
@@ -45368,6 +45544,9 @@ function buildAdminStaffSidebar() {
 
   html += '<div class="nav-item" data-page="as-my-appraisal" onclick="showPage(\'as-my-appraisal\')">' +
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></svg>My Appraisal (Staff)</div>';
+  // Who needs attention (the trainees' attendance, marks and work; what they owe).
+  html += '<div class="nav-item" data-page="as-needs-attention" onclick="showPage(\'as-needs-attention\')">' +
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Needs Attention<span class="nav-badge attn-nav-badge" hidden></span></div>';
 
   // LMS Chat always visible
   html += '<div class="nav-item" data-page="as-lms-chat" onclick="showPage(\'as-lms-chat\')">' +
@@ -45470,6 +45649,7 @@ function buildAdminStaffSidebar() {
 
   nav.innerHTML = html;
   setTimeout(updateCtrRequestsBadge, 200);
+  setTimeout(function(){ try { refreshAttentionBadges(); } catch(e) {} }, 300);
   // The count of trainees' registrations waiting, on "Trainee Accounts" (renderVerifyUsersPage sets it).
   if(adminStaffAccessSettings.traineeaccounts) setTimeout(function() { try { renderVerifyUsersPage(); } catch(e) {} }, 250);
 }

@@ -14153,6 +14153,162 @@
       instructorCount: instructorCount, rateText: rateText };
   })();
 
+  // ===================== NEEDS ATTENTION: who is struggling, most urgent first =====================
+  // The dashboard said "5 students below 70% attendance" and nothing else: no
+  // names, no "last seen", no phone. Finding who was struggling meant opening
+  // every trainee's grades one by one (audit IN-3), and the office learnt
+  // nobody's name from the alert at all (M3: nine trainees unseen for two
+  // weeks or more, three since the start of the month). This is the list
+  // behind it — for an instructor her own programme's trainees, for the office
+  // every trainee — built only from figures the system already works out:
+  // the dated register (Core.attendance), marked results (Core.exams.isFinal),
+  // the assignments' own marks and due dates (Core.coursework), never a
+  // hand-typed GPA.
+  Core.attention = (function () {
+    var PASS_DEFAULT = 60;          // the transcript's own default pass mark
+    var LOW_ATTENDANCE = 70;        // the Centre's attendance rule (certificates, the dashboard)
+    var RUN_ALERT = 3;              // absences in a row worth a call
+    var RECENT_DAYS = 28;           // "recent" marked results
+    function num(v) { if (v == null || v === '') return null; var n = Number(String(v).replace('%', '').trim()); return isFinite(n) ? n : null; }
+    function dayOf(iso) {
+      var t = Date.parse(iso || '');
+      if (isNaN(t)) return '';
+      return Core.attendance.localDate(new Date(t));
+    }
+    /* Attendance facts of one trainee from the register (already narrowed to
+       her): the rate (present + late over sessions held), the last day she
+       attended, and how many held sessions in a row, counting back from the
+       most recent, she was absent. Excused, no-class, unmarked and
+       unconfirmed marks are not held sessions and do not break a run. */
+    function attendanceFacts(records, today) {
+      var A = Core.attendance;
+      var held = (records || []).filter(function (r) {
+        if (!r || r.unconfirmed || !A.isDate(r.date) || (today && r.date > today)) return false;
+        var st = A.normStatus(r.status);
+        return st === 'present' || st === 'late' || st === 'absent';
+      }).sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : 0; });
+      var sum = A.summarize(held);
+      var last = '', run = 0, counting = true;
+      held.forEach(function (r) {
+        var st = A.normStatus(r.status);
+        if (st === 'absent') { if (counting) run++; }
+        else { counting = false; if (!last || r.date > last) last = r.date; }
+      });
+      return { pct: sum.pct, held: sum.held, lastAttended: last, absentRun: run, lastHeld: held.length ? held[0].date : '' };
+    }
+    /* opts: { students, register, today, endedOf(s), results, exams,
+                assignments, submissions, sameProgramme(a, b), feeOf(s),
+                recentDays, nowMs }
+       -> rows, most urgent first: { student, id, name, course, phone,
+            pct, held, lastAttended, daysSinceAttended, absentRun,
+            belowPass: [{ kind, title, pct, passMark, date }],
+            missing: [{ id, title, dueDate }], average, gpa (from the marks),
+            owed (office only: a number, or 'unpriced'), reasons: [..], urgency } */
+    function list(opts) {
+      opts = opts || {};
+      var A = Core.attendance, CW = Core.coursework, F = Core.centreFigures;
+      var today = A.isDate(opts.today) ? opts.today : A.localDate();
+      var nowMs = opts.nowMs || Date.now();
+      var recent = A.addDays(today, -(opts.recentDays || RECENT_DAYS));
+      var same = opts.sameProgramme || function (a, b) { return Core.normCourse(a) === Core.normCourse(b); };
+      var byStudent = {};
+      (opts.register || []).forEach(function (r) { if (r && r.studentId != null) (byStudent[r.studentId] = byStudent[r.studentId] || []).push(r); });
+      var examById = {};
+      (opts.exams || []).forEach(function (e) { if (e && e.id != null) examById[String(e.id)] = e; });
+      var rows = [];
+      (opts.students || []).forEach(function (s) {
+        // In training now, and in an intake that is still running: applicants
+        // (testing, interview), graduates, dropouts and ended intakes are not
+        // "struggling" — they are not here.
+        if (!s || !F.isActive(s) || (typeof opts.endedOf === 'function' && opts.endedOf(s))) return;
+        var mine = function (c) { return !!c && !!s.course && (c === s.course || same(s.course, c)); };
+        var att = attendanceFacts(byStudent[s.id], today);
+        var pct = att.pct != null ? att.pct : num(s.attendance);
+        var row = { student: s, id: s.id, name: s.name || s.id, course: s.course || '', phone: s.phone || s.contact || s.telephone || '',
+          pct: pct, held: att.held, lastAttended: att.lastAttended, absentRun: att.absentRun, daysSinceAttended: null,
+          belowPass: [], missing: [], reasons: [] };
+        if (att.lastAttended) {
+          row.daysSinceAttended = Math.round((Date.parse(today + 'T00:00:00Z') - Date.parse(att.lastAttended + 'T00:00:00Z')) / 86400000);
+        }
+        // Marked results below the pass mark, recent ones: an exam's final
+        // result (its own pass mark), an assignment's mark (the default 60%).
+        var latest = {};
+        (opts.results || []).forEach(function (r) {
+          if (!r || r.studentId !== s.id || !Core.exams.isFinal(r)) return;
+          var k = String(r.examId || r.examTitle || r.id), t = Date.parse(r.markedAt || r.submittedAt || '') || 0;
+          if (!latest[k] || t >= latest[k].t) latest[k] = { r: r, t: t };
+        });
+        Object.keys(latest).forEach(function (k) {
+          var r = latest[k].r, e = examById[String(r.examId)] || null;
+          var d = dayOf(r.submittedAt || r.markedAt);
+          if (!d || d < recent) return;
+          var pm = e && num(e.passMark) != null ? num(e.passMark) : PASS_DEFAULT;
+          var sc = num(r.score);
+          if (sc != null && sc < pm) row.belowPass.push({ kind: 'exam', title: (e && e.title) || r.examTitle || 'Exam', pct: Math.round(sc), passMark: pm, date: d });
+        });
+        var mineAsg = (opts.assignments || []).filter(function (a) { return a && mine(a.course); });
+        mineAsg.forEach(function (a) {
+          var g = CW.gradeValue(a.grades ? a.grades[s.id] : null);
+          var meta = a.gradeMeta && a.gradeMeta[s.id];
+          if (g != null) {
+            var p = CW.percentOf(g, a.maxPoints), d = dayOf(meta && meta.gradedAt) || a.dueDate || '';
+            if (p != null && p < PASS_DEFAULT && d && d >= recent) row.belowPass.push({ kind: 'assignment', title: a.title || 'Assignment', pct: Math.round(p), passMark: PASS_DEFAULT, date: d });
+            return;
+          }
+          if (a.requireSubmission === false || !CW.isPastDue(a.dueDate, nowMs)) return;
+          var sub = CW.latestSubmission(opts.submissions || [], a.id, s.id);
+          if (!sub) row.missing.push({ id: a.id, title: a.title || 'Assignment', dueDate: a.dueDate || '' });
+        });
+        row.belowPass.sort(function (x, y) { return x.date < y.date ? 1 : x.date > y.date ? -1 : 0; });
+        row.missing.sort(function (x, y) { return String(x.dueDate) < String(y.dueDate) ? -1 : 1; });
+        var sumry = CW.studentSummary(s.id, { assignments: mineAsg, examResults: (opts.results || []).filter(function (r) { return Core.exams.isFinal(r); }) });
+        row.average = sumry.percent; row.gpa = sumry.gpa;
+        if (typeof opts.feeOf === 'function') { var o = opts.feeOf(s); if (o != null) row.owed = o; }
+        // Why she is listed.
+        if (pct != null && pct < LOW_ATTENDANCE) row.reasons.push('attendance');
+        if (att.absentRun >= RUN_ALERT) row.reasons.push('absent-run');
+        if (row.belowPass.length) row.reasons.push('results');
+        if (row.missing.length) row.reasons.push('missing-work');
+        if (!row.reasons.length) return;
+        // Most urgent first: a trainee who has stopped coming outranks one
+        // whose rate is low, who outranks one with a weak mark or work
+        // outstanding; each counts more the worse it is.
+        row.urgency = (att.absentRun >= RUN_ALERT ? 100 : 0) + att.absentRun * 8 +
+          (pct != null && pct < LOW_ATTENDANCE ? 40 + (LOW_ATTENDANCE - pct) : 0) +
+          row.belowPass.length * 12 + row.missing.length * 8;
+        rows.push(row);
+      });
+      rows.sort(function (a, b) { return (b.urgency - a.urgency) || String(a.name).localeCompare(String(b.name)); });
+      return rows;
+    }
+    /* The plain words for why a trainee is listed. */
+    function reasonText(row) {
+      var out = [];
+      if (row.absentRun >= RUN_ALERT) out.push('absent ' + row.absentRun + ' classes in a row');
+      if (row.pct != null && row.pct < LOW_ATTENDANCE) out.push('attendance ' + row.pct + '%');
+      if (row.belowPass.length) out.push(row.belowPass.length + ' recent mark' + (row.belowPass.length === 1 ? '' : 's') + ' below the pass mark');
+      if (row.missing.length) out.push(row.missing.length + ' piece' + (row.missing.length === 1 ? '' : 's') + ' of work not handed in');
+      return out.join(' · ');
+    }
+    /* What a trainee owes on her School Fee record (office only): the record
+       is found the fee page's own way (Core.feeMirrorTarget); paid is the sum
+       of her payments, else the record's own total. A record with no fee set
+       and nothing paid owes an unknown amount: 'unpriced'. null: no record. */
+    function owedFrom(student, feeStudents, payments, index) {
+      if (!student || !Array.isArray(feeStudents) || !feeStudents.length) return null;
+      var t = Core.feeMirrorTarget(student, feeStudents, index ? { index: index } : null);
+      if (!t || t.action !== 'link' || !t.match) return null;
+      var f = t.match, paid = 0, any = false;
+      (payments || []).forEach(function (p) { if (p && p.studentId === f.id) { paid += parseFloat(p.amount) || 0; any = true; } });
+      if (!any) paid = parseFloat(f.totalPaid) || 0;
+      var fee = parseFloat(f.tuitionFee) || 0;
+      if (fee <= 0 && paid <= 0) return 'unpriced';
+      return Math.max(0, Math.round((fee - paid) * 100) / 100);
+    }
+    return { list: list, attendanceFacts: attendanceFacts, reasonText: reasonText, owedFrom: owedFrom,
+      LOW_ATTENDANCE: LOW_ATTENDANCE, RUN_ALERT: RUN_ALERT, RECENT_DAYS: RECENT_DAYS, PASS_DEFAULT: PASS_DEFAULT };
+  })();
+
   // ===================== A TRAINEE'S CONTACT DETAILS FROM THEIR ACCOUNT =====================
   // The email and telephone typed when a trainee account is made (by the
   // office, or by the trainee registering from home) stayed on the account:
