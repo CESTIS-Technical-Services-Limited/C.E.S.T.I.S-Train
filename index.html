@@ -32926,6 +32926,24 @@ function toggleAnnouncementForm() {
   announcementFormVisible = !announcementFormVisible;
   const form = document.getElementById('announcementForm');
   if(form) form.style.display = announcementFormVisible ? 'block' : 'none';
+  if(announcementFormVisible) annFillCourseOptions();
+}
+/* "Which trainees": every programme, or one (office audit OF-11). An office
+   notice such as "Cosmetology kits Monday" reached all 120 trainees on 5
+   programmes. It now carries the programme the way an instructor's does
+   (`course`, IN-10), so only that programme's trainees see it and are told
+   of it (CESTISCore.comms.forViewer, CESTISCore.notify.reaches); staff see
+   it either way. */
+function annFillCourseOptions() {
+  var sel = document.getElementById('annCourse');
+  if(!sel) return;
+  var was = sel.value;
+  var list = [];
+  try { list = getCourseList(); } catch(e) { list = []; }
+  sel.innerHTML = '<option value="">Trainees of every programme</option>' + list.map(function(c) {
+    return '<option value="' + escapeAttr(c) + '">' + escapeHtml(c) + ' trainees only</option>';
+  }).join('');
+  if(was && list.indexOf(was) !== -1) sel.value = was;
 }
 
 function createAnnouncement() {
@@ -32941,17 +32959,21 @@ function createAnnouncement() {
   if(document.getElementById('annRoleStudent')?.checked) targetRoles.push('student');
   if(document.getElementById('annRoleAdminStaff')?.checked) targetRoles.push('adminstaff');
   if(targetRoles.length === 0) { alert('Please select at least one target audience'); return; }
-  announcements.unshift({
-    id: cestisGenId('ANN-'), title, body, priority, date: localDateStr(), author, forRoles: targetRoles
-  });
+  // One programme's trainees only, when one is picked (OF-11).
+  var course = String((document.getElementById('annCourse') || {}).value || '').trim();
+  var rec = { id: cestisGenId('ANN-'), title, body, priority, date: localDateStr(), author, forRoles: targetRoles };
+  if(course) rec.course = course;
+  announcements.unshift(rec);
   document.getElementById('annTitle').value = '';
   document.getElementById('annBody').value = '';
+  var _annCourseSel = document.getElementById('annCourse'); if(_annCourseSel) _annCourseSel.value = '';
   toggleAnnouncementForm();
   renderAnnouncements();
   refreshContentDependentViews();
   saveState();
   showToast('Announcement published!');
-  addNotification('New announcement: "' + title + '"' + (priority==='urgent' ? ' (URGENT)' : ''), priority==='urgent' ? 'warning' : 'announce', null, targetRoles);
+  addNotification('New announcement: "' + title + '"' + (priority==='urgent' ? ' (URGENT)' : ''), priority==='urgent' ? 'warning' : 'announce', null, targetRoles, null,
+    course ? { forCourse: course } : null);
 }
 
 function deleteAnnouncement(id) {
@@ -32973,7 +32995,7 @@ function renderAnnouncements() {
     var audienceBadges = (a.forRoles || ['admin','instructor','student']).map(function(r) {
       var colors = {admin:'background:var(--accent-dim);color:var(--accent)',instructor:'background:var(--green-dim);color:var(--green)',student:'background:var(--blue-dim);color:var(--blue)'};
       return '<span style="'+colors[r]+';padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;text-transform:capitalize;">'+escapeHtml(r)+'</span>';
-    }).join('');
+    }).join('') + (a.course ? '<span style="background:var(--teal-dim);color:var(--teal);padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;">'+escapeHtml(a.course)+' trainees only</span>' : '');
     return `
     <div class="announcement-card priority-${annPriorityClass(a.priority)}">
       <div class="ann-header">
