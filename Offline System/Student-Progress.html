@@ -304,7 +304,7 @@ td.sp-sel-cell { text-align:center; }
 
 <!-- Page content -->
 <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;align-items:center;" class="filter-row">
-  <button class="btn btn-primary" id="spAddStudentBtn" onclick="if(!spRefuseEdit())openModal('addStudentModal')">+ Add Student</button>
+  <button class="btn btn-primary" id="spAddStudentBtn" onclick="spAddStudentClicked()">+ Add Student</button>
   <select class="form-control" style="width:200px;" id="filterStage" onchange="filterStudents()">
     <option value="all">All Stages</option>
     <option value="testing">Testing</option>
@@ -1737,7 +1737,20 @@ window.addEventListener('message', function(e){
   // "Certify" on a certificate request (OF-9): this trainee's stage dialog,
   // set to Certified, with its checklist — from the dashboard only.
   if(SP_VIEWER.ok && e.data && e.data.type === 'cestis-sp-certify' && e.source === window.parent) spOpenCertify(String(e.data.studentId || ''));
+  // The dashboard could not open its New trainee form for this person: this page's own.
+  if(SP_VIEWER.ok && e.data && e.data.type === 'cestis-sp-add-own' && e.source === window.parent && spCanManage()) openModal('addStudentModal');
 });
+/* "+ Add Student": inside the dashboard, the dashboard's New trainee form —
+   the sign-in, the trainee record and the fee record together, one form
+   behind every add-trainee button (OF-7). Opened on its own, or for somebody
+   the dashboard does not let add accounts, this page's own form as before. */
+function spAddStudentClicked() {
+  if(spRefuseEdit()) return;
+  var inDashboard = false;
+  try { inDashboard = !!(window.parent && window.parent !== window && typeof window.parent.openNewTrainee === 'function'); } catch(e) { inDashboard = false; }
+  if(inDashboard) { try { window.parent.postMessage({ type: 'cestis-new-trainee' }, '*'); return; } catch(e) {} }
+  openModal('addStudentModal');
+}
 function spOpenCertify(studentId) {
   if(!studentId || spRefuseEdit()) return false;
   var idx = spIndexOfId(studentId);

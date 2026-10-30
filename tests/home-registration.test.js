@@ -35,6 +35,8 @@
 
    Run: node tests/home-registration.test.js */
 'use strict';
+// What a trainee registering from home now gives about herself (OF-3).
+const DETAILS_AT_HOME = { gender: 'Female', dob: '2005-02-14', address: '4 Hope Road, Kingston 6', emergencyName: 'Paulette Barrett', emergencyPhone: '876-555-0145' };
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
@@ -83,8 +85,10 @@ const STORED = 'pbkdf2$210000$' + '0a'.repeat(16) + '$' + '1b'.repeat(32);
 
   console.log('[' + where + '] The form is checked');
   const progs = ['Cosmetology', 'Welding & Fabrication'];
-  const form = over => Object.assign({ name: 'Shantelle  Barrett', programme: 'Cosmetology', phone: '876-555-0101', password: STORED }, over || {});
-  eq(R.check(form(), progs), { ok: true, value: { name: 'Shantelle Barrett', programme: 'Cosmetology', phone: '876-555-0101', password: STORED } }, 'a good form');
+  // Her personal details too (office audit OF-3): gender, date of birth, address and an emergency contact required; TRN and a parent or guardian when she has them.
+  const DET = { gender: 'Female', dob: '2005-02-14', trn: '123 456 789', address: '4 Hope Road, Kingston 6', parentName: 'Paulette Barrett', parentPhone: '876-555-0145', emergencyName: 'Paulette Barrett', emergencyPhone: '876-555-0145' };
+  const form = over => Object.assign({ name: 'Shantelle  Barrett', programme: 'Cosmetology', phone: '876-555-0101', password: STORED }, DET, over || {});
+  eq(R.check(form(), progs), { ok: true, value: { name: 'Shantelle Barrett', programme: 'Cosmetology', phone: '876-555-0101', password: STORED, details: { gender: 'Female', dob: '2005-02-14', trn: '123-456-789', address: '4 Hope Road, Kingston 6', parentName: 'Paulette Barrett', parentPhone: '876-555-0145', emergencyName: 'Paulette Barrett', emergencyPhone: '876-555-0145' } } }, 'a good form');
   [['name', { name: 'Shantelle' }], ['name', { name: 'Mr Barrett' }], ['name', { name: 'Shantelle "Barrett"' }], ['name', { name: 'A'.repeat(81) + ' B' }],
     ['programme', { programme: 'Plumbing' }], ['programme', { programme: '' }], ['phone', { phone: 'call me' }],
     ['password', { password: 'Secret-2026' }], ['password', { password: 'pbkdf2$1000$' + '0a'.repeat(16) + '$' + '1b'.repeat(32) }],
@@ -92,9 +96,19 @@ const STORED = 'pbkdf2$210000$' + '0a'.repeat(16) + '$' + '1b'.repeat(32);
     eq(R.check(form(c[1]), progs).field, c[0], 'refused: ' + JSON.stringify(c[1]).slice(0, 60));
   });
   eq(R.check(form({ phone: '' }), progs).ok, true, 'the phone may be left blank');
+  [['gender', { gender: '' }], ['gender', { gender: 'X' }], ['dob', { dob: '' }], ['dob', { dob: '2005-02-30' }], ['dob', { dob: '14/02/2005' }], ['dob', { dob: '2024-01-01' }],
+    ['trn', { trn: '12345' }], ['address', { address: '' }], ['address', { address: 'Kgn' }], ['address', { address: '4 <b>Hope</b> Road' }],
+    ['parentPhone', { parentPhone: '' }], ['parentName', { parentName: '' }], ['parentPhone', { parentPhone: 'none' }],
+    ['emergencyName', { emergencyName: '' }], ['emergencyPhone', { emergencyPhone: '' }], ['emergencyName', { emergencyName: '<script>' }]].forEach(function (c) {
+    eq(R.check(form(c[1]), progs).field, c[0], 'refused: ' + JSON.stringify(c[1]));
+  });
+  eq(R.check(form({ trn: '', parentName: '', parentPhone: '' }), progs).ok, true, 'TRN and a parent or guardian may be left blank');
+  eq(R.check(form({ gender: 'male' }), progs).value.details.gender, 'Male', 'gender as every form writes it');
 
   console.log('[' + where + '] The registration file, and what a staff device does with it');
   const reg = R.build({ acct: id1, email: 'shantelle.barrett@mail.test', value: R.check(form(), progs).value, folder: { id: 'FOLD1', name: 'Shantelle Barrett (STU-x)' }, nowMs: Date.parse('2026-10-28T15:30:00Z') });
+  eq(reg.details, { gender: 'Female', dob: '2005-02-14', trn: '123-456-789', address: '4 Hope Road, Kingston 6', parentName: 'Paulette Barrett', parentPhone: '876-555-0145', emergencyName: 'Paulette Barrett', emergencyPhone: '876-555-0145' }, 'the registration file carries her personal details');
+  eq(R.read(Object.assign({}, reg, { details: undefined })).reg.accountId, id1, 'a registration without them (an older one) is still read');
   eq([reg.format, reg.accountId, reg.studentId, reg.status, reg.registeredVia, reg.googleVerified, reg.folderId, reg.createdAt],
     ['cestis-registration', id1, Core.stableStudentId({ name: 'Shantelle Barrett', course: 'Cosmetology' }), 'pending', 'home-registration', true, 'FOLD1', '2026-10-28T15:30:00.000Z'], 'what it holds');
   eq(R.read(JSON.stringify(reg)).reg.accountId, id1, 'read back from its text');
@@ -109,6 +123,9 @@ const STORED = 'pbkdf2$210000$' + '0a'.repeat(16) + '$' + '1b'.repeat(32);
     [id1, 'student', 'pending', 'Shantelle Barrett', 'shantelle.barrett@mail.test', 'Cosmetology', '876-555-0101', STORED, 'home-registration', true, 'FOLD1', '2026-10-28', reg.createdAt, undefined],
     'as a PENDING trainee account, its address verified, carrying the folder the gate made (no trainee record until it is approved)');
   eq(a.username, 'shantelle.barrett2', 'with a username nobody holds');
+  eq(a.details, { gender: 'Female', dob: '2005-02-14', trn: '123-456-789', address: '4 Hope Road, Kingston 6', parentName: 'Paulette Barrett', parentPhone: '876-555-0145', emergencyName: 'Paulette Barrett', emergencyPhone: '876-555-0145' }, 'her personal details wait on the account, for the office to check');
+  eq(R.importOne(Object.assign({}, reg, { details: Object.assign({}, reg.details, { dob: 'soon', trn: 'x' }) }), office, []).account.details.dob, undefined,
+    'a bad detail in a file is dropped (the office types it) — never the registration');
   eq(R.importOne(reg, office.concat([a]), []).action, 'have', 'an account of that id already here: left as the office has it');
   eq(R.importOne(reg, office, [id1]), { action: 'skip', reason: 'deleted' }, 'an account the office deleted is never brought back');
   eq(R.importOne(Object.assign({}, reg, { email: 'kemar@MAIL.test' }), office, []), { action: 'skip', reason: 'email-taken' }, 'an address another account has: not a second account');
@@ -182,9 +199,11 @@ function clientIn(opts) {
   eq((await G2.catalogue()).programmes, [C.PROGRAMMES[1].name, C.PROGRAMMES[0].name].sort(), 'the catalogue, without signing in');
   const st = await G2.registerStart('ya29.shantelle');
   eq([st.ok, st.state, st.email], [true, 'new', 'shantelle.barrett@mail.test'], 'a new address: the form');
-  const res = await G2.registerSubmit({ accessToken: 'ya29.shantelle', name: 'Shantelle Barrett', programme: C.PROGRAMMES[0].name, phone: '', password: 'Shantelle-2026' });
+  const res = await G2.registerSubmit(Object.assign({ accessToken: 'ya29.shantelle', name: 'Shantelle Barrett', programme: C.PROGRAMMES[0].name, phone: '', password: 'Shantelle-2026' }, DETAILS_AT_HOME));
   eq([res.ok, res.state], [true, 'submitted'], 'sent: it has reached the office');
   const body = sent.filter(b => b.op === 'register.submit')[0];
+  eq([body.gender, body.dob, body.address, body.emergencyName, body.emergencyPhone], ['Female', '2005-02-14', '4 Hope Road, Kingston 6', 'Paulette Barrett', '876-555-0145'], 'her personal details went with the form');
+  eq(w.drive.json(w.drive.children(cfg.registrationsId, 'file').filter(f => /^CESTISREG\./.test(f.name))[0].id).details.gender, 'Female', 'and are in the registration the office collects');
   assert(!!body && /^pbkdf2\$210000\$[0-9a-f]{32}\$[0-9a-f]{64}$/.test(body.password), 'the password went as the dashboard stores one (PBKDF2, 210 000 rounds, a 16-byte salt)');
   assert(JSON.stringify(sent).indexOf('Shantelle-2026') === -1, 'and the password itself never left the device');
   const p = body.password.split('$');
@@ -193,7 +212,7 @@ function clientIn(opts) {
   const folders = w.drive.children(cfg.traineesId, 'folder');
   const sid = Core.stableStudentId({ name: 'Shantelle Barrett', course: C.PROGRAMMES[0].name });
   eq([regs.length, folders.map(f => f.name)], [1, ['Shantelle Barrett (' + sid + ')']], 'one registration, and her folder named with her name and student ID');
-  const again = await G2.registerSubmit({ accessToken: 'ya29.shantelle', name: 'Shantelle Barrett', programme: C.PROGRAMMES[0].name, phone: '', password: 'Shantelle-2026' });
+  const again = await G2.registerSubmit(Object.assign({ accessToken: 'ya29.shantelle', name: 'Shantelle Barrett', programme: C.PROGRAMMES[0].name, phone: '', password: 'Shantelle-2026' }, DETAILS_AT_HOME));
   eq([again.state, again.already, w.drive.children(cfg.registrationsId, 'file').filter(f => /^CESTISREG\./.test(f.name)).length, w.drive.children(cfg.traineesId, 'folder').length],
     ['submitted', true, 1, 1], 'sent again: the same registration, the same folder');
   const body2 = sent.filter(b => b.op === 'register.submit')[1];

@@ -756,7 +756,8 @@ function bigCentre(n) {
     // What the gate leaves for one registration: the folder, then the file.
     const asGate = (name, email, programme, phone) => {
       const acct = Core.gate.reg.accountId(email, secret, gcrypto);
-      const value = Core.gate.reg.check({ name, programme, phone, password: 'pbkdf2$210000$' + '0a'.repeat(16) + '$' + '1b'.repeat(32) }, [P0, P2]).value;
+      const value = Core.gate.reg.check({ name, programme, phone, password: 'pbkdf2$210000$' + '0a'.repeat(16) + '$' + '1b'.repeat(32),
+        gender: 'Female', dob: '2005-02-14', address: '4 Hope Road, Kingston 6', emergencyName: 'Paulette Barrett', emergencyPhone: '876-555-0145' }, [P0, P2]).value;
       const fold = g.drive.put(null, { name: Core.gate.folderName(value.name, Core.gate.reg.studentId(value.name, value.programme)), mimeType: F,
         parents: [g.cfg.traineesId], description: Core.gate.folderDescription(acct, 'pending') }, '');
       const file = g.drive.put(null, { name: Core.gate.reg.fileName(acct), parents: [g.cfg.registrationsId] },

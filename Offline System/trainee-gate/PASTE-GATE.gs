@@ -622,6 +622,67 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       return null;
     }
 
+    /* ---- A trainee's personal details (office audit OF-3, OF-7) ----
+       Asked once — on the office's New trainee form, or by the trainee
+       registering from home — so the office only checks them instead of
+       typing them on the fee page (≈74 s a trainee; ≈31 min an intake of
+       25). The same rules on both, and at the trainee sign-in, which takes a
+       registration only when they hold:
+         gender         'Female' | 'Male' (as every form on the platform)
+         dob            a real date, YYYY-MM-DD, aged 12 to 100
+         trn            9 digits (spaces or dashes allowed), kept 123-456-789
+         address        5 to 200 characters
+         parentName / parentPhone       a parent or guardian: both or neither
+         emergencyName / emergencyPhone an emergency contact: both or neither
+       A name is 2 to 80 characters with a letter, no markup; a phone is
+       PHONE_RE. opts.require: the fields that must be given (HOME_REQUIRED
+       from home). → { ok, value } | { ok: false, field } */
+    var DETAIL_FIELDS = ['gender', 'dob', 'trn', 'address', 'parentName', 'parentPhone', 'emergencyName', 'emergencyPhone'];
+    var HOME_REQUIRED = ['gender', 'dob', 'address', 'emergencyName', 'emergencyPhone'];
+    function dtxt(v) { return String(v == null ? '' : v).replace(/\s+/g, ' ').trim(); }
+    function checkDetail(k, raw, nowMs) {
+      var v = dtxt(raw);
+      if (!v) return { empty: true };
+      if (k === 'gender') { var g = v.toLowerCase(); return g === 'female' ? { v: 'Female' } : g === 'male' ? { v: 'Male' } : { bad: true }; }
+      if (k === 'dob') {
+        var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
+        if (!m) return { bad: true };
+        var t = Date.UTC(+m[1], +m[2] - 1, +m[3]), d = new Date(t);
+        if (d.getUTCFullYear() !== +m[1] || d.getUTCMonth() !== +m[2] - 1 || d.getUTCDate() !== +m[3]) return { bad: true };
+        var age = ((typeof nowMs === 'number' ? nowMs : Date.now()) - t) / (365.25 * 86400000);
+        return age >= 12 && age <= 100 ? { v: v } : { bad: true };
+      }
+      if (k === 'trn') { var digits = v.replace(/[\s-]/g, ''); return /^\d{9}$/.test(digits) ? { v: digits.slice(0, 3) + '-' + digits.slice(3, 6) + '-' + digits.slice(6) } : { bad: true }; }
+      if (k === 'address') return v.length >= 5 && v.length <= 200 && !/[<>"\u0000-\u001f]/.test(v) ? { v: v } : { bad: true };
+      if (k === 'parentName' || k === 'emergencyName') return v.length >= 2 && v.length <= 80 && /[A-Za-z]/.test(v) && !/[<>"\u0000-\u001f]/.test(v) ? { v: v } : { bad: true };
+      if (k === 'parentPhone' || k === 'emergencyPhone') return PHONE_RE.test(v) ? { v: v } : { bad: true };
+      return { bad: true };
+    }
+    function checkDetails(form, opts) {
+      form = form && typeof form === 'object' ? form : {};
+      opts = opts || {};
+      var req = Array.isArray(opts.require) ? opts.require : [], out = {};
+      for (var i = 0; i < DETAIL_FIELDS.length; i++) {
+        var k = DETAIL_FIELDS[i], r = checkDetail(k, form[k], opts.nowMs);
+        if (r.bad) return { ok: false, field: k };
+        if (r.empty) { if (req.indexOf(k) !== -1) return { ok: false, field: k }; continue; }
+        out[k] = r.v;
+      }
+      // A name with no number to call, or a number with no name, is half a contact.
+      if (!!out.parentName !== !!out.parentPhone) return { ok: false, field: out.parentName ? 'parentPhone' : 'parentName' };
+      if (!!out.emergencyName !== !!out.emergencyPhone) return { ok: false, field: out.emergencyName ? 'emergencyPhone' : 'emergencyName' };
+      return { ok: true, value: out };
+    }
+    /* What a stored copy holds that is valid — read back from a registration,
+       never refused because of one bad field (nothing a trainee sent is lost
+       for it: the office simply types that one). */
+    function cleanDetails(d) {
+      var out = {};
+      if (!d || typeof d !== 'object') return out;
+      DETAIL_FIELDS.forEach(function (k) { var r = checkDetail(k, d[k]); if (r.v) out[k] = r.v; });
+      return out;
+    }
+
     /* What Verify Users lists, and what Approve All / Reject All act on.
 
        It used to be every pending account PLUS every disabled one except
@@ -915,6 +976,7 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       isPlaceholderRecoveryEmail: isPlaceholderRecoveryEmail,
       registrationRole: registrationRole, isPrivilegedSelfRegistration: isPrivilegedSelfRegistration,
       isFullName: isFullName, officeCreateRefusal: officeCreateRefusal, PHONE_RE: PHONE_RE, resetRefusal: resetRefusal,
+      traineeDetails: { FIELDS: DETAIL_FIELDS, HOME_REQUIRED: HOME_REQUIRED, check: checkDetails, clean: cleanDetails },
       reviewQueue: reviewQueue, studentLinkFor: studentLinkFor,
       isBackfillStub: isBackfillStub, accountForTrainee: accountForTrainee, traineeHasAccount: traineeHasAccount,
       backfillStubFolds: backfillStubFolds,
@@ -4784,11 +4846,15 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
 
     /* What the registration form sends, checked: the full name (first and
        last — Core.accountAccess.isFullName, the rule of every account form),
-       a programme from the catalogue, an optional phone, and the password as
+       a programme from the catalogue, an optional phone, the password as
        the dashboard stores one (pbkdf2$<iterations>$<salt>$<hash>, worked out
        on the trainee's device with a fresh salt — the password itself never
-       travels). → { ok, value } | { ok: false, field } */
-    function checkRegistration(form, programmes) {
+       travels), and her personal details (Core.accountAccess.traineeDetails:
+       gender, date of birth, address and an emergency contact required; TRN
+       and a parent or guardian when she has them — office audit OF-3), so
+       the office only checks them. opts.nowMs: today, for the age.
+       → { ok, value } | { ok: false, field } */
+    function checkRegistration(form, programmes, opts) {
       form = isObj(form) ? form : {};
       var name = cleanName(form.name);
       if (!name || name.length > REG_NAME_MAX || /[<>"\u0000-\u001f]/.test(name) || !Core.accountAccess.isFullName(name)) return { ok: false, field: 'name' };
@@ -4798,7 +4864,10 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       if (phone && !Core.accountAccess.PHONE_RE.test(phone)) return { ok: false, field: 'phone' };
       var pw = str(form.password), m = STORED_PW_RE.exec(pw);
       if (!m || Number(m[1]) < 100000 || Number(m[1]) > 1000000) return { ok: false, field: 'password' };
-      return { ok: true, value: { name: name, programme: programme, phone: phone, password: pw } };
+      var TD = Core.accountAccess.traineeDetails;
+      var det = TD.check(form, { require: TD.HOME_REQUIRED, nowMs: opts && typeof opts.nowMs === 'number' ? opts.nowMs : undefined });
+      if (!det.ok) return { ok: false, field: det.field };
+      return { ok: true, value: { name: name, programme: programme, phone: phone, password: pw, details: det.value } };
     }
     /* The registration file (Registrations/CESTISREG.<id>.json). o: { acct,
        email, value (checkRegistration's), folder: { id, name }, nowMs }. */
@@ -4809,6 +4878,7 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
         name: str(v.name), email: str(o.email).trim(), programme: str(v.programme), password: str(v.password),
         googleVerified: true, registeredVia: 'home-registration', status: 'pending', createdAt: iso(o.nowMs) };
       if (v.phone) out.phone = str(v.phone);
+      if (isObj(v.details) && Object.keys(v.details).length) out.details = copy(v.details);
       if (o.folder && o.folder.id) { out.folderId = str(o.folder.id); out.folderName = str(o.folder.name); }
       return out;
     }
@@ -4853,6 +4923,10 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
         programme: str(r.programme).trim(), status: 'pending', createdAt: day || str(r.createdAt).slice(0, 10), registeredVia: 'home-registration',
         googleVerified: true, registeredAt: str(r.createdAt), updatedAt: str(r.createdAt) };
       if (r.phone && Core.accountAccess.PHONE_RE.test(str(r.phone).trim())) acct.phone = str(r.phone).trim();
+      // Her personal details, kept on the waiting account for the office to
+      // check; on approval they reach her trainee and fee records (blanks only).
+      var det = Core.accountAccess.traineeDetails.clean(r.details);
+      if (Object.keys(det).length) acct.details = det;
       if (r.folderId) acct.gateFolderId = str(r.folderId);
       return { action: 'add', account: acct };
     }
@@ -4976,7 +5050,8 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
      signOut                    {token} → {}
      catalogue                  {} → {programmes:[name]}           (no sign-in: what a new trainee may register for)
      register.start             {accessToken} → {state:'new', email, programmes} | {state:'submitted', email, programme, submittedAt}
-     register.submit            {accessToken, name, programme, phone?, password:'pbkdf2$…'} → {state:'submitted', …}
+     register.submit            {accessToken, name, programme, phone?, password:'pbkdf2$…', gender, dob, trn?, address,
+                                 parentName?, parentPhone?, emergencyName, emergencyPhone} → {state:'submitted', …}
                                 (registration from home, DESIGN.md §17: an email-account token
                                  only; refused: has-account | pending | rejected | disabled |
                                  not-open | bad-form {field} | too-many | ask-office)
@@ -5619,7 +5694,8 @@ function gateAuthEmail(G, req) {
    request the gate then:
      - keeps the registration: Registrations/CESTISREG.<account id>.json
        (Core.gate.reg.build: name, address, programme, phone, the password
-       as the dashboard stores one — worked out on the trainee's device);
+       as the dashboard stores one — worked out on the trainee's device —
+       and her personal details, Core.accountAccess.traineeDetails);
      - makes the trainee's own folder: Trainees/"<Name> (<student ID>)",
        described "cestis-trainee acct=<account id> v=1 registration=pending"
        (the student ID the dashboard will give them: Core.gate.reg.studentId).
@@ -5687,7 +5763,8 @@ function gateRegisterSubmit(G, req) {
   if (w.out) { if (w.out.state === 'submitted') w.out.already = true; return w.out; }
   var programmes = gateCatalogueNames(G);
   if (!programmes.length) return { ok: false, error: 'not-open' };
-  var chk = G.gate.reg.check({ name: req.name, programme: req.programme, phone: req.phone, password: req.password }, programmes);
+  // The whole form: the shared rules read only the fields they know (Core.gate.reg.check).
+  var chk = G.gate.reg.check(req, programmes, { nowMs: G.now });
   if (!chk.ok) return { ok: false, error: 'bad-form', field: chk.field };
   var akey = 'rga:' + gateAcctKey(G, w.acct), hkey = 'rgh:' + Math.floor(G.now / 3600000), skey = 'rg6:' + Math.floor(G.now / 21600000);
   if (gateCountOf(G, akey) >= GATE_REG.PER_ADDRESS_PER_HOUR || gateCountOf(G, hkey) >= GATE_REG.PER_HOUR || gateCountOf(G, skey) >= GATE_REG.PER_6H) {

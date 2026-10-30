@@ -924,6 +924,11 @@ body.gate-trainee.gate-lan .gate-register-note { display:block; }
 .gate-reg-modal .gate-reg-say { min-height:18px; font-size:13px; margin-top:8px; color:var(--red); }
 .gate-reg-modal .gate-reg-say.is-status { color:var(--text-secondary); }
 .gate-reg-modal .gate-reg-hint { font-size:12px; color:var(--text-muted); margin-top:4px; }
+/* Her personal details, asked once (office audit OF-3): the office only checks them. */
+.gate-reg-set { border:1px solid var(--border-light); border-radius:var(--radius-sm); padding:12px 14px 2px; margin:4px 0 14px; }
+.gate-reg-set legend { font-size:13px; font-weight:700; color:var(--text-primary); padding:0 6px; }
+.gate-reg-row { display:grid; grid-template-columns:1fr 1fr; gap:0 12px; }
+@media (max-width: 480px) { .gate-reg-row { grid-template-columns:1fr; } }
 html.gate-ns #landingPage { display:none; }
 .role-login-error.is-status { color:var(--text-secondary); background:transparent; border-color:transparent; }
 .gate-boot { position:fixed; inset:0; z-index:10050; display:flex; align-items:center; justify-content:center; padding:16px; background:var(--bg-primary); }
@@ -1967,6 +1972,11 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 .ot-line.ot-clear .ot-count { color:var(--green); font-size:16px; }
 .ot-line.ot-clear .ot-msg { font-weight:500; color:var(--text-secondary); }
 .ot-new-staff { font-size:13px; color:var(--text-secondary); line-height:1.5; }
+/* The New trainee form's optional details (OF-7). */
+.at-more { border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 12px; margin:4px 0 8px; }
+.at-more summary { cursor:pointer; font-size:13px; font-weight:600; color:var(--text-secondary); min-height:28px; }
+.at-more[open] summary { margin-bottom:10px; }
+.vu-details { display:block; font-size:12px; color:var(--text-secondary); margin-top:4px; line-height:1.45; font-weight:400; }
 @media (max-width: 600px) { .ot-line .ot-go { display:none; } .ot-card { padding:14px; } }
 
 /* ============================== TOP PERFORMERS WIDGET ============================== */
@@ -5840,12 +5850,17 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
   </div>
 </div>
 
-<!-- ADD TRAINEE ACCOUNT MODAL (Verify Users / Admin Staff: Trainee Accounts) -->
+<!-- NEW TRAINEE (one form behind every add-trainee button: the dashboard's Add
+     Student, Student Progress's + Add Student, Verify Users / Trainee Accounts'
+     + Add Trainee Account, Settings → Create User for a trainee — OF-7) -->
 <div class="modal-overlay" id="addTraineeModal">
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="addTraineeTitle">
-    <div class="modal-header"><h3 id="addTraineeTitle">Add Trainee Account</h3><button class="modal-close" onclick="closeModal('addTraineeModal')" aria-label="Close">✕</button></div>
-    <p style="font-size:13px;color:var(--text-muted);margin:0 0 14px;">The account is active at once. Give the trainee their username and password. With their email address entered, they can also sign in with their email account.</p>
-    <div class="form-group"><label for="atName">Full Name (first &amp; last name required)</label><input type="text" class="form-control" id="atName" placeholder="First and last name, e.g. Tameka Richards" autocomplete="off"></div>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="addTraineeTitle" style="max-height:calc(100vh - 32px);overflow-y:auto;">
+    <div class="modal-header"><h3 id="addTraineeTitle">New trainee</h3><button class="modal-close" onclick="closeModal('addTraineeModal')" aria-label="Close">✕</button></div>
+    <p style="font-size:13px;color:var(--text-muted);margin:0 0 14px;">Makes the trainee's sign-in, trainee record and fee record together. The account is active at once. Give the trainee their username and password. With their email address entered, they can also sign in with their email account.</p>
+    <div class="um-form-row">
+      <div class="form-group"><label for="atName">Full Name (first &amp; last name required)</label><input type="text" class="form-control" id="atName" placeholder="First and last name, e.g. Tameka Richards" autocomplete="off"></div>
+      <div class="form-group"><label for="atGender">Gender</label><select class="form-control" id="atGender"><option value="">— Select —</option><option value="Female">Female</option><option value="Male">Male</option></select></div>
+    </div>
     <div class="um-form-row">
       <div class="form-group"><label for="atEmail">Email</label><input type="email" class="form-control" id="atEmail" placeholder="trainee@example.com" autocomplete="off"></div>
       <div class="form-group"><label for="atPhone">Phone (optional)</label><input type="tel" class="form-control" id="atPhone" placeholder="876-555-0123" autocomplete="off"></div>
@@ -5855,10 +5870,26 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
       <div class="form-group"><label for="atUsername">Username</label><input type="text" class="form-control" id="atUsername" placeholder="Left blank: made from the email" autocomplete="off" autocapitalize="none" spellcheck="false"></div>
       <div class="form-group"><label for="atPassword">Password</label><input type="password" class="form-control" id="atPassword" placeholder="Minimum 6 characters" autocomplete="new-password"></div>
     </div>
+    <details class="at-more" id="atMore">
+      <summary>More details (optional): date of birth, TRN, address, parent or guardian, emergency contact</summary>
+      <div class="um-form-row">
+        <div class="form-group"><label for="atDob">Date of birth</label><input type="date" class="form-control" id="atDob"></div>
+        <div class="form-group"><label for="atTrn">TRN</label><input type="text" class="form-control" id="atTrn" inputmode="numeric" placeholder="e.g. 123-456-789" autocomplete="off"></div>
+      </div>
+      <div class="form-group"><label for="atAddress">Home address</label><input type="text" class="form-control" id="atAddress" placeholder="e.g. 12 Hope Road, Kingston 6" autocomplete="off"></div>
+      <div class="um-form-row">
+        <div class="form-group"><label for="atParentName">Parent or guardian</label><input type="text" class="form-control" id="atParentName" placeholder="Name" autocomplete="off"></div>
+        <div class="form-group"><label for="atParentPhone">Their phone</label><input type="tel" class="form-control" id="atParentPhone" placeholder="876-555-0145" autocomplete="off"></div>
+      </div>
+      <div class="um-form-row">
+        <div class="form-group"><label for="atEmergencyName">Emergency contact</label><input type="text" class="form-control" id="atEmergencyName" placeholder="Name" autocomplete="off"></div>
+        <div class="form-group"><label for="atEmergencyPhone">Their phone</label><input type="tel" class="form-control" id="atEmergencyPhone" placeholder="876-555-0178" autocomplete="off"></div>
+      </div>
+    </details>
     <div class="role-login-error" id="atSaid" role="alert" hidden></div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
       <button class="btn btn-secondary" onclick="closeModal('addTraineeModal')">Cancel</button>
-      <button class="btn btn-primary" id="atCreateBtn" onclick="createTraineeAccount()">Create Account</button>
+      <button class="btn btn-primary" id="atCreateBtn" onclick="createTraineeAccount()">Create trainee</button>
     </div>
   </div>
 </div>
@@ -10838,6 +10869,9 @@ function getNextUserId() {
 
 function toggleUserFormFields() {
   var role = document.getElementById('newUserRole').value;
+  // A trainee is added with the New trainee form (OF-7): sign-in, trainee
+  // record and fee record together. What was typed is carried over.
+  if(role === 'student') { createUserAsTrainee(); return; }
   document.getElementById('newUserProgrammeGroup').style.display = (role === 'admin' || role === 'adminstaff' || role === 'cmc') ? 'none' : 'block';
   // Chairperson is a board office, so it is only offered on a board account.
   var chair = document.getElementById('newUserChairGroup');
@@ -10864,6 +10898,13 @@ function setCmcChair(account) {
   return stoodDown;
 }
 
+function createUserAsTrainee() {
+  var val = function(id) { var el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; };
+  var prefill = { name: val('newUserName'), email: val('newUserEmail'), username: val('newUserUsername') };
+  var role = document.getElementById('newUserRole'); if(role) role.value = 'admin';
+  closeModal('createUserModal');
+  openNewTrainee(prefill);
+}
 async function createUserAccount() {
   var name = document.getElementById('newUserName').value.trim();
   var role = document.getElementById('newUserRole').value;
@@ -10956,13 +10997,52 @@ function officeSuggestUsername(name, email) {
   while (userAccounts.some(function(a) { return a && String(a.username || '').trim().toLowerCase() === u; })) { n++; u = base + n; }
   return u;
 }
-function openAddTraineeAccount() {
-  if(!officeMayAddTrainee()) { showToast('Adding trainee accounts has not been enabled for Admin Staff by the Administrator.', 'warning'); return; }
+// The New trainee form's boxes for her personal details (Core.accountAccess.traineeDetails).
+var AT_DETAIL_IDS = { gender: 'atGender', dob: 'atDob', trn: 'atTrn', address: 'atAddress', parentName: 'atParentName', parentPhone: 'atParentPhone', emergencyName: 'atEmergencyName', emergencyPhone: 'atEmergencyPhone' };
+/* ONE "New trainee" form behind every add-trainee button (office audit OF-7):
+   the dashboard's Add Student, Student Progress's + Add Student, Verify Users
+   / Trainee Accounts' + Add Trainee Account, and Settings → Create User for
+   a trainee. It makes the sign-in, the trainee record and the fee record
+   together. prefill: { name, email, username } carried over from Create User. */
+function openAddTraineeAccount(prefill) {
+  if(!officeMayAddTrainee()) { showToast('Adding trainee accounts has not been enabled for Admin Staff by the Administrator.', 'warning'); return false; }
   var sel = document.getElementById('atProgramme');
   if(sel) sel.innerHTML = '<option value="">— Select Programme —</option>' + officeEnrollingProgrammes().map(function(p) { return '<option value="' + escapeAttr(p) + '">' + escapeHtml(p) + '</option>'; }).join('');
-  ['atName', 'atEmail', 'atPhone', 'atUsername', 'atPassword'].forEach(function(id) { var el = document.getElementById(id); if(el) el.value = ''; });
+  ['atName', 'atEmail', 'atPhone', 'atUsername', 'atPassword'].concat(Object.keys(AT_DETAIL_IDS).map(function(k) { return AT_DETAIL_IDS[k]; }))
+    .forEach(function(id) { var el = document.getElementById(id); if(el) el.value = ''; });
+  var more = document.getElementById('atMore'); if(more) more.open = false;
+  prefill = prefill || {};
+  [['atName', prefill.name], ['atEmail', prefill.email], ['atUsername', prefill.username]].forEach(function(p) { var el = document.getElementById(p[0]); if(el && p[1]) el.value = String(p[1]); });
   var said = document.getElementById('atSaid'); if(said) { said.hidden = true; said.textContent = ''; }
   openModal('addTraineeModal');
+  return true;
+}
+function openNewTrainee(prefill) { return openAddTraineeAccount(prefill); }
+/* Her personal details onto her trainee record and her fee record, filling
+   ONLY what is blank (CESTISCore.traineeContact.fillDetails): from the New
+   trainee form, or — on approval — from what she gave when she registered
+   from home (account.details). A fee record that does not exist yet is made
+   first (the fee mirror), so the parent / guardian and emergency contact,
+   which only the fee record holds, are not lost. Returns whether the
+   trainee record changed. */
+function applyTraineeDetails(student, details) {
+  if(!student || !details || typeof details !== 'object' || !Object.keys(details).length) return false;
+  var TC = CESTISCore.traineeContact;
+  var changed = TC.fillDetails(student, details, 'trainee').length > 0;
+  try {
+    var read = function() { var raw = CESTISStore.getItem('cestiSchoolFeeStudents'); var a = raw ? JSON.parse(raw) : []; return Array.isArray(a) ? a : []; };
+    var fee = read();
+    var twinsOf = function(list) { return list.filter(function(f) { return f && CESTISCore.isFeeTwin(student, f); }); };
+    var twins = twinsOf(fee);
+    if(!twins.length && typeof window.syncStudentsToSchoolFee === 'function' && (students || []).indexOf(student) !== -1) {
+      window.syncStudentsToSchoolFee();
+      fee = read(); twins = twinsOf(fee);
+    }
+    var feeChanged = false;
+    twins.forEach(function(f) { if(TC.fillDetails(f, details, 'fee').length) { f.updatedAt = new Date().toISOString(); feeChanged = true; } });
+    if(feeChanged) CESTISCore.pageCloud.guardedSet(CESTISStore, 'cestiSchoolFeeStudents', fee);
+  } catch(e) { console.warn('[Accounts] could not fill the fee record\'s details:', e); }
+  return changed;
 }
 async function createTraineeAccount() {
   if(!officeMayAddTrainee()) return;
@@ -10973,7 +11053,20 @@ async function createTraineeAccount() {
   var draft = { role: 'student', name: name, username: username, email: email, programme: programme, password: password, phone: phone };
   var refusal = CESTISCore.accountAccess.officeCreateRefusal({ role: currentRole, allowed: officeMayAddTrainee() }, draft, userAccounts,
     { enrolBlock: programme ? courseEnrolmentBlockReason(programme) : '' });
+  // Gender, and the optional details, by the rules a registration from home
+  // follows (CESTISCore.accountAccess.traineeDetails).
+  var detailForm = {};
+  Object.keys(AT_DETAIL_IDS).forEach(function(k) { detailForm[k] = v(AT_DETAIL_IDS[k]); });
+  var det = CESTISCore.accountAccess.traineeDetails.check(detailForm, { require: ['gender'] });
   var said = document.getElementById('atSaid');
+  if(!refusal && !det.ok) {
+    var DET_SAY = { gender: 'Please choose the trainee\'s gender.', dob: 'Please check the date of birth (the trainee must be at least 12).', trn: 'A TRN is 9 digits, e.g. 123-456-789 — or leave it blank.',
+      address: 'Please check the address (at least 5 characters), or leave it blank.', parentName: 'Please give the parent or guardian\'s name as well as their phone, or neither.',
+      parentPhone: 'Please give the parent or guardian\'s phone as well as their name, or neither.', emergencyName: 'Please give the emergency contact\'s name as well as their phone, or neither.',
+      emergencyPhone: 'Please give the emergency contact\'s phone as well as their name, or neither.' };
+    refusal = { code: det.field, message: DET_SAY[det.field] || 'Please check the trainee\'s details.' };
+    if(det.field !== 'gender') { var more = document.getElementById('atMore'); if(more) more.open = true; }
+  }
   if(refusal) { if(said) { said.hidden = false; said.textContent = refusal.message; } else alert(refusal.message); return; }
   var btn = document.getElementById('atCreateBtn'); if(btn) btn.disabled = true;
   try {
@@ -10987,8 +11080,11 @@ async function createTraineeAccount() {
     userAccounts.push(acct);
     // Their trainee record: the one of that name on that programme, or a new one.
     var existingStudent = findStudentRecordForAccount(acct);
+    var rec = existingStudent;
     if(existingStudent) { acct.studentDataId = existingStudent.id; fillTraineeContactFromAccount(existingStudent, acct); }
-    else createStudentDataForAccount(acct);
+    else rec = createStudentDataForAccount(acct);
+    // Gender and the other details, on the trainee record and the fee record (blanks only).
+    try { applyTraineeDetails(rec, det.value); } catch(e) { console.warn('[Accounts] details not filled:', e); }
     saveUserAccounts();
     saveState();
     closeModal('addTraineeModal');
@@ -13549,6 +13645,19 @@ function stampReviewer(u) {
   var me = currentLoggedInUser && (currentLoggedInUser.name || currentLoggedInUser.username);
   if (me) u.approvedByName = String(me);
 }
+/* A registration's personal details, in one short block on its row. */
+function vuDetailsHtml(d) {
+  var bits = [];
+  if(d.gender) bits.push(escapeHtml(d.gender));
+  if(d.dob) bits.push('Born ' + escapeHtml(d.dob));
+  if(d.trn) bits.push('TRN ' + escapeHtml(d.trn));
+  if(d.address) bits.push(escapeHtml(d.address));
+  var line2 = [];
+  if(d.parentName) line2.push('Parent/guardian: ' + escapeHtml(d.parentName) + (d.parentPhone ? ' ' + escapeHtml(d.parentPhone) : ''));
+  if(d.emergencyName) line2.push('Emergency: ' + escapeHtml(d.emergencyName) + (d.emergencyPhone ? ' ' + escapeHtml(d.emergencyPhone) : ''));
+  if(!bits.length && !line2.length) return '';
+  return '<span class="vu-details">' + bits.join(' · ') + (line2.length ? '<br>' + line2.join(' · ') : '') + '</span>';
+}
 function renderVerifyUsersPage() {
   // Only registrations and never-reviewed trainee placeholders: an account a
   // person switched off is not "awaiting" anything (CESTISCore.accountAccess.reviewQueue).
@@ -13613,6 +13722,8 @@ function renderVerifyUsersPage() {
         // Sent by the trainee from home, signed in with their own email account
         // (the address was checked as theirs before the registration was taken).
         if (u.registeredVia === 'home-registration') sourceLabel = ' <span class="vu-home-note" style="display:block;font-size:12px;color:var(--green);font-weight:600;">Registered from home · email account verified</span>';
+        // What she gave, for the office to check before approving (OF-3).
+        if (u.details && typeof u.details === 'object') sourceLabel += vuDetailsHtml(u.details);
         if (_maybeDup[u.id]) sourceLabel += ' <span style="font-size:10px;color:var(--accent);font-weight:600;">(may be a second account of somebody who already has one — check the accounts list before activating)</span>';
         return '<tr>' +
           '<td><strong>' + escapeHtml(u.name) + '</strong>' + sourceLabel + '</td>' +
@@ -13668,6 +13779,12 @@ function approveUser(userId) {
     } else {
       createStudentDataForAccount(user);
     }
+  }
+  // What she gave when registering from home (date of birth, gender, TRN,
+  // address, parent or guardian, emergency contact): onto her trainee and fee
+  // records, blanks only (OF-3).
+  if (user.role === 'student' && user.details) {
+    try { applyTraineeDetails(students.find(function(s) { return s && s.id === user.studentDataId; }), user.details); } catch(e) {}
   }
   // Ensure instructor data is created and linked when approving an instructor account
   if (user.role === 'instructor') {
@@ -13738,6 +13855,10 @@ function approveAllPending() {
       } else {
         createStudentDataForAccount(u);
       }
+    }
+    // Her details from home, onto her records (blanks only — OF-3).
+    if (u.role === 'student' && u.details) {
+      try { applyTraineeDetails(students.find(function(s) { return s && s.id === u.studentDataId; }), u.details); } catch(e) {}
     }
     if (u.role === 'instructor') {
       var existingInstructor = findInstructorRecordForAccount(u);
@@ -14968,7 +15089,7 @@ function buildAdminPages() {
       <div class="stat-card"><div class="stat-icon" style="background:var(--purple-dim);color:var(--purple);">\uD83D\uDCF9</div><div class="stat-value" data-count="${classSessions.length}">0</div><div class="stat-label">Class Sessions</div><div class="stat-change" style="color:var(--text-muted);">Total scheduled</div></div>
     </div>
     <div class="quick-actions">
-      <div class="quick-action-btn" onclick="showPage('students')"><div class="qa-icon">&#128100;</div><div class="qa-label">Add Student</div></div>
+      <div class="quick-action-btn" onclick="openNewTrainee()"><div class="qa-icon">&#128100;</div><div class="qa-label">Add Student</div></div>
       <div class="quick-action-btn" onclick="openModal('createExamModal')"><div class="qa-icon">\uD83D\uDCDD</div><div class="qa-label">Create Exam</div></div>
       <div class="quick-action-btn" onclick="showPage('announcements')"><div class="qa-icon">\uD83D\uDCE2</div><div class="qa-label">New Announcement</div></div>
       <div class="quick-action-btn" onclick="exportReportCSV()"><div class="qa-icon">\uD83D\uDCC4</div><div class="qa-label">Export Report</div></div>
@@ -24312,6 +24433,13 @@ window.addEventListener('message', function(e) {
     examResults = adoptStoredCollection('voctrain_examResults', examResults);
     updateCtrRequestsBadge();
     try { scheduleDebouncedCloudSave(); } catch(e2) {}
+  }
+  // Student Progress's "+ Add Student" (OF-7): the New trainee form — or,
+  // for somebody who may manage the roll but not add accounts, its own form.
+  if(e.data && e.data.type === 'cestis-new-trainee') {
+    if (!cestisMessageFromFrames(e, STUDENT_PROGRESS_FRAMES)) return;
+    if (officeMayAddTrainee()) openNewTrainee();
+    else { try { e.source.postMessage({ type: 'cestis-sp-add-own' }, '*'); } catch(e2) {} }
   }
   // The requests page (OF-9): a request moved on, or "Open transcript" /
   // "Certify" pressed on its row.
@@ -39675,8 +39803,18 @@ var GATE_REG_FIELD = {
   programme: 'Please choose your programme.',
   phone: 'Please enter your phone number with digits only (spaces and + - ( ) are fine), or leave it blank.',
   password: 'Your password must be at least 6 characters, with at least one capital letter and one number.',
-  confirm: 'The two passwords do not match.'
+  confirm: 'The two passwords do not match.',
+  gender: 'Please choose Female or Male.',
+  dob: 'Please enter your date of birth (you must be at least 12).',
+  trn: 'Your TRN is 9 digits (for example 123-456-789). Leave it blank if you do not have one.',
+  address: 'Please enter your home address.',
+  parentName: 'Please enter your parent or guardian\'s name, or leave both of their boxes blank.',
+  parentPhone: 'Please enter your parent or guardian\'s phone number, or leave both of their boxes blank.',
+  emergencyName: 'Please enter the name of somebody we can call in an emergency.',
+  emergencyPhone: 'Please enter the phone number of somebody we can call in an emergency.'
 };
+// The boxes of her personal details on the form (Core.accountAccess.traineeDetails).
+var GATE_REG_DETAIL_IDS = { gender: 'grGender', dob: 'grDob', trn: 'grTrn', address: 'grAddress', parentName: 'grParentName', parentPhone: 'grParentPhone', emergencyName: 'grEmergencyName', emergencyPhone: 'grEmergencyPhone' };
 function gateRegSay(code) {
   var c = String(code || 'unreachable');
   if (GATE_REG_SAY[c]) return GATE_REG_SAY[c];
@@ -39751,6 +39889,27 @@ function gateRegisterForm(res, ctx) {
     '<div class="form-group"><label for="grName">Full name (first &amp; last name)</label><input type="text" id="grName" autocomplete="name" value="' + escapeAttr(name) + '" placeholder="First and last name, e.g. Tameka Richards"></div>' +
     '<div class="form-group"><label for="grProgramme">Programme</label><select id="grProgramme"><option value="">— Choose your programme —</option>' + opts + '</select></div>' +
     '<div class="form-group"><label for="grPhone">Phone (optional)</label><input type="tel" id="grPhone" autocomplete="tel" placeholder="e.g. 876-555-0123"></div>' +
+    // Asked once, here, so the office only checks them (OF-3).
+    '<fieldset class="gate-reg-set"><legend>About you</legend>' +
+      '<div class="gate-reg-row">' +
+        '<div class="form-group"><label for="grGender">Gender</label><select id="grGender"><option value="">— Choose —</option><option value="Female">Female</option><option value="Male">Male</option></select></div>' +
+        '<div class="form-group"><label for="grDob">Date of birth</label><input type="date" id="grDob" autocomplete="bday"></div>' +
+      '</div>' +
+      '<div class="form-group"><label for="grTrn">TRN (optional)</label><input type="text" id="grTrn" inputmode="numeric" autocomplete="off" placeholder="e.g. 123-456-789"></div>' +
+      '<div class="form-group"><label for="grAddress">Home address</label><input type="text" id="grAddress" autocomplete="street-address" placeholder="e.g. 12 Hope Road, Kingston 6"></div>' +
+    '</fieldset>' +
+    '<fieldset class="gate-reg-set"><legend>Parent or guardian (optional)</legend>' +
+      '<div class="gate-reg-row">' +
+        '<div class="form-group"><label for="grParentName">Name</label><input type="text" id="grParentName" autocomplete="off" placeholder="e.g. Paulette Barrett"></div>' +
+        '<div class="form-group"><label for="grParentPhone">Phone</label><input type="tel" id="grParentPhone" autocomplete="off" placeholder="e.g. 876-555-0145"></div>' +
+      '</div>' +
+    '</fieldset>' +
+    '<fieldset class="gate-reg-set"><legend>Emergency contact</legend>' +
+      '<div class="gate-reg-row">' +
+        '<div class="form-group"><label for="grEmergencyName">Name</label><input type="text" id="grEmergencyName" autocomplete="off" placeholder="Somebody we can call"></div>' +
+        '<div class="form-group"><label for="grEmergencyPhone">Phone</label><input type="tel" id="grEmergencyPhone" autocomplete="off" placeholder="e.g. 876-555-0178"></div>' +
+      '</div>' +
+    '</fieldset>' +
     '<div class="form-group"><label for="grPassword">Password</label><input type="password" id="grPassword" autocomplete="new-password" placeholder="At least 6 characters">' +
       '<div class="gate-reg-hint">With a capital letter and a number. You can sign in with it, or with your email account.</div></div>' +
     '<div class="form-group"><label for="grPassword2">Confirm password</label><input type="password" id="grPassword2" autocomplete="new-password" placeholder="Type it again"></div>' +
@@ -39777,13 +39936,18 @@ async function gateRegisterSubmit() {
   if (!CESTISCore.accountAccess.isFullName(name) || /[<>"]/.test(name)) { gateRegFormSay(GATE_REG_FIELD.name); return; }
   if (!programme) { gateRegFormSay(GATE_REG_FIELD.programme); return; }
   if (phone && !CESTISCore.accountAccess.PHONE_RE.test(phone)) { gateRegFormSay(GATE_REG_FIELD.phone); return; }
+  // Her personal details, by the rules the gate keeps (CESTISCore.accountAccess.traineeDetails).
+  var TD = CESTISCore.accountAccess.traineeDetails, form = {};
+  Object.keys(GATE_REG_DETAIL_IDS).forEach(function(k) { form[k] = v(GATE_REG_DETAIL_IDS[k]); });
+  var det = TD.check(form, { require: TD.HOME_REQUIRED });
+  if (!det.ok) { gateRegFormSay(GATE_REG_FIELD[det.field]); try { document.getElementById(GATE_REG_DETAIL_IDS[det.field]).focus(); } catch (e) {} return; }
   if (pw.length < 6 || !/[A-Z]/.test(pw) || !/[0-9]/.test(pw)) { gateRegFormSay(GATE_REG_FIELD.password); return; }
   if (pw !== pw2) { gateRegFormSay(GATE_REG_FIELD.confirm); return; }
   _gateReg.busy = true;
   var btn = document.getElementById('grSend'); if (btn) btn.disabled = true;
   gateRegFormSay('Sending your registration to the office…', true);
   var res = null;
-  try { res = await CESTISGate.registerSubmit({ accessToken: _gateReg.token, name: name, programme: programme, phone: phone, password: pw }); }
+  try { res = await CESTISGate.registerSubmit(Object.assign({ accessToken: _gateReg.token, name: name, programme: programme, phone: phone, password: pw }, det.value)); }
   catch (e) { res = { ok: false, error: 'unreachable' }; }
   _gateReg.busy = false;
   if (btn) btn.disabled = false;

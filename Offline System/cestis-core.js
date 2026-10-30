@@ -8701,6 +8701,67 @@
       return null;
     }
 
+    /* ---- A trainee's personal details (office audit OF-3, OF-7) ----
+       Asked once — on the office's New trainee form, or by the trainee
+       registering from home — so the office only checks them instead of
+       typing them on the fee page (≈74 s a trainee; ≈31 min an intake of
+       25). The same rules on both, and at the trainee sign-in, which takes a
+       registration only when they hold:
+         gender         'Female' | 'Male' (as every form on the platform)
+         dob            a real date, YYYY-MM-DD, aged 12 to 100
+         trn            9 digits (spaces or dashes allowed), kept 123-456-789
+         address        5 to 200 characters
+         parentName / parentPhone       a parent or guardian: both or neither
+         emergencyName / emergencyPhone an emergency contact: both or neither
+       A name is 2 to 80 characters with a letter, no markup; a phone is
+       PHONE_RE. opts.require: the fields that must be given (HOME_REQUIRED
+       from home). → { ok, value } | { ok: false, field } */
+    var DETAIL_FIELDS = ['gender', 'dob', 'trn', 'address', 'parentName', 'parentPhone', 'emergencyName', 'emergencyPhone'];
+    var HOME_REQUIRED = ['gender', 'dob', 'address', 'emergencyName', 'emergencyPhone'];
+    function dtxt(v) { return String(v == null ? '' : v).replace(/\s+/g, ' ').trim(); }
+    function checkDetail(k, raw, nowMs) {
+      var v = dtxt(raw);
+      if (!v) return { empty: true };
+      if (k === 'gender') { var g = v.toLowerCase(); return g === 'female' ? { v: 'Female' } : g === 'male' ? { v: 'Male' } : { bad: true }; }
+      if (k === 'dob') {
+        var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
+        if (!m) return { bad: true };
+        var t = Date.UTC(+m[1], +m[2] - 1, +m[3]), d = new Date(t);
+        if (d.getUTCFullYear() !== +m[1] || d.getUTCMonth() !== +m[2] - 1 || d.getUTCDate() !== +m[3]) return { bad: true };
+        var age = ((typeof nowMs === 'number' ? nowMs : Date.now()) - t) / (365.25 * 86400000);
+        return age >= 12 && age <= 100 ? { v: v } : { bad: true };
+      }
+      if (k === 'trn') { var digits = v.replace(/[\s-]/g, ''); return /^\d{9}$/.test(digits) ? { v: digits.slice(0, 3) + '-' + digits.slice(3, 6) + '-' + digits.slice(6) } : { bad: true }; }
+      if (k === 'address') return v.length >= 5 && v.length <= 200 && !/[<>"\u0000-\u001f]/.test(v) ? { v: v } : { bad: true };
+      if (k === 'parentName' || k === 'emergencyName') return v.length >= 2 && v.length <= 80 && /[A-Za-z]/.test(v) && !/[<>"\u0000-\u001f]/.test(v) ? { v: v } : { bad: true };
+      if (k === 'parentPhone' || k === 'emergencyPhone') return PHONE_RE.test(v) ? { v: v } : { bad: true };
+      return { bad: true };
+    }
+    function checkDetails(form, opts) {
+      form = form && typeof form === 'object' ? form : {};
+      opts = opts || {};
+      var req = Array.isArray(opts.require) ? opts.require : [], out = {};
+      for (var i = 0; i < DETAIL_FIELDS.length; i++) {
+        var k = DETAIL_FIELDS[i], r = checkDetail(k, form[k], opts.nowMs);
+        if (r.bad) return { ok: false, field: k };
+        if (r.empty) { if (req.indexOf(k) !== -1) return { ok: false, field: k }; continue; }
+        out[k] = r.v;
+      }
+      // A name with no number to call, or a number with no name, is half a contact.
+      if (!!out.parentName !== !!out.parentPhone) return { ok: false, field: out.parentName ? 'parentPhone' : 'parentName' };
+      if (!!out.emergencyName !== !!out.emergencyPhone) return { ok: false, field: out.emergencyName ? 'emergencyPhone' : 'emergencyName' };
+      return { ok: true, value: out };
+    }
+    /* What a stored copy holds that is valid — read back from a registration,
+       never refused because of one bad field (nothing a trainee sent is lost
+       for it: the office simply types that one). */
+    function cleanDetails(d) {
+      var out = {};
+      if (!d || typeof d !== 'object') return out;
+      DETAIL_FIELDS.forEach(function (k) { var r = checkDetail(k, d[k]); if (r.v) out[k] = r.v; });
+      return out;
+    }
+
     /* What Verify Users lists, and what Approve All / Reject All act on.
 
        It used to be every pending account PLUS every disabled one except
@@ -8994,6 +9055,7 @@
       isPlaceholderRecoveryEmail: isPlaceholderRecoveryEmail,
       registrationRole: registrationRole, isPrivilegedSelfRegistration: isPrivilegedSelfRegistration,
       isFullName: isFullName, officeCreateRefusal: officeCreateRefusal, PHONE_RE: PHONE_RE, resetRefusal: resetRefusal,
+      traineeDetails: { FIELDS: DETAIL_FIELDS, HOME_REQUIRED: HOME_REQUIRED, check: checkDetails, clean: cleanDetails },
       reviewQueue: reviewQueue, studentLinkFor: studentLinkFor,
       isBackfillStub: isBackfillStub, accountForTrainee: accountForTrainee, traineeHasAccount: traineeHasAccount,
       backfillStubFolds: backfillStubFolds,
@@ -14182,7 +14244,29 @@
       });
       return out;
     }
-    return { fillFromAccount: fillFromAccount, FEE_FIELDS: { email: 'email', phone: 'contact' } };
+    /* Her personal details (Core.accountAccess.traineeDetails) onto a record,
+       filling ONLY what is blank. kind 'trainee': the trainee record (gender,
+       dob, trn, address); 'fee': the fee record (gender, dateOfBirth,
+       nationalId, address, parentName, parentContact, emergencyContactName,
+       emergencyContact). Returns the record fields it filled. */
+    var DETAIL_MAP = {
+      trainee: { gender: 'gender', dob: 'dob', trn: 'trn', address: 'address' },
+      fee: { gender: 'gender', dob: 'dateOfBirth', trn: 'nationalId', address: 'address', parentName: 'parentName', parentPhone: 'parentContact',
+        emergencyName: 'emergencyContactName', emergencyPhone: 'emergencyContact' }
+    };
+    function fillDetails(record, details, kind) {
+      var out = [];
+      if (!record || !details || typeof details !== 'object') return out;
+      var map = DETAIL_MAP[kind === 'fee' ? 'fee' : 'trainee'];
+      Object.keys(map).forEach(function (k) {
+        var to = map[k], v = details[k];
+        if (blank(v) || !blank(record[to])) return;
+        record[to] = String(v).trim();
+        out.push(to);
+      });
+      return out;
+    }
+    return { fillFromAccount: fillFromAccount, fillDetails: fillDetails, DETAIL_MAP: DETAIL_MAP, FEE_FIELDS: { email: 'email', phone: 'contact' } };
   })();
 
   // ===================== RECEIPT NUMBERS: a number already given =====================
@@ -17050,11 +17134,15 @@
 
     /* What the registration form sends, checked: the full name (first and
        last — Core.accountAccess.isFullName, the rule of every account form),
-       a programme from the catalogue, an optional phone, and the password as
+       a programme from the catalogue, an optional phone, the password as
        the dashboard stores one (pbkdf2$<iterations>$<salt>$<hash>, worked out
        on the trainee's device with a fresh salt — the password itself never
-       travels). → { ok, value } | { ok: false, field } */
-    function checkRegistration(form, programmes) {
+       travels), and her personal details (Core.accountAccess.traineeDetails:
+       gender, date of birth, address and an emergency contact required; TRN
+       and a parent or guardian when she has them — office audit OF-3), so
+       the office only checks them. opts.nowMs: today, for the age.
+       → { ok, value } | { ok: false, field } */
+    function checkRegistration(form, programmes, opts) {
       form = isObj(form) ? form : {};
       var name = cleanName(form.name);
       if (!name || name.length > REG_NAME_MAX || /[<>"\u0000-\u001f]/.test(name) || !Core.accountAccess.isFullName(name)) return { ok: false, field: 'name' };
@@ -17064,7 +17152,10 @@
       if (phone && !Core.accountAccess.PHONE_RE.test(phone)) return { ok: false, field: 'phone' };
       var pw = str(form.password), m = STORED_PW_RE.exec(pw);
       if (!m || Number(m[1]) < 100000 || Number(m[1]) > 1000000) return { ok: false, field: 'password' };
-      return { ok: true, value: { name: name, programme: programme, phone: phone, password: pw } };
+      var TD = Core.accountAccess.traineeDetails;
+      var det = TD.check(form, { require: TD.HOME_REQUIRED, nowMs: opts && typeof opts.nowMs === 'number' ? opts.nowMs : undefined });
+      if (!det.ok) return { ok: false, field: det.field };
+      return { ok: true, value: { name: name, programme: programme, phone: phone, password: pw, details: det.value } };
     }
     /* The registration file (Registrations/CESTISREG.<id>.json). o: { acct,
        email, value (checkRegistration's), folder: { id, name }, nowMs }. */
@@ -17075,6 +17166,7 @@
         name: str(v.name), email: str(o.email).trim(), programme: str(v.programme), password: str(v.password),
         googleVerified: true, registeredVia: 'home-registration', status: 'pending', createdAt: iso(o.nowMs) };
       if (v.phone) out.phone = str(v.phone);
+      if (isObj(v.details) && Object.keys(v.details).length) out.details = copy(v.details);
       if (o.folder && o.folder.id) { out.folderId = str(o.folder.id); out.folderName = str(o.folder.name); }
       return out;
     }
@@ -17119,6 +17211,10 @@
         programme: str(r.programme).trim(), status: 'pending', createdAt: day || str(r.createdAt).slice(0, 10), registeredVia: 'home-registration',
         googleVerified: true, registeredAt: str(r.createdAt), updatedAt: str(r.createdAt) };
       if (r.phone && Core.accountAccess.PHONE_RE.test(str(r.phone).trim())) acct.phone = str(r.phone).trim();
+      // Her personal details, kept on the waiting account for the office to
+      // check; on approval they reach her trainee and fee records (blanks only).
+      var det = Core.accountAccess.traineeDetails.clean(r.details);
+      if (Object.keys(det).length) acct.details = det;
       if (r.folderId) acct.gateFolderId = str(r.folderId);
       return { action: 'add', account: acct };
     }

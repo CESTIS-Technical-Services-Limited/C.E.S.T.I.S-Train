@@ -70,7 +70,8 @@
      signOut                    {token} → {}
      catalogue                  {} → {programmes:[name]}           (no sign-in: what a new trainee may register for)
      register.start             {accessToken} → {state:'new', email, programmes} | {state:'submitted', email, programme, submittedAt}
-     register.submit            {accessToken, name, programme, phone?, password:'pbkdf2$…'} → {state:'submitted', …}
+     register.submit            {accessToken, name, programme, phone?, password:'pbkdf2$…', gender, dob, trn?, address,
+                                 parentName?, parentPhone?, emergencyName, emergencyPhone} → {state:'submitted', …}
                                 (registration from home, DESIGN.md §17: an email-account token
                                  only; refused: has-account | pending | rejected | disabled |
                                  not-open | bad-form {field} | too-many | ask-office)
@@ -713,7 +714,8 @@ function gateAuthEmail(G, req) {
    request the gate then:
      - keeps the registration: Registrations/CESTISREG.<account id>.json
        (Core.gate.reg.build: name, address, programme, phone, the password
-       as the dashboard stores one — worked out on the trainee's device);
+       as the dashboard stores one — worked out on the trainee's device —
+       and her personal details, Core.accountAccess.traineeDetails);
      - makes the trainee's own folder: Trainees/"<Name> (<student ID>)",
        described "cestis-trainee acct=<account id> v=1 registration=pending"
        (the student ID the dashboard will give them: Core.gate.reg.studentId).
@@ -781,7 +783,8 @@ function gateRegisterSubmit(G, req) {
   if (w.out) { if (w.out.state === 'submitted') w.out.already = true; return w.out; }
   var programmes = gateCatalogueNames(G);
   if (!programmes.length) return { ok: false, error: 'not-open' };
-  var chk = G.gate.reg.check({ name: req.name, programme: req.programme, phone: req.phone, password: req.password }, programmes);
+  // The whole form: the shared rules read only the fields they know (Core.gate.reg.check).
+  var chk = G.gate.reg.check(req, programmes, { nowMs: G.now });
   if (!chk.ok) return { ok: false, error: 'bad-form', field: chk.field };
   var akey = 'rga:' + gateAcctKey(G, w.acct), hkey = 'rgh:' + Math.floor(G.now / 3600000), skey = 'rg6:' + Math.floor(G.now / 21600000);
   if (gateCountOf(G, akey) >= GATE_REG.PER_ADDRESS_PER_HOUR || gateCountOf(G, hkey) >= GATE_REG.PER_HOUR || gateCountOf(G, skey) >= GATE_REG.PER_6H) {

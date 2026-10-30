@@ -722,14 +722,19 @@
       return call(b, 'register.start', { accessToken: str(accessToken) });
     });
   }
-  // o: { accessToken, name, programme, phone, password } → {state:'submitted', …} | {ok:false, error, field?}
+  // o: { accessToken, name, programme, phone, password, and her personal details:
+  //      gender, dob, trn, address, parentName, parentPhone, emergencyName, emergencyPhone }
+  //   → {state:'submitted', …} | {ok:false, error, field?}
+  var REG_DETAIL_FIELDS = ['gender', 'dob', 'trn', 'address', 'parentName', 'parentPhone', 'emergencyName', 'emergencyPhone'];
   function registerSubmit(o) {
     o = o || {};
     return withBase(function (b) {
       if (b.kind === 'lan') return { ok: false, error: 'not-available' };
       return storedPassword(o.password).then(function (pw) {
         if (!/^pbkdf2\$/.test(str(pw))) return { ok: false, error: 'bad-form', field: 'password' };
-        return call(b, 'register.submit', { accessToken: str(o.accessToken), name: str(o.name), programme: str(o.programme), phone: str(o.phone), password: pw });
+        var body = { accessToken: str(o.accessToken), name: str(o.name), programme: str(o.programme), phone: str(o.phone), password: pw };
+        REG_DETAIL_FIELDS.forEach(function (k) { if (o[k] != null && str(o[k]).trim()) body[k] = str(o[k]).trim(); });
+        return call(b, 'register.submit', body);
       });
     });
   }
