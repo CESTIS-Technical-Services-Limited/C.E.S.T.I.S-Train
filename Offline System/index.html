@@ -2399,6 +2399,10 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 .sync-reconnect:hover { filter:brightness(1.08); }
 .sync-reconnect:disabled { opacity:.7; cursor:progress; }
 .sync-reconnect[hidden] { display:none; }
+@media (max-width:600px) {
+  .sync-reconnect { min-height:34px; padding:6px 9px; }
+  body.sync-renew .topbar-title { display:block; white-space:nowrap; text-overflow:ellipsis; overflow-wrap:normal; }
+}
 .sync-chip {
   display:flex; align-items:center; gap:7px; min-height:36px; padding:6px 12px; border-radius:20px; cursor:pointer;
   font-size:12px; font-weight:600; font-family:'DM Sans',sans-serif; white-space:nowrap;
@@ -42079,6 +42083,8 @@ function refreshSyncChip() {
   try { if (typeof cestisRenderBackupLine === 'function') cestisRenderBackupLine(); } catch (e) {}
   var rb = document.getElementById('syncReconnectBtn');
   if (rb) rb.hidden = !(inp.canRenew || (inp.staff && inp.signinExpired && !_syncChipLan));
+  // (On a phone the page's name gives way to it — shortened, never broken mid-word.)
+  document.body.classList.toggle('sync-renew', !!(rb && !rb.hidden));
   wrap.classList.add('on');
 }
 function toggleSyncChipPanel(e) {

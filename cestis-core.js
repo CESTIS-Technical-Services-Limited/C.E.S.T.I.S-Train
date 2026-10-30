@@ -17799,7 +17799,7 @@
       // 4. Storage.
       if (!s.lan) {
         var st = storage(s.storage, !!s.storageFull);
-        lines.push({ key: 'storage', tone: st.tone, title: 'Storage', text: st.text, todo: st.advice || 'Nothing to do.', pct: st.pct });
+        lines.push({ key: 'storage', tone: st.tone, title: 'Storage', text: st.text.replace(/^Storage: /, ''), todo: st.advice || 'Nothing to do.', pct: st.pct });
       }
       // 5. Each staff computer's last save.
       if (!s.lan) {

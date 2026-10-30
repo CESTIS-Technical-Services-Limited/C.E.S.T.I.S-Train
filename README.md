@@ -41,7 +41,7 @@ deploying, what is still open, and the UI and feature roadmap are in
 ## Running the tests
 
 ```
-npm test                       # 189 Node suites (about 16,500 checks), both builds
+npm test                       # 189 Node suites (more than 15,000 checks), both builds
 npm run test:syntax            # node --check over every standalone JS file
 npm run build:offline          # regenerate "Offline System/" from the root files (a test fails on drift)
 npm run test:browser           # real Chromium over the real pages (zero uncaught errors)
