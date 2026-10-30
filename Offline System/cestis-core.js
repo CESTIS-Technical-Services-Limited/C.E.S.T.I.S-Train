@@ -8762,6 +8762,39 @@
       return out;
     }
 
+    /* ---- First-sign-in codes (office audit OF-4) ----
+       When trainees are approved in one go (Approve All — an intake imported
+       from Excel arrives in the queue with no password), when the office
+       makes a trainee with no password typed, and when the office resets a
+       trainee's password, each trainee gets a random code to sign in with
+       ONCE: ten digits (easy to type on any phone, no capitals to get wrong).
+       The code is kept ONLY as its hash, exactly like a password (the account's
+       password IS the code's PBKDF2 check); it is printed on the trainee's
+       slip at that moment and never stored, synced or shown again.
+       The account carries a mark of WHICH password is a code —
+       firstSignInCode: { fp, at }, fp a fingerprint of the stored hash (not of
+       the code) — so the code is "in force" exactly while the password is
+       still that hash: the moment the trainee (or anybody) sets another
+       password, by any route, the mark no longer matches and needs no
+       clearing. While it is in force, signing in asks for her own password
+       first. */
+    var CODE_DIGITS = 10;
+    // randomBytes(n) -> n random bytes (crypto.getRandomValues on a page).
+    function makeSignInCode(randomBytes) {
+      var out = '';
+      while (out.length < CODE_DIGITS) {
+        var b = randomBytes(CODE_DIGITS * 2);
+        for (var i = 0; i < b.length && out.length < CODE_DIGITS; i++) if (b[i] < 250) out += String(b[i] % 10);   // no bias
+      }
+      return out;
+    }
+    function signInCodeFp(storedHash) { return Core.hashString('fsc|' + String(storedHash == null ? '' : storedHash)); }
+    function signInCodeMark(storedHash, nowIso) { return { fp: signInCodeFp(storedHash), at: String(nowIso || '') }; }
+    function firstCodeInForce(account) {
+      var m = account && account.firstSignInCode;
+      return !!(m && typeof m === 'object' && m.fp && account.password && m.fp === signInCodeFp(account.password));
+    }
+
     /* What Verify Users lists, and what Approve All / Reject All act on.
 
        It used to be every pending account PLUS every disabled one except
@@ -9056,6 +9089,7 @@
       registrationRole: registrationRole, isPrivilegedSelfRegistration: isPrivilegedSelfRegistration,
       isFullName: isFullName, officeCreateRefusal: officeCreateRefusal, PHONE_RE: PHONE_RE, resetRefusal: resetRefusal,
       traineeDetails: { FIELDS: DETAIL_FIELDS, HOME_REQUIRED: HOME_REQUIRED, check: checkDetails, clean: cleanDetails },
+      makeSignInCode: makeSignInCode, signInCodeMark: signInCodeMark, firstCodeInForce: firstCodeInForce, CODE_DIGITS: CODE_DIGITS,
       reviewQueue: reviewQueue, studentLinkFor: studentLinkFor,
       isBackfillStub: isBackfillStub, accountForTrainee: accountForTrainee, traineeHasAccount: traineeHasAccount,
       backfillStubFolds: backfillStubFolds,
@@ -15993,6 +16027,9 @@
       d.voctrain_students = [copy(t.student)];
       var card = pick(t.account, USER_FIELDS);
       card.twoFactorEnabled = !!t.account.twoFactorEnabled;
+      // Her password is still the office's first-sign-in code: her device asks
+      // her own (OF-4). A flag only — never the code, never the mark.
+      if (Core.accountAccess.firstCodeInForce(t.account)) card.firstCode = true;
       card.emailOtpLogin = !!t.account.emailOtpLogin;
       d.voctrain_users = [card];
       d.voctrain_exams = ctx.L.voctrain_exams.filter(function (e) { return examForTrainee(ctx, e, t); }).map(examMeta);

@@ -1977,6 +1977,16 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 .at-more summary { cursor:pointer; font-size:13px; font-weight:600; color:var(--text-secondary); min-height:28px; }
 .at-more[open] summary { margin-bottom:10px; }
 .vu-details { display:block; font-size:12px; color:var(--text-secondary); margin-top:4px; line-height:1.45; font-weight:400; }
+/* First-sign-in codes and slips (OF-4). */
+.reset-code-box { border:1px solid var(--accent); background:var(--accent-dim); border-radius:var(--radius-sm); padding:12px 14px; margin-bottom:14px; font-size:13px; line-height:1.5; }
+.reset-code-box p { margin:0 0 10px; }
+.reset-code-box .reset-code-or { margin:12px 0 0; color:var(--text-muted); }
+.slips-warn { border:1px solid var(--red); background:var(--red-dim); color:var(--text-primary); border-radius:var(--radius-sm); padding:10px 12px; font-size:13px; line-height:1.5; }
+.slips-list { list-style:none; margin:12px 0 0; padding:0; max-height:40vh; overflow:auto; border:1px solid var(--border); border-radius:var(--radius-sm); }
+.slips-list li { display:flex; flex-wrap:wrap; gap:4px 10px; align-items:baseline; padding:8px 12px; border-bottom:1px solid var(--border); font-size:13px; }
+.slips-list li:last-child { border-bottom:none; }
+.slips-list .slips-user { color:var(--text-muted); font-family:monospace; font-size:12px; }
+.slips-list .slips-code { margin-left:auto; font-family:monospace; font-size:15px; font-weight:700; letter-spacing:1px; color:var(--accent); }
 @media (max-width: 600px) { .ot-line .ot-go { display:none; } .ot-card { padding:14px; } }
 
 /* ============================== TOP PERFORMERS WIDGET ============================== */
@@ -5856,7 +5866,7 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
 <div class="modal-overlay" id="addTraineeModal">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="addTraineeTitle" style="max-height:calc(100vh - 32px);overflow-y:auto;">
     <div class="modal-header"><h3 id="addTraineeTitle">New trainee</h3><button class="modal-close" onclick="closeModal('addTraineeModal')" aria-label="Close">✕</button></div>
-    <p style="font-size:13px;color:var(--text-muted);margin:0 0 14px;">Makes the trainee's sign-in, trainee record and fee record together. The account is active at once. Give the trainee their username and password. With their email address entered, they can also sign in with their email account.</p>
+    <p style="font-size:13px;color:var(--text-muted);margin:0 0 14px;">Makes the trainee's sign-in, trainee record and fee record together. The account is active at once. Leave the password blank to print her a sign-in slip with a first-sign-in code. With her email address entered, she can also sign in with her email account.</p>
     <div class="um-form-row">
       <div class="form-group"><label for="atName">Full Name (first &amp; last name required)</label><input type="text" class="form-control" id="atName" placeholder="First and last name, e.g. Tameka Richards" autocomplete="off"></div>
       <div class="form-group"><label for="atGender">Gender</label><select class="form-control" id="atGender"><option value="">— Select —</option><option value="Female">Female</option><option value="Male">Male</option></select></div>
@@ -5868,7 +5878,7 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
     <div class="form-group"><label for="atProgramme">Programme</label><select class="form-control" id="atProgramme"><option value="">— Select Programme —</option></select></div>
     <div class="um-form-row">
       <div class="form-group"><label for="atUsername">Username</label><input type="text" class="form-control" id="atUsername" placeholder="Left blank: made from the email" autocomplete="off" autocapitalize="none" spellcheck="false"></div>
-      <div class="form-group"><label for="atPassword">Password</label><input type="password" class="form-control" id="atPassword" placeholder="Minimum 6 characters" autocomplete="new-password"></div>
+      <div class="form-group"><label for="atPassword">Password</label><input type="password" class="form-control" id="atPassword" placeholder="Left blank: a code + slip to print" autocomplete="new-password"></div>
     </div>
     <details class="at-more" id="atMore">
       <summary>More details (optional): date of birth, TRN, address, parent or guardian, emergency contact</summary>
@@ -5926,11 +5936,46 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
     <div class="modal-header"><h3>Reset Password</h3><button class="modal-close" onclick="closeModal('resetPasswordModal')">✕</button></div>
     <input type="hidden" id="resetPwUserId">
     <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">Resetting password for: <strong id="resetPwUserName"></strong></p>
+    <div id="resetPwCodeBox" class="reset-code-box" hidden>
+      <p><strong>Recommended for a trainee:</strong> a new first-sign-in code. She signs in with it once, then chooses her own password. You print her slip now.</p>
+      <button class="btn btn-primary" id="resetPwCodeBtn" onclick="resetWithSignInCode()">Make a code and print her slip</button>
+      <p class="reset-code-or">Or type a new password for her:</p>
+    </div>
     <div class="form-group"><label>New Password</label><input type="password" class="form-control" id="resetPwNew" placeholder="Minimum 6 characters"></div>
     <div class="form-group"><label>Confirm Password</label><input type="password" class="form-control" id="resetPwConfirm" placeholder="Re-enter password"></div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
       <button class="btn btn-secondary" onclick="closeModal('resetPasswordModal')">Cancel</button>
       <button class="btn btn-primary" onclick="confirmResetPassword()">Reset Password</button>
+    </div>
+  </div>
+</div>
+
+<!-- SIGN-IN SLIPS (OF-4): the first-sign-in codes, shown and printable only now -->
+<div class="modal-overlay" id="signInSlipsModal" style="z-index:1150;">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="slipsTitle" style="max-width:560px;max-height:calc(100vh - 32px);overflow-y:auto;">
+    <div class="modal-header"><h3 id="slipsTitle">Sign-in slips</h3></div>
+    <p id="slipsWhat" style="font-size:13px;color:var(--text-secondary);margin:0 0 12px;"></p>
+    <div class="slips-warn" role="note"><strong>Print the slips now.</strong> The codes are not kept anywhere: once you close this, they cannot be shown again. A lost code means resetting the password again.</div>
+    <ul class="slips-list" id="slipsList"></ul>
+    <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:16px;">
+      <button class="btn btn-secondary" onclick="closeSignInSlips()">Done</button>
+      <button class="btn btn-primary" id="slipsDownloadBtn" onclick="downloadSignInSlips()">Download the slips (PDF)</button>
+    </div>
+  </div>
+</div>
+
+<!-- A TRAINEE AT HOME SIGNED IN WITH HER FIRST-SIGN-IN CODE (OF-4): her own password -->
+<div class="modal-overlay" id="homeFirstCodeModal" style="z-index:1150;">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="hfcTitle" style="max-width:420px;">
+    <div class="modal-header"><h3 id="hfcTitle">Choose your own password</h3></div>
+    <p style="font-size:13px;color:var(--text-secondary);margin:0 0 14px;">You signed in with the code on your slip. Choose your own password now: the code then stops working.</p>
+    <div class="form-group"><label for="hfcCode">The code on your slip</label><input type="text" class="form-control" id="hfcCode" inputmode="numeric" autocomplete="one-time-code" placeholder="10 digits"></div>
+    <div class="form-group"><label for="hfcNew">Your new password</label><input type="password" class="form-control" id="hfcNew" autocomplete="new-password" placeholder="At least 6, with a capital letter and a number"></div>
+    <div class="form-group"><label for="hfcNew2">Type it again</label><input type="password" class="form-control" id="hfcNew2" autocomplete="new-password" onkeydown="if(event.key==='Enter')homeFirstCodeSubmit()"></div>
+    <div class="tfa-error" id="hfcSay" role="alert" style="display:block;min-height:18px;"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
+      <button class="btn btn-secondary" onclick="closeModal('homeFirstCodeModal')">Later</button>
+      <button class="btn btn-primary" onclick="homeFirstCodeSubmit()">Save my password</button>
     </div>
   </div>
 </div>
@@ -6016,7 +6061,7 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
 <div class="modal-overlay" id="forceChangePwModal" style="z-index:1200;">
   <div class="modal" style="max-width:420px;">
     <div class="modal-header"><h3>Set a New Password</h3></div>
-    <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">This account is still using the default password. For security you must set a new one before continuing.</p>
+    <p id="forceChangePwWhy" style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">This account is still using the default password. For security you must set a new one before continuing.</p>
     <div class="form-group"><label>New Password</label><input type="password" class="form-control" id="forceChangePwNew" placeholder="Minimum 8 characters"></div>
     <div class="form-group"><label>Confirm Password</label><input type="password" class="form-control" id="forceChangePwConfirm" placeholder="Re-enter password" onkeydown="if(event.key==='Enter')forceChangePwSubmit()"></div>
     <div id="forceChangePwError" class="tfa-error" style="display:none;"></div>
@@ -11049,6 +11094,9 @@ async function createTraineeAccount() {
   var v = function(id) { var el = document.getElementById(id); return el ? String(el.value || '') : ''; };
   var name = v('atName').trim().replace(/\s+/g, ' '), email = v('atEmail').trim(), phone = v('atPhone').trim();
   var programme = v('atProgramme'), password = v('atPassword');
+  // No password typed: a first-sign-in code, and her slip (OF-4).
+  var useCode = !password;
+  if(useCode) password = makeSignInCodeNow();
   var username = v('atUsername').trim() || officeSuggestUsername(name, email);
   var draft = { role: 'student', name: name, username: username, email: email, programme: programme, password: password, phone: phone };
   var refusal = CESTISCore.accountAccess.officeCreateRefusal({ role: currentRole, allowed: officeMayAddTrainee() }, draft, userAccounts,
@@ -11075,7 +11123,8 @@ async function createTraineeAccount() {
       programme: programme, status: 'active', createdAt: dateStr, registeredVia: 'admin-created' };
     if(phone) acct.phone = phone;
     officeStampCreator(acct, dateStr);
-    cachePlaintextPw(acct, password);
+    if(useCode) acct.firstSignInCode = CESTISCore.accountAccess.signInCodeMark(acct.password, new Date().toISOString());
+    else cachePlaintextPw(acct, password);
     clearDeletedUser(acct.id);
     userAccounts.push(acct);
     // Their trainee record: the one of that name on that programme, or a new one.
@@ -11093,6 +11142,7 @@ async function createTraineeAccount() {
     showToast('Trainee account created: ' + name + ' (username ' + username + ')');
     addNotification('New trainee account created: ' + name, 'student', null, ['admin']);
     try { gatePublishSoon(); } catch(e) {}
+    if(useCode) openSignInSlips([{ name: name, username: username, programme: programme, code: password }], name + ' has been added.');
   } finally { if(btn) btn.disabled = false; }
 }
 
@@ -11196,6 +11246,9 @@ function openResetPassword(userId) {
   document.getElementById('resetPwUserName').textContent = user.name + ' (' + user.username + ')';
   document.getElementById('resetPwNew').value = '';
   document.getElementById('resetPwConfirm').value = '';
+  // A trainee: a first-sign-in code and her slip, first (OF-4).
+  var codeBox = document.getElementById('resetPwCodeBox');
+  if(codeBox) codeBox.hidden = String(user.role || '').toLowerCase() !== 'student';
   openModal('resetPasswordModal');
 }
 
@@ -11228,6 +11281,209 @@ async function confirmResetPasswordVerified() {
   try { if(String(user.role) === 'student' && typeof gatePublishSoon === 'function') gatePublishSoon(); } catch(e) {}
   closeModal('resetPasswordModal');
   showToast('Password reset successfully for ' + user.name);
+}
+
+/* ============================== FIRST-SIGN-IN CODES AND SIGN-IN SLIPS (office audit OF-4) ==============================
+   An intake imported from Excel reached the office with no passwords: after
+   Approve All, 25 trainees were active and 0 could sign in, and each
+   password took the Administrator ≈25 s (≈10.5 min an intake), then had to be
+   handed out. Now the system makes a random first-sign-in code for each
+   trainee — on Approve All (a trainee with no password), on New trainee with
+   no password typed, and on a password reset — and the office prints ONE slip
+   per trainee: name, username, code, the trainee sign-in link (and its QR
+   code, once the trainee sign-in is set up) and three plain steps.
+   The code is kept only as its hash (CESTISCore.accountAccess.makeSignInCode,
+   signInCodeMark). The codes in plain text live ONLY in this page's memory
+   while the slips dialog is open; closing it forgets them: the slips can be
+   printed only at that moment, and the dialog says so. */
+var _slipBatch = null;            // [{ name, username, programme, code }] — memory only
+var _slipDownloaded = false;
+function makeSignInCodeNow() {
+  return CESTISCore.accountAccess.makeSignInCode(function(n) { var a = new Uint8Array(n); (window.crypto || window.msCrypto).getRandomValues(a); return a; });
+}
+/* Give one trainee account a new first-sign-in code: its password becomes the
+   code's hash, marked as a code. Returns the code (for the slip only). */
+async function giveSignInCode(account) {
+  var code = makeSignInCodeNow();
+  account.password = await hashPassword(code);
+  account.firstSignInCode = CESTISCore.accountAccess.signInCodeMark(account.password, new Date().toISOString());
+  delete account.defaultPassword; delete account.mustChangePassword;
+  try { delete account._plaintextPw; } catch(e) {}
+  touchAccount(account);
+  return code;
+}
+/* Codes for these trainee accounts (never a staff login: resetRefusal), saved,
+   sent to the trainee sign-in at once, and the slips offered. */
+async function issueSignInCodes(accounts, why) {
+  var list = (accounts || []).filter(function(a) { return a && !CESTISCore.accountAccess.resetRefusal({ role: currentRole, allowed: currentRole === 'adminstaff' ? !!asAccessForMe().traineeaccounts : true }, a); });
+  if(!list.length) return [];
+  var slips = [];
+  for(var i = 0; i < list.length; i++) {
+    var a = list[i];
+    var code = await giveSignInCode(a);
+    var canon = userAccounts.find(function(u) { return u && u.id === a.id; });
+    if(canon && canon !== a) { canon.password = a.password; canon.firstSignInCode = a.firstSignInCode; canon.updatedAt = a.updatedAt; delete canon.defaultPassword; }
+    slips.push({ name: a.name || '', username: a.username || a.email || '', programme: a.programme || '', code: code });
+  }
+  try { saveUserAccounts(); } catch(e) {}
+  try { saveState(); } catch(e) {}
+  // A trainee who signs in at home: the code's check reaches the trainee sign-in's account list now.
+  try { gatePublishSoon(); } catch(e) {}
+  openSignInSlips(slips, why);
+  return slips;
+}
+// The trainees' sign-in link: the trainee sign-in's own link once it is set
+// up (with a QR code on the slip), else this site's address.
+function signInSlipLink() {
+  var tg = (systemSettings && systemSettings.traineeGate) || {};
+  var gateLink = (tg.enabled === true && tg.url && typeof gateSignInLink === 'function') ? gateSignInLink(tg.url, gateSiteBase()) : '';
+  var site = '';
+  try { site = typeof gateSiteBase === 'function' ? gateSiteBase() : (location.origin + location.pathname); } catch(e) { site = ''; }
+  return { link: gateLink || site, qr: !!gateLink };
+}
+function openSignInSlips(slips, why) {
+  _slipBatch = (slips || []).slice();
+  _slipDownloaded = false;
+  var n = _slipBatch.length;
+  var what = document.getElementById('slipsWhat');
+  if(what) what.textContent = (why ? why + ' ' : '') + n + ' trainee' + (n === 1 ? '' : 's') + ' now sign' + (n === 1 ? 's' : '') + ' in with a first-sign-in code, then choose' + (n === 1 ? 's' : '') + ' their own password.';
+  var ul = document.getElementById('slipsList');
+  if(ul) ul.innerHTML = _slipBatch.map(function(s) {
+    return '<li><strong>' + escapeHtml(s.name) + '</strong> <span class="slips-user">' + escapeHtml(s.username) + '</span> <span class="slips-code">' + escapeHtml(s.code) + '</span></li>';
+  }).join('');
+  var t = document.getElementById('slipsTitle');
+  if(t) t.textContent = n === 1 ? 'Sign-in slip' : 'Sign-in slips (' + n + ')';
+  openModal('signInSlipsModal');
+}
+function closeSignInSlips(force) {
+  if(_slipBatch && _slipBatch.length && !_slipDownloaded && !force &&
+     !confirm('The slips have not been downloaded. The codes cannot be shown again once this closes — you would reset the passwords again to make new ones.\n\nClose anyway?')) return false;
+  _slipBatch = null;
+  var ul = document.getElementById('slipsList'); if(ul) ul.innerHTML = '';
+  closeModal('signInSlipsModal');
+  return true;
+}
+/* The slips as a PDF (the vendored jsPDF): three to an A4 page, one per
+   trainee, with a cut line between. Returns the jsPDF document. */
+function buildSignInSlipsPdf(slips) {
+  var jsPDF = window.jspdf.jsPDF;
+  var doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  var centre = (systemSettings && systemSettings.institutionName) || 'C.E.S.T.I.S';
+  var L = signInSlipLink();
+  var qr = L.qr && typeof gateQrDataUrl === 'function' ? gateQrDataUrl(L.link, 360) : '';
+  var made = localDateStr();
+  var by = (currentLoggedInUser && currentLoggedInUser.name) || '';
+  var H = 99, W = 210, M = 14;
+  (slips || []).forEach(function(s, i) {
+    var slot = i % 3;
+    if(i && slot === 0) doc.addPage();
+    var y0 = slot * H;
+    if(slot) { doc.setLineDashPattern([2, 2], 0); doc.setDrawColor(150); doc.line(6, y0, W - 6, y0); doc.setLineDashPattern([], 0); doc.setFontSize(7); doc.setTextColor(120); doc.text('cut here', W - 20, y0 - 1.5); }
+    var y = y0 + 12;
+    doc.setTextColor(20);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.text(String(centre), M, y);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(90); doc.text('Trainee sign-in slip — keep it private', M, y + 5);
+    doc.setTextColor(20);
+    y += 14;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(15); doc.text(String(s.name || ''), M, y);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+    if(s.programme) doc.text(String(s.programme), M, y + 5.5);
+    y += 13;
+    doc.setFontSize(10); doc.setTextColor(90); doc.text('Username', M, y); doc.text('First-sign-in code', M + 62, y);
+    doc.setTextColor(20); doc.setFont('courier', 'bold'); doc.setFontSize(14);
+    doc.text(String(s.username || ''), M, y + 7);
+    doc.setFontSize(20); doc.text(String(s.code || ''), M + 62, y + 8);
+    doc.setFont('helvetica', 'normal');
+    y += 16;
+    doc.setFontSize(9); doc.setTextColor(90); doc.text('Sign in at', M, y);
+    doc.setTextColor(20); doc.setFontSize(8.5);
+    var linkLines = doc.splitTextToSize(String(L.link || ''), qr ? 120 : 175);
+    doc.text(linkLines.slice(0, 3), M, y + 4.5);
+    y += 4.5 + Math.min(3, linkLines.length) * 3.6 + 3;
+    doc.setFontSize(10);
+    var steps = ['1. Open the link above' + (qr ? ' (or scan the square code)' : '') + ' on your phone or a computer.',
+      '2. Sign in with your username and the code above.',
+      '3. Choose your own password when you are asked. The code then stops working.'];
+    steps.forEach(function(t, k) { doc.text(doc.splitTextToSize(t, qr ? 125 : 180), M, y + k * 5.5); });
+    if(qr) { try { doc.addImage(qr, 'PNG', W - M - 42, y0 + 30, 42, 42); doc.setFontSize(7.5); doc.setTextColor(90); doc.text('Scan to sign in', W - M - 34, y0 + 76); } catch(e) {} }
+    doc.setFontSize(7.5); doc.setTextColor(120);
+    doc.text('Made ' + made + (by ? ' by ' + by : '') + '. Lost it? Ask the office for a new code.', M, y0 + H - 6);
+  });
+  return doc;
+}
+function downloadSignInSlips() {
+  if(!_slipBatch || !_slipBatch.length) { showToast('These slips have already been closed. Reset the password again to make a new code.', 'warning'); return; }
+  var batch = _slipBatch.slice();
+  cestisNeedLib('jspdf').then(function() {
+    // The QR code needs its drawing library; a slip without it still has the link.
+    return (typeof QRCode === 'undefined' ? cestisNeedLib('QRCode').catch(function() {}) : Promise.resolve());
+  }).then(function() {
+    var doc = buildSignInSlipsPdf(batch);
+    doc.save('Sign-in slips ' + localDateStr() + (batch.length === 1 ? ' - ' + String(batch[0].name).replace(/[\\/:*?"<>|]+/g, '') : '') + '.pdf');
+    _slipDownloaded = true;
+    showToast('Slips downloaded — print them now.', 'success');
+  }, function() { showToast('The PDF could not be prepared. Try again.', 'error'); });
+}
+/* A password reset for a trainee, the new way: a first-sign-in code and her
+   slip (Settings → Users, and Trainee Accounts' "A trainee cannot sign in?"). */
+function resetWithSignInCode() {
+  var actor = tfaAccountRecord(currentLoggedInUser);
+  if(tfaEnabled(actor)) {
+    tfaOpenVerify(actor, { title: 'Authorize Password Reset', subtitle: 'Enter your 6-digit code to authorize resetting this user\'s password.', allowBackup: false }, resetWithSignInCodeVerified);
+    return;
+  }
+  resetWithSignInCodeVerified();
+}
+async function resetWithSignInCodeVerified() {
+  var userId = document.getElementById('resetPwUserId').value;
+  var user = userAccounts.find(function(u){ return u.id === userId; });
+  if(!user || passwordResetRefused(user)) return;
+  if(String(user.role || '').toLowerCase() !== 'student') { showToast('A first-sign-in code is for trainees. Type a new password for this account.', 'warning'); return; }
+  closeModal('resetPasswordModal');
+  await issueSignInCodes([user], 'Password reset for ' + user.name + '.');
+}
+/* Signing in with a first-sign-in code (on this computer): her own password
+   first, before anything opens — the existing "set a new password" step. */
+function firstCodeGate(account, role, proceed) {
+  if(!account || !CESTISCore.accountAccess.firstCodeInForce(account)) { proceed(); return; }
+  currentLoggedInUser = account;
+  openForceChangePw(role, proceed, 'code');
+}
+/* At home (the trainee sign-in): her records say her password is still the
+   office's code (card.firstCode). She is asked to choose her own — through
+   the trainee sign-in's password change where it exists; the code, typed
+   again from her slip, proves it is her (it is never kept on her device). */
+function homeFirstCodeCheck(acct) {
+  if(!acct || acct.firstCode !== true) return false;
+  var box = document.getElementById('homeFirstCodeModal');
+  if(!box) return false;
+  ['hfcCode', 'hfcNew', 'hfcNew2'].forEach(function(id) { var el = document.getElementById(id); if(el) el.value = ''; });
+  var say = document.getElementById('hfcSay'); if(say) say.textContent = '';
+  openModal('homeFirstCodeModal');
+  return true;
+}
+var _hfcBusy = false;
+async function homeFirstCodeSubmit() {
+  if(_hfcBusy) return;
+  var v = function(id) { var el = document.getElementById(id); return el ? String(el.value || '') : ''; };
+  var say = function(t) { var el = document.getElementById('hfcSay'); if(el) el.textContent = t; };
+  var code = v('hfcCode').replace(/\s+/g, ''), pw = v('hfcNew'), pw2 = v('hfcNew2');
+  if(!/^\d{10}$/.test(code)) { say('Type the 10-digit code from your slip.'); return; }
+  if(pw.length < 6 || !/[A-Z]/.test(pw) || !/[0-9]/.test(pw)) { say('Your new password must be at least 6 characters, with a capital letter and a number.'); return; }
+  if(pw !== pw2) { say('The two new passwords do not match.'); return; }
+  if(!(window.CESTISGate && typeof CESTISGate.changePassword === 'function')) {
+    say('Choosing your own password here is not available yet. You can keep signing in with your code; the office can set a password for you.');
+    return;
+  }
+  _hfcBusy = true;
+  say('Saving your password…');
+  var res = null;
+  try { res = await CESTISGate.changePassword({ oldPassword: code, newPassword: pw }); } catch(e) { res = { ok: false, error: 'unreachable' }; }
+  _hfcBusy = false;
+  if(res && res.ok) { closeModal('homeFirstCodeModal'); showToast('Your password is set. Use it next time you sign in.', 'success'); return; }
+  var c = String((res && res.error) || 'unreachable');
+  say(c === 'no-match' ? 'That code is not right. Type it exactly as it is on your slip.' : c === 'locked' ? 'Too many tries. Wait 15 minutes, then try again.'
+    : 'Could not save your password right now. Try again when you have signal.');
 }
 
 // ============================================================
@@ -12151,7 +12407,7 @@ async function handleStudentClick(opts) {
     if(savedStuProfile) {
       if(savedStuProfile.name) { studentMatch.name = savedStuProfile.name; userAccount.name = savedStuProfile.name; }
     }
-    publishedDefaultGate(userAccount, pw, 'student', function(){ tfaGateLogin(userAccount, function(){ currentLoggedInUser = userAccount; enterApp('student'); }); });
+    publishedDefaultGate(userAccount, pw, 'student', function(){ firstCodeGate(userAccount, 'student', function(){ tfaGateLogin(userAccount, function(){ currentLoggedInUser = userAccount; enterApp('student'); }); }); });
   } catch(err) { console.error('handleStudentClick error:', err); signInSay('student', 'Error: ' + err.message); }
 }
 async function handleInstructorClick() {
@@ -12855,9 +13111,14 @@ function adminClearTwoStepApply(userId){
 }
 
 var _forceChangePwRole = null, _forceChangePwThen = null;
-function openForceChangePw(role, then) {
+function openForceChangePw(role, then, why) {
   _forceChangePwRole = role;
   _forceChangePwThen = typeof then === 'function' ? then : null;
+  // Why she is asked: the published default, or the office's first-sign-in code (OF-4).
+  var whyEl = document.getElementById('forceChangePwWhy');
+  if(whyEl) whyEl.textContent = why === 'code'
+    ? 'You signed in with the code on your slip. Choose your own password now: the code then stops working.'
+    : 'This account is still using the default password. For security you must set a new one before continuing.';
   var n = document.getElementById('forceChangePwNew');
   var c = document.getElementById('forceChangePwConfirm');
   var e = document.getElementById('forceChangePwError');
@@ -12893,10 +13154,10 @@ async function forceChangePwSubmit() {
   if(KNOWN_DEFAULT_PASSWORDS.indexOf(np) !== -1 || np.toLowerCase() === 'password'){ fail('Choose a password that is not the default.'); return; }
   var canonical = userAccounts.find(function(u){ return u.id === acct.id; }) || acct;
   canonical.password = await hashPassword(np);
-  delete canonical.defaultPassword; delete canonical.mustChangePassword;
+  delete canonical.defaultPassword; delete canonical.mustChangePassword; delete canonical.firstSignInCode;
   cachePlaintextPw(canonical, np);
   touchAccount(canonical);
-  if(acct !== canonical){ acct.password = canonical.password; delete acct.defaultPassword; delete acct.mustChangePassword; }
+  if(acct !== canonical){ acct.password = canonical.password; delete acct.defaultPassword; delete acct.mustChangePassword; delete acct.firstSignInCode; }
   try { if(canonical.username) clearLoginFailures(canonical.username); if(canonical.email) clearLoginFailures(canonical.email); } catch(_){}
   saveUserAccounts();
   lanHostTicketAfterSave(canonical, np);
@@ -13803,7 +14064,9 @@ function approveUser(userId) {
   // Accounts created by the fee sync and the chat backfill carry no password, so
   // "approved" on its own still leaves the trainee unable to sign in. Finish the
   // job here rather than letting them meet "invalid username or password".
-  if(!CESTISCore.accountAccess.hasPassword(user)) {
+  if(!CESTISCore.accountAccess.hasPassword(user) && String(user.role || '').toLowerCase() === 'student' && typeof issueSignInCodes === 'function') {
+    issueSignInCodes([user], user.name + ' is approved.');
+  } else if(!CESTISCore.accountAccess.hasPassword(user)) {
     showToast(user.name + ' is approved but has NO PASSWORD — set one so they can sign in', 'warning');
     if(confirm(user.name + ' is approved, but no password has ever been set for this account, so they still cannot sign in.\n\nSet a password now?')) { openResetPassword(user.id); return; }
   }
@@ -13871,17 +14134,22 @@ function approveAllPending() {
   try { saveUserAccounts(); } catch(e) {}   // the accounts ledger at once (see approveUser)
   renderVerifyUsersPage();
   refreshStudentDependentViews();
-  // Flag the approved accounts that still cannot sign in because no password was
-  // ever set for them (fee-sync / chat-backfill records).
+  // Trainees approved with no password (an intake imported from Excel, the
+  // chat backfill) get a first-sign-in code each, and their slips (OF-4).
   var noPw = pending.filter(function(u) { return !CESTISCore.accountAccess.hasPassword(u); });
-  showToast(pending.length + ' account(s) approved!' + (noPw.length ? ' ' + noPw.length + ' still need a password.' : ''));
+  var codeFor = noPw.filter(function(u) { return String(u.role || '').toLowerCase() === 'student'; });
+  if(codeFor.length && typeof issueSignInCodes === 'function') {
+    noPw = noPw.filter(function(u) { return codeFor.indexOf(u) === -1; });
+    issueSignInCodes(codeFor, pending.length + ' account(s) approved.');
+  }
+  showToast(pending.length + ' account(s) approved!' + (codeFor.length ? ' ' + codeFor.length + ' sign-in slip' + (codeFor.length === 1 ? '' : 's') + ' to print.' : '') + (noPw.length ? ' ' + noPw.length + ' still need a password.' : ''));
   if(noPw.length) {
     alert(noPw.length + ' of the accounts just approved have no password set, so those people still cannot sign in:\n\n' +
       noPw.slice(0, 12).map(function(u){ return '  • ' + u.name + ' (' + u.username + ')'; }).join('\n') +
       (noPw.length > 12 ? '\n  … and ' + (noPw.length - 12) + ' more' : '') +
       '\n\nSet a password for each in Settings → Users (🔑 Reset Password).');
   }
-  addNotification(pending.length + ' user account(s) approved' + (noPw.length ? ' — ' + noPw.length + ' still need a password' : ''), 'success', null, ['admin']);
+  addNotification(pending.length + ' user account(s) approved' + (codeFor.length ? ' — ' + codeFor.length + ' given first-sign-in codes' : '') + (noPw.length ? ' — ' + noPw.length + ' still need a password' : ''), 'success', null, ['admin']);
   try { gatePublishSoon(); } catch(e) {}
 }
 
@@ -37044,6 +37312,10 @@ function mergeCloudAccounts(cloudAccounts, opts) {
         try { delete localMatch._plaintextPw; } catch(e) {}     // an old password must no longer validate
         changed++;
       }
+      // A first-sign-in code's mark travels with the password it marks (OF-4);
+      // a mark that no longer matches its password simply means nothing.
+      if (cloudUser.firstSignInCode && typeof cloudUser.firstSignInCode === 'object' &&
+          JSON.stringify(cloudUser.firstSignInCode) !== JSON.stringify(localMatch.firstSignInCode || null)) { localMatch.firstSignInCode = cloudUser.firstSignInCode; changed++; }
       if (cloudUser.status && cloudUser.status !== localMatch.status) { localMatch.status = cloudUser.status; changed++; }
       if ((cloudUser.disabledAt || '') !== (localMatch.disabledAt || '')) {
         if (cloudUser.disabledAt) { localMatch.disabledAt = cloudUser.disabledAt; localMatch.disabledBy = cloudUser.disabledBy; }
@@ -40129,6 +40401,8 @@ function gateEnterPortal() {
   loginSyncCompleted = true;
   gateBootScreenHide();
   enterApp('student');
+  // Signed in with the office's first-sign-in code: her own password (OF-4).
+  try { homeFirstCodeCheck(acct); } catch (e) {}
 }
 // After enterApp: the gate does what the 5-second save and the sign-in sync do for staff.
 function gateSessionStart() {
