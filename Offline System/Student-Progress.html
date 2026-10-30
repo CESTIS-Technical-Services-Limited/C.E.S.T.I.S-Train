@@ -283,6 +283,21 @@
 @media screen {
   [style*="font-size:10px"], [style*="font-size: 10px"], [style*="font-size:10.5px"], [style*="font-size: 10.5px"], [style*="font-size:11px"], [style*="font-size: 11px"] { font-size:12px !important; }
 }
+/* Moving several trainees at once (office audit OF-10). */
+.sp-bulk-bar { display:flex; flex-wrap:wrap; gap:10px; align-items:center; padding:12px 14px; margin-bottom:14px;
+  border:1px solid var(--accent); border-radius:var(--radius-sm, 8px); background:var(--accent-dim, rgba(240,165,0,0.12)); }
+.sp-bulk-bar[hidden] { display:none; }
+.sp-bulk-bar strong { font-size:14px; }
+.sp-bulk-bar label { font-size:13px; color:var(--text-secondary); }
+.sp-bulk-bar select { width:auto; min-width:170px; }
+.sp-sel-col { width:44px; text-align:center; }
+.sp-sel-col input, td.sp-sel-cell input { width:20px; height:20px; cursor:pointer; accent-color:var(--accent); }
+td.sp-sel-cell { text-align:center; }
+.sp-bulk-list { max-height:46vh; overflow:auto; border:1px solid var(--border); border-radius:8px; margin-bottom:12px; }
+.sp-bulk-row { padding:9px 12px; border-bottom:1px solid var(--border); font-size:13px; }
+.sp-bulk-row:last-child { border-bottom:none; }
+.sp-bulk-row .who { font-weight:600; }
+.sp-bulk-row .items { margin-top:3px; color:var(--text-muted); line-height:1.5; }
 </style>
 </head>
 <body>
@@ -316,6 +331,14 @@
   <div class="pipeline-stage s-incomplete"><span class="count" id="pIncomplete2">0</span>Incomplete</div>
 </div>
 
+<div class="sp-bulk-bar" id="spBulkBar" role="region" aria-label="Move the selected trainees" hidden>
+  <strong id="spBulkCount">0 selected</strong>
+  <label for="spBulkStage">Move selected to</label>
+  <select class="form-control" id="spBulkStage"></select>
+  <button class="btn btn-primary btn-sm" onclick="spBulkMove()">Move…</button>
+  <button class="btn btn-secondary btn-sm" onclick="spBulkClear()">Clear selection</button>
+</div>
+
 <div class="card">
   <div class="card-header">
     <h3>Student Records</h3>
@@ -328,6 +351,7 @@
     <table>
       <thead>
         <tr>
+          <th class="sp-sel-col" id="spSelHead"></th>
           <th>Student</th>
           <th>ID</th>
           <th>Course</th>
@@ -404,6 +428,14 @@
   <div class="modal">
     <div class="modal-header"><h3>Update Student Stage</h3><button class="modal-close" onclick="closeModal('updateStageModal')">&#x2715;</button></div>
     <div id="updateStageContent"></div>
+  </div>
+</div>
+
+<!-- Move several trainees (OF-10) -->
+<div class="modal-overlay" id="bulkStageModal">
+  <div class="modal" style="max-width:640px;">
+    <div class="modal-header"><h3 id="bulkStageTitle">Move trainees</h3><button class="modal-close" onclick="closeModal('bulkStageModal')">&#x2715;</button></div>
+    <div id="bulkStageContent"></div>
   </div>
 </div>
 
@@ -979,6 +1011,10 @@ function renderStudents(data) {
   var tbody = document.getElementById('studentTableBody');
   if(!tbody) return;
   if(!data || !Array.isArray(data)) { data = []; }
+  var manage = spCanManage();
+  _spShown = data.map(function(s){ return String(s.id); });
+  var head = document.getElementById('spSelHead');
+  if(head) head.innerHTML = manage ? '<input type="checkbox" id="spSelAll" aria-label="Select every trainee shown" onclick="spSelectAllShown(this.checked)">' : '';
   tbody.innerHTML = data.map(function(s){
     // Buttons carry the record's id, resolved when clicked (spIndexOfId).
     var rid = spJsArg(s.id);
@@ -991,6 +1027,8 @@ function renderStudents(data) {
         'font-weight:700;background:rgba(255,193,7,.18);color:#e0a800;">kept separate</span>'
       : '';
     return '<tr>' +
+      (manage ? '<td class="sp-sel-cell"><input type="checkbox" class="sp-sel" data-id="' + spEscapeHtml(String(s.id)) + '"' + (spSelected[String(s.id)] ? ' checked' : '') +
+        ' aria-label="Select ' + spEscapeHtml(s.name || 'trainee') + '" onchange="spToggleSel(this)"></td>' : '<td class="sp-sel-cell"></td>') +
       '<td><strong>' + sanitizeInput(s.name||'Unknown') + '</strong>' + keptSeparate + '</td>' +
       '<td style="font-family:monospace;font-size:12px;color:var(--text-muted);">' + sanitizeInput(s.id||'—') + '</td>' +
       '<td>' + sanitizeInput(s.course||'—') + '</td>' +
@@ -1007,6 +1045,124 @@ function renderStudents(data) {
   }).join('');
   var sc = document.getElementById('studentCount');
   if(sc) sc.textContent = 'Showing ' + data.length + ' student' + (data.length !== 1 ? 's' : '');
+  spBulkBarRefresh();
+}
+
+/* ============================== SEVERAL AT ONCE (office audit OF-10) ==============================
+   Tick the trainees, then "Move selected to…": one confirmation for the lot.
+   Certifying several shows ONE combined checklist — each trainee's
+   assessments, attendance and fees (CESTISCore.certs.eligibility) — before
+   anything is issued. Each trainee is moved by the same rule as the row's own
+   dialog (CESTISCore.certs.applyStage), which stays as it was. Only somebody
+   who may manage Student Progress sees the tick boxes. */
+var spSelected = {};      // trainee id -> true
+var _spShown = [];        // the ids on screen now
+function spSelectedIds() {
+  return Object.keys(spSelected).filter(function(id) { return spSelected[id] && spIndexOfId(id) !== -1; });
+}
+function spToggleSel(box) {
+  var id = box && box.getAttribute('data-id');
+  if(!id) return;
+  if(box.checked) spSelected[id] = true; else delete spSelected[id];
+  spBulkBarRefresh();
+}
+function spSelectAllShown(on) {
+  _spShown.forEach(function(id) { if(on) spSelected[id] = true; else delete spSelected[id]; });
+  Array.prototype.forEach.call(document.querySelectorAll('#studentTableBody input.sp-sel'), function(b) { b.checked = !!on; });
+  spBulkBarRefresh();
+}
+function spBulkClear() { spSelected = {}; filterStudents(); }
+function spBulkBarRefresh() {
+  var bar = document.getElementById('spBulkBar');
+  if(!bar) return;
+  var ids = spCanManage() ? spSelectedIds() : [];
+  bar.hidden = !ids.length;
+  var c = document.getElementById('spBulkCount');
+  if(c) c.textContent = ids.length + ' selected';
+  var sel = document.getElementById('spBulkStage');
+  if(sel && !sel.options.length) sel.innerHTML = stages.map(function(st) { return '<option value="' + st + '">' + spEscapeHtml(stageLabels[st]) + '</option>'; }).join('');
+  var all = document.getElementById('spSelAll');
+  if(all) {
+    var on = _spShown.filter(function(id) { return spSelected[id]; }).length;
+    all.checked = !!_spShown.length && on === _spShown.length;
+    all.indeterminate = on > 0 && on < _spShown.length;
+  }
+}
+// "Move…": what will happen, in one dialog.
+function spBulkMove() {
+  if(spRefuseEdit()) return;
+  var to = (document.getElementById('spBulkStage') || {}).value;
+  var ids = spSelectedIds();
+  if(!to || !ids.length) return;
+  var list = ids.map(function(id) { return students[spIndexOfId(id)]; }).filter(Boolean);
+  var moving = list.filter(function(s) { return s.stage !== to; });
+  var issued = function(s) { return s.stage === 'certified' || s.stage === 'collected'; };
+  var html = '';
+  if(!moving.length) {
+    html = '<p style="font-size:14px;margin-bottom:16px;">All ' + list.length + ' selected trainees are already ' + spEscapeHtml(stageLabels[to]) + '.</p>' +
+      '<div style="display:flex;justify-content:flex-end;"><button class="btn btn-secondary" onclick="closeModal(\'bulkStageModal\')">Close</button></div>';
+  } else if(to === 'certified') {
+    // One combined checklist: each trainee not yet certified, before anything is issued.
+    var toCertify = moving.filter(function(s) { return !issued(s); });
+    var warn = 0;
+    var icon = { ok: '&#10003;', warn: '&#9888;', unknown: '?' }, colour = { ok: 'var(--green)', warn: 'var(--amber, #e6a23c)', unknown: 'var(--text-muted)' };
+    var rows = toCertify.map(function(s) {
+      var e = spCertEligibility(s);
+      if(e.warnings) warn++;
+      return '<div class="sp-bulk-row"><div class="who">' + sanitizeInput(s.name) + ' <span style="font-weight:400;color:var(--text-muted);">— ' + sanitizeInput(s.course || '') + '</span></div>' +
+        '<div class="items">' + e.items.map(function(i) {
+          return '<span style="color:' + colour[i.state] + ';font-weight:700;">' + icon[i.state] + '</span> ' + sanitizeInput(i.label) + ': ' + sanitizeInput(i.detail);
+        }).join(' &nbsp;·&nbsp; ') + '</div></div>';
+    }).join('');
+    var already = moving.length - toCertify.length;
+    html = '<p style="font-size:14px;margin-bottom:10px;"><strong>Before issuing ' + toCertify.length + ' certificate' + (toCertify.length === 1 ? '' : 's') + '</strong>' +
+        (warn ? ' — ' + warn + ' with something to check (&#9888; or ?).' : ' — every check passed.') + '</p>' +
+      '<div class="sp-bulk-list" id="spBulkChecklist">' + rows + '</div>' +
+      (already ? '<p style="font-size:13px;color:var(--text-muted);margin-bottom:10px;">' + already + ' already hold a certificate; their stage moves to Certified, their number is kept.</p>' : '') +
+      '<div class="form-group"><label for="spBulkNotes">Notes (for every trainee moved)</label><textarea class="form-control" id="spBulkNotes" placeholder="Add notes..."></textarea></div>' +
+      '<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:12px;">' +
+        '<button class="btn btn-secondary" onclick="closeModal(\'bulkStageModal\')">Cancel</button>' +
+        '<button class="btn btn-primary" id="spBulkGo" onclick="spBulkApply(\'certified\')">Certify ' + moving.length + ' trainee' + (moving.length === 1 ? '' : 's') + '</button></div>';
+  } else {
+    var withdraw = moving.filter(function(s) { return issued(s) && to !== 'collected'; });
+    var from = {};
+    moving.forEach(function(s) { var k = stageLabels[s.stage] || s.stage || '—'; from[k] = (from[k] || 0) + 1; });
+    html = '<p style="font-size:14px;margin-bottom:10px;">Move <strong>' + moving.length + ' trainee' + (moving.length === 1 ? '' : 's') + '</strong> to <strong>' + spEscapeHtml(stageLabels[to]) + '</strong> (now: ' +
+        Object.keys(from).map(function(k) { return from[k] + ' ' + spEscapeHtml(k); }).join(', ') + ').</p>' +
+      '<div class="sp-bulk-list">' + moving.map(function(s) { return '<div class="sp-bulk-row"><span class="who">' + sanitizeInput(s.name) + '</span> <span style="color:var(--text-muted);">— ' + sanitizeInput(stageLabels[s.stage] || s.stage || '') + '</span></div>'; }).join('') + '</div>' +
+      (withdraw.length ? '<p style="font-size:13px;margin-bottom:10px;border:1px solid var(--red, #e74c3c);border-radius:8px;padding:8px 10px;">This withdraws ' + withdraw.length + ' certificate' + (withdraw.length === 1 ? '' : 's') +
+        ' (' + withdraw.map(function(s) { return sanitizeInput(s.certNo || s.name); }).join(', ') + '): ' + (withdraw.length === 1 ? 'it' : 'they') + ' will verify as revoked. The numbers stay on record.</p>' : '') +
+      '<div class="form-group"><label for="spBulkNotes">Notes (for every trainee moved)</label><textarea class="form-control" id="spBulkNotes" placeholder="Add notes..."></textarea></div>' +
+      '<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:12px;">' +
+        '<button class="btn btn-secondary" onclick="closeModal(\'bulkStageModal\')">Cancel</button>' +
+        '<button class="btn btn-primary" id="spBulkGo" onclick="spBulkApply(' + spJsArg(to) + ')">Move ' + moving.length + ' trainee' + (moving.length === 1 ? '' : 's') + '</button></div>';
+  }
+  var t = document.getElementById('bulkStageTitle');
+  if(t) t.textContent = to === 'certified' ? 'Certify the selected trainees' : 'Move the selected trainees';
+  document.getElementById('bulkStageContent').innerHTML = html;
+  openModal('bulkStageModal');
+}
+// Every selected trainee, by the row dialog's own rule; one save.
+function spBulkApply(to) {
+  if(spRefuseEdit()) return 0;
+  var notesEl = document.getElementById('spBulkNotes');
+  var reason = notesEl ? String(notesEl.value || '').trim() : '';
+  var moved = 0;
+  spSelectedIds().forEach(function(id) {
+    var idx = spIndexOfId(id);
+    if(idx === -1) return;
+    var s = students[idx];
+    if(s.stage === to) return;
+    CESTISCore.certs.applyStage(s, to, { roll: students, approvals: certDownloadApprovals, by: spActorName(), reason: reason });
+    spMarkStageSetByUser(s);
+    moved++;
+  });
+  closeModal('bulkStageModal');
+  spSelected = {};
+  filterStudents();
+  updatePipelineCounts();
+  if(moved) { saveData(); showToast(moved + ' trainee' + (moved === 1 ? '' : 's') + ' moved to ' + stageLabels[to]); }
+  return moved;
 }
 
 // The trainees the filters and the search box leave on screen.
