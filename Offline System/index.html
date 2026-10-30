@@ -1902,6 +1902,15 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
   padding:24px 14px; text-align:center; font-size:13px; color:var(--text-muted);
 }
 
+/* School fees on the administrator's dashboard: three money figures, and the
+   earlier years' arrears right under Outstanding (never added into it). */
+.dash-fees-card { margin-bottom:24px; }
+.dash-fees-row { display:flex; flex-wrap:wrap; gap:14px 40px; }
+.dash-fees-cell .stat-label { margin-top:0; }
+.dash-fees-v { font-size:26px; font-weight:700; color:var(--text-primary); font-family:'Playfair Display',serif; }
+.dash-fees-earlier { font-size:13px; font-weight:700; color:var(--orange); margin-top:4px; }
+.dash-fees-note { font-size:12px; color:var(--text-muted); margin-top:12px; line-height:1.5; }
+
 /* ============================== QUICK ACTIONS GRID ============================== */
 .quick-actions {
   display:grid; grid-template-columns:repeat(auto-fit,minmax(100px,1fr)); gap:12px;
@@ -14566,7 +14575,7 @@ function showPage(pageId) {
   const pg = document.getElementById('page-'+pageId);
   if(pg) pg.classList.add('active');
   // Keep the staff-appraisal due indicator fresh whenever the admin dashboard is shown
-  if(pageId === 'dashboard') { try { if(typeof sappRenderAdminDueCard === 'function') sappRenderAdminDueCard(); } catch(e) {} }
+  if(pageId === 'dashboard') { try { if(typeof sappRenderAdminDueCard === 'function') sappRenderAdminDueCard(); } catch(e) {} try { refreshDashboardFees(); } catch(e) {} }
   if(pageId === 'transfer-trainees') { try { renderTransferTraineesPage(); } catch(e) { console.warn('[Transfer] render failed', e); } }
   // Reports counts the roll on every panel, so it is drawn on the way in rather
   // than served from whenever the page happened to be built.
@@ -14781,6 +14790,7 @@ function buildAdminPages() {
       <div class="stat-card"><div class="stat-icon" style="background:var(--accent-dim);color:var(--accent);">\uD83D\uDCDD</div><div class="stat-value" data-count="${upcomingExams}">0</div><div class="stat-label">Upcoming Exams</div><div class="stat-change" style="color:var(--text-muted);">Next: ${escapeHtml(nextExam?nextExam.date.slice(5):'None scheduled')}</div></div>
       <div class="stat-card"><div class="stat-icon" style="background:var(--purple-dim);color:var(--purple);">\uD83D\uDCF9</div><div class="stat-value" data-count="${classSessions.length}">0</div><div class="stat-label">Class Sessions</div><div class="stat-change" style="color:var(--text-muted);">Total scheduled</div></div>
     </div>
+    <div class="card dash-fees-card" id="dashFeesCard">${dashFeesCardInner()}</div>
     <div class="quick-actions">
       <div class="quick-action-btn" onclick="showPage('students')"><div class="qa-icon">&#128100;</div><div class="qa-label">Add Student</div></div>
       <div class="quick-action-btn" onclick="openModal('createExamModal')"><div class="qa-icon">\uD83D\uDCDD</div><div class="qa-label">Create Exam</div></div>
@@ -25095,8 +25105,43 @@ function dashActiveLineText() {
   var e = CESTISCore.centreFigures.enrolment(students);
   return e.active + ' active (in training) \u00b7 ' + e.applicants + ' applicant' + (e.applicants === 1 ? '' : 's');
 }
+/* School fees on the administrator's dashboard (audit M7): this financial
+   year's billed, collected and outstanding, and — beside Outstanding, never
+   added into it — what trainees of earlier years still owe. Read from the
+   School Fee books by the rule the board and School Fee itself use
+   (CESTISCore.centreFigures.fees). Reads only. */
+function dashFeesCardInner() {
+  var F = CESTISCore.centreFigures, f = null;
+  try {
+    var books = F.feeBooks(function (k) { return CESTISStore.getItem(k); });
+    f = F.fees(books.accounts, books.payments);
+  } catch (e) { f = null; }
+  var m = F.moneyText;
+  var open = '<button class="btn btn-secondary btn-sm" onclick="showPage(\'fee-management\')">Open School Fee →</button>';
+  if (!f || (!f.accounts && !f.collected && !f.earlier.trainees)) {
+    return '<div class="card-header"><h3>School Fees</h3>' + open + '</div><p style="font-size:13px;color:var(--text-muted);">No fee records yet.</p>';
+  }
+  var cell = function (label, value, colour, extra) {
+    return '<div class="dash-fees-cell"><div class="stat-label">' + label + '</div><div class="dash-fees-v"' + (colour ? ' style="color:' + colour + ';"' : '') + '>' +
+      escapeHtml(value) + '</div>' + (extra || '') + '</div>';
+  };
+  return '<div class="card-header"><h3>School Fees — ' + escapeHtml(f.label) + '</h3>' + open + '</div>' +
+    '<div class="dash-fees-row">' +
+      cell('Billed', m(f.billed)) +
+      cell('Collected', m(f.collected), 'var(--green)') +
+      cell('Outstanding', m(f.owed), 'var(--red)', '<div class="dash-fees-earlier" id="dashFeesEarlier">' + escapeHtml(F.earlierText(f.earlier)) + '</div>') +
+    '</div>' +
+    '<div class="dash-fees-note">Billed and Outstanding: trainees enrolled in ' + escapeHtml(f.label) + ' (Outstanding is as at today; ' +
+      f.debtors + ' of ' + f.accounts + ' still owe). Collected: payments dated in ' + escapeHtml(f.label) + '. Earlier years are not included in Outstanding.</div>';
+}
+function refreshDashboardFees() {
+  var el = document.getElementById('dashFeesCard');
+  if (el) el.innerHTML = dashFeesCardInner();
+}
+
 function refreshDashboardStudentTotals() {
   try { var _al = document.getElementById('dashActiveLine'); if (_al) _al.textContent = dashActiveLineText(); } catch (e) {}
+  try { refreshDashboardFees(); } catch (e) {}
   try {
     var totalEnrolled = students.length;
     var totalCertified = CESTISCore.certs.certifiedInYear(students, new Date().getFullYear());

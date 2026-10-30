@@ -273,5 +273,54 @@ console.log('The board\'s portal shows the same money (cmc-portal.js, rendered)'
   assert(/🔒 View only/.test(html.slice(html.indexOf('cmcp-fees'))), 'marked view-only');
 }
 
+/* =====================================================================
+   3. M7 — earlier years beside Outstanding, never in it
+   ===================================================================== */
+console.log('School Fee: "Earlier years still owing" under Total Outstanding');
+['School.Fee.html', 'Offline System/School.Fee.html'].forEach(page => {
+  const FEE = read(page);
+  const card = FEE.slice(FEE.indexOf('id="totalOutstanding"'), FEE.indexOf('id="totalOutstanding"') + 900);
+  assert(/id="totalEarlierYears"/.test(card) && card.indexOf('id="totalEarlierYears"') < card.indexOf('</div>\n            </div>'),
+    page + ': the line sits inside the Total Outstanding card');
+  const upd = fnOf(FEE, 'updateDashboard');
+  assert(/feeShowEarlierYears\(\)/.test(upd), page + ': every dashboard refresh fills it');
+  const els = { totalEarlierYears: { textContent: '', style: { display: 'none' } } };
+  const sb = { CESTISCore: Core, students: D.feeStudents, payments: D.payments, feeScopeMode: 'year',
+    feeActiveQuarter: () => ({ fy: FY, q: 3 }), document: { getElementById: id => els[id] || null } };
+  vm.createContext(sb);
+  vm.runInContext(fnOf(FEE, 'feeShowEarlierYears'), sb);
+  sb.feeShowEarlierYears();
+  assertEq(els.totalEarlierYears.textContent, 'Earlier years still owing: $140,000 (10 trainees) · not included above',
+    page + ': shown "$140,000 (10 trainees)", truth ' + $(T.feesEarlier.owed) + ' (' + T.feesEarlier.trainees + ')');
+  assertEq(els.totalEarlierYears.style.display, '', page + ': and it is visible');
+  sb.feeScopeMode = 'quarter'; sb.feeShowEarlierYears();
+  assert(/\$140,000 \(10 trainees\)/.test(els.totalEarlierYears.textContent), page + ': a single quarter of the year shows it too');
+  sb.feeScopeMode = 'all'; sb.feeShowEarlierYears();
+  assertEq(els.totalEarlierYears.style.display, 'none', page + ': "every year" already includes them, so the line is not repeated');
+  sb.feeScopeMode = 'year'; sb.feeActiveQuarter = () => ({ fy: '2025/2026', q: 1 }); sb.feeShowEarlierYears();
+  assertEq(els.totalEarlierYears.textContent, 'Earlier years still owing: nothing · not included above', page + ': stepping back to last year, nothing is older still owing');
+});
+
+console.log('The administrator\'s dashboard: School Fees, with the earlier years beside Outstanding');
+{
+  const sb = { CESTISCore: Core, CESTISStore: { getItem: k => (k in STORE ? STORE[k] : null), setItem: () => { throw new Error('the dashboard wrote to the fee books'); } },
+    escapeHtml: s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'),
+    document: { getElementById: () => null } };
+  vm.createContext(sb);
+  vm.runInContext(fnOf(INDEX, 'dashFeesCardInner'), sb);
+  const html = sb.dashFeesCardInner();
+  assert(/School Fees — FY 2026\/2027/.test(html), 'named for this financial year');
+  assert(/Billed<\/div><div class="dash-fees-v">\$1,785,000</.test(html), 'Billed: shown $1,785,000, truth ' + $(T.feesFY.billed));
+  assert(/Collected<\/div><div class="dash-fees-v"[^>]*>\$909,000</.test(html), 'Collected: shown $909,000, truth ' + $(T.feesFY.collected));
+  assert(/Outstanding<\/div><div class="dash-fees-v"[^>]*>\$876,000<\/div><div class="dash-fees-earlier" id="dashFeesEarlier">Earlier years still owing: \$140,000 \(10 trainees\)</.test(html),
+    'Outstanding $876,000 (truth ' + $(T.feesFY.owed) + '), with "Earlier years still owing: $140,000 (10 trainees)" right under it');
+  assert(/Earlier years are not included in Outstanding/.test(html), 'and says the earlier years are not in it');
+  assert(/44 of 60 still owe/.test(html), 'how many owe, of how many (44 of 60)');
+  const build = fnOf(INDEX, 'buildAdminPages');
+  assert(/<div class="card dash-fees-card" id="dashFeesCard">\$\{dashFeesCardInner\(\)\}<\/div>/.test(build), 'drawn on the administrator\'s dashboard');
+  assert(/refreshDashboardFees\(\)/.test(fnOf(INDEX, 'refreshDashboardStudentTotals')) && /pageId === 'dashboard'[^\n]*refreshDashboardFees\(\)/.test(fnOf(INDEX, 'showPage')),
+    'and kept current: when the roll changes and whenever the dashboard is opened');
+}
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);

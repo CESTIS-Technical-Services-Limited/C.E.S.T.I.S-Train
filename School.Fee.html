@@ -2370,6 +2370,8 @@
                     <h3>Total Outstanding</h3>
                     <div class="value" id="totalOutstanding">$0.00</div>
                     <div id="totalOutstandingScope" style="font-size:12px;color:var(--text-muted,#5b6b80);margin-top:4px;font-weight:600;">All-time balance</div>
+                    <!-- Earlier years still owing (audit M7): beside Outstanding, never in it. Filled by feeShowEarlierYears(). -->
+                    <div id="totalEarlierYears" style="display:none;font-size:13px;color:var(--text-primary,#2C3E50);margin-top:8px;padding-top:6px;border-top:1px solid var(--border-color,#e0e0e0);font-weight:700;"></div>
                 </div>
             </div>
 
@@ -10155,6 +10157,7 @@
             const _outScopeEl = document.getElementById('totalOutstandingScope');
             // Says whose balance it is, and that it is a position not a period.
             if (_outScopeEl) _outScopeEl.textContent = feeFYLabel() + ' · owed as at today';
+            try { feeShowEarlierYears(); } catch (e) {}
             // Kept beside the cards it explains: Expected and Outstanding cannot
             // include a trainee who has no fee, so say how many that is.
             try { reportUnpricedTrainees(); } catch (e) {}
@@ -10180,6 +10183,25 @@
 
             // Refresh charts with current data, reusing the scoped lists above.
             initializeCharts(scopedPayments, fyStudents);
+        }
+
+        /* "Earlier years still owing: $X (n trainees)" under Total Outstanding
+           (audit M7). Outstanding is the selected year's group, so what
+           trainees of EARLIER years still owe was on no card at all — $140,000
+           from 10 graduates in the audit's Centre. It is said beside Outstanding
+           and never added into it, by the rule the board and the administrator's
+           dashboard use (CESTISCore.centreFigures.fees). "Every year" already
+           includes it, so the line is not shown there. */
+        function feeShowEarlierYears() {
+            const el = document.getElementById('totalEarlierYears');
+            if (!el) return;
+            const F = (typeof CESTISCore !== 'undefined' && CESTISCore.centreFigures) || null;
+            const cur = feeActiveQuarter();
+            if (!F || typeof F.fees !== 'function' || feeScopeMode === 'all' || !cur) {
+                el.textContent = ''; el.style.display = 'none'; return;
+            }
+            el.textContent = F.earlierText(F.fees(students, payments, { fy: cur.fy }).earlier) + ' · not included above';
+            el.style.display = '';
         }
 
         // Initialize Charts.
