@@ -35,6 +35,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const zlib = require('zlib');
 
 const HISTORY_KEEP = 40;            // versions kept per data file
 const MIN_NODE_MAJOR = 14;
@@ -120,9 +121,74 @@ function writeDurable(file, text) {
   throw lastErr;
 }
 
-/* ---------------------------------------------------------------- history */
+/* ---------------------------------------------------------------- history
+   The last HISTORY_KEEP versions of every file. The newest HISTORY_PLAIN of
+   them stay plain JSON, so the version most likely wanted is restored by
+   copying it back, as before; the older ones are kept gzip-compressed
+   ("<name>.json.gz", about a tenth of the size — 40 full copies of a school
+   year's dashboard file came to ~4 GB). readHistory() reads either kind, and
+   so does anything that lists the folder with historyVersions(). Compressing
+   happens after the save has answered, off the request, one file at a time. */
+const HISTORY_PLAIN = 3;
 function historyDir(dataDir, file) {
   return path.join(dataDir, '.history', path.basename(file));
+}
+function isHistoryName(f) { return /\.json(\.gz)?$/.test(f); }
+// The versions of one file, oldest first ("<time>-<n>.json" or ".json.gz").
+function historyVersions(dataDir, file) {
+  const dir = historyDir(dataDir, file);
+  let all = [];
+  try { all = fs.readdirSync(dir).filter(isHistoryName); } catch (e) { return []; }
+  const base = f => f.replace(/\.gz$/, '');
+  // One version written both ways (a compression that stopped half-way): the plain one counts.
+  const seen = {};
+  all.sort().forEach(f => { const b = base(f); if (!seen[b] || !/\.gz$/.test(f)) seen[b] = f; });
+  return Object.keys(seen).sort().map(b => seen[b]);
+}
+// One version's text, plain or compressed.
+function readHistory(dataDir, file, name) {
+  const buf = fs.readFileSync(path.join(historyDir(dataDir, file), name));
+  return (/\.gz$/.test(name) ? zlib.gunzipSync(buf) : buf).toString('utf8');
+}
+const compressQueue = new Map();
+function compressOlder(dir, keepPlain) {
+  const job = () => new Promise(resolve => {
+    let plain = [];
+    try { plain = fs.readdirSync(dir).filter(f => /\.json$/.test(f)).sort(); } catch (e) { return resolve(); }
+    const older = plain.slice(0, Math.max(0, plain.length - keepPlain));
+    (function next(i) {
+      if (i >= older.length) return resolve();
+      const src = path.join(dir, older[i]);
+      fs.readFile(src, (err, buf) => {
+        if (err) return next(i + 1);
+        zlib.gzip(buf, { level: 6 }, (zerr, gz) => {
+          if (zerr) return next(i + 1);
+          // Written beside the version folder, read back and checked; only
+          // then moved in, and the plain copy removed in the same step — so
+          // the folder never shows a version twice, or half-written.
+          const dst = src + '.gz';
+          const tmp = path.join(path.dirname(dir), '.' + path.basename(dir) + '.' + process.pid + '.' + crypto.randomBytes(4).toString('hex') + '.gz.tmp');
+          fs.writeFile(tmp, gz, werr => {
+            if (werr) { fs.unlink(tmp, () => next(i + 1)); return; }
+            fs.readFile(tmp, (e1, back) => {
+              if (e1) { fs.unlink(tmp, () => next(i + 1)); return; }
+              zlib.gunzip(back, (e2, out) => {
+                if (e2 || !out.equals(buf)) { fs.unlink(tmp, () => next(i + 1)); return; }
+                try { fs.renameSync(tmp, dst); fs.unlinkSync(src); }
+                catch (e3) { try { fs.unlinkSync(tmp); } catch (e4) {} }
+                next(i + 1);
+              });
+            });
+          });
+        });
+      });
+    })(0);
+  });
+  const prev = compressQueue.get(dir) || Promise.resolve();
+  const p = prev.then(job, job);
+  compressQueue.set(dir, p);
+  p.then(() => { if (compressQueue.get(dir) === p) compressQueue.delete(dir); });
+  return p;
 }
 let historySeq = 0;
 function keepHistory(dataDir, file, keep) {
@@ -133,11 +199,18 @@ function keepHistory(dataDir, file, keep) {
   // Sortable by name: the time, then a counter for saves in the same millisecond.
   const name = new Date().toISOString().replace(/[:.]/g, '-') + '-' + String(++historySeq).padStart(6, '0') + '.json';
   fs.writeFileSync(path.join(dir, name), old);
-  const all = fs.readdirSync(dir).filter(f => f.endsWith('.json')).sort();
   const limit = keep || HISTORY_KEEP;
-  all.slice(0, Math.max(0, all.length - limit)).forEach(f => { try { fs.unlinkSync(path.join(dir, f)); } catch (e) {} });
+  const all = historyVersions(dataDir, file);
+  all.slice(0, Math.max(0, all.length - limit)).forEach(f => {
+    try { fs.unlinkSync(path.join(dir, f)); } catch (e) {}
+    // (and its other form, if a compression had left both)
+    try { fs.unlinkSync(path.join(dir, /\.gz$/.test(f) ? f.replace(/\.gz$/, '') : f + '.gz')); } catch (e) {}
+  });
+  compressOlder(dir, HISTORY_PLAIN);
   return path.join(dir, name);
 }
+// Wait for the background compression of a file's history (tests, shutdown).
+function historySettled(dataDir, file) { return compressQueue.get(historyDir(dataDir, file)) || Promise.resolve(); }
 
 /* ------------------------------------------------------------------ merge */
 function isPagePayload(p) {
@@ -152,11 +225,18 @@ function isPagePayload(p) {
 function mergeIncoming(Core, storedText, incoming) {
   let stored = null;
   try { stored = storedText == null ? null : JSON.parse(storedText); } catch (e) { stored = null; }
+  // A save that carries only the keys that changed (partial: true, EF-5) is
+  // only ever merged into a stored file: it can never become the file, or
+  // every key it does not mention would be gone. The device sends the whole
+  // file instead (the server answers 409).
+  if (incoming && incoming.partial === true && (!Core || !isPagePayload(stored) || !isPagePayload(incoming))) {
+    const e = new Error('a partial save needs the stored file'); e.code = 'PARTIAL_NEEDS_FULL'; throw e;
+  }
   if (!Core || !isPagePayload(incoming) || !isPagePayload(stored)) return incoming;
   const res = Core.pageCloud.mergeKeys(stored.data, stored.stamps || {}, incoming.data, incoming.stamps || {},
     { records: true, symmetric: true });
   const out = {};
-  Object.keys(incoming).forEach(k => { out[k] = incoming[k]; });
+  Object.keys(incoming).forEach(k => { if (k !== 'partial') out[k] = incoming[k]; });
   out.data = res.data;
   out.stamps = res.stamps;
   out.keyCount = Object.keys(res.data).length;
@@ -190,17 +270,26 @@ function save(opts) {
       const buf = Buffer.from(storedText == null ? '' : storedText);
       return { skipped: true, bytes: buf.length, etag: storedText == null ? null : etagOf(buf), changedByServer: false, history: null };
     }
+    // opts.base: the version (ETag) the device built its save on. basedOn says
+    // whether the stored file still was that version when this save ran.
+    const basedOn = !!opts.base && storedText != null && etagOf(Buffer.from(storedText)) === opts.base;
     const merged = mergeIncoming(opts.core, storedText, incoming);
     const text = JSON.stringify(merged);
     const changedByServer = text !== JSON.stringify(incoming);
+    // A save of only the changed keys: the fingerprint of what the file now
+    // holds, so the device can tell whether its own prediction of it is right.
+    let resultSig = null;
+    try {
+      if (incoming && incoming.partial === true && opts.core && opts.core.pageCloud.resultSig && isPagePayload(merged)) resultSig = opts.core.pageCloud.resultSig(merged.data, merged.stamps);
+    } catch (e) { resultSig = null; }
     if (storedText === text) {
-      return { bytes: Buffer.byteLength(text), etag: etagOf(Buffer.from(text)), changedByServer, history: null };
+      return { bytes: Buffer.byteLength(text), etag: etagOf(Buffer.from(text)), changedByServer, history: null, basedOn, resultSig };
     }
     const history = storedText == null ? null : keepHistory(dataDir, file, opts.keep);
     writeDurable(file, text);
-    return { bytes: Buffer.byteLength(text), etag: etagOf(Buffer.from(text)), changedByServer, history };
+    return { bytes: Buffer.byteLength(text), etag: etagOf(Buffer.from(text)), changedByServer, history, basedOn, resultSig };
   });
 }
 
 module.exports = { nodeTooOld, MIN_NODE_MAJOR, loadOrCreateToken, rotateToken, etagOf, serialise, writeDurable,
-  keepHistory, historyDir, mergeIncoming, save, HISTORY_KEEP };
+  keepHistory, historyDir, historyVersions, readHistory, historySettled, mergeIncoming, save, HISTORY_KEEP, HISTORY_PLAIN };

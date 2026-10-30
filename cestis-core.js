@@ -204,8 +204,27 @@
       // for the price of an integer compare, instead of re-serialising the
       // whole dataset every tick to find out the answer is no.
       writes: 0,
+      // Keys a page names as its own notes about this device's session (the
+      // dashboard's once-a-minute "still here" stamp): never uploaded, so
+      // writing them is not a change. Empty unless a page fills it in.
+      uncounted: {},
       setItem: function (k, v) {
-        k = String(k); v = String(v); Store.writes++; cache[k] = v;
+        k = String(k); v = String(v);
+        // Before IndexedDB has been read in, a key that lives there only (too
+        // large for localStorage) and that this document has not read is not
+        // written. Whoever writes it cannot have seen what it holds — it reads
+        // as absent until then — so the write is built without it: the chat
+        // saved as "{}" over a year of messages, the fee roll as a list of
+        // blank placeholders. And a value written now would also stop the
+        // stored one being read in at all (the cache is not filled over a key
+        // already written). The page reads its collections again once the
+        // store is ready, and saves from there.
+        if (!ready && !(k in cache) && isIdbOnly(k)) {
+          try { console.warn('[CESTISStore] Not writing "' + k + '" before the stored copy has been read.'); } catch (_) {}
+          return;
+        }
+        if (!(Store.uncounted && Store.uncounted[k] === 1)) Store.writes++;
+        cache[k] = v;
         // A failed localStorage write leaves the OLD value in place. Left there,
         // it out-votes the truth on every later read (see getItem above), so the
         // stale entry is removed and the read falls through to the cache and
@@ -230,7 +249,7 @@
         if (lsOk) markIdbOnly(k, false);
         writeIDB(k, v, false);
       },
-      removeItem: function (k) { k = String(k); Store.writes++; delete cache[k]; markIdbOnly(k, false); try { if (LS) LS.removeItem(k); } catch (e) {} writeIDB(k, null, true); },
+      removeItem: function (k) { k = String(k); if (!(Store.uncounted && Store.uncounted[k] === 1)) Store.writes++; delete cache[k]; markIdbOnly(k, false); try { if (LS) LS.removeItem(k); } catch (e) {} writeIDB(k, null, true); },
       clear: function () {
         for (var k in cache) { if (Object.prototype.hasOwnProperty.call(cache, k)) delete cache[k]; }
         try { if (LS) LS.clear(); } catch (e) {}
@@ -1762,8 +1781,9 @@
   var DEVICE_ONLY_KEYS = ['isLoggedIn', 'loggedInUser', 'cestisCurrentUser', 'cestiCurrentUser',
     'cestisAttendanceCurrentUser', 'cestisTimeDarkMode', 'cestisTheme', 'firstTimeSyncDismissed', 'cestisFirstTimeDismissed',
     'postLoginSyncCompleted', 'cloudSyncCompleted', 'cestisAutoSyncEnabled',
-    // "this device holds work not yet uploaded" — true of THIS device only.
-    'cestisPendingUpload', 'cestisUnsyncedOnSignOut',
+    // "this device holds work not yet uploaded" — true of THIS device only —
+    // and its note of what it last put in the Main copy.
+    'cestisPendingUpload', 'cestisUnsyncedOnSignOut', 'cestisLastUploadHash',
     // The trainee gate's part on THIS device (Core.gate.DEVICE_KEYS): its
     // switch and address, a gate session's token and sealing key, a staff
     // device's publishing and collecting bookkeeping, and another trainee's
@@ -2120,7 +2140,11 @@
       if (!Core.isSnapshotableKey(key)) return;
       var local = localStoreMap[key];
       var localEmpty = (local == null || local === '' || local === '[]' || local === '{}');
-      if (localEmpty && snapStore[key] != null && snapStore[key] !== '') {
+      // An empty value in the snapshot restores nothing: putting "{}" over a
+      // local "{}" counted as a repair on every sign-in, and had the whole
+      // dashboard reloaded for it.
+      var snapEmpty = (snapStore[key] === '[]' || snapStore[key] === '{}');
+      if (localEmpty && !snapEmpty && snapStore[key] != null && snapStore[key] !== '') {
         var restore = snapStore[key];
         // A collection emptied by deleting its last record is empty on
         // purpose: what the tombstones say was deleted is not restored.
@@ -2929,9 +2953,20 @@
       };
     }
 
+    /* id -> position. It also notes (not enumerable) the register it was
+       built from and how many records that held: mark() keeps both in step
+       when it adds a mark, so while they still match, the index covers every
+       record — and an id it does not hold is a new mark, without reading the
+       whole register to be sure (EF-10: 19.5 ms per new mark at a school
+       year's 48,000 marks). Anything else that adds to or replaces the
+       register makes them differ, and mark() reads the register as before. */
     function indexOf(register) {
       var idx = {};
       (register || []).forEach(function (r, i) { var k = keyOf(r); if (k && !hasOwn(idx, k)) idx[k] = i; });
+      try {
+        Object.defineProperty(idx, '__reg', { value: register, writable: true, enumerable: false, configurable: true });
+        Object.defineProperty(idx, '__n', { value: (register || []).length, writable: true, enumerable: false, configurable: true });
+      } catch (e) {}
       return idx;
     }
 
@@ -2948,8 +2983,12 @@
       }
       var id = recordId(o.studentId, o.date);
       var i = -1;
-      if (index && hasOwn(index, id) && register[index[id]] && keyOf(register[index[id]]) === id) i = index[id];
-      else {
+      // The index still describes this very register, every record of it
+      // (indexOf above): an id it does not hold is not in the register.
+      var whole = !!index && index.__reg === register && index.__n === register.length;
+      var held = !!index && hasOwn(index, id);
+      if (held && register[index[id]] && keyOf(register[index[id]]) === id) i = index[id];
+      else if (!(whole && !held)) {
         for (var j = 0; j < register.length; j++) { if (keyOf(register[j]) === id) { i = j; break; } }
       }
       var prev = i >= 0 ? register[i] : null;
@@ -2971,6 +3010,7 @@
       } else {
         if (index) index[id] = register.length;
         register.push(rec);
+        if (whole) index.__n = register.length;
       }
       return { changed: true, record: rec };
     }
@@ -9235,6 +9275,65 @@
      instructor / board < admin staff < administrator); an unknown signed-in
      role counts as staff. While a staff member's note stands, nothing on
      the device is trimmed or wiped by any session that cannot clear it. */
+  /* ==========================================================================
+     THE BACKUP'S EXTRA COPIES — when they are written (EF-2)
+
+     Every change used to upload the whole backup seven times: the Main copy,
+     the same bytes again into four more folders (Online Exams, LMS Chat,
+     Class Recording, Assignments), a per-person near-copy and the master
+     snapshot — 309 MB per change at a school year's size. Only the Main copy
+     is read after every change (each device's 5-second check); the other
+     copies are read at Sync Now and at sign-in, merged oldest first so the
+     Main copy wins, and by the recovery and restore paths. So:
+       - the Main copy goes up with every change, as before;
+       - the extra copies (the four folders, the per-person copy and the
+         master) go up together, with the same payload as the Main copy in
+         that tick, at most every 30 minutes while the Main copy has taken
+         changes they have not, and at sign-out;
+       - while the Main copy cannot be written (its folder refused it, the
+         quota, a write lost to another device's), they go up in the same
+         tick instead — at most every 5 minutes — so a change still reaches
+         the shared copies.
+     state: { writtenAt, behind, mainFailAt, triedAt } (ms; behind: true when
+     the Main copy holds changes the extra copies do not; triedAt: the last
+     attempt that did not write them all — tried again after 5 minutes).
+     o: { now, mainOk (the Main copy was written this tick; null: nothing to
+     write), flush (sign-out), urgent (a write was lost to another device's) }
+     Returns { write: bool, why }. The caller updates the state with after(). */
+  Core.copyCadence = (function () {
+    var EVERY_MS = 30 * 60 * 1000, MAIN_DOWN_EVERY_MS = 5 * 60 * 1000;
+    function due(state, o) {
+      var s = state || {}, now = Number(o && o.now) || Date.now();
+      var behind = !!s.behind || (o && o.mainOk === true);
+      if (o && o.mainOk === false) {
+        // The Main copy could not be written: the change goes to the others.
+        if (now - (Number(s.mainFailAt) || 0) >= MAIN_DOWN_EVERY_MS) return { write: true, why: 'main-failed' };
+        return { write: false, why: 'main-failed-recently' };
+      }
+      if (o && o.urgent && now - (Number(s.mainFailAt) || 0) >= MAIN_DOWN_EVERY_MS) return { write: true, why: 'urgent' };
+      if (!behind) return { write: false, why: 'up-to-date' };
+      if (o && o.flush) return { write: true, why: 'sign-out' };
+      if (now - (Number(s.writtenAt) || 0) >= EVERY_MS) {
+        if (now - (Number(s.triedAt) || 0) < MAIN_DOWN_EVERY_MS) return { write: false, why: 'failed-recently' };
+        return { write: true, why: 'periodic' };
+      }
+      return { write: false, why: 'not-yet' };
+    }
+    /* The state after a tick: wrote (the extra copies were written, all of
+       them), why (from due()), mainOk as given to due(). */
+    function after(state, o) {
+      var s = { writtenAt: Number(state && state.writtenAt) || 0, behind: !!(state && state.behind), mainFailAt: Number(state && state.mainFailAt) || 0,
+        triedAt: Number(state && state.triedAt) || 0 };
+      var now = Number(o && o.now) || Date.now();
+      if (o && o.mainOk === true) s.behind = true;
+      if (o && (o.why === 'main-failed' || o.why === 'urgent')) s.mainFailAt = now;
+      if (o && o.wrote) { s.writtenAt = now; s.behind = false; s.triedAt = 0; }
+      else if (o && (o.why === 'periodic' || o.why === 'sign-out')) s.triedAt = now;
+      return s;
+    }
+    return { EVERY_MS: EVERY_MS, MAIN_DOWN_EVERY_MS: MAIN_DOWN_EVERY_MS, due: due, after: after };
+  })();
+
   Core.pendingUpload = (function () {
     var RANK = Core.sessionAccess.RANK;
     function roleOf(marker) { var s = String(marker || ''); var i = s.indexOf('|'); return i === -1 ? s : s.slice(0, i); }
@@ -11850,7 +11949,18 @@
       };
     }
 
-    return { mergeKeys: mergeKeys, ownsKey: ownsKey, collect: collect, buildPayload: buildPayload,
+    /* A fingerprint of a page file's content — its keys, values and dates,
+       in key order — the same on a device and on the Centre's server. A
+       device that sent only its changed keys (EF-5) keeps its own prediction
+       of the merged file only when the server's result has this same
+       fingerprint; otherwise it reads the file again. */
+    function resultSig(data, stamps) {
+      data = data || {}; stamps = stamps || {};
+      var keys = Object.keys(data).concat(Object.keys(stamps).filter(function (k) { return !Object.prototype.hasOwnProperty.call(data, k); })).sort();
+      return Core.hashString(JSON.stringify(keys.map(function (k) { return [k, data[k] === undefined ? null : data[k], stamps[k] == null ? null : stamps[k]]; })));
+    }
+
+    return { mergeKeys: mergeKeys, ownsKey: ownsKey, collect: collect, buildPayload: buildPayload, resultSig: resultSig,
              sharedSources: sharedSources, isShared: isShared, sourceOf: sourceOf,
              sharedPullPlan: sharedPullPlan, pickShared: pickShared,
              isEmptyValue: isEmptyValue, wouldDiscardRecords: wouldDiscardRecords,
@@ -14522,12 +14632,67 @@
       return n;
     }
 
+    /* ---- Never save fewer rooms of history than the device holds ----
+       The rooms whose messages `stored` (this device's saved chat, an object
+       or its JSON) holds and `next` (what is about to be saved) does not: the
+       room is missing from `next`, or there as an empty list.
+
+       Nothing in the app removes a room's whole history on purpose. Deleting
+       a message keeps it (marked deleted), deleting a programme leaves its
+       room's messages alone, and the sign-out clean-up removes the stored copy
+       itself before anything is saved again. So a save that would drop a whole
+       room is a page that has not loaded that room yet — as when the chat was
+       read before the browser's database had been opened, came back empty, and
+       the next save wrote "{}" over a year of messages. The caller puts these
+       rooms back before saving. */
+    function roomsDropped(stored, next) {
+      var s = stored;
+      if (typeof s === 'string') { try { s = JSON.parse(s); } catch (e) { s = null; } }
+      if (!s || typeof s !== 'object' || Array.isArray(s)) return [];
+      var n = (next && typeof next === 'object' && !Array.isArray(next)) ? next : {};
+      return Object.keys(s).filter(function (rid) {
+        if (!Array.isArray(s[rid]) || !s[rid].length) return false;
+        return !Array.isArray(n[rid]) || !n[rid].length;
+      });
+    }
+
+    /* ---- A fingerprint of the chat file's content ----
+       The same rooms, messages, profiles, follows and deletions give the same
+       string — whenever the file was written, by whom, and in whatever order
+       the lists happen to be held (records with an id are compared by id).
+       The chat push compares this with what the shared chat file holds and
+       uploads only when they differ: the file used to be uploaded whole on
+       every save, every 2.6 seconds on an idle PC. */
+    var SIG_FIELDS = ['chatRooms', 'chatMessages', 'chatProfiles', 'chatFollows', 'chatFollowLog', 'tombstones'];
+    function canon(v) {
+      if (v === undefined || typeof v === 'function') return undefined;
+      if (v === null || typeof v !== 'object') return v;
+      if (Array.isArray(v)) {
+        var arr = v.map(function (x) { var c = canon(x); return c === undefined ? null : c; });
+        var byId = arr.length > 1 && arr.every(function (x) { return x && typeof x === 'object' && !Array.isArray(x) && x.id != null; });
+        if (byId) arr = arr.map(function (x, i) { return { k: String(x.id), i: i, x: x }; })
+          .sort(function (a, b) { return a.k < b.k ? -1 : a.k > b.k ? 1 : a.i - b.i; })
+          .map(function (e) { return e.x; });
+        return arr;
+      }
+      var out = {};
+      Object.keys(v).sort().forEach(function (k) { var c = canon(v[k]); if (c !== undefined) out[k] = c; });
+      return out;
+    }
+    function contentSig(file) {
+      var f = (file && typeof file === 'object') ? file : {};
+      var pick = {};
+      SIG_FIELDS.forEach(function (k) { if (f[k] !== undefined && f[k] !== null) pick[k] = f[k]; });
+      return JSON.stringify(canon(pick));
+    }
+
     return {
       classRoomMembers: classRoomMembers, isOnline: isOnline, ONLINE_WINDOW_MS: ONLINE_WINDOW_MS,
       CALL_STALE_MS: CALL_STALE_MS, callKey: callKey, liveParticipants: liveParticipants,
       mergeActiveCall: mergeActiveCall, joinCall: joinCall, leaveCall: leaveCall,
       acceptRealtimeMessage: acceptRealtimeMessage, unreadCount: unreadCount, stripUploadedBytes: stripUploadedBytes,
-      roomIcon: roomIcon, roomColor: roomColor, cleanRoom: cleanRoom, cleanRooms: cleanRooms
+      roomIcon: roomIcon, roomColor: roomColor, cleanRoom: cleanRoom, cleanRooms: cleanRooms,
+      roomsDropped: roomsDropped, contentSig: contentSig
     };
   })();
 

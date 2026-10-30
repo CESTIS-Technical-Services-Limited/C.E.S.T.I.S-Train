@@ -78,6 +78,8 @@ try { Core = require('./cestis-core.js'); } catch (e) { Core = null; }
 const ROOT = __dirname;
 // Both overridable so the tests can run a server on a scratch folder.
 const DATA_DIR = path.resolve(process.env.CESTIS_DATA_DIR || path.join(ROOT, 'data'));
+// The largest save the server takes (512 MiB: years of a busy Centre's records).
+const MAX_BODY_BYTES = 512 * 1024 * 1024;
 const CERT_DIR = path.resolve(process.env.CESTIS_CERT_DIR || path.join(ROOT, 'cert'));
 const USER_LOGIN_DIR = path.join(ROOT, 'User Login');
 const PORT = Number(process.env.CESTIS_PORT || process.argv[2] || 8080);
@@ -384,7 +386,7 @@ function send(res, status, body, type, extraHeaders) {
     // the network — including any website a trainee happened to have open — to
     // read and rewrite the Centre's records.
     'Access-Control-Allow-Methods': 'GET, PUT, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, X-CESTIS-Token',
+    'Access-Control-Allow-Headers': 'Content-Type, X-CESTIS-Token, X-CESTIS-Base',
     'Cache-Control': 'no-store'
   }, extraHeaders || {});
   res.writeHead(status, headers);
@@ -437,7 +439,10 @@ function handleData(req, res, name) {
     let received = 0, tooBig = false;
     req.on('data', c => {
       received += c.length;
-      if (received > 64 * 1024 * 1024) {
+      // A school year's dashboard file is ~52 MB and grows each year; the old
+      // 64 MiB ceiling refused every save from about month 13 (EF-5). Saves
+      // that carry only what changed (partial-put) are far smaller.
+      if (received > MAX_BODY_BYTES) {
         if (!tooBig) { tooBig = true; send(res, 413, 'too large'); req.destroy(); }
         return;
       }
@@ -451,10 +456,16 @@ function handleData(req, res, name) {
       // Merged into what is stored, one save at a time per file, written to a
       // temporary file of its own and renamed into place, with the previous
       // version kept in data/.history — see cestis-offline-store.js.
-      store.save({ file, dataDir: DATA_DIR, incoming, core: Core }).then(r => {
+      // X-CESTIS-Base: the version (ETag) of the file the device's save was
+      // built on. The answer says whether the stored file still was that
+      // version, so the device can keep the merged result as its copy
+      // instead of downloading the whole file again.
+      const base = req.headers['x-cestis-base'] || null;
+      store.save({ file, dataDir: DATA_DIR, incoming, core: Core, base }).then(r => {
         send(res, 200, JSON.stringify({ ok: true, file: path.basename(file), bytes: r.bytes,
-          etag: r.etag, changedByServer: r.changedByServer }), MIME['.json'], { ETag: r.etag });
+          etag: r.etag, changedByServer: r.changedByServer, basedOn: r.basedOn === true, resultSig: r.resultSig || null }), MIME['.json'], { ETag: r.etag });
       }, err => {
+        if (err && err.code === 'PARTIAL_NEEDS_FULL') return send(res, 409, JSON.stringify({ ok: false, error: 'send the whole file' }), MIME['.json']);
         send(res, 500, 'save failed: ' + (err && err.message));
       });
     });
@@ -586,7 +597,9 @@ const handler = (req, res) => {
     // records token needs a staff sign-in; off, the answer is as it always was.)
     const h = { ok: true, mode: 'offline-lan', version: '1.1', time: new Date().toISOString() };
     if (staffOnly()) h.staffOnly = true;
-    return send(res, 200, JSON.stringify(h), MIME['.json']);
+    // X-CESTIS-Features: partial-put — a save may carry only the keys that
+    // changed (merged into the stored file, which must exist and be readable).
+    return send(res, 200, JSON.stringify(h), MIME['.json'], { 'X-CESTIS-Features': 'partial-put' });
   }
   // Everything below /_cestis/ except the health check answers only to this
   // server's own names (see hostOk: a rebound website name gets nothing).
