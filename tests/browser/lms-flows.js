@@ -495,7 +495,9 @@ let today = '', weekend = false, signedUrl = '', certNo = '';
     {
       await nav(I, 'i-resources');
       const before = await I.evaluate(() => instructorResources.length);
-      await I.click('#page-i-resources button:has-text("+ Upload Resource")');
+      // (The link form is "+ Add Link"; "+ Upload File" is the Resource
+      // Manager's upload, for the instructor's own programme — audit IN-9.)
+      await I.click('#page-i-resources button:has-text("+ Add Link")');
       await I.fill('#resName', 'Plasma cutter safety guide');
       await I.click('#uploadResourceModal button:has-text("Upload Resource")');
       await I.waitForTimeout(400);
