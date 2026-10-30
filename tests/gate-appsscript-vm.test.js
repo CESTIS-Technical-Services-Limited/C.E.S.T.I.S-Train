@@ -623,7 +623,7 @@ function sExams(src) {
   const r1 = deliver(env, [sub]).receipts[0];
   const want = 'RES-G-' + crypto.sha256Hex('ATT-17A').slice(0, 16);
   assertEq([r1.ok, r1.result.id, r1.result.attemptId, r1.result.markedBy, r1.result.totalPoints, r1.result.earnedPoints, r1.result.pendingCount, r1.result.late],
-    [true, want, 'ATT-17A', 'gate', 17, 11, 2, undefined], 'submitted: marked from the key — the points the copy claims are ignored');
+    [true, want, 'ATT-17A', 'gate', 17, 12, 1, undefined], 'submitted: marked from the key — the points the copy claims are ignored (the exact fill-in marked at once, IN-8)');
   assert(!hasKey(r1.result), 'and the right answers are not shown while the exam is open');
   const rfs = inboxFiles(env, T.acct.id, 'CESTISINBOX.result.');
   assertEq(rfs.map(f => f.name), ['CESTISINBOX.result.ATT-17A.json'], 'the result is kept in the trainee\'s folder');

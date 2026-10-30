@@ -113,6 +113,28 @@ function as(role, id, course) {
   assert(/graded ' \+ score[^\n]*_mk\.roles, null, _mk\.aud\)/.test(fn('gradeSubmission')), 'an assignment mark to the marker and the administrators');
   assert(/'Grading completed: '[^\n]*_mk\.roles, null, _mk\.aud\)/.test(src), 'an exam\'s marking to the marker and the administrators');
   assert(/CESTISCore\.notify\.reaches\(n, \{ role: currentRole, userId: myId/.test(fn('cestisNotifTargetsMe')), 'a notice arriving live follows the same rule');
+  // The rest of IN-10: a new assignment, a deleted one and an exam opening
+  // reach the programme's own trainees.
+  assert(/'New assignment: "' \+ title \+ '" for ' \+ assignment\.course[^\n]*\['admin','instructor','student'\], null, assignment\.course \? \{ forCourse: assignment\.course \} : null\)/.test(src), 'a new assignment to its programme');
+  assert(/'Assignment "' \+ a\.title \+ '" was deleted'[^\n]*a\.course \? \{ forCourse: a\.course \} : null\)/.test(fn('deleteAssignment')), 'a deleted assignment to its programme');
+  assert(/'Exam activated: "' \+ e\.title[^\n]*e\.course \? \{ forCourse: e\.course \} : null\)/.test(fn('activateExam')), 'an exam opening to its programme');
+}
+
+console.log('At home, through the trainee gate: the same rule (Core.gate slices)');
+{
+  const { makeCentre, NOW } = require('./gate-fixture.js');
+  const C = makeCentre(Core);
+  const weldName = C.trainees[0].p.name, other = C.trainees.find(t => t.p.name !== weldName);
+  const list = JSON.parse(C.asStrings.voctrain_notifications);
+  list.push({ id: 'N-PROG-A', text: 'New assignment: "Week 10 report" for ' + weldName + ' — Due: 2026-11-05', type: 'exam', forRoles: ['admin', 'instructor', 'student'], forCourse: weldName, timestamp: NOW - 1000 });
+  list.push({ id: 'N-PROG-GEN', text: 'Exam activated: "Centre safety quiz"', type: 'exam', forRoles: ['admin', 'instructor', 'student'], forCourse: 'General', timestamp: NOW - 900 });
+  C.asStrings.voctrain_notifications = JSON.stringify(list);
+  const built = Core.gate.buildAll(C.asStrings, NOW, { builtBy: 'dev-test' });
+  const ids = t => built.slices[t.acct.id].slice.data.voctrain_notifications.map(n => n.id);
+  assert(ids(C.trainees[0]).indexOf('N-PROG-A') !== -1, 'a trainee of that programme gets its notice at home');
+  assert(ids(other).indexOf('N-PROG-A') === -1, 'a trainee of another programme does not (' + other.p.name + ')');
+  assert(ids(other).indexOf('N-PROG-GEN') !== -1 && ids(C.trainees[0]).indexOf('N-PROG-GEN') !== -1, 'a "General" notice reaches every trainee');
+  assert(ids(other).indexOf('N-ALL') !== -1, 'a notice with no programme still reaches everyone, as before');
 }
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

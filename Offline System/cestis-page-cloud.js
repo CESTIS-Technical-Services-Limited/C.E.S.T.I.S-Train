@@ -625,6 +625,8 @@
     'voctrain_sessionUpgradeCarried',
     // This screen's light/dark choice: one person's Light never reaches another device.
     'cestisTheme',
+    // A test being built (the builder's draft): it stays on this computer.
+    'cestisExamBuilderDraft',
     // The trainee gate's part on this device (CESTISCore.gate.DEVICE_KEYS).
     'cestisGateNs', 'cestisGateMode', 'cestisGateToken', 'cestisGateSessionKey', 'cestisGateAddress',
     'cestisDeviceKind', 'cestisGatePublished', 'cestisGatePublishQueue', 'cestisGateCollected',

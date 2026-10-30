@@ -1990,6 +1990,13 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
   margin-bottom:10px; transition:all var(--transition);
 }
 .alert-item:hover { background:var(--bg-card-hover); }
+/* An alert that opens the list behind it (Needs Attention, registers not taken). */
+.alert-item.alert-link { cursor:pointer; }
+.alert-item.alert-link:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.alert-item.alert-link .alert-time { color:var(--accent); }
+.attn-table td { vertical-align:top; }
+.attn-table a.attn-tel { color:var(--accent); text-decoration:underline; }
+.attn-table th.num, .attn-table td.num { text-align:right; }
 .alert-item.alert-info { border-left-color:var(--blue); }
 .alert-item.alert-warning { border-left-color:var(--accent); }
 .alert-item.alert-danger { border-left-color:var(--red); }
@@ -6224,7 +6231,7 @@ html.gate-ns .tam-gate-only { display:flex; }
 <!-- CLASS SESSION MODAL -->
 <div class="modal-overlay" id="createClassSessionModal">
   <div class="modal">
-    <div class="modal-header"><h3>Create New Class Session</h3><button class="modal-close" onclick="closeModal('createClassSessionModal')">✕</button></div>
+    <div class="modal-header"><h3 id="csModalTitle">Create New Class Session</h3><button class="modal-close" aria-label="Close" onclick="closeModal('createClassSessionModal')">✕</button></div>
     <div class="form-group"><label>Session Name</label><input type="text" class="form-control" id="csSessionName" placeholder="e.g. Welding Theory — Session 5"></div>
     <div class="form-group"><label>Programme / Course</label><select class="form-control" id="csCourse"></select></div>
     <div class="grid-2col" style="gap:12px;">
@@ -6236,9 +6243,12 @@ html.gate-ns .tam-gate-only { display:flex; }
       <div class="form-group"><label>Type</label><select class="form-control" id="csType"><option value="theory">Theory</option><option value="practical">Practical Lab</option><option value="workshop">Workshop Review</option><option value="virtual">Virtual Class</option></select></div>
     </div>
     <div class="form-group"><label>Location / Room</label><input type="text" class="form-control" id="csLocation" placeholder="e.g. Virtual-01, Workshop Bay 3"></div>
+    <div class="form-group" id="csRepeatGroup"><label class="ess-check" style="display:inline-flex;align-items:center;gap:8px;font-weight:600;"><input type="checkbox" id="csRepeat" onchange="var u=document.getElementById('csRepeatUntil');u.disabled=!this.checked;if(this.checked&&!u.value){u.focus();}"> Repeat weekly until</label>
+      <input type="date" class="form-control" id="csRepeatUntil" aria-label="Repeat weekly until" disabled style="margin-top:6px;">
+      <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">One class on the same day and time every week, up to and including this date (at most 52). Each can be changed or deleted on its own afterwards.</div></div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
       <button class="btn btn-secondary" onclick="closeModal('createClassSessionModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="createClassSession()">Create Session</button>
+      <button class="btn btn-primary" id="csSaveBtn" onclick="createClassSession()">Create Session</button>
     </div>
   </div>
 </div>
@@ -14251,6 +14261,8 @@ function buildAdminSidebar() {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>Video Conference<span class="nav-badge nav-live-badge" hidden>LIVE</span></div>
     <div class="nav-item" data-page="students" onclick="showPage('students')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Student Progress</div>
+    <div class="nav-item" data-page="needs-attention" onclick="showPage('needs-attention')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Needs Attention<span class="nav-badge attn-nav-badge" hidden></span></div>
     <div class="nav-item" data-page="announcements" onclick="showPage('announcements')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 17H2a3 3 0 0 0 3-3V9a7 7 0 0 1 14 0v5a3 3 0 0 0 3 3zm-8.27 4a2 2 0 0 1-3.46 0"/></svg>Announcements</div>
     <div class="nav-item" data-page="calendar" onclick="showPage('calendar')">
@@ -14335,6 +14347,7 @@ function buildAdminSidebar() {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Settings</div>
   `;
   setTimeout(updateCtrRequestsBadge, 200);
+  setTimeout(function(){ try { refreshAttentionBadges(); } catch(e) {} }, 300);
 }
 
 function buildStudentSidebar() {
@@ -14384,6 +14397,8 @@ function buildInstructorSidebar() {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>Video Conference<span class="nav-badge nav-live-badge" hidden>LIVE</span></div>
     <div class="nav-item" data-page="i-students" onclick="showPage('i-students')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>My Students</div>
+    <div class="nav-item" data-page="i-needs-attention" onclick="showPage('i-needs-attention')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Needs Attention<span class="nav-badge attn-nav-badge" hidden></span></div>
     <div class="nav-section-label">Teaching</div>
     <div class="nav-item" data-page="i-attendance" onclick="showPage('i-attendance')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>Attendance</div>
@@ -14397,6 +14412,8 @@ function buildInstructorSidebar() {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>Qual Plan/Curriculum</div>
     <div class="nav-item" data-page="i-exams" onclick="showPage('i-exams')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Online Exams</div>
+    <div class="nav-item" data-page="i-import-exam" onclick="showPage('i-import-exam')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Import Exam</div>
     <div class="nav-item" data-page="i-invigilator" onclick="showPage('i-invigilator')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>Exam Invigilator</div>
     <div class="nav-section-label">Tasks</div>
@@ -14421,6 +14438,7 @@ function buildInstructorSidebar() {
     <div class="nav-item" data-page="i-profile" onclick="showPage('i-profile')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>My Profile</div>
   `;
+  setTimeout(function(){ try { refreshAttentionBadges(); } catch(e) {} }, 300);
 }
 
 /* ============================== MEDIA PERMISSION CLEANUP ============================== */
@@ -14547,6 +14565,7 @@ var cestisFeatureConfig = {
     file: 'Pages/Import-Exam.html',
     onMount: function() {
       cestisSafe('populateCourseDropdowns');
+      cestisSafe('importExamLimitCourses');
     }
   },
   'attendance': {
@@ -14871,6 +14890,7 @@ function showPage(pageId) {
     vcCleanupMediaIfNeeded();
   }
   vcLastPage = pageId;
+  if(ATTENTION_PAGES[pageId]) { try { ensureAttentionPage(pageId); } catch(e) {} }
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   const pg = document.getElementById('page-'+pageId);
   if(pg) pg.classList.add('active');
@@ -14880,6 +14900,7 @@ function showPage(pageId) {
   // Reports counts the roll on every panel, so it is drawn on the way in rather
   // than served from whenever the page happened to be built.
   if(pageId === 'reports') { try { refreshReportsAnalytics(); } catch(e) { console.warn('[Reports] render failed', e); } }
+  if(ATTENTION_PAGES[pageId]) { try { renderNeedsAttention(pageId); } catch(e) { console.warn('[Needs attention] render failed', e); } }
   if(pageId === 's-announcements') { try { renderStudentAnnouncements(); } catch(e) {} }
   if(pageId === 's-exams') { try { studentExamsShowList(); } catch(e) {} }
   try { examPageSwitched(pageId); } catch(e) {}
@@ -14897,7 +14918,7 @@ function showPage(pageId) {
   }
   const titles = {
     dashboard:'Dashboard',video:'Video Conference',students:'Student Progress',
-    training:'Training Centres','course-duration':'Course / Training Centre Duration','transfer-trainees':'Transfer Trainees','enrolment-registers':'Enrolment Registers','a-resources':'Resource Manager',exams:'Online Exams',invigilator:'Exam Invigilator','i-invigilator':'Exam Invigilator','as-invigilator':'Exam Invigilator','import-exam':'Import Exam',certificates:'Certificate Tracking','cert-downloads':'Certificate Downloads',
+    training:'Training Centres','course-duration':'Course / Training Centre Duration','transfer-trainees':'Transfer Trainees','enrolment-registers':'Enrolment Registers','a-resources':'Resource Manager',exams:'Online Exams',invigilator:'Exam Invigilator','i-invigilator':'Exam Invigilator','as-invigilator':'Exam Invigilator','import-exam':'Import Exam','i-import-exam':'Import Exam',certificates:'Certificate Tracking','cert-downloads':'Certificate Downloads',
     reports:'Reports & Analytics','verify-users':'Verify Users',settings:'Settings',
     attendance:'Attendance Management',announcements:'Announcements',calendar:'Calendar & Schedule',
     's-dashboard':'My Dashboard','s-video':'My Classes','s-progress':'My Progress',
@@ -14923,7 +14944,8 @@ function showPage(pageId) {
     'transcript-grades':'Transcript / Grades','s-transcript-grades':'Transcript / Grades','as-transcript-grades':'Transcript / Grades','i-trainee-grades':'Trainee Grades',
     'cert-transcript-requests':'Certificate / Transcript Requests','as-cert-transcript-requests':'Certificate / Transcript Requests',
     'cmc-dashboard':'CMC Analytics Dashboard','cmc-financial':'Financial Overview','cmc-virements':'Virement Approvals','cmc-staff':'Staff & HR','cmc-academic':'Academic Performance','cmc-profile':'My Profile',
-    'tms-system':'TMS System','as-tms-system':'TMS System','nqs-system':'NQS System','as-nqs-system':'NQS System'
+    'tms-system':'TMS System','as-tms-system':'TMS System','nqs-system':'NQS System','as-nqs-system':'NQS System',
+    'needs-attention':'Needs Attention','as-needs-attention':'Needs Attention','i-needs-attention':'Needs Attention'
   };
   document.getElementById('topbarTitle').textContent = titles[pageId]||pageId;
   if(pageId === 'support-messages' || pageId === 'as-support-messages') renderSupportMessagesPage();
@@ -15070,10 +15092,15 @@ function buildAdminPages() {
     .filter(x => x.g != null).sort((a,b) => (parseFloat(b.g) - parseFloat(a.g)) || ((b.p || 0) - (a.p || 0))).slice(0,5)
     .map(x => Object.assign({}, x.s, { gpa: x.g }));
   const incompleteCount = students.filter(s=>s.stage==='incomplete').length;
-  // Only trainees still in training, and only where attendance has been
-  // recorded: graduates and never-registered trainees are not a warning.
-  const lowAttendance = students.filter(s=>s && (s.stage==='testing'||s.stage==='interview'||s.stage==='training') &&
-    s.attendance!==undefined && s.attendance!==null && s.attendance!=='' && parseFloat(s.attendance)<70).length;
+  // Only trainees in training in an intake still running, by the register:
+  // the same rule as the Needs Attention list the alert opens
+  // (CESTISCore.attention) — applicants, graduates and ended intakes are not
+  // a warning.
+  const lowAttendance = attentionLowAttendanceCount();
+  // The marking backlog and the registers not taken on the last school day
+  // (CESTISCore.officeWatch): who and how old, not a bare count.
+  let backlog = { waiting: 0, pastDueMissing: 0, byOwner: [], oldestDays: null }, notTaken = { day: '', list: [] };
+  try { backlog = officeBacklog(false); notTaken = registersNotTakenList(); } catch (e) {}
   const pendingCerts = students.filter(s=>s.stage==='certified'&&!s.certCollected).length;
   // What the course-end rule found in the transcripts of trainees whose course
   // has ended: ready to certify, or still waiting for results to be marked.
@@ -15105,7 +15132,9 @@ function buildAdminPages() {
     </div>
     <div class="grid-2col">
       <div class="card"><div class="card-header"><h3>System Alerts</h3></div>
-        <div class="alert-item alert-danger"><div class="alert-icon">\u26A0\uFE0F</div><div class="alert-body"><div class="alert-msg">${lowAttendance} student${lowAttendance!==1?'s':''} below 70% attendance</div><div class="alert-time">Needs attention</div></div></div>
+        <div class="alert-item alert-danger alert-link" role="button" tabindex="0" id="dashLowAttendanceAlert" onclick="showPage('needs-attention')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showPage('needs-attention');}" title="See who, with their last attendance and phone"><div class="alert-icon">\u26A0\uFE0F</div><div class="alert-body"><div class="alert-msg">${lowAttendance} student${lowAttendance!==1?'s':''} below 70% attendance</div><div class="alert-time">Needs attention — see who &rarr;</div></div></div>
+        ${notTaken.list.length ? `<div class="alert-item alert-danger alert-link" role="button" tabindex="0" id="dashRegistersNotTaken" onclick="showPage('attendance')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showPage('attendance');}"><div class="alert-icon">\uD83D\uDCCB</div><div class="alert-body"><div class="alert-msg">Registers not taken on ${escapeHtml(officeDayLabel(notTaken.day))}: ${notTaken.list.length} class${notTaken.list.length!==1?'es':''}</div><div class="alert-time">${escapeHtml(notTaken.list.map(x => (x.session.name || 'Class') + ' (' + x.course + (x.instructor ? ', ' + x.instructor : '') + ')').join(' · '))}</div></div></div>` : ''}
+        ${backlog.waiting || backlog.pastDueMissing ? `<div class="alert-item alert-warning alert-link" role="button" tabindex="0" id="dashMarkingBacklog" onclick="showPage('a-assignments')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showPage('a-assignments');}"><div class="alert-icon">\u270D\uFE0F</div><div class="alert-body"><div class="alert-msg">${backlog.waiting} piece${backlog.waiting!==1?'s':''} of work waiting to be marked${backlog.oldestDays != null ? ', the oldest for ' + officeDaysText(backlog.oldestDays) : ''}</div><div class="alert-time">${backlog.pastDueMissing ? backlog.pastDueMissing + ' past due, never handed in · ' : ''}${escapeHtml(backlog.byOwner.slice(0,3).map(o => o.owner + ': ' + o.waiting).join(' · '))} &rarr;</div></div></div>` : ''}
         <div class="alert-item alert-warning"><div class="alert-icon">\uD83D\uDCDD</div><div class="alert-body"><div class="alert-msg">${upcomingExams} exams scheduled this period</div><div class="alert-time">Review schedule</div></div></div>
         ${readyToCertify.length ? `<div class="alert-item alert-success"><div class="alert-icon">\u2705</div><div class="alert-body"><div class="alert-msg">${readyToCertify.length} trainee${readyToCertify.length!==1?'s':''} ready to certify</div><div class="alert-time">Course ended, every core unit competent: ${escapeHtml(someNames(readyToCertify))}</div></div></div>` : ''}
         ${awaitingMarking.length ? `<div class="alert-item alert-warning"><div class="alert-icon">\u23F3</div><div class="alert-body"><div class="alert-msg">${awaitingMarking.length} trainee${awaitingMarking.length!==1?'s':''} awaiting marking after their course ended</div><div class="alert-time">Not marked Not Yet Competent until the results are in: ${escapeHtml(someNames(awaitingMarking))}</div></div></div>` : ''}
@@ -16522,7 +16551,10 @@ function buildInstructorPages() {
   // GPA from the marks (a hand-set GPA still stands) — the same figure the trainee sees.
   const gpaOf = {}; myStudents.forEach(s => { gpaOf[s.id] = studentEffectiveGpa(s); });
   const avgGpa = myStudents.length ? (myStudents.reduce((a,s) => a + (parseFloat(gpaOf[s.id]) || 0), 0) / myStudents.length).toFixed(1) : '0.0';
-  const lowAttStudents = myStudents.filter(s => s.attendance < 70);
+  // By the register, in a running intake: the rule of the Needs Attention list it opens.
+  const lowAttCount = attentionLowAttendanceCount();
+  let myBacklog = { waiting: 0, pastDueMissing: 0, oldestDays: null };
+  try { myBacklog = officeBacklog(true); } catch (e) {}
   const upcomingExams = myExams.filter(e => e.status === 'upcoming');
   const skill = findSkillAreaForCourse(ins.course);
 
@@ -16570,7 +16602,8 @@ function buildInstructorPages() {
 
     <div class="grid-2col">
       <div class="card"><div class="card-header"><h3>Alerts</h3></div>
-        ${lowAttStudents.length > 0 ? `<div class="alert-item alert-danger"><div class="alert-icon">⚠️</div><div class="alert-body"><div class="alert-msg">${lowAttStudents.length} student${lowAttStudents.length!==1?'s':''} below 70% attendance</div><div class="alert-time">Needs follow-up</div></div></div>` : ''}
+        ${lowAttCount > 0 ? `<div class="alert-item alert-danger alert-link" role="button" tabindex="0" id="iDashLowAttendanceAlert" onclick="showPage('i-needs-attention')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showPage('i-needs-attention');}"><div class="alert-icon">⚠️</div><div class="alert-body"><div class="alert-msg">${lowAttCount} student${lowAttCount!==1?'s':''} below 70% attendance</div><div class="alert-time">Needs follow-up — see who &rarr;</div></div></div>` : ''}
+        ${myBacklog.waiting ? `<div class="alert-item alert-warning alert-link" role="button" tabindex="0" id="iDashMarkingBacklog" onclick="showPage('i-gradebook')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showPage('i-gradebook');}"><div class="alert-icon">✍️</div><div class="alert-body"><div class="alert-msg">${myBacklog.waiting} to mark${myBacklog.oldestDays != null ? ', the oldest waiting ' + officeDaysText(myBacklog.oldestDays) : ''}</div><div class="alert-time">${myBacklog.pastDueMissing ? myBacklog.pastDueMissing + ' past due, never handed in · ' : ''}Open the gradebook &rarr;</div></div></div>` : ''}
         <div class="alert-item alert-info"><div class="alert-icon">📝</div><div class="alert-body"><div class="alert-msg">${upcomingExams.length} exam${upcomingExams.length!==1?'s':''} scheduled for ${escapeHtml(ins.course)}</div><div class="alert-time">Review schedule</div></div></div>
         <div class="alert-item alert-warning"><div class="alert-icon">📋</div><div class="alert-body"><div class="alert-msg">${myStudents.filter(s=>s.stage==='incomplete').length} student${myStudents.filter(s=>s.stage==='incomplete').length!==1?'s':''} marked incomplete</div><div class="alert-time">Review progress</div></div></div>
         <div class="alert-item alert-info" id="iDashNextClassAlert" style="display:none;"><div class="alert-icon">🔔</div><div class="alert-body"><div class="alert-msg" id="iDashNextClassMsg"></div><div class="alert-time" id="iDashNextClassTime"></div></div></div>
@@ -16615,7 +16648,7 @@ function buildInstructorPages() {
       <button class="btn-export" onclick="exportInstructorStudentsCSV()">📄 Export CSV</button>
     </div>
     <div class="pipeline" style="margin-bottom:20px;"><div class="pipeline-stage s-test"><span class="count" id="ipTest">0</span>Testing</div><div class="pipeline-stage s-interview"><span class="count" id="ipInterview">0</span>Interview</div><div class="pipeline-stage s-training"><span class="count" id="ipTraining">0</span>Training</div><div class="pipeline-stage s-certified"><span class="count" id="ipCertified">0</span>Certified</div><div class="pipeline-stage s-collected"><span class="count" id="ipCollected">0</span>Collected</div><div class="pipeline-stage s-nyc"><span class="count" id="ipNyc">0</span>Not Yet Competent</div><div class="pipeline-stage s-incomplete"><span class="count" id="ipIncomplete">0</span>Incomplete</div></div>
-    <div class="card"><div class="card-header"><h3>My Students</h3><span style="font-size:13px;color:var(--text-muted);" id="iStudentCount">Showing ${myStudents.length} students</span></div><div class="table-wrapper"><table><thead><tr><th>Student</th><th>ID</th><th>Stage</th><th>Test Score</th><th>Attendance</th><th>GPA</th><th>Progress</th></tr></thead><tbody id="iStudentTableBody"></tbody></table></div></div>
+    <div class="card"><div class="card-header"><h3>My Students</h3><span style="font-size:13px;color:var(--text-muted);" id="iStudentCount">Showing ${myStudents.length} students</span></div><div class="table-wrapper"><table><thead><tr><th>Student</th><th>ID</th><th>Stage</th><th>Test Score</th><th>Attendance</th><th>GPA</th><th>Progress</th><th><span class="exam-sr-only">Actions</span></th></tr></thead><tbody id="iStudentTableBody"></tbody></table></div></div>
   </section>
 
   <!-- INSTRUCTOR ATTENDANCE -->
@@ -16829,6 +16862,11 @@ function buildInstructorPages() {
     <div class="cestis-mount" data-feature="i-exams" data-prefix="instructor"></div>
   </section>
 
+  <!-- INSTRUCTOR: IMPORT EXAM (their own programme) — markup in Pages/Import-Exam.html -->
+  <section class="page" id="page-i-import-exam">
+    <div class="cestis-mount" data-feature="import-exam" data-prefix="instructor"></div>
+  </section>
+
   <!-- EXAM INVIGILATOR (Instructor: their programmes' exams) -->
   <section class="page" id="page-i-invigilator">
     <div class="cestis-mount" data-feature="invigilator" data-prefix="instructor"></div>
@@ -16892,7 +16930,8 @@ function renderInstructorStudents(data) {
     <td><span class="badge ${stageBadge[s.stage]}"><span class="badge-dot"></span>${escapeHtml(stageLabels[s.stage]||s.stage)}</span></td><td>${escapeHtml(s.score||'\u2014')}</td>
     <td><div style="display:flex;align-items:center;gap:8px;"><div class="progress-bar" style="width:60px;"><div class="fill" style="width:${escapeAttr(s.attendance)}%;background:${s.attendance>=80?'var(--green)':s.attendance>=70?'var(--accent)':'var(--red)'};"></div></div><span style="font-size:12px;">${escapeHtml(s.attendance)}%</span></div></td>
     <td style="font-weight:600;color:${parseFloat(studentEffectiveGpa(s))>=3.0?'var(--green)':'var(--accent)'};">${escapeHtml(studentEffectiveGpa(s))}</td>
-    <td><div style="display:flex;align-items:center;gap:8px;"><div class="progress-bar" style="width:80px;"><div class="fill" style="width:${escapeAttr(s.progress)}%;background:${s.progress>=80?'var(--green)':s.progress>=40?'var(--accent)':'var(--red)'};"></div></div><span style="font-size:12px;color:var(--text-muted);">${escapeHtml(s.progress)}%</span></div></td></tr>
+    <td><div style="display:flex;align-items:center;gap:8px;"><div class="progress-bar" style="width:80px;"><div class="fill" style="width:${escapeAttr(s.progress)}%;background:${s.progress>=80?'var(--green)':s.progress>=40?'var(--accent)':'var(--red)'};"></div></div><span style="font-size:12px;color:var(--text-muted);">${escapeHtml(s.progress)}%</span></div></td>
+    <td><button class="btn btn-sm btn-secondary" onclick="openDirectChatWithTrainee(${jsArg(s.id)})" title="Open a direct chat with ${escapeAttr(s.name)}">💬 Message</button></td></tr>
   `).join('');
   const sc = document.getElementById('iStudentCount');
   if(sc) sc.textContent = 'Showing ' + data.length + ' students';
@@ -16938,6 +16977,229 @@ function examPassFigure(roll) {
 // programme" exactly as this page does (tests/gate-slice.test.js).
 function instructorCourseMatch(studentCourse, instructorCourse) {
   return CESTISCore.enrolment.courseMatch(studentCourse, instructorCourse, findSkillAreaForCourse);
+}
+
+/* "Message": a direct chat with a trainee, opened from wherever staff see
+   her (My Students, Needs attention, an assignment's "Not submitted" list).
+   It used to take eight steps through the chat's member directory (audit
+   IN-15). The chat page for the role is shown, the conversation is found or
+   started (lmsChatStartDM, the chat's own rule), and an optional first
+   message is typed in, ready to send — nothing is sent without the person.
+   A trainee with no account yet cannot be messaged: say so, with her phone
+   when the record has one. */
+function traineeChatUserId(studentId) {
+  var id = typeof examTraineeUserId === 'function' ? examTraineeUserId(studentId) : null;
+  if (id) return id;
+  var st = (students || []).find(function(s){ return s && s.id === studentId; });
+  var u = st && (userAccounts || []).find(function(a){ return a && a.role === 'student' && a.status !== 'disabled' && (!a.studentDataId || a.studentDataId === studentId) && st.email && a.email && String(a.email).trim().toLowerCase() === String(st.email).trim().toLowerCase(); });
+  return u ? u.id : null;
+}
+function openDirectChatWithTrainee(studentId, draft) {
+  var uid = traineeChatUserId(studentId);
+  var st = (students || []).find(function(s){ return s && s.id === studentId; });
+  if (!uid) {
+    showToast((st ? st.name : 'This trainee') + ' has no account to message yet' + (st && st.phone ? ' — telephone ' + st.phone : '') + '.', 'warning');
+    return false;
+  }
+  var page = currentRole === 'admin' ? 'lms-chat' : currentRole === 'adminstaff' ? 'as-lms-chat' : currentRole === 'instructor' ? 'i-lms-chat' : null;
+  if (!page) return false;
+  showPage(page);
+  var tries = 0;
+  (function whenReady() {
+    var slot = document.querySelector('#page-' + page + ' .cestis-mount');
+    var ready = typeof lmsChatStartDM === 'function' && (!slot || slot.getAttribute('data-mounted') === '1');
+    if (!ready && tries++ < 50) { setTimeout(whenReady, 100); return; }
+    try { lmsChatStartDM(uid); } catch (e) { console.warn('[Message] could not open the chat', e); return; }
+    if (draft) {
+      var inp = document.getElementById(lmsChatGetRolePrefix() + 'ChatInput');
+      if (inp && !inp.value) { inp.value = draft; try { inp.focus(); } catch (e) {} }
+    }
+  })();
+  return true;
+}
+
+/* ============================== NEEDS ATTENTION ==============================
+   Who is struggling, most urgent first (CESTISCore.attention): for an
+   instructor her own programme's trainees, for the Administrator and Admin
+   Staff every trainee. The dashboard's "N below 70% attendance" opens it.
+   "What they owe" is shown to the office only (administrator, Admin Staff):
+   an instructor needs to know a trainee is missing classes, not her fee
+   account, so the fee records are not even read on an instructor's page. */
+var ATTENTION_PAGES = { 'needs-attention': 'admin', 'as-needs-attention': 'adminstaff', 'i-needs-attention': 'instructor' };
+function attentionIsOffice() { return currentRole === 'admin' || currentRole === 'adminstaff'; }
+function attentionScope() {
+  if (currentRole === 'instructor' && currentInstructor) {
+    return (students || []).filter(function(s){ return s && (s.instructor === currentInstructor.name || instructorCourseMatch(s.course, currentInstructor.course)); });
+  }
+  return attentionIsOffice() ? (students || []).filter(Boolean) : [];
+}
+function attentionFeeOf() {
+  if (!attentionIsOffice()) return null;
+  var fee = [], pay = [];
+  try { fee = JSON.parse(CESTISStore.getItem('cestiSchoolFeeStudents') || '[]') || []; } catch (e) { fee = []; }
+  try { pay = JSON.parse(CESTISStore.getItem('cestiSchoolFeePayments') || '[]') || []; } catch (e) { pay = []; }
+  if (!Array.isArray(fee) || !fee.length) return function(){ return null; };
+  var idx = null;
+  try { idx = CESTISCore.feeTwinIndex ? CESTISCore.feeTwinIndex(fee) : null; } catch (e) { idx = null; }
+  return function(s) { try { return CESTISCore.attention.owedFrom(s, fee, Array.isArray(pay) ? pay : [], idx); } catch (e) { return null; } };
+}
+function attentionRows() {
+  var endedOf = function(s) { try { return studentCourseStatus(s) === 'ended'; } catch (e) { return false; } };
+  return CESTISCore.attention.list({
+    students: attentionScope(), register: Array.isArray(attendanceRegister) ? attendanceRegister : [], today: localDateStr(), endedOf: endedOf,
+    results: examResults || [], exams: exams || [], assignments: instructorAssignments || [], submissions: assignmentSubmissions || [],
+    sameProgramme: instructorCourseMatch, feeOf: attentionFeeOf()
+  });
+}
+// The number on the dashboards' attendance alert: the same rule as the list
+// it opens (trainees in training in a running intake, by the register).
+function attentionLowAttendanceCount() {
+  try { return attentionRows().filter(function(r){ return r.pct != null && r.pct < CESTISCore.attention.LOW_ATTENDANCE; }).length; } catch (e) { return 0; }
+}
+function ensureAttentionPage(pageId) {
+  if (!ATTENTION_PAGES[pageId] || document.getElementById('page-' + pageId)) return;
+  var mc = document.getElementById('mainContent');
+  if (!mc) return;
+  var sec = document.createElement('section');
+  sec.className = 'page'; sec.id = 'page-' + pageId;
+  sec.innerHTML = '<div class="card"><div class="card-header" style="flex-wrap:wrap;gap:10px;"><div style="flex:1;min-width:220px;"><h3>Needs attention</h3>' +
+    '<div style="font-size:12px;color:var(--text-muted);margin-top:2px;" id="attnRule-' + pageId + '"></div></div>' +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+    (pageId === 'i-needs-attention' ? '' : '<select class="form-control" style="width:220px;" id="attnCourse-' + pageId + '" aria-label="Programme" onchange="renderNeedsAttention(' + jsArg(pageId) + ')"><option value="all">All programmes</option></select>') +
+    '<input type="text" class="form-control" style="width:200px;" id="attnSearch-' + pageId + '" placeholder="Search a name..." aria-label="Search a name" oninput="renderNeedsAttention(' + jsArg(pageId) + ')"></div></div>' +
+    '<div class="table-wrapper"><table class="attn-table tbl-phone"><thead id="attnHead-' + pageId + '"></thead><tbody id="attnBody-' + pageId + '"></tbody></table></div></div>';
+  if (pageId !== 'i-needs-attention') sec.insertAdjacentHTML('afterbegin', '<div id="attnOffice-' + pageId + '"></div>');
+  mc.appendChild(sec);
+}
+function attentionShortDate(d) {
+  if (!d) return '';
+  var p = String(d).split('-');
+  return p.length === 3 ? Number(p[2]) + ' ' + ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][Number(p[1]) - 1] : d;
+}
+function renderNeedsAttention(pageId) {
+  pageId = pageId || (currentRole === 'instructor' ? 'i-needs-attention' : currentRole === 'adminstaff' ? 'as-needs-attention' : 'needs-attention');
+  ensureAttentionPage(pageId);
+  var body = document.getElementById('attnBody-' + pageId), head = document.getElementById('attnHead-' + pageId);
+  if (!body || !head) return;
+  var office = attentionIsOffice(), AT = CESTISCore.attention;
+  var ow = document.getElementById('attnOffice-' + pageId);
+  if (ow) { try { ow.innerHTML = officeWatchHtml(); } catch (e) { ow.innerHTML = ''; } }
+  var all = attentionRows();
+  var cSel = document.getElementById('attnCourse-' + pageId);
+  if (cSel) {
+    var cur = cSel.value || 'all', seen = {};
+    var opts = ['<option value="all">All programmes</option>'];
+    all.forEach(function(r){ if (r.course && !seen[r.course]) { seen[r.course] = 1; opts.push('<option value="' + escapeAttr(r.course) + '">' + escapeHtml(r.course) + '</option>'); } });
+    cSel.innerHTML = opts.join(''); cSel.value = seen[cur] ? cur : 'all';
+  }
+  var course = cSel ? cSel.value : 'all';
+  var q = String((document.getElementById('attnSearch-' + pageId) || {}).value || '').trim().toLowerCase();
+  var rows = all.filter(function(r){ return (course === 'all' || r.course === course) && (!q || String(r.name).toLowerCase().indexOf(q) !== -1); });
+  var rule = document.getElementById('attnRule-' + pageId);
+  if (rule) rule.textContent = rows.length + ' trainee' + (rows.length !== 1 ? 's' : '') + (office ? '' : ' of your programme') + ', most urgent first. Listed for attendance below ' + AT.LOW_ATTENDANCE + '%, ' + AT.RUN_ALERT +
+    ' or more absences in a row, a mark below the pass mark in the last ' + (AT.RECENT_DAYS / 7) + ' weeks, or work past its due date not handed in. Applicants and intakes that have ended are not listed.';
+  // Five columns, so what the office and the instructor act on (the phone,
+  // what is owed, Message) is on screen without scrolling: who, their
+  // attendance, their marks, their missing work, and (office) what they owe.
+  head.innerHTML = '<tr><th>Trainee</th><th>Attendance</th><th title="Marked results below the pass mark in the last ' + (AT.RECENT_DAYS / 7) + ' weeks">Weak marks (' + (AT.RECENT_DAYS / 7) + ' wks)</th><th>Not handed in</th>' +
+    (office ? '<th class="num">Owes</th>' : '') + '<th><span class="exam-sr-only">Actions</span></th></tr>';
+  if (!rows.length) {
+    body.innerHTML = '<tr><td colspan="' + (office ? 6 : 5) + '" style="text-align:center;color:var(--text-muted);padding:24px;">Nobody needs attention right now.</td></tr>';
+    return;
+  }
+  body.innerHTML = rows.map(function(r) {
+    var pctStyle = r.pct != null && r.pct < AT.LOW_ATTENDANCE ? 'color:var(--red);' : '';
+    var run = r.absentRun ? '<div><span class="badge ' + (r.absentRun >= AT.RUN_ALERT ? 'badge-red' : 'badge-amber') + '" style="white-space:nowrap;">' + r.absentRun + ' absent in a row</span></div>' : '';
+    var last = r.lastAttended ? 'Last here ' + escapeHtml(attentionShortDate(r.lastAttended)) + (r.daysSinceAttended != null ? ' (' + r.daysSinceAttended + ' day' + (r.daysSinceAttended !== 1 ? 's' : '') + ' ago)' : '')
+      : (r.held ? 'Not here since the register began' : 'No register yet');
+    var att = '<div><strong style="font-size:15px;' + pctStyle + '">' + (r.pct == null ? '—' : r.pct + '%') + '</strong>' + run + '</div><div style="font-size:12px;color:var(--text-muted);">' + last + '</div>';
+    var marks = r.belowPass.slice(0, 3).map(function(b){ return '<div style="font-size:12px;">' + escapeHtml(b.title) + ': <strong style="color:var(--red);">' + b.pct + '%</strong> <span style="color:var(--text-muted);">(pass ' + b.passMark + '%)</span></div>'; }).join('') +
+      (r.belowPass.length > 3 ? '<div style="font-size:12px;color:var(--text-muted);">and ' + (r.belowPass.length - 3) + ' more</div>' : '') || '<span style="color:var(--text-muted);">—</span>';
+    var miss = r.missing.slice(0, 3).map(function(m){ return '<div style="font-size:12px;">' + escapeHtml(m.title) + ' <span style="color:var(--text-muted);">(due ' + escapeHtml(attentionShortDate(m.dueDate)) + ')</span></div>'; }).join('') +
+      (r.missing.length > 3 ? '<div style="font-size:12px;color:var(--text-muted);">and ' + (r.missing.length - 3) + ' more</div>' : '') || '<span style="color:var(--text-muted);">—</span>';
+    var owes = !office ? '' : '<td class="num">' + (r.owed == null ? '<span style="color:var(--text-muted);">—</span>' : r.owed === 'unpriced' ? '<span style="color:var(--text-muted);" title="No fee set on the School Fee record">No fee set</span>' : r.owed > 0 ? '<strong>$' + escapeHtml(Number(r.owed).toLocaleString('en-JM', { minimumFractionDigits: 2, maximumFractionDigits: 2 })) + '</strong>' : 'Paid up') + '</td>';
+    var first = String(r.name).split(' ')[0];
+    var draft = 'Hi ' + first + ', ' + (r.absentRun >= AT.RUN_ALERT ? 'we have missed you in class. ' : '') + (r.missing.length ? 'I have not received "' + r.missing[0].title + '" yet. ' : '') + 'Is everything all right? Let me know how I can help.';
+    var phone = r.phone ? '<div style="font-size:12px;margin-top:2px;"><a class="attn-tel" href="tel:' + escapeAttr(String(r.phone).replace(/[^0-9+]/g, '')) + '">📞 ' + escapeHtml(r.phone) + '</a></div>' : '';
+    return '<tr data-attn-id="' + escapeAttr(r.id) + '" data-pct="' + (r.pct == null ? '' : r.pct) + '"><td style="min-width:150px;"><strong>' + escapeHtml(r.name) + '</strong><div style="font-size:12px;color:var(--text-muted);">' + escapeHtml(r.course) + (r.average != null ? ' · average ' + r.average + '%' : '') + '</div>' + phone + '</td>' +
+      '<td style="min-width:150px;">' + att + '</td>' +
+      '<td style="min-width:180px;">' + marks + '</td><td style="min-width:160px;">' + miss + '</td>' + owes +
+      '<td><button class="btn btn-sm btn-primary" style="white-space:nowrap;" onclick="openDirectChatWithTrainee(' + jsArg(r.id) + ',' + jsArg(draft) + ')">💬 Message</button></td></tr>';
+  }).join('');
+}
+// The Needs Attention page on screen, and the sidebar's count, after a change.
+function refreshAttentionViews() {
+  refreshAttentionBadges();
+  Object.keys(ATTENTION_PAGES).forEach(function(id) {
+    var pg = document.getElementById('page-' + id);
+    if (pg && pg.classList.contains('active')) renderNeedsAttention(id);
+  });
+}
+/* ---- The office's watch on the work (CESTISCore.officeWatch) ----
+   The marking backlog with its age and who it waits on, and the classes
+   whose register was not taken on the last school day (audit M6, M11). */
+function examOwnerName(e) {
+  if (!e) return 'Unknown';
+  var by = e.createdBy;
+  if (!by || by === 'admin' || e.createdByRole === 'admin') return 'Administrator';
+  var ins = (typeof instructorData !== 'undefined' && Array.isArray(instructorData) ? instructorData : []).find(function(i){ return i && i.id === by; });
+  if (ins && ins.name) return ins.name;
+  var acc = (userAccounts || []).find(function(u){ return u && u.id === by; });
+  return acc && acc.name ? acc.name : String(by);
+}
+function officeBacklog(onlyMine) {
+  var asg = instructorAssignments || [], ex = exams || [];
+  if (onlyMine && currentInstructor) {
+    asg = asg.filter(function(a){ return a && (a.createdBy === currentInstructor.name || instructorCourseMatch(a.course, currentInstructor.course)); });
+    ex = ex.filter(function(e){ return e && instructorCourseMatch(e.course, currentInstructor.course); });
+  }
+  var ids = {}; ex.forEach(function(e){ ids[e.id] = 1; });
+  return CESTISCore.officeWatch.backlog({ assignments: asg, submissions: assignmentSubmissions || [], exams: ex,
+    results: (examResults || []).filter(function(r){ return r && ids[r.examId]; }), students: students || [],
+    sameProgramme: instructorCourseMatch, ownerOfExam: examOwnerName });
+}
+function registersNotTakenList() {
+  var day = CESTISCore.officeWatch.previousSchoolDay(localDateStr());
+  return { day: day, list: CESTISCore.officeWatch.registersNotTaken({ day: day, sessions: classSessions || [], students: students || [],
+    register: Array.isArray(attendanceRegister) ? attendanceRegister : [], sameProgramme: instructorCourseMatch }) };
+}
+function officeDayLabel(d) { try { return new Date(d + 'T12:00:00').toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'short' }); } catch (e) { return d; } }
+function officeDaysText(n) { return n == null ? '' : n === 0 ? 'today' : n === 1 ? '1 day' : n + ' days'; }
+// The two boxes the office sees at the top of Needs Attention and on the
+// Assignments page.
+function officeWatchHtml(opts) {
+  opts = opts || {};
+  var html = '';
+  if (opts.registers !== false) {
+    var rn = registersNotTakenList();
+    if (rn.list.length) {
+      html += '<div class="alert-item alert-danger" id="officeRegistersNotTaken"><div class="alert-icon">📋</div><div class="alert-body"><div class="alert-msg">Registers not taken on ' + escapeHtml(officeDayLabel(rn.day)) + ': ' + rn.list.length + ' class' + (rn.list.length !== 1 ? 'es' : '') + '</div>' +
+        '<div class="alert-time" style="color:var(--text-secondary);">' + rn.list.map(function(x){ return escapeHtml(x.session.name || 'Class') + ' (' + escapeHtml(x.course) + (x.session.time ? ', ' + escapeHtml(x.session.time) : '') + (x.instructor ? ', ' + escapeHtml(x.instructor) : '') + ')'; }).join(' · ') + '</div></div></div>';
+    }
+  }
+  var b = officeBacklog(false);
+  if (b.waiting || b.pastDueMissing) {
+    html += '<div class="card office-backlog" id="officeBacklogCard" style="margin-bottom:14px;"><div class="card-header" style="flex-wrap:wrap;gap:8px;"><h3>Marking</h3><span style="font-size:13px;color:var(--text-secondary);">' +
+      b.waiting + ' waiting to be marked' + (b.oldestDays != null ? ', the oldest for ' + officeDaysText(b.oldestDays) : '') +
+      (b.pastDueMissing ? ' · ' + b.pastDueMissing + ' past due, never handed in' : '') + '</span></div>';
+    if (b.byOwner.length) {
+      html += '<div class="table-wrapper"><table><thead><tr><th>Waiting on</th><th class="num">To mark</th><th class="num">Oldest</th><th>What</th></tr></thead><tbody>' +
+        b.byOwner.map(function(o){ return '<tr><td><strong>' + escapeHtml(o.owner) + '</strong></td><td class="num">' + o.waiting + '</td><td class="num" style="' + ((o.oldestDays || 0) >= 7 ? 'color:var(--red);font-weight:700;' : '') + '">' + escapeHtml(officeDaysText(o.oldestDays)) + '</td><td style="font-size:12px;">' +
+          o.items.map(function(it){ return escapeHtml(it.title) + ' (' + it.waiting + ')'; }).join(', ') + '</td></tr>'; }).join('') + '</tbody></table></div>';
+    }
+    if (b.missingBy.length) {
+      html += '<details style="padding:8px 4px 4px;"><summary style="cursor:pointer;font-size:13px;font-weight:600;">Past due, never handed in (' + b.pastDueMissing + ')</summary>' +
+        b.missingBy.map(function(m){ return '<div style="font-size:12px;padding:4px 0;"><strong>' + escapeHtml(m.title) + '</strong> <span style="color:var(--text-muted);">(' + escapeHtml(m.course) + ', due ' + escapeHtml(m.dueDate) + ')</span>: ' + m.trainees.map(escapeHtml).join(', ') + '</div>'; }).join('') + '</details>';
+    }
+    html += '</div>';
+  }
+  return html;
+}
+function refreshAttentionBadges() {
+  var n = 0;
+  try { n = attentionRows().length; } catch (e) { n = 0; }
+  document.querySelectorAll('.attn-nav-badge').forEach(function(b){ b.textContent = n; b.hidden = !n; });
+  return n;
 }
 function filterInstructorStudents() {
   if(!currentInstructor) return;
@@ -21081,6 +21343,31 @@ function createClassSession() {
   if(!date) { showToast('Please select a date'); return; }
   if(!time) { showToast('Please select a start time'); return; }
 
+  // Edit: the class keeps its id, room code, status and history; only what
+  // the form shows changes.
+  if(editingClassSessionId) {
+    const cs = classSessions.find(x => x && x.id === editingClassSessionId);
+    if(!cs) { showToast('That class is no longer on this device.', 'warning'); classSessionEditorReset(); closeModal('createClassSessionModal'); return; }
+    const moved = cs.date !== date || cs.time !== time;
+    Object.assign(cs, { name: name, course: course, date: date, time: time, duration: duration, type: type, location: location,
+      updatedAt: CESTISCore.sync && CESTISCore.sync.laterStamp ? CESTISCore.sync.laterStamp(new Date().toISOString(), cs.updatedAt) : new Date().toISOString(),
+      editedBy: currentRole === 'instructor' ? currentInstructor?.name : (currentLoggedInUser && currentLoggedInUser.name) || 'Admin' });
+    saveState();
+    closeModal('createClassSessionModal');
+    showToast('Class "' + name + '" updated');
+    if(moved) addNotification('Class moved: "' + name + '" is now on ' + date + ' at ' + time, 'calendar', null, ['admin','instructor','student'], null, course ? { forCourse: course } : null);
+    if(currentRole === 'instructor') renderInstructorClassSessions();
+    if(currentRole === 'admin') renderAdminClassSessions();
+    refreshContentDependentViews();
+    return;
+  }
+  // "Repeat weekly until": one class a week on the same day and time.
+  const repeatOn = !!document.getElementById('csRepeat')?.checked;
+  const until = document.getElementById('csRepeatUntil')?.value || '';
+  if(repeatOn && (!until || until <= date)) { showToast('Choose the last date to repeat until (after ' + date + '), or untick "Repeat weekly".', 'warning'); return; }
+  const dates = repeatOn ? CESTISCore.classSchedule.weeklyDates(date, until) : [date];
+  const seriesId = dates.length > 1 ? cestisGenId('CSS-') : null;
+
   const session = {
     id: cestisGenId('CS-'),
     name: name,
@@ -21096,13 +21383,26 @@ function createClassSession() {
     createdAt: new Date().toISOString()
   };
 
-  classSessions.push(session);
+  dates.forEach(function(d, i) {
+    // Each class of a series is its own record with its own room code.
+    const one = i === 0 ? session : Object.assign({}, session, { id: cestisGenId('CS-'), roomCode: generateRoomCode() });
+    one.date = d;
+    if(seriesId) { one.seriesId = seriesId; one.seriesIndex = i + 1; one.seriesCount = dates.length; }
+    classSessions.push(one);
+  });
   saveState();
   closeModal('createClassSessionModal');
+  if(dates.length > 1) {
+    showToast(dates.length + ' weekly classes "' + name + '" created, ' + dates[0] + ' to ' + dates[dates.length - 1]);
+    addNotification('New weekly classes: "' + name + '" — ' + dates.length + ' classes, ' + dates[0] + ' to ' + dates[dates.length - 1] + ' at ' + time, 'calendar', null, ['admin','instructor','student'], null, course ? { forCourse: course } : null);
+  } else {
   showToast('Class session "' + name + '" created successfully');
   // Notify students too — they have a class-sessions view and should hear about
   // a new scheduled session for their course.
   addNotification('New class session: "' + name + '"', 'calendar', null, ['admin','instructor','student'], null, course ? { forCourse: course } : null);
+  }
+  const rp = document.getElementById('csRepeat'); if(rp) rp.checked = false;
+  const ru = document.getElementById('csRepeatUntil'); if(ru) { ru.value = ''; ru.disabled = true; }
 
   // Reset form fields
   document.getElementById('csSessionName').value = '';
@@ -21117,6 +21417,15 @@ function createClassSession() {
   refreshContentDependentViews();
 }
 
+/* The instructor's classes, as two lists (audit IN-14): Upcoming — live
+   first, then soonest — and Past, most recent first (CESTISCore.
+   classSchedule). Each class shows its state (Live, Scheduled, Completed,
+   Recorded, Past) and has Edit and Delete; a weekly series says "week 3 of
+   8". The list used to be every class ever made, oldest first: after a term
+   the next class was card 121 of 125. */
+var iClassListTab = 'upcoming', iClassPastShown = 20;
+function iClassSetTab(tab) { iClassListTab = tab === 'past' ? 'past' : 'upcoming'; iClassPastShown = 20; renderInstructorClassSessions(); }
+function iClassShowMorePast() { iClassPastShown += 40; renderInstructorClassSessions(); }
 function renderInstructorClassSessions() {
   const container = document.getElementById('iClassSessionsList');
   if(!container) return;
@@ -21129,21 +21438,60 @@ function renderInstructorClassSessions() {
     container.innerHTML = '<p style="color:var(--text-muted);padding:16px;">No custom class sessions created yet. Click "+ New Class Session" to get started.</p>';
     return;
   }
-
-  container.innerHTML = mySessions.map(s => {
+  const today = localDateStr();
+  const parts = CESTISCore.classSchedule.split(mySessions, today);
+  const tab = (typeof iClassListTab !== 'undefined' && iClassListTab === 'past') ? 'past' : 'upcoming';
+  const list = tab === 'past' ? parts.past.slice(0, typeof iClassPastShown === 'number' ? iClassPastShown : 20) : parts.upcoming;
+  const tabs = '<div class="tabs" role="tablist" style="margin-bottom:12px;">' +
+    '<div class="tab' + (tab === 'upcoming' ? ' active' : '') + '" role="tab" tabindex="0" aria-selected="' + (tab === 'upcoming') + '" id="iClassTabUpcoming" onclick="iClassSetTab(\'upcoming\')" onkeydown="if(event.key===\'Enter\')iClassSetTab(\'upcoming\')">Upcoming (' + parts.upcoming.length + ')</div>' +
+    '<div class="tab' + (tab === 'past' ? ' active' : '') + '" role="tab" tabindex="0" aria-selected="' + (tab === 'past') + '" id="iClassTabPast" onclick="iClassSetTab(\'past\')" onkeydown="if(event.key===\'Enter\')iClassSetTab(\'past\')">Past (' + parts.past.length + ')</div></div>';
+  const dayName = d => { try { return new Date(d + 'T12:00:00').toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' }); } catch (e) { return d; } };
+  const cards = list.map(s => {
     const timeStr = s.time ? new Date('2000-01-01T'+s.time).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}) : s.time;
-    const timeParts = timeStr.split(' ');
-    return '<div class="class-schedule-card">' +
+    const timeParts = String(timeStr || '').split(' ');
+    const st = CESTISCore.classSchedule.statusOf(s, today);
+    const badge = st === 'past' ? '<span class="badge" style="background:var(--w-04);color:var(--text-muted);">Past</span>' :
+      st === 'cancelled' ? '<span class="badge badge-red">Cancelled</span>' : vcSessionStatusBadge(s);
+    const series = s.seriesId && s.seriesCount > 1 ? ' &bull; weekly, ' + escapeHtml(s.seriesIndex) + ' of ' + escapeHtml(s.seriesCount) : '';
+    return '<div class="class-schedule-card" data-class-status="' + escapeAttr(st) + '">' +
       '<div class="class-time-block" style="background:'+((typeColors[s.type]||'var(--blue)')+'22')+';">' +
         '<div class="time" style="font-size:13px;">'+escapeHtml(timeParts[0]||s.time)+'</div><div class="period">'+escapeHtml(timeParts[1]||'')+'</div></div>' +
-      '<div style="flex:1;"><div style="font-size:14px;font-weight:600;">' + escapeHtml(s.name) + '</div>' +
-        '<div style="font-size:12px;color:var(--text-muted);">' + escapeHtml(s.date) + ' &bull; ' + escapeHtml(s.duration) + 'min &bull; ' + escapeHtml(s.location) + '</div></div>' +
-      '<span class="badge badge-blue">' + escapeHtml(typeLabels[s.type]||s.type) + '</span>' +
-      '<button class="btn btn-sm btn-primary" onclick="enterVideoRoom(' + jsArg(s.name) + ',\'instructor\',' + jsArg(s.roomCode||'') + ')" style="margin-right:6px;">Join</button>' +
-      (s.roomCode ? '<span style="font-family:monospace;font-size:11px;color:var(--accent);margin-right:6px;" title="Room code for this session">'+escapeHtml(s.roomCode)+'</span>' : '') +
+      '<div style="flex:1;min-width:180px;"><div style="font-size:14px;font-weight:600;">' + escapeHtml(s.name) + '</div>' +
+        '<div style="font-size:12px;color:var(--text-muted);">' + escapeHtml(dayName(s.date)) + ' &bull; ' + escapeHtml(s.duration) + ' min &bull; ' + escapeHtml(s.location) + series + '</div></div>' +
+      badge + ' <span class="badge badge-blue">' + escapeHtml(typeLabels[s.type]||s.type) + '</span>' +
+      (st === 'live' || st === 'scheduled' ? '<button class="btn btn-sm btn-primary" onclick="enterVideoRoom(' + jsArg(s.name) + ',\'instructor\',' + jsArg(s.roomCode||'') + ')" style="margin-right:6px;">Join</button>' : '') +
+      (s.roomCode && st !== 'past' && st !== 'completed' ? '<span style="font-family:monospace;font-size:12px;color:var(--accent);margin-right:6px;" title="Room code for this session">'+escapeHtml(s.roomCode)+'</span>' : '') +
+      (st !== 'live' ? '<button class="btn btn-sm btn-secondary" onclick="openClassSessionEditor('+jsArg(s.id)+')" style="margin-right:6px;">Edit</button>' : '') +
       '<button class="btn btn-sm btn-danger" onclick="deleteClassSession('+jsArg(s.id)+')">Delete</button>' +
     '</div>';
   }).join('');
+  const empty = '<p style="color:var(--text-muted);padding:16px;">' + (tab === 'past' ? 'No past classes yet.' : 'No classes coming up. Click "+ New Class Session" to schedule one.') + '</p>';
+  const more = tab === 'past' && parts.past.length > list.length ? '<div style="text-align:center;margin-top:8px;"><button class="btn btn-sm btn-secondary" onclick="iClassShowMorePast()">Show older classes (' + (parts.past.length - list.length) + ' more)</button></div>' : '';
+  container.innerHTML = tabs + (cards || empty) + more;
+}
+// Edit a class: the class form, filled with it.
+var editingClassSessionId = null;
+function openClassSessionEditor(id) {
+  const cs = classSessions.find(x => x && x.id === id);
+  if(!cs) return;
+  try { populateCourseDropdowns(); } catch (e) {}
+  editingClassSessionId = cs.id;
+  const set = (k, v) => { const el = document.getElementById(k); if(el) el.value = v == null ? '' : v; };
+  set('csSessionName', cs.name); set('csCourse', cs.course); set('csDate', cs.date); set('csTime', cs.time);
+  set('csDuration', cs.duration || 90); set('csType', cs.type || 'theory'); set('csLocation', cs.location || '');
+  const t = document.getElementById('csModalTitle'); if(t) t.textContent = 'Edit Class Session';
+  const b = document.getElementById('csSaveBtn'); if(b) b.textContent = 'Save changes';
+  const rg = document.getElementById('csRepeatGroup'); if(rg) rg.style.display = 'none';
+  openModal('createClassSessionModal');
+}
+function classSessionEditorReset() {
+  if(!editingClassSessionId) return;
+  editingClassSessionId = null;
+  ['csSessionName', 'csDate', 'csTime', 'csLocation'].forEach(k => { const el = document.getElementById(k); if(el) el.value = ''; });
+  const d = document.getElementById('csDuration'); if(d) d.value = '90';
+  const t = document.getElementById('csModalTitle'); if(t) t.textContent = 'Create New Class Session';
+  const b = document.getElementById('csSaveBtn'); if(b) b.textContent = 'Create Session';
+  const rg = document.getElementById('csRepeatGroup'); if(rg) rg.style.display = '';
 }
 
 function renderInstructorRecordings() {
@@ -21602,7 +21950,8 @@ function createAssignment() {
 
     closeModal('createAssignmentModal');
     showToast('Assignment "' + title + '" created successfully');
-    addNotification('New assignment: "' + title + '" for ' + assignment.course + ' — Due: ' + dueDate, 'exam', null, ['admin','instructor','student']);
+    // To the programme's own trainees (staff as before): CESTISCore.notify.reaches.
+    addNotification('New assignment: "' + title + '" for ' + assignment.course + ' — Due: ' + dueDate, 'exam', null, ['admin','instructor','student'], null, assignment.course ? { forCourse: assignment.course } : null);
 
     // Reset form
     document.getElementById('assignTitle').value = '';
@@ -21640,9 +21989,21 @@ function renderInstructorGradebook() {
   }
 
   var html = '';
-  myAssignments.forEach(function(a) {
-    // The latest attempt per trainee; earlier attempts are listed under it.
-    var subs = CESTISCore.coursework.latestPerStudent(assignmentSubmissions, a.id);
+  var CWk = CESTISCore.coursework;
+  // How long the oldest work has waited (audit M6), at the top.
+  try {
+    var mineBl = typeof officeBacklog === 'function' ? officeBacklog(true) : null;
+    if (mineBl && mineBl.waiting) html += '<div class="alert-item alert-warning gb-backlog" style="margin-bottom:12px;"><div class="alert-icon">✍️</div><div class="alert-body"><div class="alert-msg">' + mineBl.waiting + ' to mark' + (mineBl.oldestDays != null ? ', the oldest waiting ' + officeDaysText(mineBl.oldestDays) : '') + '</div>' +
+      '<div class="alert-time" style="color:var(--text-secondary);">' + mineBl.items.slice(0, 4).map(function(it){ return escapeHtml(it.title) + ' (' + it.waiting + ')'; }).join(' · ') + '</div></div></div>';
+  } catch (e) {}
+  // Work still to mark first, then the newest (audit IN-4): the assignment
+  // waiting to be marked used to be the tenth card down.
+  CWk.assignmentOrder(myAssignments, assignmentSubmissions).forEach(function(a) {
+    // The latest attempt per trainee — still to mark first, then the newest;
+    // earlier attempts are listed under it.
+    var subs = CWk.markingOrder(a, CWk.latestPerStudent(assignmentSubmissions, a.id));
+    var toMark = subs.filter(function(sb) { return CWk.gradeValue(a.grades ? a.grades[sb.studentId] : null) == null; }).length;
+    var missing = CWk.notSubmitted(a, students, assignmentSubmissions, instructorCourseMatch);
     var isPastDue = CESTISCore.coursework.isPastDue(a.dueDate); // due = by the end of that day, here (not UTC midnight)
     var statusBadge = isPastDue ? '<span class="badge badge-red">Past Due</span>' : '<span class="badge badge-green">Active</span>';
     var attachCount = (a.attachments && a.attachments.length) || 0;
@@ -21654,6 +22015,7 @@ function renderInstructorGradebook() {
         '</div>' +
         '<div style="display:flex;gap:6px;align-items:center;">' + statusBadge +
           '<span class="badge badge-blue">' + subs.length + ' submission' + (subs.length!==1?'s':'') + '</span>' +
+          (toMark ? '<span class="badge badge-amber">' + toMark + ' to mark</span>' : '') +
           '<button class="btn btn-sm btn-danger" onclick="deleteAssignment('+jsArg(a.id)+')">Delete</button>' +
         '</div>' +
       '</div>';
@@ -21693,12 +22055,26 @@ function renderInstructorGradebook() {
         var gradeHtml = '';
         var curGrade = a.grades ? CESTISCore.coursework.gradeValue(a.grades[sub.studentId]) : null;
         var meta = (a.gradeMeta && a.gradeMeta[sub.studentId]) || null;
-        // A mark can be changed; the change is recorded (who, when, what it was).
-        var gradeInput = '<input type="number" class="form-control gb-grade-input" style="width:60px;height:28px;font-size:12px;display:inline-block;" placeholder="—" min="0" max="' + escapeHtml(a.maxPoints) + '" id="grade-' + escapeHtml(a.id) + '-' + escapeHtml(sub.studentId) + '"' + (curGrade != null ? ' value="' + escapeAttr(curGrade) + '"' : '') + '>' +
-          '<button class="btn btn-sm btn-primary gb-grade-btn" style="padding:2px 8px;font-size:11px;margin-left:4px;" onclick="gradeSubmission('+jsArg(a.id)+','+jsArg(sub.studentId)+')">' + (curGrade != null ? 'Update' : 'Grade') + '</button>';
+        var curFb = CWk.feedbackFor(a, sub.studentId);
+        var rowKey = escapeHtml(a.id) + '-' + escapeHtml(sub.studentId);
+        // The mark and a written comment for the trainee, saved together. A
+        // mark can be changed (Edit); the change is recorded — who, when, and
+        // what the mark and comment were before.
+        var gradeInput = '<input type="number" class="form-control gb-grade-input" style="width:60px;height:28px;font-size:12px;display:inline-block;" placeholder="—" aria-label="Mark out of ' + escapeAttr(a.maxPoints) + '" min="0" max="' + escapeHtml(a.maxPoints) + '" id="grade-' + rowKey + '"' + (curGrade != null ? ' value="' + escapeAttr(curGrade) + '"' : '') + '>' +
+          '<button class="btn btn-sm btn-primary gb-grade-btn" style="padding:2px 8px;font-size:11px;margin-left:4px;" onclick="gradeSubmission('+jsArg(a.id)+','+jsArg(sub.studentId)+')">' + (curGrade != null ? 'Save change' : 'Grade') + '</button>' +
+          '<textarea class="form-control gb-feedback-input" id="fb-' + rowKey + '" rows="2" maxlength="2000" placeholder="Comment for the trainee (optional) — she sees it on My Assignments" aria-label="Comment for the trainee" style="margin-top:6px;font-size:12px;min-height:44px;">' + escapeHtml(curFb) + '</textarea>';
         if (curGrade != null) {
           var resub = meta && meta.resubmittedAt;
-          gradeHtml = '<span class="badge ' + (resub ? 'badge-amber' : 'badge-green') + '" title="' + escapeAttr(meta && meta.gradedAt ? 'Marked ' + new Date(meta.gradedAt).toLocaleString() + (meta.gradedBy ? ' by ' + meta.gradedBy : '') : '') + '">' + escapeHtml(curGrade) + '/' + escapeHtml(a.maxPoints) + (resub ? ' · resubmitted' : '') + '</span> ' + gradeInput;
+          var hist = CWk.gradeHistory(a, sub.studentId);
+          var changes = hist.filter(function(h) { return h.previous != null || h.previousFeedback != null; });
+          var histText = changes.length ? 'Changed ' + changes.length + ' time' + (changes.length !== 1 ? 's' : '') + ': ' + hist.map(function(h) {
+            return (h.points != null ? h.points : '') + (h.gradedBy ? ' (' + h.gradedBy + (h.gradedAt ? ', ' + new Date(h.gradedAt).toLocaleDateString() : '') + ')' : '');
+          }).join(' → ') : '';
+          gradeHtml = '<span class="badge ' + (resub ? 'badge-amber' : 'badge-green') + '" title="' + escapeAttr(meta && meta.gradedAt ? 'Marked ' + new Date(meta.gradedAt).toLocaleString() + (meta.gradedBy ? ' by ' + meta.gradedBy : '') : '') + '">' + escapeHtml(curGrade) + '/' + escapeHtml(a.maxPoints) + (resub ? ' · resubmitted' : '') + '</span> ' +
+            '<button class="btn btn-sm btn-secondary gb-edit-btn" style="padding:2px 8px;font-size:12px;" onclick="gbToggleEdit(this)" aria-expanded="false">Edit</button>' +
+            (curFb ? '<div class="gb-feedback-shown" style="font-size:12px;color:var(--text-secondary);margin-top:4px;">💬 ' + escapeHtml(curFb) + '</div>' : '') +
+            (histText ? '<div class="gb-history" style="font-size:12px;color:var(--text-muted);margin-top:2px;">' + escapeHtml(histText) + '</div>' : '') +
+            '<div class="gb-editor" hidden style="margin-top:6px;">' + gradeInput + '</div>';
         } else {
           gradeHtml = gradeInput;
         }
@@ -21722,11 +22098,23 @@ function renderInstructorGradebook() {
         if (sub.comment) {
           html += '<span style="font-size:11px;color:var(--text-muted);" title="' + escapeHtml(sub.comment) + '">💬</span>';
         }
-        html += '<div>' + gradeHtml + '</div></div>';
+        html += '<div class="gb-mark-cell" style="min-width:260px;">' + gradeHtml + '</div></div>';
       });
       html += '</div>';
     } else if (a.requireSubmission) {
       html += '<div style="padding:12px 16px;text-align:center;color:var(--text-muted);font-size:12px;">No submissions yet</div>';
+    }
+    // Who has not handed it in, with a reminder each (audit IN-4: chasing the
+    // four who had not took 2-3 minutes an assignment, and no screen named them).
+    if (missing.length) {
+      var due = a.dueDate ? ' (due ' + a.dueDate + ')' : '';
+      html += '<details class="gb-missing" style="padding:8px 16px 12px;border-top:1px solid var(--border);"' + (isPastDue ? ' open' : '') + '>' +
+        '<summary style="cursor:pointer;font-size:12px;font-weight:600;color:' + (isPastDue ? 'var(--red)' : 'var(--text-secondary)') + ';">Not submitted (' + missing.length + ')</summary>' +
+        missing.map(function(st) {
+          var draft = ['Hi ', String(st.name || '').split(' ')[0], ', I have not received "', a.title, '"', due, ' yet. Please upload it on My Assignments, or tell me if you need more time.'].join('');
+          return '<div class="gb-missing-row" style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12px;"><span style="flex:1;">' + escapeHtml(st.name) + '</span>' +
+            '<button class="btn btn-sm btn-secondary" onclick="openDirectChatWithTrainee(' + jsArg(st.id) + ',' + jsArg(draft) + ')">💬 ' + (isPastDue ? 'Remind' : 'Message') + '</button></div>';
+        }).join('') + '</details>';
     }
 
     html += '</div>';
@@ -21744,21 +22132,37 @@ function gradeSubmission(assignmentId, studentId) {
   if (!a) return;
   if (!isFinite(score) || score < 0 || score > a.maxPoints) { showToast('Enter a valid score (0-' + a.maxPoints + ')'); return; }
   var by = (currentLoggedInUser && currentLoggedInUser.name) || (currentInstructor && currentInstructor.name) || (currentRole === 'admin' ? 'Administrator' : 'Instructor');
+  // The comment that goes with the mark (she sees it on My Assignments).
+  var fbEl = document.getElementById('fb-' + assignmentId + '-' + studentId);
+  var feedback = fbEl && typeof fbEl.value === 'string' ? fbEl.value : null;
   // Recorded, not just overwritten: when, by whom, and what it was before.
-  var res = CESTISCore.coursework.recordGrade(a, studentId, score, by, new Date().toISOString());
+  var res = CESTISCore.coursework.recordGrade(a, studentId, score, by, new Date().toISOString(), feedback);
   if (!res.changed) { showToast('That mark is already recorded'); return; }
   if (a.gradeMeta && a.gradeMeta[studentId]) delete a.gradeMeta[studentId].resubmittedAt;
   saveState();
   if(typeof scheduleDebouncedCloudSave === 'function') scheduleDebouncedCloudSave();
   saveAssignmentsToDrive();
   var st = students.find(function(s) { return s.id === studentId; });
-  showToast((res.previous != null ? 'Mark changed for ' : 'Graded ') + (st ? st.name : studentId) + ': ' + score + '/' + a.maxPoints + (res.previous != null ? ' (was ' + res.previous + ')' : ''));
+  if (res.markChanged === false) showToast('Comment saved for ' + (st ? st.name : studentId));
+  else showToast((res.previous != null ? 'Mark changed for ' : 'Graded ') + (st ? st.name : studentId) + ': ' + score + '/' + a.maxPoints + (res.previous != null ? ' (was ' + res.previous + ')' : '') + (res.feedbackChanged ? ', with a comment' : ''));
   // Staff only, like exam scores: a trainee's mark is not news for the whole
   // class. The trainee sees it on My Assignments.
   var _mk = notifyMarkingAudience();
   addNotification((st ? st.name : 'Student') + ' graded ' + score + '/' + a.maxPoints + ' on "' + a.title + '"', 'grade', null, _mk.roles, null, _mk.aud);
   renderInstructorGradebook();
   refreshContentDependentViews();
+}
+
+// "Edit" on a marked submission: shows the mark and comment boxes (hidden so
+// a mark is not changed by a stray keystroke).
+function gbToggleEdit(btn) {
+  var cell = btn && btn.closest ? btn.closest('.gb-mark-cell') : null;
+  var ed = cell && cell.querySelector('.gb-editor');
+  if (!ed) return;
+  ed.hidden = !ed.hidden;
+  btn.setAttribute('aria-expanded', ed.hidden ? 'false' : 'true');
+  btn.textContent = ed.hidden ? 'Edit' : 'Cancel edit';
+  if (!ed.hidden) { var inp = ed.querySelector('.gb-grade-input'); if (inp) { try { inp.focus(); } catch (e) {} } }
 }
 
 function deleteAssignment(id) {
@@ -21768,7 +22172,7 @@ function deleteAssignment(id) {
   syncTombstoneRemoved('assignmentSubmissions', assignmentSubmissions, assignmentSubmissions = assignmentSubmissions.filter(function(s) { return s.assignmentId !== id; }));
   saveState();
   showToast('Assignment deleted');
-  if (a) addNotification('Assignment "' + a.title + '" was deleted', 'exam', null, ['admin','instructor','student']);
+  if (a) addNotification('Assignment "' + a.title + '" was deleted', 'exam', null, ['admin','instructor','student'], null, a.course ? { forCourse: a.course } : null);
   renderInstructorGradebook();
   refreshContentDependentViews();
 }
@@ -21796,6 +22200,12 @@ function openAdminCreateAssignment() {
 function renderAdminAssignments() {
   var container = document.getElementById('adminAssignmentsList');
   if (!container) return;
+  // Who the marking waits on, and for how long (audit M6).
+  try {
+    var bl = document.getElementById('aAssignBacklog');
+    if (!bl && container.parentNode) { bl = document.createElement('div'); bl.id = 'aAssignBacklog'; container.parentNode.insertBefore(bl, container); }
+    if (bl) bl.innerHTML = officeWatchHtml({ registers: false });
+  } catch (e) {}
 
   // Populate course filter
   var courseSel = document.getElementById('aAssignFilterCourse');
@@ -22338,6 +22748,15 @@ function renderStudentAssignmentsPage() {
       html += '</div>';
     }
 
+    // The instructor's comment on her mark (Core.coursework.recordGrade). At
+    // home it arrives through the trainee gate with her own mark only.
+    var myFb = myGrade !== null ? CESTISCore.coursework.feedbackFor(a, s.id) : '';
+    if (myFb) {
+      html += '<div class="s-assign-feedback" style="padding:10px 16px;border-bottom:1px solid var(--border);">' +
+        '<div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:4px;">💬 Your instructor\'s comment</div>' +
+        '<div style="font-size:13px;color:var(--text-primary);white-space:pre-wrap;">' + escapeHtml(myFb) + '</div></div>';
+    }
+
     // Action buttons
     html += '<div style="padding:10px 16px;display:flex;gap:8px;justify-content:flex-end;">';
     if (mayUpload && !mySub) {
@@ -22715,7 +23134,7 @@ function renderInstructorCustomResources() {
       adminGrouped[key].push(r);
     });
 
-    html += '<div style="margin-bottom:16px;"><h3 style="font-size:15px;color:var(--text-secondary);margin-bottom:10px;">📚 Admin-Uploaded Resources <span style="font-size:12px;font-weight:400;color:var(--accent);background:var(--accent-dim);padding:2px 10px;border-radius:10px;margin-left:6px;">' + adminResources.length + ' items</span></h3>';
+    html += '<div style="margin-bottom:16px;"><h3 style="font-size:15px;color:var(--text-secondary);margin-bottom:10px;">📚 Uploaded Files &amp; Links <span style="font-size:12px;font-weight:400;color:var(--accent);background:var(--accent-dim);padding:2px 10px;border-radius:10px;margin-left:6px;">' + adminResources.length + ' items</span></h3>';
     Object.keys(adminGrouped).forEach(function(cat) {
       html += '<div class="card" style="margin-bottom:12px;border-left:3px solid var(--accent);">' +
         '<div class="card-header"><h3>' + (adminCatIcons[cat]||'📁') + ' ' + escapeHtml(adminCatLabels[cat]||cat) + ' <span style="font-size:11px;font-weight:400;color:var(--accent);background:var(--accent-dim);padding:2px 8px;border-radius:10px;margin-left:6px;">🔄 Synced</span></h3><span style="font-size:12px;color:var(--text-muted);">' + adminGrouped[cat].length + ' items</span></div>' +
@@ -22728,7 +23147,7 @@ function renderInstructorCustomResources() {
             '<div style="font-size:13.5px;">' + escapeHtml(r.name) + '</div>' +
             '<div style="font-size:11px;color:var(--text-muted);">' +
               '<span style="background:var(--accent-dim);color:var(--accent);padding:1px 6px;border-radius:8px;font-size:10px;font-weight:700;font-family:monospace;margin-right:4px;">' + escapeHtml(r.resourceId) + '</span>' +
-              escapeHtml(adminCatLabels[r.category]||r.category) + ' &bull; ' + escapeHtml(r.format) + ' &bull; Added ' + escapeHtml(dateStr) +
+              escapeHtml(adminCatLabels[r.category]||r.category) + ' &bull; ' + escapeHtml(r.format) + ' &bull; Added ' + escapeHtml(dateStr) + (r.uploadedBy && r.uploadedBy !== 'Admin' ? ' by ' + escapeHtml(r.uploadedBy) : '') +
               (r.description ? ' &bull; ' + escapeHtml(r.description) : '') +
             '</div>' +
           '</div>';
@@ -22843,6 +23262,8 @@ function generateResourceId() {
         sel.innerHTML = '<option value="">— Select Programme —</option>';
         getCourseList().forEach(function(c) { var o = document.createElement('option'); o.value = c; o.textContent = c; sel.appendChild(o); });
         if(currentVal) sel.value = currentVal;
+        // An instructor uploads for her own programme(s) only.
+        if (typeof driveUploadLimitCourses === 'function') driveUploadLimitCourses();
       }
       document.getElementById('driveResId').value = generateResourceId();
       _driveSelectedFile = null;
@@ -22853,6 +23274,16 @@ function generateResourceId() {
   window.openModal = function(id) { document.getElementById(id).classList.add('active'); patchedOpen(id); };
 })();
 
+// The Upload Resource form's programme list, for an instructor: her own.
+function driveUploadLimitCourses() {
+  var mine = typeof importExamInstructorCourses === 'function' ? importExamInstructorCourses() : null;
+  var sel = document.getElementById('driveResCourse');
+  if (!mine || !sel) return;
+  var keep = Array.prototype.slice.call(sel.options || []).filter(function(o) { return o.value && mine.some(function(c) { return o.value === c || instructorCourseMatch(o.value, c); }); });
+  sel.innerHTML = (keep.length ? keep.map(function(o) { return '<option value="' + escapeAttr(o.value) + '">' + escapeHtml(o.textContent) + '</option>'; }).join('')
+    : mine.map(function(c) { return '<option value="' + escapeAttr(c) + '">' + escapeHtml(c) + '</option>'; }).join(''));
+  sel.value = sel.options.length ? sel.options[0].value : '';
+}
 function handleDriveFileSelect(e) {
   const file = e.target.files[0];
   if (!file) return;
@@ -23246,6 +23677,13 @@ async function uploadResourceToDrive() {
 
   if (!name) { showToast('Please enter a resource name'); return; }
   if (!course) { showToast('Please select a programme / class'); return; }
+  // An instructor adds resources for her own programme(s) only (audit IN-9):
+  // the list offers only those, and the choice is checked again here.
+  var _mine = typeof importExamInstructorCourses === 'function' ? importExamInstructorCourses() : null;
+  if (_mine && !_mine.some(function(c) { return course === c || instructorCourseMatch(course, c); })) {
+    showToast('You can add resources for your own programme only (' + _mine.join(', ') + ').', 'warning');
+    return;
+  }
   if (!_driveSelectedFile && !url) { showToast('Please select a file or enter a link'); return; }
   // Only a web link: a javascript: "link" ran in whoever clicked Open.
   if (url && !/^https?:\/\//i.test(url)) { showToast('The link must start with http:// or https://'); return; }
@@ -23299,7 +23737,8 @@ async function uploadResourceToDrive() {
       driveFileName: driveFileName || '',
       classFolderId: folderId,
       description: desc || '',
-      uploadedBy: 'Admin',
+      uploadedBy: currentRole === 'instructor' && currentInstructor ? currentInstructor.name : 'Admin',
+      uploadedByRole: currentRole || 'admin',
       uploadedAt: new Date().toISOString()
     };
 
@@ -23325,6 +23764,7 @@ async function uploadResourceToDrive() {
       var selEl = document.getElementById('driveFileSelected');
       if (selEl) { selEl.style.display = 'none'; selEl.textContent = ''; }
       renderAdminResources();
+      if (currentRole === 'instructor') renderInstructorCustomResources();
       refreshContentDependentViews();
     }, 800);
   } catch(err) {
@@ -25296,7 +25736,8 @@ function refreshContentDependentViews() {
     // added or deleted in another tab has to rebuild them here too — otherwise
     // this page goes on offering a centre that no longer exists.
     'populateCourseDropdowns',
-    'filterCerts','renderCertStats','renderCertDownloadMgmt'
+    'filterCerts','renderCertStats','renderCertDownloadMgmt',
+    'refreshAttentionViews'
   ];
   fns.forEach(function(name){
     try {
@@ -25943,6 +26384,10 @@ function populateCourseDropdowns() {
       courses.map(function(c) { return courseOptionHtml(c, forEnrol); }).join('') + archivedGroupHtml(id);
     restoreSelection(sel, prev);
   });
+  // An instructor's Import Exam and Upload File offer her own programme(s)
+  // only — kept so when the lists are rebuilt (every refresh does it).
+  try { if (typeof importExamLimitCourses === 'function') importExamLimitCourses(); } catch (e) {}
+  try { if (typeof driveUploadLimitCourses === 'function') driveUploadLimitCourses(); } catch (e) {}
   // Also refresh the filter dropdowns if they exist. A filter keeps the
   // archived names: without them the trainees recorded under a deleted centre
   // could not be listed at all.
@@ -28018,6 +28463,7 @@ function renderExams(filter) {
     if (!_resultsByExam.has(r.examId)) _resultsByExam.set(r.examId, []);
     _resultsByExam.get(r.examId).push(r);
   });
+  try { examDraftBanner(); } catch (e) {}
   tbody.innerHTML = filtered.map(function(e) {
     // Buttons name the exam by id, not by its position in the list.
     var idx = jsArg(e.id);
@@ -28037,6 +28483,7 @@ function renderExams(filter) {
       actionBtns += '<button class="btn btn-sm btn-secondary" style="margin-left:4px;" onclick="viewExamResults('+idx+')">Results ('+resultsForExam.length+')</button>' +
         '<button class="btn btn-sm btn-secondary" style="margin-left:4px;" onclick="editExam('+idx+')" title="Edit exam">Edit</button>';
     }
+    if(hasQuestions) actionBtns += '<button class="btn btn-sm btn-secondary" style="margin-left:4px;" onclick="copyExamToBuilder('+idx+')" title="Copy this test for another intake: every question and answer, no results">Copy</button>';
     actionBtns += '<button class="btn btn-sm" style="margin-left:4px;background:#e74c3c;color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;" onclick="deleteExam('+idx+')" title="Delete exam">✕</button>';
     return '<tr><td><strong>'+escapeHtml(e.title)+'</strong>'+(hasQuestions?'<br><span style="font-size:11px;color:var(--green);">✓ Questions added</span>':'')+'</td><td>'+escapeHtml(e.course)+'</td><td>'+escapeHtml(e.date)+' @ '+escapeHtml(e.time)+'</td><td>'+escapeHtml(e.duration)+' min</td><td>'+escapeHtml(qCount)+'</td><td><span class="badge '+(e.status==='upcoming'?'badge-blue':e.status==='active'?'badge-red':'badge-green')+'"><span class="badge-dot"></span>'+(e.status==='active'?'In Progress':e.status==='completed'?'Completed ✓':'Scheduled')+'</span>'+(e.status==='completed'&&livePass?'<br><span style="font-size:11px;color:var(--text-muted);">Pass: '+escapeHtml(livePass)+'</span>':'')+'</td><td>'+actionBtns+'</td></tr>';
   }).join('');
@@ -28081,6 +28528,7 @@ function renderInstructorExams(filter) {
       '<div class="stat-card"><div class="stat-icon" style="background:var(--accent-dim);color:var(--accent);">📊</div><div class="stat-value">'+avgScore+'%</div><div class="stat-label">Avg Score</div></div>';
   }
 
+  try { examDraftBanner(); } catch (e) {}
   tbody.innerHTML = filtered.map(function(e) {
     var idx = jsArg(e.id);
     var qCount = CESTISCore.exams.questionCount(e);
@@ -28111,6 +28559,9 @@ function renderInstructorExams(filter) {
         actionBtns += '<button class="btn btn-sm btn-secondary" style="margin-left:4px;" onclick="editExam('+idx+')" title="Edit exam">Edit</button>';
       }
     }
+    // The same paper for the next intake: a new test with every question and
+    // its key, no results (copyExamToBuilder).
+    if(hasQuestions) actionBtns += '<button class="btn btn-sm btn-secondary" style="margin-left:4px;" onclick="copyExamToBuilder('+idx+')" title="Copy this test for another intake: every question and answer, no results">Copy</button>';
     if(isOwner) {
       actionBtns += '<button class="btn btn-sm" style="margin-left:4px;background:#e74c3c;color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;" onclick="deleteExam('+idx+')" title="Delete exam">✕</button>';
     }
@@ -28135,6 +28586,10 @@ var editingExamId = null;   // the exam open in the builder, by id; null = creat
 function examBuilderOpening() {
   var btn = document.getElementById('createExamPublishBtn');
   examBuilderOpen = {};
+  // Each opening writes its own draft, so reopening never writes over one.
+  examBuilderDraftId = (editingExamId != null ? 'edit:' + editingExamId + ':' : 'new:') + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  if (typeof examDraftStartTimer === 'function') examDraftStartTimer();
+  setTimeout(function(){ try { examBuilderDraftNote(); } catch (e) {} }, 0);
   if (editingExamId != null) {
     examSettingsHeading();
     if (btn) btn.textContent = 'Save changes';
@@ -28169,7 +28624,184 @@ function examBuilderOpening() {
   if (btn) btn.textContent = 'Publish Exam';
   goToExamStep1();
 }
-function examBuilderClosed() { editingExamId = null; examBuilderQuestions = []; }
+function examBuilderClosed() {
+  // Whatever was built so far stays on this computer (examDraftSave) until it
+  // is saved or discarded: closing the builder by mistake loses nothing.
+  try { examDraftSave(true); } catch (e) {}
+  editingExamId = null; examBuilderQuestions = []; examBuilderNewId = null; examBuilderCopiedFrom = null;
+  examBuilderDraftId = null;
+  if (typeof examDraftStopTimer === 'function') examDraftStopTimer();
+  setTimeout(function(){ try { examDraftBanner(); } catch (e) {} }, 0);
+}
+
+/* ---- "Copy test" (audit IN-6) ----
+   Re-using last intake's test meant typing it again: ~20 minutes and 147
+   actions for 20 questions. Copy opens the builder with every question and
+   its answer key copied (CESTISCore.exams.copyExam: new ids, the settings
+   kept, nothing of the old sitting — no results, not active, no pass rate,
+   no early release), dated from now, as the copier's own new test. Nothing
+   is published until Save; meanwhile it is kept on this computer. */
+var examBuilderNewId = null, examBuilderCopiedFrom = null;
+function copyExamToBuilder(examId) {
+  var e = examFind(examId);
+  if(!e || !Array.isArray(e.questionData) || !e.questionData.length) { showToast('That test has no questions to copy.', 'warning'); return; }
+  var by = currentRole === 'instructor' && currentInstructor ? currentInstructor.id : (currentRole === 'admin' ? 'admin' : (currentLoggedInUser && currentLoggedInUser.id) || 'unknown');
+  var d = CESTISCore.exams.defaultStart(Date.now() + 7 * 86400000, examCentreOffset());
+  var c = CESTISCore.exams.copyExam(e, { id: cestisGenId('EXAM-'), title: e.title + ' (copy)', date: d.date, time: d.time, by: by, byRole: currentRole || 'admin' });
+  // An instructor's copy is for her own programme.
+  if(currentRole === 'instructor' && currentInstructor && currentInstructor.course && !instructorCourseMatch(c.course, currentInstructor.course)) c.course = currentInstructor.course;
+  editingExamId = null;
+  openModal('createExamModal');                 // a clean new-exam form ...
+  examBuilderFillFrom(c);                       // ... filled with the copy
+  examBuilderNewId = c.id; examBuilderCopiedFrom = e.id;
+  examBuilderDraftId = 'copy:' + c.id;
+  examBuilderQuestions = c.questionData;
+  examDraftSave(true);
+  showToast('Copied "' + e.title + '": ' + CESTISCore.exams.questionCount(c) + ' questions with their answers. Change the title and date, then Publish.');
+}
+function examBuilderFillFrom(e) {
+  var set = function(id, v) { var el = document.getElementById(id); if (el) el.value = v == null ? '' : v; };
+  set('examTitle', e.title); set('examCourse', e.course); set('examDate', e.date || ''); set('examTime', e.time || '');
+  set('examDuration', e.duration || 90); set('examPassMark', e.passMark || 60); set('examShuffle', e.shuffleQuestions ? 'true' : 'false');
+  set('examInstructions', e.instructions || ''); set('examAnswersRelease', e.answersRelease || 'after-close');
+  set('examPerPage', String(parseInt(e.questionsPerPage) || 0)); set('examShuffleOptions', e.shuffleOptions ? 'true' : 'false');
+  set('examAllowFlag', e.allowFlag === false ? 'false' : 'true');
+  var ce = document.getElementById('examCloseEnabled'); if (ce) ce.checked = !!e.closeDate;
+  set('examCloseDate', e.closeDate || ''); set('examCloseTime', e.closeDate ? (e.closeTime || '23:59') : '');
+  try { examCloseToggle(); } catch (x) {}
+}
+
+/* ---- The builder's draft, kept on THIS computer as it is built ----
+   A reload, a crash or a closed tab part-way through used to lose every
+   question (the audit: 5 questions typed, reload, 0). What is in the builder
+   is written to this browser (key 'cestisExamBuilderDraft', one draft per
+   person) as it changes. It never leaves the device: it is a device-only key
+   (CESTISCore.isSnapshotableKey / cestis-page-cloud.js DEVICE_KEYS), so no
+   backup, sync or other person's device ever holds a half-built test or its
+   answers. Saving the test clears it; so does Discard. */
+var EXAM_DRAFT_KEY = 'cestisExamBuilderDraft';
+var _examDraftTimer = null, _examDraftDebounce = null;
+// Which draft the open builder is writing: 'edit:<exam id>:<n>',
+// 'copy:<new id>' or 'new:<n>' — several unsaved tests can wait side by side,
+// and starting another never writes over one of them.
+var examBuilderDraftId = null;
+var EXAM_DRAFT_FIELDS = ['examTitle', 'examCourse', 'examDate', 'examTime', 'examDuration', 'examPassMark', 'examShuffle', 'examInstructions',
+  'examAnswersRelease', 'examPerPage', 'examShuffleOptions', 'examAllowFlag', 'examCloseDate', 'examCloseTime'];
+function examDraftOwner() { return (currentLoggedInUser && currentLoggedInUser.id) || (currentInstructor && currentInstructor.id) || currentRole || 'staff'; }
+function examDraftAll() {
+  try { var v = JSON.parse(localStorage.getItem(EXAM_DRAFT_KEY) || '{}'); return v && typeof v === 'object' && !Array.isArray(v) ? v : {}; } catch (e) { return {}; }
+}
+function examDraftWrite(all) {
+  try { if (Object.keys(all).length) localStorage.setItem(EXAM_DRAFT_KEY, JSON.stringify(all)); else localStorage.removeItem(EXAM_DRAFT_KEY); return true; } catch (e) { return false; }
+}
+// This person's unsaved tests, the most recent first.
+function examDraftList() {
+  var mine = examDraftAll()[examDraftOwner()];
+  if (!mine || typeof mine !== 'object') return [];
+  return Object.keys(mine).map(function(k) { return mine[k]; }).filter(examDraftHasContent)
+    .sort(function(a, b) { return String(b.savedAt || '') < String(a.savedAt || '') ? -1 : 1; });
+}
+function examDraftMine(id) {
+  var l = examDraftList();
+  return id ? (l.filter(function(d) { return d.id === id; })[0] || null) : (l[0] || null);
+}
+function examDraftHasContent(d) {
+  return !!(d && ((d.fields && String(d.fields.examTitle || '').trim()) || (Array.isArray(d.questions) && d.questions.length)));
+}
+// force: write even when the builder is not showing (closing it).
+function examDraftSave(force) {
+  if (!examBuilderDraftId) return false;
+  var modal = document.getElementById('createExamModal');
+  if (!force && !(modal && modal.classList.contains('active'))) return false;
+  var f = {};
+  EXAM_DRAFT_FIELDS.forEach(function(id) { var el = document.getElementById(id); if (el) f[id] = el.value; });
+  var ce = document.getElementById('examCloseEnabled'); f.examCloseEnabled = !!(ce && ce.checked);
+  var d = { v: 1, id: examBuilderDraftId, savedAt: new Date().toISOString(), editingExamId: editingExamId, newId: examBuilderNewId, copiedFrom: examBuilderCopiedFrom,
+    fields: f, questions: JSON.parse(JSON.stringify(examBuilderQuestions || [])) };
+  // An empty form is not a draft (and never replaces one).
+  if (!examDraftHasContent(d)) return false;
+  // An exam opened for Edit and not changed is not unsaved work.
+  if (editingExamId != null && examDraftUnchanged(d, exams.find(function(e){ return e && e.id === editingExamId; }))) { examDraftClear(); return false; }
+  var all = examDraftAll(), me = examDraftOwner();
+  if (!all[me] || typeof all[me] !== 'object') all[me] = {};
+  all[me][examBuilderDraftId] = d;
+  return examDraftWrite(all);
+}
+function examDraftUnchanged(d, e) {
+  if (!d || !e) return false;
+  var f = d.fields || {}, same = function(a, b) { return String(a == null ? '' : a) === String(b == null ? '' : b); };
+  return same(f.examTitle, e.title) && same(f.examDate, e.date) && same(f.examTime, e.time) && same(f.examDuration, e.duration) &&
+    same(f.examPassMark, e.passMark) && same(f.examInstructions, e.instructions || '') &&
+    JSON.stringify(d.questions || []) === JSON.stringify(Array.isArray(e.questionData) ? e.questionData : []);
+}
+function examDraftSoon() { clearTimeout(_examDraftDebounce); _examDraftDebounce = setTimeout(function(){ examDraftSave(); }, 400); }
+function examDraftStartTimer() {
+  examDraftStopTimer();
+  _examDraftTimer = setInterval(function(){ examDraftSave(); }, 4000);
+  var modal = document.getElementById('createExamModal');
+  if (modal && !modal._cestisDraftWired) {
+    modal._cestisDraftWired = true;
+    modal.addEventListener('input', examDraftSoon, true);
+    modal.addEventListener('change', examDraftSoon, true);
+    modal.addEventListener('click', examDraftSoon, true);
+  }
+}
+function examDraftStopTimer() { if (_examDraftTimer) { clearInterval(_examDraftTimer); _examDraftTimer = null; } }
+function examDraftClear(id) {
+  id = id || examBuilderDraftId;
+  var all = examDraftAll(), me = examDraftOwner();
+  if (!id || !all[me] || !(id in all[me])) return;
+  delete all[me][id];
+  if (!Object.keys(all[me]).length) delete all[me];
+  examDraftWrite(all);
+}
+function examDraftRestore(id) {
+  var d = examDraftMine(id);
+  if (!d) return false;
+  var editing = d.editingExamId != null ? exams.find(function(e){ return e && e.id === d.editingExamId; }) : null;
+  editingExamId = editing ? editing.id : null;
+  openModal('createExamModal');
+  examBuilderDraftId = d.id;
+  var f = d.fields || {};
+  EXAM_DRAFT_FIELDS.forEach(function(k) { var el = document.getElementById(k); if (el && f[k] != null) el.value = f[k]; });
+  var ce = document.getElementById('examCloseEnabled'); if (ce) ce.checked = !!f.examCloseEnabled;
+  try { examCloseToggle(); } catch (e) {}
+  examBuilderQuestions = Array.isArray(d.questions) ? d.questions : [];
+  examBuilderNewId = d.newId || null; examBuilderCopiedFrom = d.copiedFrom || null;
+  var btn = document.getElementById('createExamPublishBtn'); if (btn) btn.textContent = editing ? 'Save changes' : 'Publish Exam';
+  var note = document.getElementById('examBuilderDraftNote'); if (note) note.remove();
+  if (examBuilderQuestions.length) goToExamStep2(); else goToExamStep1();
+  showToast('Restored "' + (f.examTitle || 'your test') + '" with ' + examBuilderQuestions.length + ' question' + (examBuilderQuestions.length !== 1 ? 's' : '') + ', as it was at ' + new Date(d.savedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + '.');
+  return true;
+}
+function examDraftDiscard(id) {
+  var d = examDraftMine(id);
+  if (!d) return;
+  if (!confirm('Discard "' + ((d.fields && d.fields.examTitle) || 'the unsaved test') + '" (' + ((d.questions || []).length) + ' questions)? It has not been published and cannot be brought back.')) return;
+  examDraftClear(d.id);
+  examDraftBanner();
+  showToast('Unsaved test discarded.');
+}
+/* The clear prompt: on the Exams page (after a reload or a crash) and at the
+   top of the builder, "You have an unsaved test …: Continue building /
+   Discard". */
+function examDraftBanner() {
+  var list = examDraftList(), d = list[0] || null, has = !!d;
+  var modal = document.getElementById('createExamModal');
+  var inBuilder = modal && modal.classList.contains('active');
+  ['iExamListView', 'examListView'].forEach(function(id) {
+    var host = document.getElementById(id);
+    if (!host) return;
+    var b = host.querySelector('.exam-draft-banner');
+    if (!has || inBuilder) { if (b) b.remove(); return; }
+    if (!b) { b = document.createElement('div'); b.className = 'alert-item alert-warning exam-draft-banner'; b.setAttribute('role', 'status'); host.insertBefore(b, host.firstChild); }
+    var n = (d.questions || []).length, when = new Date(d.savedAt);
+    b.innerHTML = '<div class="alert-icon">📝</div><div class="alert-body" style="flex:1;"><div class="alert-msg">You have an unsaved test on this computer: "' + escapeHtml((d.fields && d.fields.examTitle) || 'Untitled') + '", ' + n + ' question' + (n !== 1 ? 's' : '') + (list.length > 1 ? ' (and ' + (list.length - 1) + ' more)' : '') + '</div>' +
+      '<div class="alert-time" style="color:var(--text-muted);">Last changed ' + escapeHtml(when.toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })) + '. It is not published until you save it.</div></div>' +
+      '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;"><button class="btn btn-sm btn-primary" id="examDraftContinue" onclick="examDraftRestore(' + jsArg(d.id) + ')">Continue building</button>' +
+      '<button class="btn btn-sm btn-secondary" onclick="examDraftDiscard(' + jsArg(d.id) + ')">Discard</button></div>';
+  });
+}
 
 // Staff decide when trainees may see the correct answers: after the exam
 // closes (the default), straight away, or never.
@@ -28204,6 +28836,24 @@ function examArchiveResultsOf(examId, title) {
   return n;
 }
 
+// At the top of a NEW test's builder: the unsaved test waiting on this
+// computer, with the choice to bring it back.
+function examBuilderDraftNote() {
+  var host = document.getElementById('examStep1');
+  if (!host) return;
+  var old = document.getElementById('examBuilderDraftNote');
+  var d = examDraftList().filter(function(x) { return x.id !== examBuilderDraftId; })[0] || null;
+  var show = editingExamId == null && !examBuilderNewId && !!d && !(examBuilderQuestions || []).length &&
+    !String((document.getElementById('examTitle') || {}).value || '').trim();
+  if (!show) { if (old) old.remove(); return; }
+  var n = (d.questions || []).length;
+  var el = old || document.createElement('div');
+  el.id = 'examBuilderDraftNote'; el.className = 'alert-item alert-warning'; el.setAttribute('role', 'status');
+  el.innerHTML = '<div class="alert-icon">📝</div><div class="alert-body" style="flex:1;"><div class="alert-msg">Unsaved test found on this computer: "' + escapeHtml((d.fields && d.fields.examTitle) || 'Untitled') + '", ' + n + ' question' + (n !== 1 ? 's' : '') + '</div>' +
+    '<div class="alert-time" style="color:var(--text-muted);">Restore it, or carry on with a new test (it stays here until you discard it).</div></div>' +
+    '<button class="btn btn-sm btn-primary" onclick="examDraftRestore(' + jsArg(d.id) + ')">Restore it</button>';
+  if (!old) host.insertBefore(el, host.firstChild);
+}
 function goToExamStep1() {
   document.getElementById('examStep1').style.display='block';
   document.getElementById('examStep2').style.display='none';
@@ -28233,7 +28883,7 @@ var EXAM_TYPE_HELP = {
   match: 'Prompts on the left, each with a drop-down of answers on the right. Each row the trainee gets right earns its share of the marks. Marked automatically.',
   shortanswer: 'The trainee types a word or short phrase. Marked automatically against the answers you accept: capitals and extra spaces do not matter, and * stands for any letters (arrest* accepts arrestor and arrester).',
   numerical: 'The trainee types a number. Right when it is within the tolerance you set (± 0 means exactly). Marked automatically.',
-  fill: 'A sentence with a gap. Your expected answer is suggested to the marker, who confirms it.',
+  fill: 'A sentence with a gap. An answer that is your expected answer word for word (capitals and spaces around it aside) is marked right at once; any other answer waits for the marker, with your expected answer beside it.',
   short: 'An essay or written answer, marked by an instructor. You can add a model answer for the marker.',
   info: 'Text with no answer and no marks — a scenario, instructions or a heading that introduces the questions after it. Shown as "i" in the navigation.'
 };
@@ -28689,7 +29339,9 @@ function createExam() {
   } else {
     var creatorId = currentRole === 'instructor' && currentInstructor ? currentInstructor.id : (currentRole === 'admin' ? 'admin' : 'unknown');
     var newExam = {
-      id: cestisGenId('EXAM-'),
+      // A copied test keeps the new id it was given when copied (and says
+      // which test it came from); its questions already have new ids.
+      id: examBuilderNewId && !exams.some(function(x){ return x && x.id === examBuilderNewId; }) ? examBuilderNewId : cestisGenId('EXAM-'),
       title: title,
       course: course,
       date: dateVal,
@@ -28710,6 +29362,7 @@ function createExam() {
       createdByRole: currentRole || 'admin'
     };
     if(closeOn) { newExam.closeDate = closeDate; newExam.closeTime = closeTime; }
+    if(examBuilderCopiedFrom) newExam.copiedFrom = examBuilderCopiedFrom;
     exams.unshift(newExam);
     showToast('Exam "'+title+'" created with '+newExam.questions+' questions!');
     addNotification('New exam created: "' + title + '" — ' + newExam.questions + ' questions', 'exam', null, ['admin','instructor']);
@@ -28717,6 +29370,10 @@ function createExam() {
 
   editingExamId = null;
   examBuilderQuestions = [];
+  examBuilderNewId = null; examBuilderCopiedFrom = null;
+  // Saved: the copy kept on this computer while it was being built goes.
+  if (typeof examDraftClear === 'function') examDraftClear();
+  examBuilderDraftId = null;
   closeModal('createExamModal');
   renderExams(editing ? undefined : 'upcoming');
   refreshContentDependentViews();
@@ -28757,7 +29414,7 @@ function activateExam(idx) {
   saveState();
   if(e.status !== 'active') { showToast('"' + e.title + '" could not be opened. Check its date, time and duration.', 'warning'); return; }
   showToast('Exam "'+e.title+'" is now ACTIVE!');
-  addNotification('Exam activated: "' + e.title + '" — students can now take this exam', 'exam', null, ['admin','instructor','student']);
+  addNotification('Exam activated: "' + e.title + '" — students can now take this exam', 'exam', null, ['admin','instructor','student'], null, e.course ? { forCourse: e.course } : null);
 }
 
 function completeExam(idx) {
@@ -28829,8 +29486,10 @@ function viewExamResults(idx) {
   var canRelease = currentRole === 'admin' || currentRole === 'adminstaff' || (currentInstructor && e.createdBy === currentInstructor.id);
   var rel = e.answersRelease || 'after-close';
   var relLabel = rel === 'released' ? 'Correct answers: released to trainees' : rel === 'withheld' ? 'Correct answers: never shown to trainees' : 'Correct answers: shown to trainees after the exam closes';
+  var awaitingQs = CESTISCore.exams.questionsAwaiting ? CESTISCore.exams.questionsAwaiting(e, results) : [];
   view.innerHTML = '<div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap;"><button class="btn btn-secondary" onclick="backToExamList()">← Back to Exams</button><h3 style="flex:1;">'+escapeHtml(e.title)+' — Results</h3>' +
-    (canRelease ? '<button class="btn btn-sm btn-secondary" onclick="examToggleAnswerRelease('+jsArg(e.id)+')">'+(rel === 'released' ? 'Hide correct answers again' : 'Release correct answers now')+'</button>' : '') + '</div>' +
+    (awaitingQs.length ? '<button class="btn btn-sm btn-primary" id="examMarkByQuestionBtn" onclick="openQuestionMarking('+jsArg(e.id)+')" title="Mark one question for every trainee, then the next">Mark by question ('+awaitingQs.length+')</button>' : '') +
+    (canRelease ?'<button class="btn btn-sm btn-secondary" onclick="examToggleAnswerRelease('+jsArg(e.id)+')">'+(rel === 'released' ? 'Hide correct answers again' : 'Release correct answers now')+'</button>' : '') + '</div>' +
     '<div style="font-size:12px;color:var(--text-muted);margin:-12px 0 16px;">'+escapeHtml(relLabel)+'</div>' +
     '<div class="stats-grid">' +
     '<div class="stat-card"><div class="stat-icon" style="background:var(--blue-dim);color:var(--blue);">👥</div><div class="stat-value">'+results.length+'</div><div class="stat-label">Submissions'+(pendingTotal?' ('+pendingTotal+' awaiting marking)':'')+'</div></div>' +
@@ -29250,8 +29909,10 @@ function openGradingPanel(resultId) {
   var footerHtml = '<div class="grading-panel-footer">';
   footerHtml += '<div style="flex:1;font-size:12px;color:var(--text-muted);" id="gpPreviewScore">Preview: '+escapeHtml(result.score)+'%</div>';
   if(pendingCount > 0) {
+    var hasNext = !!(exam && CESTISCore.exams.nextAwaiting && CESTISCore.exams.nextAwaiting(examResults.filter(function(r){ return r && r.examId === exam.id && !r.archived; }), result.id));
     footerHtml += '<button class="btn btn-secondary" onclick="closeGradingPanel()">Cancel</button>';
-    footerHtml += '<button class="btn btn-primary" onclick="submitGrading()">Save Grades</button>';
+    footerHtml += '<button class="btn ' + (hasNext ? 'btn-secondary' : 'btn-primary') + '" onclick="submitGrading()">Save Grades</button>';
+    if(hasNext) footerHtml += '<button class="btn btn-primary" id="gpSaveNext" onclick="submitGrading(true)" title="Save, then open the next trainee whose work waits">Save &amp; next &rarr;</button>';
   } else {
     footerHtml += '<button class="btn btn-secondary" onclick="closeGradingPanel()">Close</button>';
   }
@@ -29267,6 +29928,81 @@ function closeGradingPanel() {
   if(panel) panel.remove();
   if(overlay) overlay.remove();
   gradingResultId = null;
+  questionMarking = null;
+}
+
+/* Marking BY QUESTION: one question, every trainee's answer to it, one Save
+   for the lot — then the next question that waits. (An instructor used to
+   open each trainee in turn: 20 trainees x 2 essays was 20 panels.) Marks are
+   recorded result by result with the same rule as the panel
+   (examRecordManualMarks), and an answer left blank here stays waiting. */
+var questionMarking = null;
+function openQuestionMarking(examId, questionId) {
+  var exam = exams.find(function(x){ return x && x.id === examId; });
+  if(!exam) return;
+  var results = examResults.filter(function(r){ return r && r.examId === exam.id && !r.archived; });
+  var waiting = CESTISCore.exams.questionsAwaiting(exam, results);
+  if(!waiting.length) { closeGradingPanel(); showToast('Every answer to this exam is marked.'); return; }
+  var q = waiting.filter(function(w){ return String(w.id) === String(questionId); })[0] || waiting[0];
+  var entries = CESTISCore.exams.pendingForQuestion(results, q.id, q.number - 1);
+  closeGradingPanel();
+  questionMarking = { examId: exam.id, questionId: q.id, entries: entries };
+  var overlay = document.createElement('div');
+  overlay.className = 'grading-overlay'; overlay.id = 'gradingOverlay'; overlay.onclick = closeGradingPanel;
+  document.body.appendChild(overlay);
+  var panel = document.createElement('div');
+  panel.className = 'grading-panel'; panel.id = 'gradingPanel';
+  var src = (exam.questionData || []).filter(function(x){ return x && String(x.id) === String(q.id); })[0] || {};
+  var model = src.correctAnswer && typeof src.correctAnswer === 'string' ? src.correctAnswer : '';
+  var html = '<div class="grading-panel-header"><div><h3>Mark by question: Q' + q.number + '</h3>' +
+    '<div style="font-size:12px;color:var(--text-muted);">' + escapeHtml(exam.title) + ' &bull; ' + entries.length + ' answer' + (entries.length !== 1 ? 's' : '') + ' waiting</div></div>' +
+    '<button onclick="closeGradingPanel()" aria-label="Close" style="background:none;border:none;color:var(--text-muted);font-size:20px;cursor:pointer;padding:4px;">&times;</button></div>';
+  html += '<div class="grading-panel-body">';
+  html += '<div class="form-group"><label for="qmQuestion">Question</label><select class="form-control" id="qmQuestion" onchange="openQuestionMarking(' + jsArg(exam.id) + ', this.value)">' +
+    waiting.map(function(w){ return '<option value="' + escapeAttr(w.id) + '"' + (String(w.id) === String(q.id) ? ' selected' : '') + '>Q' + w.number + ' — ' + escapeHtml(String(w.text).slice(0, 60)) + ' (' + w.waiting + ' waiting)</option>'; }).join('') + '</select></div>';
+  html += '<div style="font-size:13px;font-weight:600;margin-bottom:6px;">' + escapeHtml(q.text) + '</div>';
+  html += '<div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;">' + escapeHtml(examTypeLabel(q.type)) + ' &bull; ' + q.points + ' pt' + (q.points !== 1 ? 's' : '') + '</div>';
+  if(model) html += '<div style="background:var(--green-dim);border:1px solid rgba(46,204,113,0.2);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:12px;"><div style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:var(--green);margin-bottom:4px;">' + (q.type === 'fill' ? 'Expected Answer' : 'Model Answer') + '</div><div style="font-size:13px;">' + escapeHtml(model) + '</div></div>';
+  entries.forEach(function(en, k) {
+    var a = en.answer, pts = Number(a.points) || 0;
+    var shown = Array.isArray(a.studentAnswer) ? a.studentAnswer.filter(function(x){ return x != null && x !== ''; }).join(', ') : a.studentAnswer;
+    var st = students.find(function(s){ return s.id === en.studentId; });
+    html += '<div class="grade-question-card needs-grade qm-row" id="qmRow-' + k + '">' +
+      '<div style="font-size:13px;font-weight:700;margin-bottom:6px;">' + escapeHtml(st ? st.name : (en.studentName || en.studentId)) + '</div>' +
+      '<div style="background:var(--bg-card);border:1px solid var(--border-light);border-radius:var(--radius-sm);padding:8px 12px;margin-bottom:8px;font-size:13px;white-space:pre-wrap;">' + escapeHtml(shown || '(No answer)') + '</div>' +
+      '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><label for="qmPoints-' + k + '" style="font-size:12px;font-weight:600;">Award:</label>' +
+      '<input type="number" class="grade-points-input" id="qmPoints-' + k + '" min="0" max="' + pts + '" step="0.5" value="' + (a.type === 'fill' && a.autoMatch ? pts : '') + '" placeholder="—">' +
+      '<span style="font-size:12px;color:var(--text-muted);">/ ' + pts + '</span>' +
+      '<span class="grade-quick-btns" style="margin:0;"><button class="full" onclick="qmSet(' + k + ',' + pts + ')">Full</button>' + (pts > 1 ? '<button class="half" onclick="qmSet(' + k + ',' + Math.ceil(pts / 2) + ')">Half</button>' : '') + '<button class="zero" onclick="qmSet(' + k + ',0)">Zero</button></span></div>' +
+      '<textarea class="grade-feedback-input" id="qmFeedback-' + k + '" rows="2" placeholder="Optional feedback for the trainee..."></textarea></div>';
+  });
+  html += '</div>';
+  html += '<div class="grading-panel-footer"><div style="flex:1;font-size:12px;color:var(--text-muted);">An answer left blank stays waiting.</div>' +
+    '<button class="btn btn-secondary" onclick="closeGradingPanel()">Close</button>' +
+    '<button class="btn btn-primary" id="qmSaveAll" onclick="saveQuestionMarking()">Save all &amp; next question</button></div>';
+  panel.innerHTML = html;
+  document.body.appendChild(panel);
+}
+function qmSet(k, pts) { var el = document.getElementById('qmPoints-' + k); if(el) el.value = pts; }
+function saveQuestionMarking() {
+  var qm = questionMarking;
+  if(!qm) return;
+  var exam = exams.find(function(x){ return x && x.id === qm.examId; });
+  var grader = examGraderName(), marked = 0, blank = 0;
+  qm.entries.forEach(function(en, k) {
+    var p = document.getElementById('qmPoints-' + k), f = document.getElementById('qmFeedback-' + k);
+    if(!p || String(p.value).trim() === '') { blank++; return; }
+    var r = examResults.find(function(x){ return x && x.id === en.resultId; });
+    if(!r) return;
+    var m = {}; m[en.index] = { points: p.value, feedback: f ? f.value : '' };
+    if(examRecordManualMarks(r, m, grader, exam).applied) marked++;
+  });
+  if(marked) saveState();
+  showToast(marked + ' answer' + (marked !== 1 ? 's' : '') + ' marked' + (blank ? ', ' + blank + ' left waiting' : ''));
+  if(exam) viewExamResults(exam.id);
+  var left = exam ? CESTISCore.exams.questionsAwaiting(exam, examResults.filter(function(r){ return r && r.examId === exam.id && !r.archived; })) : [];
+  if(exam && left.length) openQuestionMarking(exam.id, (left.filter(function(w){ return String(w.id) !== String(qm.questionId); })[0] || left[0]).id);
+  else closeGradingPanel();
 }
 
 function setGradePoints(qIdx, pts) {
@@ -29302,87 +30038,73 @@ function updateGradingPreview() {
   if(ptsEl) ptsEl.textContent = earnedPts;
 }
 
-function submitGrading() {
+function submitGrading(goNext) {
   if(!gradingResultId) return;
   var resultIdx = examResults.findIndex(function(r){ return r.id === gradingResultId; });
   if(resultIdx < 0) { alert('Result not found'); return; }
   var result = examResults[resultIdx];
   var exam = exams.find(function(e){ return e.id === result.examId; });
 
-  var graderName = 'admin';
-  if(typeof currentInstructor !== 'undefined' && currentInstructor) {
-    graderName = currentInstructor.name;
-  }
+  var graderName = examGraderName();
 
-  // Apply grades
-  var allGraded = true;
+  // Apply grades (CESTISCore.exams.applyManualMarks: each mark held between 0
+  // and the question's points, then the totals worked out again).
+  var marks = {};
   result.answers.forEach(function(a, idx) {
     if(!a.needsManualGrade || a.graded) return;
-
     var ptsInput = document.getElementById('gradePoints-'+idx);
     var fbInput = document.getElementById('gradeFeedback-'+idx);
-
-    if(!ptsInput) { allGraded = false; return; }
-
-    var awarded = Math.min(Math.max(parseInt(ptsInput.value) || 0, 0), a.points);
-    a.awardedPoints = awarded;
-    a.earnedPoints = awarded;
-    a.isCorrect = awarded === a.points;
-    a.graded = true;
-    a.gradedBy = graderName;
-    a.gradedAt = new Date().toISOString();
-    a.feedback = fbInput ? fbInput.value.trim() : '';
+    if(!ptsInput) return;
+    marks[idx] = { points: ptsInput.value === '' ? '0' : ptsInput.value, feedback: fbInput ? fbInput.value : '' };
   });
+  examRecordManualMarks(result, marks, graderName, exam);
+  examResults[resultIdx] = result;
+  saveState();
 
-  // Recalculate totals
-  var earnedPoints = 0;
-  var correctCount = 0;
-  result.answers.forEach(function(a) {
-    earnedPoints += a.earnedPoints || 0;
-    if(a.isCorrect) correctCount++;
-  });
+  // "Save & next": straight on to the next trainee of this exam whose work
+  // waits — the panel used to close after every trainee.
+  var next = goNext && exam ? CESTISCore.exams.nextAwaiting(examResults.filter(function(r){ return r && r.examId === exam.id && !r.archived; }), result.id) : null;
+  closeGradingPanel();
+  showToast('Grades saved! Final score: ' + result.score + '% — ' + (result.passed ? 'PASSED' : 'NOT PASSED') + (next ? ' · next: ' + (next.studentName || 'next trainee') : ''));
 
-  result.earnedPoints = earnedPoints;
-  result.correctCount = correctCount;
-  result.score = result.totalPoints > 0 ? Math.round(earnedPoints / result.totalPoints * 100) : 0;
-  result.passed = result.score >= (exam ? exam.passMark : 60);
+  // Refresh whichever view is showing: the results table, or the dashboard's
+  // "needs review" card (which used to keep offering "Grade Now").
+  if(exam) viewExamResults(exam.id);
+  if(result.pendingCount === 0 && typeof document.querySelectorAll === 'function') {
+    var cards = document.querySelectorAll('[data-pending-result]');
+    for(var ci = 0; ci < cards.length; ci++) { if(cards[ci].getAttribute('data-pending-result') === result.id && cards[ci].parentNode) cards[ci].parentNode.removeChild(cards[ci]); }
+  }
+  if(next) openGradingPanel(next.id);
+}
 
-  var pendingLeft = result.answers.filter(function(a){ return a.needsManualGrade && !a.graded; }).length;
-  result.needsReview = pendingLeft > 0;
-  result.reviewComplete = pendingLeft === 0;
-  result.pendingCount = pendingLeft;
-
-  // Update student score — only once the result is final
+// Who is marking, as the results record it.
+function examGraderName() {
+  if(typeof currentInstructor !== 'undefined' && currentInstructor) return currentInstructor.name;
+  return 'admin';
+}
+/* One result's marks recorded (CESTISCore.exams.applyManualMarks), and what
+   follows from them: the trainee's score once the result is final, the
+   completed exam's pass rate, and the notices — staff see the outcome; the
+   trainee is told their OWN result, addressed to their account alone. Shared
+   by the grading panel and by marking one question across the class. The
+   caller saves. */
+function examRecordManualMarks(result, marks, graderName, exam) {
+  var res = CESTISCore.exams.applyManualMarks(result, marks, { by: graderName, at: new Date().toISOString(), passMark: exam ? exam.passMark : 60 });
+  if(!res.applied) return res;
   var student = students.find(function(s){ return s.id === result.studentId; });
-  if(student && pendingLeft === 0) student.score = result.score + '%';
-  if(pendingLeft === 0) { result.markedBy = graderName; result.markedAt = new Date().toISOString(); }
+  if(student && res.pendingLeft === 0) student.score = result.score + '%';
   // A completed exam's pass rate now includes this result.
   if(exam && exam.status === 'completed') {
     var pr = CESTISCore.exams.passRateOf(examResults.filter(function(r){ return r && r.examId === exam.id; }));
     if(pr) exam.passRate = pr;
   }
-
-  examResults[resultIdx] = result;
-  saveState();
-
-  closeGradingPanel();
-  showToast('Grades saved! Final score: ' + result.score + '% — ' + (result.passed ? 'PASSED' : 'NOT PASSED'));
-  // Staff see the outcome; the trainee is told their OWN result, addressed to
-  // their account alone. It used to go to every trainee in every programme.
   var _mk = notifyMarkingAudience();
   addNotification('Grading completed: ' + result.studentName + ' scored ' + result.score + '% — ' + (result.passed ? 'PASSED' : 'NOT PASSED'), result.passed ? 'grade' : 'warning', null, _mk.roles, null, _mk.aud);
   var traineeUser = examTraineeUserId(result.studentId);
-  if(traineeUser && pendingLeft === 0) {
+  if(traineeUser && res.pendingLeft === 0) {
     addNotificationForUser('Your exam "' + (exam ? exam.title : 'exam') + '" has been marked: ' + result.score + '% — ' + (result.passed ? 'PASSED' : 'NOT PASSED'), result.passed ? 'success' : 'info', null, traineeUser, 'student');
   }
-
-  // Refresh whichever view is showing: the results table, or the dashboard's
-  // "needs review" card (which used to keep offering "Grade Now").
-  if(exam) viewExamResults(exam.id);
-  if(pendingLeft === 0 && typeof document.querySelectorAll === 'function') {
-    var cards = document.querySelectorAll('[data-pending-result]');
-    for(var ci = 0; ci < cards.length; ci++) { if(cards[ci].getAttribute('data-pending-result') === result.id && cards[ci].parentNode) cards[ci].parentNode.removeChild(cards[ci]); }
-  }
+  return res;
 }
 
 // ============================== STUDENT EXAM TAKING ==============================
@@ -34010,7 +34732,7 @@ function deleteCalendarEvent(idx) {
 // The exam builder starts clean for "+ Create Exam" and forgets its target
 // when closed by any route (✕, Cancel, Publish) — see examBuilderOpening.
 function openModal(id) { if(id === 'createExamModal' && typeof examBuilderOpening === 'function') examBuilderOpening(); document.getElementById(id).classList.add('active'); }
-function closeModal(id) { if(id === 'createExamModal' && typeof examBuilderClosed === 'function') examBuilderClosed(); document.getElementById(id).classList.remove('active'); }
+function closeModal(id) { if(id === 'createExamModal' && typeof examBuilderClosed === 'function') examBuilderClosed(); if(id === 'createClassSessionModal' && typeof classSessionEditorReset === 'function') classSessionEditorReset(); document.getElementById(id).classList.remove('active'); }
 /* A toast stays for as long as CESTISCore.ui.toastPolicy() says \u2014 errors far
    longer than the 3s every toast used to get, which was often gone before it
    was read \u2014 and the clock stops while the pointer or keyboard focus is on
@@ -34918,6 +35640,23 @@ function updateImportSummary() {
 }
 
 // ---- Finalize Import ----
+// An instructor imports for her own programme(s) only: the programme list
+// offers just those (audit IN-6: Import Exam was the Administrator's alone).
+function importExamInstructorCourses() {
+  if (currentRole !== 'instructor' || !currentInstructor) return null;
+  var out = [];
+  [currentInstructor.course, currentInstructor.programme].concat(Array.isArray(currentInstructor.courses) ? currentInstructor.courses : [])
+    .forEach(function(c) { c = String(c || '').trim(); if (c && out.indexOf(c) === -1) out.push(c); });
+  return out;
+}
+function importExamLimitCourses() {
+  var mine = importExamInstructorCourses();
+  var sel = document.getElementById('importExamCourse');
+  if (!mine || !sel) return;
+  var keep = Array.prototype.slice.call(sel.options || []).filter(function(o) { return mine.some(function(c) { return o.value === c || instructorCourseMatch(o.value, c); }); });
+  sel.innerHTML = (keep.length ? keep.map(function(o) { return '<option value="' + escapeAttr(o.value) + '">' + escapeHtml(o.textContent) + '</option>'; }).join('')
+    : mine.map(function(c) { return '<option value="' + escapeAttr(c) + '">' + escapeHtml(c) + '</option>'; }).join(''));
+}
 function finalizeImportExam() {
   var title = document.getElementById('importExamTitle').value.trim();
   if(!title) { alert('Please enter an exam title.'); return; }
@@ -34936,6 +35675,13 @@ function finalizeImportExam() {
   var unkeyed = CESTISCore.exams.keyProblems(importedQuestions);
   if(unkeyed.length) { alert('Select the correct answer for question' + (unkeyed.length > 1 ? 's ' : ' ') + unkeyed.join(', ') + ' before importing.'); return; }
 
+  // An instructor imports for her own programme only.
+  var _mine = importExamInstructorCourses();
+  var _course = document.getElementById('importExamCourse').value;
+  if (_mine && !_mine.some(function(c) { return _course === c || instructorCourseMatch(_course, c); })) {
+    alert('You can import an exam for your own programme only (' + _mine.join(', ') + ').');
+    return;
+  }
   // Build exam object. A blank date or time means "from now", Centre time.
   var examId = cestisGenId('EXAM-');
   var dflt = CESTISCore.exams.defaultStart(Date.now(), examCentreOffset());
@@ -34979,10 +35725,10 @@ function finalizeImportExam() {
   var fileInput = document.getElementById('importFileInput');
   if(fileInput) fileInput.value = '';
 
-  // Navigate to exams page
+  // Navigate to exams page (the instructor's own)
   goToImportStep(1);
-  showPage('exams');
-  renderExams('upcoming');
+  if (currentRole === 'instructor') { showPage('i-exams'); try { renderInstructorExams('upcoming'); } catch (e) {} }
+  else { showPage('exams'); renderExams('upcoming'); }
 }
 
 // ============================================
@@ -47308,6 +48054,9 @@ function buildAdminStaffSidebar() {
 
   html += '<div class="nav-item" data-page="as-my-appraisal" onclick="showPage(\'as-my-appraisal\')">' +
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></svg>My Appraisal (Staff)</div>';
+  // Who needs attention (the trainees' attendance, marks and work; what they owe).
+  html += '<div class="nav-item" data-page="as-needs-attention" onclick="showPage(\'as-needs-attention\')">' +
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Needs Attention<span class="nav-badge attn-nav-badge" hidden></span></div>';
 
   // LMS Chat always visible
   html += '<div class="nav-item" data-page="as-lms-chat" onclick="showPage(\'as-lms-chat\')">' +
@@ -47410,6 +48159,7 @@ function buildAdminStaffSidebar() {
 
   nav.innerHTML = html;
   setTimeout(updateCtrRequestsBadge, 200);
+  setTimeout(function(){ try { refreshAttentionBadges(); } catch(e) {} }, 300);
   // The count of trainees' registrations waiting, on "Trainee Accounts" (renderVerifyUsersPage sets it).
   if(adminStaffAccessSettings.traineeaccounts) setTimeout(function() { try { renderVerifyUsersPage(); } catch(e) {} }, 250);
 }

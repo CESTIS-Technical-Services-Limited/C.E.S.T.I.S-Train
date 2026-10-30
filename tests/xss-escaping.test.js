@@ -605,7 +605,7 @@ console.log('Video classes: lists, lobby, conference, participants');
   const joins = handlerCalls(ac.html).filter(c => c.name === 'enterVideoRoom');
   assert(joins.length === 2 && joins.every(c => c.args[0] === EVIL && c.args[2] === cs.roomCode), 'Join passes the exact class name and room code (an apostrophe used to break it)');
   render('renderAdminMeetingsList', ['meetingAccess', 'meetingAccessBadge', 'renderAdminMeetingsList'], setup, 'renderAdminMeetingsList()', sb => el(sb, 'adminMeetingsList') + el(sb, 'asAdminMeetingsList') + el(sb, 'iAdminMeetingsList'));
-  render('renderInstructorClassSessions', ['renderInstructorClassSessions'], setup, 'renderInstructorClassSessions()', sb => el(sb, 'iClassSessionsList'));
+  render('renderInstructorClassSessions', ['vcSessionStatusBadge', 'renderInstructorClassSessions'], setup, 'renderInstructorClassSessions()', sb => el(sb, 'iClassSessionsList'));
   render('renderStudentClassSessions', ['renderStudentClassSessions'], setup, 'renderStudentClassSessions()', sb => el(sb, 'sClassSessionsList'));
   const rec = render('renderStudentRecordings', ['renderStudentRecordings'], Object.assign({}, setup, { classSessions: [Object.assign({}, cs, { status: 'completed', recordingUrl: 'https://x.co/\');__pwn(2);//' })] }), 'renderStudentRecordings()', sb => el(sb, 'sPastRecordingsList'));
   assert(handlerCalls(rec.html).filter(c => c.name === 'window.open').every(c => /^https:/.test(c.args[0])), 'Watch never opens a javascript: link');

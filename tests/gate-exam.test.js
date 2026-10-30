@@ -95,8 +95,8 @@ console.log('Marked from the key: what the trainee\'s copy claims changes nothin
   const today = X.mark(X.publicQuestions(exam.questionData), order.map(id => a.answers[a.questions.findIndex(q => q.id === id)]), exam.questionData);
   assertEq([r.result.totalPoints, r.result.earnedPoints, r.result.correctCount, r.result.pendingCount],
     [today.totalPoints, today.earnedPoints, today.correctCount, today.manualCount], 'the same marks as today\'s marking of the same answers');
-  assertEq([r.result.totalPoints, r.result.earnedPoints, r.result.pendingCount, r.result.needsReview, r.result.passed], [17, 11, 2, true, false],
-    'every automatic question right; the fill-in and the essay wait for staff');
+  assertEq([r.result.totalPoints, r.result.earnedPoints, r.result.pendingCount, r.result.needsReview, r.result.passed], [17, 12, 1, true, false],
+    'every automatic question right, the exact fill-in too (audit IN-8); the essay waits for staff');
   assertEq(r.result.totalQuestions, 8, 'information items are not questions');
   const base = r.result;
 
@@ -111,7 +111,7 @@ console.log('Marked from the key: what the trainee\'s copy claims changes nothin
   extra.questions.push({ id: 'FAKE-1', type: 'mcq', text: 'Free marks', options: ['a'], points: 50 });
   extra.answers.push(0);
   const r4 = mark(extra).result;
-  assertEq([r4.totalPoints, r4.earnedPoints, r4.answers.some(e => e.questionId === 'FAKE-1'), r4.ignoredQuestionIds], [17, 11, false, ['FAKE-1']],
+  assertEq([r4.totalPoints, r4.earnedPoints, r4.answers.some(e => e.questionId === 'FAKE-1'), r4.ignoredQuestionIds], [17, 12, false, ['FAKE-1']],
     'a question the key does not have is ignored — noted, never marked');
   const dropped = attempt();
   const hard = dropped.questions.findIndex(q => q.id === 'EX1-Q8');

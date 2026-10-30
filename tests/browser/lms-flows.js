@@ -495,7 +495,9 @@ let today = '', weekend = false, signedUrl = '', certNo = '';
     {
       await nav(I, 'i-resources');
       const before = await I.evaluate(() => instructorResources.length);
-      await I.click('#page-i-resources button:has-text("+ Upload Resource")');
+      // (The link form is "+ Add Link"; "+ Upload File" is the Resource
+      // Manager's upload, for the instructor's own programme — audit IN-9.)
+      await I.click('#page-i-resources button:has-text("+ Add Link")');
       await I.fill('#resName', 'Plasma cutter safety guide');
       await I.click('#uploadResourceModal button:has-text("Upload Resource")');
       await I.waitForTimeout(400);
@@ -523,6 +525,8 @@ let today = '', weekend = false, signedUrl = '', certNo = '';
   /* ================================================================ 4a */
   let deadline = 0;
   await step('4a', 'Exam: MCQ + true/false + essay, open now; sat by two trainees, one resuming after a refresh', async () => {
+    // Step 3's warning (it stays 20 seconds) must not cover the builder's buttons.
+    await I.evaluate(() => document.querySelectorAll('#toastContainer > *').forEach(t => t.remove()));
     await nav(I, 'i-exams');
     await I.click('#page-i-exams button:has-text("+ Create Exam")');
     // The settings page opens on General; Expand all shows Timing, Grade,

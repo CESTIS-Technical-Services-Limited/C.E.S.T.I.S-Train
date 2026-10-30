@@ -267,8 +267,8 @@ console.log('The Transcript page: header, columns, start-up, instructor plans, r
   assertEq(vm.runInContext('instructorStudents().map(function(s){return s.id;})', isb), ['A', 'C'], 'the instructor\'s trainees: their programmes, or named on the record');
   assertEq(vm.runInContext('insQualFor(db.students[0]).id', isb), 'QUAL-EIM-L3', 'the Level 3 trainee is graded on the Level 3 plan');
 
-  assert(/writes: _tgTrainee \? \['voctrain_certTranscriptRequests'\] : \[\]/.test(TG) && /concat\(_tgTrainee \? \['voctrain_certTranscriptRequests'\] : \[\]\)/.test(TG),
-    'a trainee\'s request goes to the administration\'s request file, and status changes come back');
+  assert(/writes: _tgTrainee \? \['voctrain_certTranscriptRequests'\] : _tgInstructor \? \['voctrain_unitProposals'\] : \[\]/.test(TG) && /concat\(_tgTrainee \? \['voctrain_certTranscriptRequests'\] : \[\]\)/.test(TG),
+    'a trainee\'s request goes to the administration\'s request file, and status changes come back (an instructor\'s proposed unit results go the same way: audit IN-13)');
   const rd = extractFunction(TG, 'requestDoc');
   assert(rd.indexOf('T.mergeRequestLists(') !== -1 && rd.indexOf('CESTISPageCloud.saveShared(') !== -1, 'added to the stored queue, then sent');
   assert(extractFunction(TG, 'renderGradeRows').indexOf('captureDirtyGrades()') !== -1 &&

@@ -1790,7 +1790,10 @@
     // work held here until they sign in.
     'cestisGateNs', 'cestisGateMode', 'cestisGateToken', 'cestisGateSessionKey', 'cestisGateAddress',
     'cestisDeviceKind', 'cestisGatePublished', 'cestisGatePublishQueue', 'cestisGateCollected',
-    'cestisGateUnassigned', 'cestisGateQuarantine', 'cestisStudentIdMoves'];
+    'cestisGateUnassigned', 'cestisGateQuarantine', 'cestisStudentIdMoves',
+    // A test being built, kept on this computer until it is saved (index.html
+    // examDraftSave): a half-built test and its answers go nowhere else.
+    'cestisExamBuilderDraft'];
 
   Core._parseArr = function (raw) {
     try { var v = JSON.parse(raw || 'null'); return Array.isArray(v) ? v : []; }
@@ -10255,7 +10258,11 @@
                          whole from both sides.
          notifications — who has read / cleared it, person by person. */
     var RECORD_MAPS = {
-      assignments: { perEntry: { grades: 'gradeMeta.gradedAt' }, unionStamps: ['gradeLog'] },
+      // The comment that goes with a mark (feedback {trainee: text}) is dated
+      // by its own stamp (feedbackAt {trainee: ISO}): two instructors
+      // commenting on two trainees both keep theirs; the newer edit of one
+      // trainee's comment wins.
+      assignments: { perEntry: { grades: 'gradeMeta.gradedAt', feedback: 'feedbackAt' }, unionStamps: ['gradeLog'] },
       notifications: { unionStamps: ['readBy', 'clearedBy'] },
       // A sitting's attendance register (Core.invigilation): two invigilators
       // noting different trainees, or one signing off while the other notes,
@@ -11189,6 +11196,12 @@
       // write two whole lists, and the later one erased the other's grade.
       // Removing a manual grade is a record too (Transcript.removeManualGrade).
       { key: 'voctrain_transcriptGrades', type: 'list', id: byId, stamps: ['updatedAt'] },
+      // Unit results an instructor proposes and the office decides
+      // (Core.unitProposals): each proposal its own record, on every path
+      // (`always`) — an instructor proposes on her device while the office
+      // decides on another, and one whole list winning would erase the
+      // other side's proposals or decisions.
+      { key: 'voctrain_unitProposals', type: 'list', studentField: 'studentId', id: byId, stamps: ['updatedAt', 'decidedAt', 'proposedAt'], always: true },
       { key: 'voctrain_unitCatalogs', type: 'list', id: byId, stamps: ['updatedAt'] },
       { key: 'voctrain_transcriptProfiles', type: 'map', stamps: ['updatedAt', 'lastModified'] },
       // The virement register: per request; a decision beats "Pending"; a
@@ -11253,7 +11266,7 @@
        switched over.) Two offices grading, handling requests or ruling at
        once each wrote their whole list, and the later upload erased the
        other's work. */
-    var DRIVE_RECORD_KEYS = ['voctrain_transcriptGrades', 'voctrain_unitCatalogs', 'voctrain_transcriptProfiles',
+    var DRIVE_RECORD_KEYS = ['voctrain_transcriptGrades', 'voctrain_unitCatalogs', 'voctrain_transcriptProfiles', 'voctrain_unitProposals',
       'voctrain_certTranscriptRequests', 'cesti_virements', 'cestis_cmc_rulings', 'cestiSchoolFeeStudents'];
 
     function parseJson(raw) { try { return JSON.parse(raw); } catch (e) { return undefined; } }
@@ -11786,7 +11799,7 @@
       {
         file: 'CESTIS_Transcript_Grades.json',
         page: 'Transcript / Grades',
-        keys: ['voctrain_transcriptGrades', 'voctrain_unitCatalogs', 'voctrain_transcriptProfiles']
+        keys: ['voctrain_transcriptGrades', 'voctrain_unitCatalogs', 'voctrain_transcriptProfiles', 'voctrain_unitProposals']
       },
       {
         file: 'CESTIS_Transcript_Requests.json',
@@ -12582,7 +12595,11 @@
           autoMatch = typeof key === 'string' && key.trim() !== '' &&
             String(ans == null ? '' : ans).trim().toLowerCase() === key.trim().toLowerCase();
           isCorrect = autoMatch;
-          manual = true; // the instructor confirms every fill-in
+          // The expected answer word for word (case and the spaces around it
+          // aside) is marked right away; anything else waits for a person.
+          // The instructor used to confirm every fill-in, the 32 exact
+          // matches of a 20-trainee test included (owner's decision, IN-8).
+          manual = !autoMatch;
         } else {
           manual = true;
         }
@@ -13322,8 +13339,126 @@
       return text ? letter + '. ' + text : letter;
     }
 
+    /* A person's marks on the answers of one result that wait for marking —
+       the grading panel's "Save Grades" / "Save & next", and marking one
+       question across every trainee. marks = { <answer index>: { points,
+       feedback } }; an answer with no mark here is left waiting. Each mark is
+       held between 0 and the question's points. The result's totals, score,
+       pass and "awaiting marking" are then worked out again from every
+       answer, exactly as the panel always did (passMark: the exam's).
+       Answers already marked are never changed here.
+       -> { applied, pendingLeft, final } */
+    function applyManualMarks(result, marks, opts) {
+      opts = opts || {};
+      var by = opts.by || 'staff', at = opts.at || new Date().toISOString();
+      var applied = 0;
+      if (!result || !Array.isArray(result.answers)) return { applied: 0, pendingLeft: 0, final: false };
+      result.answers.forEach(function (a, idx) {
+        if (!a || !a.needsManualGrade || a.graded) return;
+        var m = marks ? marks[idx] : null;
+        if (!m || m.points == null || String(m.points).trim() === '') return;
+        var pts = Number(a.points) || 0;
+        var v = Number(String(m.points).trim());
+        if (!isFinite(v)) v = 0;
+        var awarded = round2(Math.min(Math.max(v, 0), pts));
+        a.awardedPoints = awarded;
+        a.earnedPoints = awarded;
+        a.isCorrect = awarded === pts;
+        a.graded = true;
+        a.gradedBy = by;
+        a.gradedAt = at;
+        a.feedback = m.feedback == null ? '' : String(m.feedback).trim();
+        applied++;
+      });
+      var earned = 0, correct = 0;
+      result.answers.forEach(function (a) { if (!a) return; earned += Number(a.earnedPoints) || 0; if (a.isCorrect) correct++; });
+      result.earnedPoints = round2(earned);
+      result.correctCount = correct;
+      result.score = result.totalPoints > 0 ? Math.round(earned / result.totalPoints * 100) : 0;
+      var pm = opts.passMark != null && opts.passMark !== '' && isFinite(Number(opts.passMark)) ? Number(opts.passMark) : 60;
+      result.passed = result.score >= pm;
+      var left = result.answers.filter(function (a) { return a && a.needsManualGrade && !a.graded; }).length;
+      result.needsReview = left > 0;
+      result.reviewComplete = left === 0;
+      result.pendingCount = left;
+      if (!left && applied) { result.markedBy = by; result.markedAt = at; }
+      return { applied: applied, pendingLeft: left, final: left === 0 };
+    }
+
+    /* Where one question of an exam waits for marking, trainee by trainee:
+       the answers are matched to the exam's question by id (a shuffled paper
+       lines up), an older result without ids by its place.
+       -> [{ resultId, studentId, studentName, index, answer }] for every
+          result (archived ones left out) whose answer to it waits. */
+    function pendingForQuestion(results, questionId, questionIndex) {
+      var out = [];
+      (results || []).forEach(function (r) {
+        if (!r || r.archived || !Array.isArray(r.answers)) return;
+        r.answers.forEach(function (a, k) {
+          if (!a || !a.needsManualGrade || a.graded) return;
+          var hit = a.questionId != null ? String(a.questionId) === String(questionId) : k === questionIndex;
+          if (hit) out.push({ resultId: r.id, studentId: r.studentId, studentName: r.studentName || '', index: k, answer: a });
+        });
+      });
+      return out;
+    }
+    /* The questions of an exam that still wait for marking, with how many. */
+    function questionsAwaiting(exam, results) {
+      var qs = (exam && Array.isArray(exam.questionData) ? exam.questionData : []).filter(function (q) { return q && q.type !== 'info'; });
+      return qs.map(function (q, n) {
+        return { id: q.id, number: n + 1, text: q.text || '', type: q.type, points: Number(q.points) || 0,
+          waiting: pendingForQuestion(results, q.id, n).length };
+      }).filter(function (x) { return x.waiting > 0; });
+    }
+    /* The next result of the same exam still awaiting marking after this one
+       (in the order given — the results table's), then from the top. */
+    function nextAwaiting(results, afterId) {
+      var list = (results || []).filter(function (r) { return r && !r.archived && Array.isArray(r.answers) && r.answers.some(function (a) { return a && a.needsManualGrade && !a.graded; }); });
+      if (!list.length) return null;
+      var at = -1;
+      (results || []).forEach(function (r, i) { if (r && r.id === afterId) at = i; });
+      var after = (results || []).slice(at + 1).filter(function (r) { return list.indexOf(r) !== -1 && r.id !== afterId; });
+      if (after.length) return after[0];
+      var rest = list.filter(function (r) { return r.id !== afterId; });
+      return rest.length ? rest[0] : null;
+    }
+
+    /* "Copy test": the same paper for the next intake — a new draft with a
+       new id, every question and its key copied (each question its own new
+       id), the settings kept, and nothing of the old sitting: no results,
+       not active, no pass rate, no release, no activation. The copy is the
+       author's own draft (by, byRole), dated when given (opts.date/time),
+       else as the original. */
+    function copyExam(exam, opts) {
+      opts = opts || {};
+      if (!exam) return null;
+      var id = opts.id || ('EXAM-' + Date.now().toString(36));
+      var c = JSON.parse(JSON.stringify(exam));
+      ['passRate', 'activatedAt', 'students', 'archivedAt', 'deleted', 'updatedAt', 'resultsCount', 'closedAt'].forEach(function (k) { delete c[k]; });
+      c.id = id;
+      c.title = opts.title || ('Copy of ' + (exam.title || 'test'));
+      c.status = 'upcoming';
+      c.answersRelease = exam.answersRelease === 'withheld' ? 'withheld' : 'after-close';
+      if (opts.date) c.date = opts.date;
+      if (opts.time) c.time = opts.time;
+      if (opts.course) c.course = opts.course;
+      if (opts.by != null) c.createdBy = opts.by;
+      if (opts.byRole) c.createdByRole = opts.byRole;
+      c.createdAt = opts.at || new Date().toISOString();
+      c.copiedFrom = exam.id;
+      c.questionData = (Array.isArray(exam.questionData) ? exam.questionData : []).map(function (q, i) {
+        var nq = JSON.parse(JSON.stringify(q));
+        nq.id = 'Q-' + id + '-' + (i + 1);
+        return nq;
+      });
+      c.questions = questionCount(c);
+      return c;
+    }
+
     return {
       optionLabel: optionLabel,
+      applyManualMarks: applyManualMarks, pendingForQuestion: pendingForQuestion, questionsAwaiting: questionsAwaiting,
+      nextAwaiting: nextAwaiting, copyExam: copyExam,
       DEFAULT_OFFSET: DEFAULT_OFFSET, offsetMinutes: offsetMinutes, centreTime: centreTime, centreParts: centreParts,
       defaultStart: defaultStart, windowOf: windowOf, hasQuestions: hasQuestions, statusAt: statusAt,
       sessionDeadline: sessionDeadline, publicQuestions: publicQuestions, mark: mark, keyProblems: keyProblems,
@@ -14023,21 +14158,92 @@
 
     // A changed mark is recorded, not just overwritten: who, when, and what it
     // was before. HEART/NSTA moderation asks exactly that.
-    function recordGrade(assignment, studentId, points, by, nowIso) {
+    // A written comment can go with a mark (audit IN-4: remote trainees got
+    // "85/100" and nothing else). `feedback` (optional): the comment as it
+    // should now read — '' clears it; leave it out to keep the one there.
+    // A comment changed on its own is recorded like a changed mark. The
+    // comments live in assignment.feedback { trainee: text },
+    // dated by feedbackAt { trainee: ISO } (so two people's comments merge
+    // trainee by trainee), and every change is a line of the grade history
+    // (gradeLog) with what it replaced.
+    function recordGrade(assignment, studentId, points, by, nowIso, feedback) {
       if (!assignment || studentId == null) return { changed: false };
       if (!assignment.grades) assignment.grades = {};
       var prev = assignment.grades[studentId];
       var prevVal = gradeValue(prev);
       var newVal = gradeValue(points);
       if (newVal == null) return { changed: false };
-      if (prevVal === newVal) return { changed: false, previous: prevVal };
+      var fbGiven = feedback !== undefined && feedback !== null;
+      var fbMap = assignment.feedback && typeof assignment.feedback === 'object' && !Array.isArray(assignment.feedback) ? assignment.feedback : null;
+      var prevFb = fbMap && fbMap[studentId] != null ? String(fbMap[studentId]) : '';
+      var newFb = fbGiven ? String(feedback).trim() : prevFb;
+      var markChanged = prevVal !== newVal, fbChanged = fbGiven && newFb !== prevFb;
+      if (!markChanged && !fbChanged) return { changed: false, previous: prevVal };
       var at = nowIso || new Date().toISOString();
       assignment.grades[studentId] = newVal;
+      if (fbChanged) {
+        if (!fbMap) assignment.feedback = fbMap = {};
+        fbMap[studentId] = newFb;
+        if (!assignment.feedbackAt || typeof assignment.feedbackAt !== 'object' || Array.isArray(assignment.feedbackAt)) assignment.feedbackAt = {};
+        assignment.feedbackAt[studentId] = at;
+      }
       if (!Array.isArray(assignment.gradeLog)) assignment.gradeLog = [];
-      assignment.gradeLog.push({ studentId: studentId, points: newVal, previous: prevVal, gradedBy: by || '', gradedAt: at });
+      var line = { studentId: studentId, points: newVal, previous: prevVal, gradedBy: by || '', gradedAt: at };
+      if (fbChanged) { line.feedback = newFb; line.previousFeedback = prevFb; }
+      assignment.gradeLog.push(line);
       if (!assignment.gradeMeta || typeof assignment.gradeMeta !== 'object') assignment.gradeMeta = {};
       assignment.gradeMeta[studentId] = { gradedBy: by || '', gradedAt: at };
-      return { changed: true, previous: prevVal };
+      return { changed: true, previous: prevVal, markChanged: markChanged, feedbackChanged: fbChanged };
+    }
+    // A trainee's comment from her instructor on one assignment ('' none).
+    function feedbackFor(assignment, studentId) {
+      var m = assignment && assignment.feedback;
+      return m && typeof m === 'object' && m[studentId] != null ? String(m[studentId]) : '';
+    }
+    // The history of one trainee's mark, oldest first.
+    function gradeHistory(assignment, studentId) {
+      return (assignment && Array.isArray(assignment.gradeLog) ? assignment.gradeLog : []).filter(function (g) { return g && g.studentId === studentId; })
+        .slice().sort(function (a, b) { return String(a.gradedAt || '') < String(b.gradedAt || '') ? -1 : 1; });
+    }
+    /* Who has not handed an assignment in: the trainees of its programme who
+       are in training (Core.centreFigures.isActive), with no submission and
+       no mark (work handed in on paper and marked counts as in). An
+       assignment that asks for no upload has nobody "not submitted".
+       -> [student] by name */
+    function notSubmitted(assignment, students, subs, sameProgramme) {
+      if (!assignment || assignment.requireSubmission === false) return [];
+      var same = sameProgramme || function (a, b) { return Core.normCourse(a) === Core.normCourse(b); };
+      var handed = {};
+      latestPerStudent(subs, assignment.id).forEach(function (s) { handed[s.studentId] = 1; });
+      return (students || []).filter(function (s) {
+        if (!s || !Core.centreFigures.isActive(s) || !s.course || !assignment.course) return false;
+        if (!(s.course === assignment.course || same(s.course, assignment.course))) return false;
+        if (handed[s.id]) return false;
+        return gradeValue(assignment.grades ? assignment.grades[s.id] : null) == null;
+      }).sort(function (a, b) { return String(a.name || '').localeCompare(String(b.name || '')); });
+    }
+    /* The marking order: work still to mark first, then the newest. For the
+       submissions of one assignment (each its latest attempt) ... */
+    function markingOrder(assignment, subs) {
+      return (subs || []).slice().sort(function (a, b) {
+        var ma = gradeValue(assignment && assignment.grades ? assignment.grades[a.studentId] : null) != null ? 1 : 0;
+        var mb = gradeValue(assignment && assignment.grades ? assignment.grades[b.studentId] : null) != null ? 1 : 0;
+        if (ma !== mb) return ma - mb;
+        return subTime(b) - subTime(a);
+      });
+    }
+    /* ... and for the assignments: those with work waiting first, then the
+       newest (by due date, then when set). */
+    function assignmentOrder(assignments, subs) {
+      var waiting = function (a) {
+        return latestPerStudent(subs, a.id).some(function (s) { return gradeValue(a.grades ? a.grades[s.studentId] : null) == null; }) ? 1 : 0;
+      };
+      return (assignments || []).slice().sort(function (a, b) {
+        var wa = waiting(a), wb = waiting(b);
+        if (wa !== wb) return wb - wa;
+        var da = String(a.dueDate || '') + String(a.createdAt || ''), db = String(b.dueDate || '') + String(b.createdAt || '');
+        return da < db ? 1 : da > db ? -1 : 0;
+      });
     }
 
     function pairOf(subs, assignmentId, studentId) {
@@ -14107,7 +14313,9 @@
       gradeValue: gradeValue, percentOf: percentOf, weightOf: weightOf, weightedAverage: weightedAverage,
       gpaFromPercent: gpaFromPercent, effectiveGpa: effectiveGpa, studentSummary: studentSummary,
       gradebook: gradebook, gradebookCsv: gradebookCsv,
-      recordGrade: recordGrade, submissionHistory: submissionHistory, latestSubmission: latestSubmission,
+      recordGrade: recordGrade, feedbackFor: feedbackFor, gradeHistory: gradeHistory, notSubmitted: notSubmitted,
+      markingOrder: markingOrder, assignmentOrder: assignmentOrder,
+      submissionHistory: submissionHistory, latestSubmission: latestSubmission,
       latestPerStudent: latestPerStudent, canSubmit: canSubmit, oversizeFiles: oversizeFiles,
       resourceVisible: resourceVisible
     };
@@ -14509,6 +14717,416 @@
       fees: fees, feeAccountsSummary: feeAccountsSummary, feeBooks: feeBooks, feeYearOf: feeYearOf,
       moneyText: moneyText, earlierText: earlierText,
       programmeReturn: programmeReturn, genderOf: genderOf, ageBand: ageBand, AGE_BANDS: AGE_BANDS };
+  })();
+
+  // ===================== NEEDS ATTENTION: who is struggling, most urgent first =====================
+  // The dashboard said "5 students below 70% attendance" and nothing else: no
+  // names, no "last seen", no phone. Finding who was struggling meant opening
+  // every trainee's grades one by one (audit IN-3), and the office learnt
+  // nobody's name from the alert at all (M3: nine trainees unseen for two
+  // weeks or more, three since the start of the month). This is the list
+  // behind it — for an instructor her own programme's trainees, for the office
+  // every trainee — built only from figures the system already works out:
+  // the dated register (Core.attendance), marked results (Core.exams.isFinal),
+  // the assignments' own marks and due dates (Core.coursework), never a
+  // hand-typed GPA.
+  Core.attention = (function () {
+    var PASS_DEFAULT = 60;          // the transcript's own default pass mark
+    var LOW_ATTENDANCE = 70;        // the Centre's attendance rule (certificates, the dashboard)
+    var RUN_ALERT = 3;              // absences in a row worth a call
+    var RECENT_DAYS = 28;           // "recent" marked results
+    function num(v) { if (v == null || v === '') return null; var n = Number(String(v).replace('%', '').trim()); return isFinite(n) ? n : null; }
+    function dayOf(iso) {
+      var t = Date.parse(iso || '');
+      if (isNaN(t)) return '';
+      return Core.attendance.localDate(new Date(t));
+    }
+    /* Attendance facts of one trainee from the register (already narrowed to
+       her): the rate (present + late over sessions held), the last day she
+       attended, and how many held sessions in a row, counting back from the
+       most recent, she was absent. Excused, no-class, unmarked and
+       unconfirmed marks are not held sessions and do not break a run. */
+    function attendanceFacts(records, today) {
+      var A = Core.attendance;
+      var held = (records || []).filter(function (r) {
+        if (!r || r.unconfirmed || !A.isDate(r.date) || (today && r.date > today)) return false;
+        var st = A.normStatus(r.status);
+        return st === 'present' || st === 'late' || st === 'absent';
+      }).sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : 0; });
+      var sum = A.summarize(held);
+      var last = '', run = 0, counting = true;
+      held.forEach(function (r) {
+        var st = A.normStatus(r.status);
+        if (st === 'absent') { if (counting) run++; }
+        else { counting = false; if (!last || r.date > last) last = r.date; }
+      });
+      return { pct: sum.pct, held: sum.held, lastAttended: last, absentRun: run, lastHeld: held.length ? held[0].date : '' };
+    }
+    /* opts: { students, register, today, endedOf(s), results, exams,
+                assignments, submissions, sameProgramme(a, b), feeOf(s),
+                recentDays, nowMs }
+       -> rows, most urgent first: { student, id, name, course, phone,
+            pct, held, lastAttended, daysSinceAttended, absentRun,
+            belowPass: [{ kind, title, pct, passMark, date }],
+            missing: [{ id, title, dueDate }], average, gpa (from the marks),
+            owed (office only: a number, or 'unpriced'), reasons: [..], urgency } */
+    function list(opts) {
+      opts = opts || {};
+      var A = Core.attendance, CW = Core.coursework, F = Core.centreFigures;
+      var today = A.isDate(opts.today) ? opts.today : A.localDate();
+      var nowMs = opts.nowMs || Date.now();
+      var recent = A.addDays(today, -(opts.recentDays || RECENT_DAYS));
+      var same = opts.sameProgramme || function (a, b) { return Core.normCourse(a) === Core.normCourse(b); };
+      var byStudent = {};
+      (opts.register || []).forEach(function (r) { if (r && r.studentId != null) (byStudent[r.studentId] = byStudent[r.studentId] || []).push(r); });
+      var examById = {};
+      (opts.exams || []).forEach(function (e) { if (e && e.id != null) examById[String(e.id)] = e; });
+      var rows = [];
+      (opts.students || []).forEach(function (s) {
+        // In training now, and in an intake that is still running: applicants
+        // (testing, interview), graduates, dropouts and ended intakes are not
+        // "struggling" — they are not here.
+        if (!s || !F.isActive(s) || (typeof opts.endedOf === 'function' && opts.endedOf(s))) return;
+        var mine = function (c) { return !!c && !!s.course && (c === s.course || same(s.course, c)); };
+        var att = attendanceFacts(byStudent[s.id], today);
+        var pct = att.pct != null ? att.pct : num(s.attendance);
+        var row = { student: s, id: s.id, name: s.name || s.id, course: s.course || '', phone: s.phone || s.contact || s.telephone || '',
+          pct: pct, held: att.held, lastAttended: att.lastAttended, absentRun: att.absentRun, daysSinceAttended: null,
+          belowPass: [], missing: [], reasons: [] };
+        if (att.lastAttended) {
+          row.daysSinceAttended = Math.round((Date.parse(today + 'T00:00:00Z') - Date.parse(att.lastAttended + 'T00:00:00Z')) / 86400000);
+        }
+        // Marked results below the pass mark, recent ones: an exam's final
+        // result (its own pass mark), an assignment's mark (the default 60%).
+        var latest = {};
+        (opts.results || []).forEach(function (r) {
+          if (!r || r.studentId !== s.id || !Core.exams.isFinal(r)) return;
+          var k = String(r.examId || r.examTitle || r.id), t = Date.parse(r.markedAt || r.submittedAt || '') || 0;
+          if (!latest[k] || t >= latest[k].t) latest[k] = { r: r, t: t };
+        });
+        Object.keys(latest).forEach(function (k) {
+          var r = latest[k].r, e = examById[String(r.examId)] || null;
+          var d = dayOf(r.submittedAt || r.markedAt);
+          if (!d || d < recent) return;
+          var pm = e && num(e.passMark) != null ? num(e.passMark) : PASS_DEFAULT;
+          var sc = num(r.score);
+          if (sc != null && sc < pm) row.belowPass.push({ kind: 'exam', title: (e && e.title) || r.examTitle || 'Exam', pct: Math.round(sc), passMark: pm, date: d });
+        });
+        var mineAsg = (opts.assignments || []).filter(function (a) { return a && mine(a.course); });
+        mineAsg.forEach(function (a) {
+          var g = CW.gradeValue(a.grades ? a.grades[s.id] : null);
+          var meta = a.gradeMeta && a.gradeMeta[s.id];
+          if (g != null) {
+            var p = CW.percentOf(g, a.maxPoints), d = dayOf(meta && meta.gradedAt) || a.dueDate || '';
+            if (p != null && p < PASS_DEFAULT && d && d >= recent) row.belowPass.push({ kind: 'assignment', title: a.title || 'Assignment', pct: Math.round(p), passMark: PASS_DEFAULT, date: d });
+            return;
+          }
+          if (a.requireSubmission === false || !CW.isPastDue(a.dueDate, nowMs)) return;
+          var sub = CW.latestSubmission(opts.submissions || [], a.id, s.id);
+          if (!sub) row.missing.push({ id: a.id, title: a.title || 'Assignment', dueDate: a.dueDate || '' });
+        });
+        row.belowPass.sort(function (x, y) { return x.date < y.date ? 1 : x.date > y.date ? -1 : 0; });
+        row.missing.sort(function (x, y) { return String(x.dueDate) < String(y.dueDate) ? -1 : 1; });
+        var sumry = CW.studentSummary(s.id, { assignments: mineAsg, examResults: (opts.results || []).filter(function (r) { return Core.exams.isFinal(r); }) });
+        row.average = sumry.percent; row.gpa = sumry.gpa;
+        if (typeof opts.feeOf === 'function') { var o = opts.feeOf(s); if (o != null) row.owed = o; }
+        // Why she is listed.
+        if (pct != null && pct < LOW_ATTENDANCE) row.reasons.push('attendance');
+        if (att.absentRun >= RUN_ALERT) row.reasons.push('absent-run');
+        if (row.belowPass.length) row.reasons.push('results');
+        if (row.missing.length) row.reasons.push('missing-work');
+        if (!row.reasons.length) return;
+        // Most urgent first: a trainee who has stopped coming outranks one
+        // whose rate is low, who outranks one with a weak mark or work
+        // outstanding; each counts more the worse it is.
+        row.urgency = (att.absentRun >= RUN_ALERT ? 100 : 0) + att.absentRun * 8 +
+          (pct != null && pct < LOW_ATTENDANCE ? 40 + (LOW_ATTENDANCE - pct) : 0) +
+          row.belowPass.length * 12 + row.missing.length * 8;
+        rows.push(row);
+      });
+      rows.sort(function (a, b) { return (b.urgency - a.urgency) || String(a.name).localeCompare(String(b.name)); });
+      return rows;
+    }
+    /* The plain words for why a trainee is listed. */
+    function reasonText(row) {
+      var out = [];
+      if (row.absentRun >= RUN_ALERT) out.push('absent ' + row.absentRun + ' classes in a row');
+      if (row.pct != null && row.pct < LOW_ATTENDANCE) out.push('attendance ' + row.pct + '%');
+      if (row.belowPass.length) out.push(row.belowPass.length + ' recent mark' + (row.belowPass.length === 1 ? '' : 's') + ' below the pass mark');
+      if (row.missing.length) out.push(row.missing.length + ' piece' + (row.missing.length === 1 ? '' : 's') + ' of work not handed in');
+      return out.join(' · ');
+    }
+    /* What a trainee owes on her School Fee record (office only): the record
+       is found the fee page's own way (Core.feeMirrorTarget); paid is the sum
+       of her payments, else the record's own total. A record with no fee set
+       and nothing paid owes an unknown amount: 'unpriced'. null: no record. */
+    function owedFrom(student, feeStudents, payments, index) {
+      if (!student || !Array.isArray(feeStudents) || !feeStudents.length) return null;
+      var t = Core.feeMirrorTarget(student, feeStudents, index ? { index: index } : null);
+      if (!t || t.action !== 'link' || !t.match) return null;
+      var f = t.match, paid = 0, any = false;
+      (payments || []).forEach(function (p) { if (p && p.studentId === f.id) { paid += parseFloat(p.amount) || 0; any = true; } });
+      if (!any) paid = parseFloat(f.totalPaid) || 0;
+      var fee = parseFloat(f.tuitionFee) || 0;
+      if (fee <= 0 && paid <= 0) return 'unpriced';
+      return Math.max(0, Math.round((fee - paid) * 100) / 100);
+    }
+    return { list: list, attendanceFacts: attendanceFacts, reasonText: reasonText, owedFrom: owedFrom,
+      LOW_ATTENDANCE: LOW_ATTENDANCE, RUN_ALERT: RUN_ALERT, RECENT_DAYS: RECENT_DAYS, PASS_DEFAULT: PASS_DEFAULT };
+  })();
+
+  // ===================== UNIT RESULTS PROPOSED BY AN INSTRUCTOR, CONFIRMED BY THE OFFICE =====================
+  // An instructor saw her trainees' unit results on Trainee Grades and could
+  // change nothing; the office re-typed every competency result she gave on
+  // paper (about a minute per trainee per unit — audit IN-13). Now she
+  // PROPOSES a unit result; the office sees "Proposed by <instructor>" and
+  // confirms it (or changes it, or declines it). A proposal is never a grade:
+  // the transcript, the certificate checks and every figure read only the
+  // official grades (Core.Transcript), which only the office's confirmation
+  // writes. Proposals are their own records ('voctrain_unitProposals'),
+  // merged record by record on every path, newest edit winning.
+  Core.unitProposals = (function () {
+    var KEY = 'voctrain_unitProposals';
+    function T() { return Core.Transcript; }
+    function later(now, prev) { return Core.sync && Core.sync.laterStamp ? Core.sync.laterStamp(now, prev) : now; }
+    /* A grade as the transcript keeps it: 0-100, or 'Competent' / 'NYC';
+       null for anything else. */
+    function normalise(v) {
+      if (v == null) return null;
+      var s = String(v).trim();
+      if (s === '') return null;
+      if (T().isNumericGrade(s)) { var n = Number(s.replace('%', '').trim()); return n >= 0 && n <= 100 ? n : null; }
+      var c = T().competencyOf(s);
+      return c === 'competent' ? 'Competent' : c === 'nyc' ? 'NYC' : null;
+    }
+    function idOf(studentId, qualId, unitCode, byId) {
+      return 'UP-' + Core.hashString(String(studentId) + '|' + String(qualId) + '|' + String(unitCode) + '|' + String(byId || ''));
+    }
+    function copy(r) { return JSON.parse(JSON.stringify(r)); }
+    /* p = { studentId, studentName, course, qualId, unitCode, unitName, grade,
+             date, note, by, byId, at }. One live proposal per instructor per
+       unit: proposing again replaces hers, the earlier one kept in history.
+       -> { list, record } or { list, error } (nothing changed). */
+    function propose(list, p) {
+      list = Array.isArray(list) ? list.slice() : [];
+      p = p || {};
+      if (!p.studentId || !p.qualId || !p.unitCode) return { list: list, error: 'missing' };
+      var g = normalise(p.grade);
+      if (g == null) return { list: list, error: 'grade' };
+      var at = p.at || new Date().toISOString();
+      var id = idOf(p.studentId, p.qualId, p.unitCode, p.byId || p.by);
+      var idx = -1;
+      list.forEach(function (r, i) { if (r && r.id === id) idx = i; });
+      var prev = idx === -1 ? null : list[idx];
+      var hist = prev && Array.isArray(prev.history) ? prev.history.slice() : [];
+      if (prev) hist.push({ grade: prev.grade, date: prev.date || '', note: prev.note || '', status: prev.status, at: prev.updatedAt || prev.proposedAt || '', by: prev.decidedBy || prev.proposedBy || '' });
+      var rec = { id: id, studentId: p.studentId, studentName: p.studentName || '', course: p.course || '', qualId: p.qualId,
+        unitCode: p.unitCode, unitName: p.unitName || '', grade: g, date: p.date || '', note: String(p.note || '').trim(),
+        proposedBy: p.by || '', proposedById: p.byId || '', proposedAt: at, status: 'proposed',
+        updatedAt: prev ? later(at, prev.updatedAt) : at };
+      if (hist.length) rec.history = hist;
+      if (idx === -1) list.push(rec); else list[idx] = rec;
+      return { list: list, record: rec };
+    }
+    /* The office's decision on one proposal: 'confirmed' (the grade as
+       proposed), 'changed' (another grade: d.officialGrade) or 'declined';
+       the instructor may 'withdrawn' her own. Only a proposal still waiting
+       can be decided. -> { list, record } or { list, error } */
+    function decide(list, id, d) {
+      list = Array.isArray(list) ? list.slice() : [];
+      d = d || {};
+      var idx = -1;
+      list.forEach(function (r, i) { if (r && r.id === id) idx = i; });
+      if (idx === -1) return { list: list, error: 'missing' };
+      var cur = list[idx];
+      if (cur.status !== 'proposed') return { list: list, error: 'decided' };
+      var ok = { confirmed: 1, changed: 1, declined: 1, withdrawn: 1 };
+      if (!ok[d.decision]) return { list: list, error: 'decision' };
+      var at = d.at || new Date().toISOString();
+      var rec = copy(cur);
+      rec.status = d.decision;
+      rec.decidedBy = d.by || '';
+      rec.decidedAt = at;
+      if (d.decision === 'confirmed') rec.officialGrade = cur.grade;
+      if (d.decision === 'changed') {
+        var g = normalise(d.officialGrade);
+        if (g == null) return { list: list, error: 'grade' };
+        rec.officialGrade = g;
+      }
+      if (d.note) rec.decisionNote = String(d.note).trim();
+      rec.updatedAt = later(at, cur.updatedAt);
+      list[idx] = rec;
+      return { list: list, record: rec };
+    }
+    function waiting(list, opts) {
+      opts = opts || {};
+      return (Array.isArray(list) ? list : []).filter(function (r) {
+        return r && r.status === 'proposed' && (!opts.studentId || r.studentId === opts.studentId) && (!opts.qualId || r.qualId === opts.qualId);
+      }).sort(function (a, b) { return String(a.proposedAt || '') < String(b.proposedAt || '') ? -1 : 1; });
+    }
+    /* The newest proposal (any state) for one unit of one trainee. */
+    function latestFor(list, studentId, qualId, unitCode) {
+      var best = null;
+      (Array.isArray(list) ? list : []).forEach(function (r) {
+        if (!r || r.studentId !== studentId || r.qualId !== qualId || r.unitCode !== unitCode) return;
+        if (!best || String(r.updatedAt || '') > String(best.updatedAt || '')) best = r;
+      });
+      return best;
+    }
+    return { KEY: KEY, normalise: normalise, idOf: idOf, propose: propose, decide: decide, waiting: waiting, latestFor: latestFor };
+  })();
+
+  // ===================== THE OFFICE'S VIEW OF THE WORK: marking backlog, registers not taken =====================
+  // The marking backlog was a bare count ("35 pending"): nothing said that 31
+  // of them were over a week old, that one programme's 16 had waited 14 days,
+  // or that 13 pieces past their due date had never been handed in (audit
+  // M6). And nothing flagged a class whose register was never taken: a Solar
+  // register blank for two days showed only as empty cells in a weekly grid
+  // (M11).
+  Core.officeWatch = (function () {
+    var DAY = 86400000;
+    function ms(v) { var t = Date.parse(v || ''); return isNaN(t) ? null : t; }
+    /* opts: { assignments, submissions, results, exams, students,
+               sameProgramme, ownerOfExam(exam) -> name, nowMs }
+       -> { waiting, oldestAt, oldestDays, items: [{ kind, id, title, course,
+            owner, waiting, oldestAt }], byOwner: [{ owner, waiting,
+            oldestDays, items }], pastDueMissing, missingBy: [{ id, title,
+            course, owner, dueDate, trainees: [names] }] } */
+    function backlog(opts) {
+      opts = opts || {};
+      var CW = Core.coursework, now = opts.nowMs || Date.now();
+      var items = [];
+      (opts.assignments || []).forEach(function (a) {
+        if (!a) return;
+        var subs = CW.latestPerStudent(opts.submissions || [], a.id).filter(function (s) {
+          return CW.gradeValue(a.grades ? a.grades[s.studentId] : null) == null;
+        });
+        if (!subs.length) return;
+        var oldest = subs.reduce(function (m, s) { var t = ms(s.submittedAt); return t != null && (m == null || t < m) ? t : m; }, null);
+        items.push({ kind: 'assignment', id: a.id, title: a.title || 'Assignment', course: a.course || '', owner: a.createdBy || 'Unknown', waiting: subs.length, oldestMs: oldest });
+      });
+      var examById = {};
+      (opts.exams || []).forEach(function (e) { if (e && e.id != null) examById[String(e.id)] = e; });
+      var byExam = {};
+      (opts.results || []).forEach(function (r) {
+        if (!r || r.archived || !Array.isArray(r.answers)) return;
+        if (!r.answers.some(function (x) { return x && x.needsManualGrade && !x.graded; })) return;
+        var k = String(r.examId || r.examTitle || '');
+        (byExam[k] = byExam[k] || []).push(r);
+      });
+      Object.keys(byExam).forEach(function (k) {
+        var e = examById[k] || { id: k, title: byExam[k][0].examTitle || 'Exam' };
+        var oldest = byExam[k].reduce(function (m, r) { var t = ms(r.submittedAt); return t != null && (m == null || t < m) ? t : m; }, null);
+        var owner = typeof opts.ownerOfExam === 'function' ? opts.ownerOfExam(e) : (e.createdBy || 'Unknown');
+        items.push({ kind: 'exam', id: e.id, title: e.title || 'Exam', course: e.course || '', owner: owner || 'Unknown', waiting: byExam[k].length, oldestMs: oldest });
+      });
+      var days = function (t) { return t == null ? null : Math.max(0, Math.floor((now - t) / DAY)); };
+      items.forEach(function (it) { it.oldestDays = days(it.oldestMs); it.oldestAt = it.oldestMs == null ? '' : new Date(it.oldestMs).toISOString(); });
+      items.sort(function (a, b) { return (a.oldestMs == null ? Infinity : a.oldestMs) - (b.oldestMs == null ? Infinity : b.oldestMs); });
+      var owners = {};
+      items.forEach(function (it) {
+        var o = owners[it.owner] = owners[it.owner] || { owner: it.owner, waiting: 0, oldestMs: null, items: [] };
+        o.waiting += it.waiting; o.items.push(it);
+        if (it.oldestMs != null && (o.oldestMs == null || it.oldestMs < o.oldestMs)) o.oldestMs = it.oldestMs;
+      });
+      var byOwner = Object.keys(owners).map(function (k) { var o = owners[k]; o.oldestDays = days(o.oldestMs); return o; })
+        .sort(function (a, b) { return (b.oldestDays || 0) - (a.oldestDays || 0) || b.waiting - a.waiting; });
+      var oldestMs = items.length ? items[0].oldestMs : null;
+      // Work past its due date that was never handed in.
+      var missingBy = [], missingN = 0;
+      (opts.assignments || []).forEach(function (a) {
+        if (!a || !CW.isPastDue(a.dueDate, now)) return;
+        var who = CW.notSubmitted(a, opts.students || [], opts.submissions || [], opts.sameProgramme);
+        if (!who.length) return;
+        missingN += who.length;
+        missingBy.push({ id: a.id, title: a.title || 'Assignment', course: a.course || '', owner: a.createdBy || '', dueDate: a.dueDate || '', trainees: who.map(function (s) { return s.name; }) });
+      });
+      missingBy.sort(function (a, b) { return String(a.dueDate) < String(b.dueDate) ? -1 : 1; });
+      return { waiting: items.reduce(function (n, it) { return n + it.waiting; }, 0), oldestAt: oldestMs == null ? '' : new Date(oldestMs).toISOString(),
+        oldestDays: days(oldestMs), items: items, byOwner: byOwner, pastDueMissing: missingN, missingBy: missingBy };
+    }
+    /* The school day before `today` (Friday for a Monday). */
+    function previousSchoolDay(today) {
+      var A = Core.attendance, d = A.addDays(today, -1);
+      while (A.weekday(d) === 0 || A.weekday(d) === 6) d = A.addDays(d, -1);
+      return d;
+    }
+    /* The classes scheduled on `day` whose register has no mark at all for
+       that day: no trainee of the class's programme is marked present, late,
+       absent, excused or "no class" on it. A cancelled class is not
+       expected to have one, nor a programme with nobody in training.
+       -> [{ session, course, instructor, trainees }] */
+    function registersNotTaken(opts) {
+      opts = opts || {};
+      var day = opts.day, same = opts.sameProgramme || function (a, b) { return Core.normCourse(a) === Core.normCourse(b); };
+      var marked = {};
+      (opts.register || []).forEach(function (r) {
+        if (!r || r.date !== day || r.unconfirmed) return;
+        if (Core.attendance.normStatus(r.status) === '') return;
+        marked[String(r.studentId)] = true;
+      });
+      var out = [], seen = {};
+      (opts.sessions || []).forEach(function (s) {
+        if (!s || s.date !== day || s.status === 'cancelled' || !s.course) return;
+        var roll = (opts.students || []).filter(function (t) { return t && Core.centreFigures.isActive(t) && t.course && (t.course === s.course || same(t.course, s.course)); });
+        if (!roll.length) return;
+        if (roll.some(function (t) { return marked[String(t.id)]; })) return;
+        var key = Core.normCourse(s.course) + '|' + (s.time || '') + '|' + (s.name || '');
+        if (seen[key]) return;
+        seen[key] = true;
+        out.push({ session: s, course: s.course, instructor: s.createdBy || '', trainees: roll.length });
+      });
+      return out.sort(function (a, b) { return String(a.session.time || '') < String(b.session.time || '') ? -1 : 1; });
+    }
+    return { backlog: backlog, previousSchoolDay: previousSchoolDay, registersNotTaken: registersNotTaken };
+  })();
+
+  // ===================== THE CLASS LIST: upcoming and past, repeating weekly =====================
+  // After a term an instructor's class list was 125 cards in the order they
+  // were made, the next class at number 121, with no status, no Edit and no
+  // way to set a class every week (audit IN-14).
+  Core.classSchedule = (function () {
+    var A = function () { return Core.attendance; };
+    var MAX_REPEAT = 52;
+    /* Every week from `start` (that day of the week) up to and including
+       `until`; at most 52. A blank or earlier `until` is the one class. */
+    function weeklyDates(start, until, max) {
+      var a = A();
+      if (!a.isDate(start)) return [];
+      var out = [start], cap = Math.max(1, Math.min(max || MAX_REPEAT, MAX_REPEAT));
+      if (!a.isDate(until) || until <= start) return out;
+      var d = start;
+      while (out.length < cap) { d = a.addDays(d, 7); if (d > until) break; out.push(d); }
+      return out;
+    }
+    function when(s) { return String(s && s.date || '') + ' ' + String(s && s.time || ''); }
+    /* A class's state: 'live', 'completed', 'scheduled' (still to come, or
+       today and not yet over), or 'past' (its day has gone and it was never
+       run as a live class — a workshop session, say). */
+    function statusOf(s, today) {
+      if (!s) return 'scheduled';
+      if (s.status === 'live') return 'live';
+      if (s.status === 'completed') return 'completed';
+      if (s.status === 'cancelled') return 'cancelled';
+      return s.date && today && s.date < today ? 'past' : 'scheduled';
+    }
+    /* Upcoming (live first, then soonest) and Past (most recent first). */
+    function split(sessions, today) {
+      var up = [], past = [];
+      (sessions || []).forEach(function (s) {
+        if (!s) return;
+        var st = statusOf(s, today);
+        if (st === 'live' || st === 'scheduled') up.push(s); else past.push(s);
+      });
+      up.sort(function (a, b) {
+        var la = statusOf(a, today) === 'live' ? 0 : 1, lb = statusOf(b, today) === 'live' ? 0 : 1;
+        if (la !== lb) return la - lb;
+        return when(a) < when(b) ? -1 : when(a) > when(b) ? 1 : 0;
+      });
+      past.sort(function (a, b) { return when(a) < when(b) ? 1 : when(a) > when(b) ? -1 : 0; });
+      return { upcoming: up, past: past };
+    }
+    return { weeklyDates: weeklyDates, statusOf: statusOf, split: split, MAX_REPEAT: MAX_REPEAT };
   })();
 
   // ===================== A TRAINEE'S CONTACT DETAILS FROM THEIR ACCOUNT =====================
@@ -15633,7 +16251,9 @@
       'questionsPerPage', 'shuffleQuestions', 'shuffleOptions', 'answersRelease', 'status', 'activatedAt', 'allowFlag', 'instructions'];
     var VC_FIELDS = ['id', 'code', 'title', 'course', 'hostName', 'hostRole', 'startedAt', 'endedAt', 'locked', 'lobby', 'updatedAt'];
     var ROOM_FIELDS = ['id', 'name', 'icon', 'type', 'color', 'skillAreaId', 'createdAt', 'updatedAt'];
-    var PER_TRAINEE_MAPS = ['grades', 'gradeMeta', 'feedback', 'comments', 'marks'];
+    // feedbackAt: when each trainee's comment on an assignment was written
+    // (Core.coursework.recordGrade) — her own date only, like her mark.
+    var PER_TRAINEE_MAPS = ['grades', 'gradeMeta', 'feedback', 'feedbackAt', 'comments', 'marks'];
 
     /* System notices that name a trainee. A trainee sees one only when it
        names them; the score and mark notices never reach a trainee at all
@@ -16045,9 +16665,19 @@
       });
       return out;
     }
-    function noticeFor(n, t, ownNames) {
+    function noticeFor(n, t, ownNames, course, same) {
       if (Array.isArray(n.forUsers) && n.forUsers.length) return n.forUsers.map(str).indexOf(t.acct) !== -1;
       if (Array.isArray(n.forRoles) && n.forRoles.length && n.forRoles.indexOf('student') === -1) return false;
+      // A programme's notice (forCourse) reaches that programme's trainees
+      // only — the bell's own rule (Core.notify.reaches): a Plumbing trainee
+      // at home is not sent the Welding class's new assignment. "General"
+      // (or no programme) is for every trainee, as before.
+      if (n.forCourse != null && str(n.forCourse).trim() !== '') {
+        var fc = Core.normCourse(n.forCourse);
+        if (fc !== 'general' && fc !== 'all' && fc !== 'all programmes' && fc !== 'all courses') {
+          if (!course || !(Core.normCourse(course) === fc || (same && same(course, n.forCourse)))) return false;
+        }
+      }
       var text = str(n.text);
       if (STAFF_ONLY_NOTICES.some(function (re) { return re.test(text); })) return false;
       for (var i = 0; i < NAMED_NOTICES.length; i++) {
@@ -16109,7 +16739,7 @@
       });
       d.voctrain_submissions = ownedOf(ctx, 'voctrain_submissions', t);
       d.voctrain_announcements = ctx.L.voctrain_announcements.filter(forStudent).map(function (a) { return cutReaders(a, readers); });
-      d.voctrain_notifications = ctx.L.voctrain_notifications.filter(function (n) { return noticeFor(n, t, own.names); }).map(function (n) {
+      d.voctrain_notifications = ctx.L.voctrain_notifications.filter(function (n) { return noticeFor(n, t, own.names, course, ctx.same); }).map(function (n) {
         var r = cutReaders(n, readers);
         if (Array.isArray(r.forUsers)) r.forUsers = cutList(r.forUsers, readers);
         return r;
