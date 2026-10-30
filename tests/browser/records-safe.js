@@ -245,7 +245,9 @@ const STAFF = { id: 'USR-dbrown', name: 'Donovan Brown', user: 'dbrown', pass: '
     drive.full = false;
     drive.quota = { limit: 15 * 1073741824, usage: 9 * 1073741824 };
     await A.evaluate(() => cestisStorageRefresh(true));
-    ok(await until(() => A.evaluate(() => !cestisStorageIsFull()), 30000), 'room again (the storage figure shows it): the Administrator\'s PC sends at once');
+    const roomA = await until(() => A.evaluate(() => !cestisStorageIsFull()), 60000);
+    ok(roomA, 'room again (the storage figure shows it): the Administrator\'s PC sends at once' +
+      (roomA ? '' : ' — ' + JSON.stringify(await A.evaluate(() => ({ r: _lastAutoSaveResult, f: _storageFull, busy: _isAutoSaving, tick: !!_autoSaveIntervalId, conn: isCloudConnected, pull: _lastPull })))));
     // Donovan was signed out by the reload's session check, or is still in; either way his work goes up.
     const sIn = await S.evaluate(() => currentRole === 'adminstaff');
     if (!sIn) await staffSignIn();

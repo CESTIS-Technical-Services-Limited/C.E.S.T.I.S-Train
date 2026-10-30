@@ -735,7 +735,8 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log('      ' + DATA_DIR);
   console.log('  Back that folder up — it is the Centre\'s records. The last ' + store.HISTORY_KEEP);
   console.log('  versions of every file are kept in its ".history" folder, so a');
-  console.log('  bad save can be undone (see READ ME FIRST, section 3).');
+  console.log('  bad save can be undone (see READ ME FIRST, section 3), and one dated');
+  console.log('  copy a week of every file, for ' + store.WEEKLY_KEEP + ' weeks, in its ".weekly" folder.');
   if (!Core) console.log('\n  WARNING: cestis-core.js could not be loaded, so saves REPLACE files instead of merging.');
   console.log('\n  Leave this window OPEN while people are using the system.');
   console.log('  Closing it stops the server for everybody.');

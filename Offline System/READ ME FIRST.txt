@@ -108,6 +108,18 @@ ordinary .json files. The older ones are compressed to save space (they end in
 ".json.gz"): to use one, right-click it and choose "Extract All" (or open it
 with 7-Zip), then copy the .json file that comes out back over data/<file>.
 
+ONE COPY A WEEK, FOR 12 WEEKS. On a busy day 40 versions cover only hours, so
+a bad change found a week later would have no good copy left. Inside "data"
+there is also a hidden folder called ".weekly", with one folder per file,
+holding one dated copy of that file for each of the last 12 weeks, named by the
+year and week (for example "2026-W44.json.gz" — the file as it stood when that
+week's first change came in). Older weeks are removed by themselves. To use
+one: stop the server, FIRST copy the current data/<file> to a memory stick (so
+nothing since that week is lost, even if you need it later), extract the
+weekly copy as above, copy the .json file that comes out back over
+data/<file>, and start the server again. Every device then merges what it
+holds back in, record by record, the next time it saves.
+
 HOW SAVES ARE COMBINED. Several devices saving at once is normal in a class.
 The server merges every save into what it already holds, by the same rules
 every device uses: lists of records (trainees, exam results, attendance,
