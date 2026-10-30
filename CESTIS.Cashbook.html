@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<script src="cestis-config.js?v=284ebb2a"></script>
 <script src="cestis-core.js?v=a38ff14d"></script>
 <script src="cestis-form-modal.js?v=74020c38" defer></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -3324,8 +3325,8 @@ const EXTERNAL_LINKS = {
 // GOOGLE DRIVE CLOUD SYNC CONFIGURATION
 // ============================================================
 const GOOGLE_DRIVE_CONFIG = {
-    CLIENT_ID: '302497466088-0b619cqa9qno2c606k4rqp742lebc5o8.apps.googleusercontent.com',
-    FOLDER_ID: '1aL_QZiJ5rmxQUBhj261PzdbYXrI5doOO',
+    CLIENT_ID: CESTIS_CONFIG.googleClientId,
+    FOLDER_ID: CESTIS_CONFIG.folders.cashbook,
     BACKUP_FILE_NAME: 'CESTIS_CASHBOOK_DASHBOARD_BACKUP.json',
     SCOPES: 'https://www.googleapis.com/auth/drive'
 };
@@ -9435,7 +9436,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 <!-- Per-page Google Drive save path (own file in the shared backup folder) -->
-<script src="cestis-page-cloud.js?v=3c0e0e04"></script>
+<script src="cestis-page-cloud.js?v=6e14079c"></script>
 <script src="cestis-sync-chip.js?v=c00bf07d"></script>
 <script>
 CESTISPageCloud.init({

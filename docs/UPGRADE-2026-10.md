@@ -597,6 +597,34 @@ instructor and 6 trainees on phone settings, every connection's bytes read from 
 - **Certificate signing key:** keep the backup somewhere safe and off the website. Never commit
   it. `.gitignore` already refuses `*signing-key-PRIVATE*.json`.
 
+### Changing the Centre's account
+
+For a lost Google account, a new EmailJS account, or a Drive folder deleted for good. The
+records are not lost (every office PC holds them); sync, trainee sign-in from home and e-mail
+stop until the pages point at the new account. Everything the pages need is in **one file,
+`cestis-config.js`**:
+
+1. In the new Google account, make the folders: one for each line under `folders` in
+   `cestis-config.js` (the comment beside each says what it holds). A folder's id is the last
+   part of its address: `https://drive.google.com/drive/folders/<id>`.
+2. Open `cestis-config.js` on GitHub, press the pencil, paste each new id over the old one
+   (keep the quotes), and save.
+3. A new Google sign-in client (Google Cloud console → APIs & Services → Credentials → OAuth
+   client ID, a *Web application* whose JavaScript origin is the site's address) goes in
+   `googleClientId`. A new EmailJS account's public key, service id and template id go under
+   `emailjs`.
+4. Trainee sign-in from home: set the gate up again in the new account (`trainee-gate/SETUP.md`)
+   and give it the same sign-in client id: set its `GOOGLE_CLIENT_ID` script property, or change
+   `GATE_DEFAULT_CLIENT_ID` in `trainee-gate/Gate.gs` and run `npm run build:gate`. A new gate has
+   a new address, so trainees need the new link or QR code.
+5. Run `npm run build:offline` and `npm test` (`tests/centre-config.test.js` fails if any page
+   still names an old id, or if the gate's client id differs), commit and publish. Then sign in
+   on the office PC with the latest records and press Sync Now.
+
+The Qualification Plans page also lists one folder per
+qualification (in `Qual-Plan-Curriculum.html`): re-link those documents if they were in the old
+account.
+
 ---
 
 ## Known limits, stated plainly

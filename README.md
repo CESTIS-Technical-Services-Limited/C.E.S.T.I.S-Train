@@ -99,6 +99,7 @@ Changing `sw.js` at all makes every browser pick up the new worker on its next v
 
 | Path | What |
 |---|---|
+| `cestis-config.js` | **the Centre's own account ids** — Drive folders, the Google sign-in client, EmailJS. The one file to edit after a lost or changed account: see "Changing the Centre's account" in `docs/UPGRADE-2026-10.md` |
 | `megadata/schemas.js` | canonical serialization, ids, the event REGISTRY |
 | `megadata/broker-core.js` | broker validation core (also runs inside Apps Script) |
 | `megadata/projections.js` | folds: entities, ledgers, quarters, roster, adjudications |

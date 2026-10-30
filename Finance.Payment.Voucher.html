@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<script src="cestis-config.js?v=284ebb2a"></script>
 <script src="cestis-core.js?v=a38ff14d"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>C.E.S.T.I.S — Payment Vouchers</title>
@@ -164,9 +165,9 @@ function persistOverrides() {
    back so they are not stranded locally.
    ====================================================================== */
 var DRIVE = {
-  CASHBOOK_FOLDER_ID: '1aL_QZiJ5rmxQUBhj261PzdbYXrI5doOO',
+  CASHBOOK_FOLDER_ID: CESTIS_CONFIG.folders.cashbook,
   CASHBOOK_FILE: 'CESTIS_CASHBOOK_DASHBOARD_BACKUP.json',
-  VOUCHER_FOLDER_ID: '1G6ipD_pGVItBvlPx0LGbD6Prj6AXW303',
+  VOUCHER_FOLDER_ID: CESTIS_CONFIG.folders.vouchers,
   VOUCHER_FILE: 'CESTIS_Payment_Voucher_Overrides.json'
 };
 
@@ -654,7 +655,7 @@ window.PV = PV;
 </script>
 
 <!-- Per-page Google Drive save path (own file in the shared backup folder) -->
-<script src="cestis-page-cloud.js?v=3c0e0e04"></script>
+<script src="cestis-page-cloud.js?v=6e14079c"></script>
 <script src="cestis-sync-chip.js?v=c00bf07d"></script>
 <script>
 CESTISPageCloud.init({

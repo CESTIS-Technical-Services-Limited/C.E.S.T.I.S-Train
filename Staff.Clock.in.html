@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+<script src="cestis-config.js?v=284ebb2a"></script>
 <script src="cestis-core.js?v=a38ff14d"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CESTIS - Staff Time Tracking System</title>
@@ -1834,9 +1835,9 @@
 <script>window.emailjs||(document.write('<script src="https://unpkg.com/@emailjs/browser@4/dist/email.min.js">\x3C/script>'))</script>
     <script type="text/javascript">
         // EmailJS Configuration
-        window.EMAILJS_PUBLIC_KEY = 'z_6Ya8J_WGJjRIGuX';
-        window.EMAILJS_SERVICE_ID = 'service_v49btoq';
-        window.EMAILJS_TEMPLATE_ID = 'template_80h43gm';
+        window.EMAILJS_PUBLIC_KEY = CESTIS_CONFIG.emailjs.publicKey;
+        window.EMAILJS_SERVICE_ID = CESTIS_CONFIG.emailjs.serviceId;
+        window.EMAILJS_TEMPLATE_ID = CESTIS_CONFIG.emailjs.templateId;
 
         // Initialize EmailJS when loaded
         (function() {
@@ -2598,9 +2599,9 @@
         // Google Drive Configuration
         const GOOGLE_DRIVE_CONFIG = {
             // Google OAuth Client ID
-            CLIENT_ID: '302497466088-0b619cqa9qno2c606k4rqp742lebc5o8.apps.googleusercontent.com',
+            CLIENT_ID: CESTIS_CONFIG.googleClientId,
             // Your Google Drive folder ID from the shared link
-            FOLDER_ID: '11vWe_Nc40TtJ1Hi7PoE7EZ3JrpR-K0Vj',
+            FOLDER_ID: CESTIS_CONFIG.folders.shared,
             // File name for backup
             BACKUP_FILE_NAME: 'Staff_Clock_In_System.json',
             // API scopes needed - using 'drive' scope to allow access to shared files from any account
@@ -8524,7 +8525,7 @@
     </script>
 
 <!-- Per-page Google Drive save path (own file in the shared backup folder) -->
-<script src="cestis-page-cloud.js?v=3c0e0e04"></script>
+<script src="cestis-page-cloud.js?v=6e14079c"></script>
 <script src="cestis-sync-chip.js?v=c00bf07d"></script>
 <script>
 CESTISPageCloud.init({

@@ -2,11 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<script src="cestis-config.js?v=284ebb2a"></script>
 <script src="cestis-core.js?v=a38ff14d"></script>
 <script src="cestis-form-modal.js?v=74020c38" defer></script>
 <!-- Inert until a page registers: the CMC Board registers as a READ-ONLY reader
      so the operating pages' books reach its dashboards without anyone syncing. -->
-<script src="cestis-page-cloud.js?v=3c0e0e04"></script>
+<script src="cestis-page-cloud.js?v=6e14079c"></script>
 <script src="cestis-gate-client.js?v=e98c2d11" defer></script>
 <script src="staff-appraisals.js?v=017111e8"></script>
 <script src="cmc-portal.js?v=65318ed9"></script>
@@ -312,9 +313,9 @@
 })();
 </script>
 <script>
-  window.EMAILJS_PUBLIC_KEY = 'z_6Ya8J_WGJjRIGuX';
-  window.EMAILJS_SERVICE_ID = 'service_v49btoq';
-  window.EMAILJS_TEMPLATE_ID = 'template_80h43gm';
+  window.EMAILJS_PUBLIC_KEY = CESTIS_CONFIG.emailjs.publicKey;
+  window.EMAILJS_SERVICE_ID = CESTIS_CONFIG.emailjs.serviceId;
+  window.EMAILJS_TEMPLATE_ID = CESTIS_CONFIG.emailjs.templateId;
   // The Support form's e-mail template. Blank until the Centre creates one in
   // the EmailJS dashboard (a template that e-mails the Centre's own inbox with
   // {{from_name}}, {{from_email}}, {{phone}}, {{subject}}, {{message}}) and
@@ -6697,8 +6698,8 @@ html.gate-ns .tam-gate-only { display:flex; }
 // Configuration constants — declared first to avoid undefined errors
 // ============================================
 var GOOGLE_DRIVE_CONFIG = {
-  CLIENT_ID: '302497466088-0b619cqa9qno2c606k4rqp742lebc5o8.apps.googleusercontent.com',
-  FOLDER_ID: '1lNpI00Et1BN5c4eaV5WfQwuQVhCMBtv8',
+  CLIENT_ID: CESTIS_CONFIG.googleClientId,
+  FOLDER_ID: CESTIS_CONFIG.folders.mainBackup,
   BACKUP_FILE_NAME: 'CESTIS_LMS_BACKUP.json',
   SCOPES: 'https://www.googleapis.com/auth/drive'
 };
@@ -6712,14 +6713,14 @@ function cestisTraineeOnlyDevice() {
   try { if (localStorage.getItem('cestisGateAddress') || /(?:^#|[#&])gate=/.test(location.hash || '')) return true; } catch (e) {}
   return false;
 }
-var LMS_CHAT_DRIVE_FOLDER = '1ashmmL0ZS7mW6XrwoxMuamf7yjtVWHyO';
-var VC_RECORDINGS_FOLDER_ID = '1Yp9aLXGGjhojF1J04QxoNG-9yEgaiS-A';
-var ASSIGNMENTS_DRIVE_FOLDER_ID = '1SEjU_-8XOPM-C2q-Vo-EZUgBz3PMg5Ma';
+var LMS_CHAT_DRIVE_FOLDER = CESTIS_CONFIG.folders.lmsChat;
+var VC_RECORDINGS_FOLDER_ID = CESTIS_CONFIG.folders.classRecordings;
+var ASSIGNMENTS_DRIVE_FOLDER_ID = CESTIS_CONFIG.folders.assignments;
 var ASSIGNMENTS_BACKUP_FILE_NAME = 'CESTIS_ASSIGNMENTS.json';
-var DRIVE_RESOURCES_FOLDER_ID = '122aVdNWxJG9ShRWf9Xso0MdXGdQeDuyt';
-var PER_USER_DRIVE_FOLDER_ID = '1w23WEyGuRduVM9irEkgOjXaIStBy5i0J';
+var DRIVE_RESOURCES_FOLDER_ID = CESTIS_CONFIG.folders.resources;
+var PER_USER_DRIVE_FOLDER_ID = CESTIS_CONFIG.folders.perUser;
 var FEE_SYSTEM_DRIVE_CONFIG = {
-  FOLDER_ID: '11vWe_Nc40TtJ1Hi7PoE7EZ3JrpR-K0Vj',
+  FOLDER_ID: CESTIS_CONFIG.folders.shared,
   FILE_NAME: 'school_fee_management_system.json'
 };
 // Master snapshot: ONE self-describing JSON of the entire data store, kept in a
@@ -6727,14 +6728,14 @@ var FEE_SYSTEM_DRIVE_CONFIG = {
 // login to reconcile (merge & repair) and to detect data loss. See the
 // cestis-core master-snapshot helpers for the pure build/verify/reconcile logic.
 var MASTER_SNAPSHOT_CONFIG = {
-  FOLDER_ID: '1-BVqRHL3bh0UB30pvlXt0AWAsKWsueec',
+  FOLDER_ID: CESTIS_CONFIG.folders.masterSnapshot,
   FILE_NAME: 'cestis-master-snapshot.json'
 };
 var _masterSnapshotFileId = null;     // cached Drive file id for the master file
 var _lastMasterSnapshotHash = null;   // dirty-check so we don't re-upload identical data
 var ALL_DRIVE_FOLDERS = [
   { id: GOOGLE_DRIVE_CONFIG.FOLDER_ID, label: 'Main Backup' },
-  { id: '18ACBw0kRi0BssLEoZLWoeXNa1EiANeBu', label: 'Online Exams' },
+  { id: CESTIS_CONFIG.folders.onlineExams, label: 'Online Exams' },
   { id: LMS_CHAT_DRIVE_FOLDER, label: 'LMS Chat' },
   { id: VC_RECORDINGS_FOLDER_ID, label: 'Class Recording' },
   { id: ASSIGNMENTS_DRIVE_FOLDER_ID, label: 'Assignments' }
@@ -8403,7 +8404,7 @@ function ensureCertImagesLoaded() {
 }
 
 // ---- Google Drive storage for certificate template background images ----
-var CERT_TEMPLATE_DRIVE_FOLDER = '1iLju3l6nBG3oLdiOGuDqtRuwkZjDWsIQ'; // Certificate Templates folder
+var CERT_TEMPLATE_DRIVE_FOLDER = CESTIS_CONFIG.folders.certTemplates; // Certificate Templates folder
 
 function certImageSaveToDrive(course, page, base64Data) {
   if (!googleAccessToken) return Promise.resolve();
@@ -12841,7 +12842,7 @@ var tfaEmailMode = false;  // true when the verify modal is checking an EMAILED 
 // ---- Emailed one-time passcodes (main app: login 2FA option + password reset) ----
 // Client-side OTP (same trust model as the existing time-clock reset): the code
 // lives only in memory here, is single-use, expires, and is rate-limited. It is
-// delivered through the configured EmailJS service (service_v49btoq); if that
+// delivered through the configured EmailJS service (CESTIS_CONFIG.emailjs); if that
 // service isn't configured it falls back to a visible demo code.
 var _emailOtp = null; // { code, accountId, purpose, email, expiresAt, attempts }
 var EMAIL_OTP_TTL_MS = 10 * 60 * 1000;
@@ -57193,9 +57194,9 @@ function ttUnmount(){
         // Google Drive Configuration
         const ttc_GOOGLE_DRIVE_CONFIG = {
             // Google OAuth Client ID
-            CLIENT_ID: '302497466088-0b619cqa9qno2c606k4rqp742lebc5o8.apps.googleusercontent.com',
+            CLIENT_ID: CESTIS_CONFIG.googleClientId,
             // Your Google Drive folder ID from the shared link
-            FOLDER_ID: '11vWe_Nc40TtJ1Hi7PoE7EZ3JrpR-K0Vj',
+            FOLDER_ID: CESTIS_CONFIG.folders.shared,
             // File name for backup
             BACKUP_FILE_NAME: 'Staff_Clock_In_System.json',
             // API scopes needed - using 'drive' scope to allow access to shared files from any account

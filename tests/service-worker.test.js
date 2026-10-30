@@ -149,7 +149,7 @@ const planned = require('../tools/build-offline.js').plan();
 console.log('Nothing the sign-in screen does not use holds up its first paint');
 const tags = INDEX.slice(0, INDEX.indexOf('<body')).match(/<script\b[^>]*\bsrc="[^"]+"[^>]*>/g) || [];
 // Read by the page while it is being parsed, or wrapped as they load (PeerJS by cestis-offline-rtc.js).
-const MAY_BLOCK = /^(cestis-core|cestis-page-cloud|staff-appraisals|cmc-portal|cert-template-seed|cestis-offline-rtc)\.js|^vendor\/peerjs-/;
+const MAY_BLOCK = /^(cestis-config|cestis-core|cestis-page-cloud|staff-appraisals|cmc-portal|cert-template-seed|cestis-offline-rtc)\.js|^vendor\/peerjs-/;
 // (A CDN address here is PeerJS's document.write fallback, written only when the local copy is missing.)
 const blocking = tags.filter(t => !/\b(defer|async)\b/.test(t)).map(t => /src="([^"?]+)/.exec(t)[1])
   .filter(s => !MAY_BLOCK.test(s) && !/^https:\/\/(unpkg\.com|cdn\.jsdelivr\.net)\/(npm\/)?peerjs@/.test(s));
