@@ -88,7 +88,7 @@ shown to the owner in screenshots first, and merged only once approved or decide
 | **Duplicate "Disabled" accounts** | A cleared office PC no longer creates second and third accounts from the fee roll and chat roster. Provable leftovers fold into the real account, with a deletion record so they cannot come back; anything unsure stays for the administrator. | `tests/backfill-stub-fold.test.js` |
 | **"Set a new password"** | The cursor no longer jumps back from "Confirm password" (an intermittent "Passwords do not match" for a first administrator). | `tests/force-change-pw-focus.test.js` |
 | **A test that follows the trainee** | Answers are saved on the device and in the shared copy. Kicked out, crashed or disconnected, the trainee signs in and presses "Continue your attempt"; at another Centre PC too. The original clock stands, the newest answer per question wins, a submitted test cannot be reopened, and there is exactly one result per attempt. A trainee taking a test is not signed out part-way; a test whose time ran out is submitted at the next sign-in. | `tests/exam-attempt-travel.test.js`, `tests/browser/exam-resume.js` |
-| **Shared files' version tags** | Every page asks for the current shared code files. As of 30 October 2026: `cestis-core.js?v=20261030d`, `cmc-portal.js?v=20261030d`, `cestis-gate-client.js?v=20261030d`, `cestis-page-cloud.js?v=20261030d`, `cestis-form-modal.js?v=20261028d`. | — |
+| **Shared files' version tags** | Every page asks for the current shared code files. The tags are now made from each file's content by `npm run stamp` (which `npm run build:offline` runs); nothing is bumped by hand. See *Keeping it healthy*. | `tools/stamp-versions.js`, `tests/version-tags.test.js` |
 
 **Decisions the owner made in this round:**
 - Trainees register at the Centre (or the office creates their account). A trainee's own phone
@@ -569,11 +569,13 @@ instructor and 6 trainees on phone settings, every connection's bytes read from 
 
 - **Before every change is published, run:**
   ```
-  npm test                     # every Node suite
+  npm run build:offline        # stamp the ?v= tags, regenerate the Offline System (a test fails if you forget)
+  npm test                     # every Node suite; ends with a summary and names every suite that failed
   npm run test:syntax          # every JS file parses
-  npm run build:offline        # regenerate the Offline System (a test fails if you forget)
   NODE_PATH=/opt/node-tools/node_modules npm run test:browser   # and the other test:browser:* suites
   ```
+  The same checks (and three quick browser suites) run on GitHub for every pull request and every
+  change to `main` (`.github/workflows/checks.yml`): a red cross there means do not publish.
 - **The browser suites** (`npm run test:browser`, `:flows`, `:upgrade`, `:offline`, `:auth`,
   `:cert`, `:vc`, `:ui`, `:security`, `:transcripts`, `:fee`, `:exams`, `:email`, `:uib`,
   `:combined`, `:resume`) need Playwright's Chromium. Set `NODE_PATH` to wherever
@@ -584,10 +586,12 @@ instructor and 6 trainees on phone settings, every connection's bytes read from 
 - **Never hand-edit a generated file in `Offline System/`.** Change the root file and regenerate.
   Only the server, signalling, store, certificate, launcher and README files there are
   maintained by hand.
-- **When a shared library changes** (`cestis-core.js`, `cestis-page-cloud.js`,
-  `cestis-offline-rtc.js`, `finance-docs.js`, `staff-appraisals.js`, `cmc-portal.js`), bump its
-  `?v=` on every page so browsers fetch the new copy (the current tags are listed in the owner's
-  review round table above). The service worker always tries the network first.
+- **Version tags are automatic.** Each page asks for a shared file as `cestis-core.js?v=3f9a2c1d`:
+  the tag is made from the file's own content, so a changed file gets a new tag on every page and
+  browsers fetch the new copy. After changing any shared file, run `npm run stamp`
+  (`npm run build:offline` runs it), and commit. Nothing is bumped by hand any more;
+  `tests/version-tags.test.js` fails if a tag does not match its file. The service worker always
+  tries the network first.
 - **New pure logic belongs in `cestis-core.js`** with a Node test, called from the pages. This is
   the pattern the whole upgrade follows.
 - **Certificate signing key:** keep the backup somewhere safe and off the website. Never commit

@@ -24,9 +24,12 @@
 
    USE
    ---
-     node tools/build-offline.js            rewrite "Offline System/" in place
+     node tools/build-offline.js            stamp every page's ?v= tags from its
+                                            files (tools/stamp-versions.js), then
+                                            rewrite "Offline System/" in place
      node tools/build-offline.js --check    change nothing; exit 1 and list the
-                                            differences if it is out of date
+                                            differences if it is out of date, or
+                                            if a ?v= tag does not match its file
      node tools/build-offline.js --out DIR  write a complete offline folder to DIR
 
    tests/offline-build.test.js runs --check as part of `npm test`, so a change
@@ -223,22 +226,30 @@ module.exports = { plan, diff, write, buildTo, check, EXCLUDE, OFFLINE_OWNED, LO
 
 if (require.main === module) {
   const args = process.argv.slice(2);
+  const stamp = require('./stamp-versions.js');
   try {
     if (args[0] === '--check') {
       const problems = check();
+      const tags = stamp.stampAll({ write: false });
+      tags.changed.forEach(c => problems.push('tag:      ' + c.page + ': ' + c.file + '?v=' + c.from + ' (its file says ' + c.to + ')'));
+      tags.untagged.forEach(u => problems.push('no tag:   ' + u.page + ': ' + u.file));
       if (problems.length) {
-        console.error('"Offline System/" is out of date with the main build (' + problems.length + ' file(s)):');
+        console.error('"Offline System/" or a version tag is out of date with the main build (' + problems.length + ' item(s)):');
         problems.slice(0, 40).forEach(p => console.error('  ' + p));
         if (problems.length > 40) console.error('  ... and ' + (problems.length - 40) + ' more');
         console.error('\nRun:  node tools/build-offline.js   (or npm run build:offline) and commit the result.');
         process.exit(1);
       }
-      console.log('"Offline System/" matches the main build.');
+      console.log('"Offline System/" matches the main build, and every ?v= tag matches its file (' + tags.tags + ' tags).');
     } else if (args[0] === '--out') {
       if (!args[1]) throw new Error('--out needs a folder');
       const planned = buildTo(path.resolve(args[1]));
       console.log('Wrote a complete offline folder (' + planned.size + ' shared files) to ' + path.resolve(args[1]));
     } else {
+      // The pages' ?v= tags first, so the offline copies carry the right ones.
+      const tags = stamp.stampAll({ write: true });
+      const changedFiles = Array.from(new Set(tags.changed.map(c => c.file)));
+      console.log('Version tags: ' + tags.changed.length + ' changed' + (changedFiles.length ? ' (' + changedFiles.join(', ') + ')' : '') + '.');
       const r = write(plan(), path.join(ROOT, OFFLINE_DIR_NAME), msg => console.log(msg));
       console.log('"Offline System/" regenerated: ' + r.wrote + ' file(s) written, ' + r.removed + ' removed.');
     }
