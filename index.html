@@ -6068,7 +6068,7 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
 <!-- CLASS SESSION MODAL -->
 <div class="modal-overlay" id="createClassSessionModal">
   <div class="modal">
-    <div class="modal-header"><h3>Create New Class Session</h3><button class="modal-close" onclick="closeModal('createClassSessionModal')">✕</button></div>
+    <div class="modal-header"><h3 id="csModalTitle">Create New Class Session</h3><button class="modal-close" aria-label="Close" onclick="closeModal('createClassSessionModal')">✕</button></div>
     <div class="form-group"><label>Session Name</label><input type="text" class="form-control" id="csSessionName" placeholder="e.g. Welding Theory — Session 5"></div>
     <div class="form-group"><label>Programme / Course</label><select class="form-control" id="csCourse"></select></div>
     <div class="grid-2col" style="gap:12px;">
@@ -6080,9 +6080,12 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
       <div class="form-group"><label>Type</label><select class="form-control" id="csType"><option value="theory">Theory</option><option value="practical">Practical Lab</option><option value="workshop">Workshop Review</option><option value="virtual">Virtual Class</option></select></div>
     </div>
     <div class="form-group"><label>Location / Room</label><input type="text" class="form-control" id="csLocation" placeholder="e.g. Virtual-01, Workshop Bay 3"></div>
+    <div class="form-group" id="csRepeatGroup"><label class="ess-check" style="display:inline-flex;align-items:center;gap:8px;font-weight:600;"><input type="checkbox" id="csRepeat" onchange="var u=document.getElementById('csRepeatUntil');u.disabled=!this.checked;if(this.checked&&!u.value){u.focus();}"> Repeat weekly until</label>
+      <input type="date" class="form-control" id="csRepeatUntil" aria-label="Repeat weekly until" disabled style="margin-top:6px;">
+      <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">One class on the same day and time every week, up to and including this date (at most 52). Each can be changed or deleted on its own afterwards.</div></div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
       <button class="btn btn-secondary" onclick="closeModal('createClassSessionModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="createClassSession()">Create Session</button>
+      <button class="btn btn-primary" id="csSaveBtn" onclick="createClassSession()">Create Session</button>
     </div>
   </div>
 </div>
@@ -20487,6 +20490,31 @@ function createClassSession() {
   if(!date) { showToast('Please select a date'); return; }
   if(!time) { showToast('Please select a start time'); return; }
 
+  // Edit: the class keeps its id, room code, status and history; only what
+  // the form shows changes.
+  if(editingClassSessionId) {
+    const cs = classSessions.find(x => x && x.id === editingClassSessionId);
+    if(!cs) { showToast('That class is no longer on this device.', 'warning'); classSessionEditorReset(); closeModal('createClassSessionModal'); return; }
+    const moved = cs.date !== date || cs.time !== time;
+    Object.assign(cs, { name: name, course: course, date: date, time: time, duration: duration, type: type, location: location,
+      updatedAt: CESTISCore.sync && CESTISCore.sync.laterStamp ? CESTISCore.sync.laterStamp(new Date().toISOString(), cs.updatedAt) : new Date().toISOString(),
+      editedBy: currentRole === 'instructor' ? currentInstructor?.name : (currentLoggedInUser && currentLoggedInUser.name) || 'Admin' });
+    saveState();
+    closeModal('createClassSessionModal');
+    showToast('Class "' + name + '" updated');
+    if(moved) addNotification('Class moved: "' + name + '" is now on ' + date + ' at ' + time, 'calendar', null, ['admin','instructor','student'], null, course ? { forCourse: course } : null);
+    if(currentRole === 'instructor') renderInstructorClassSessions();
+    if(currentRole === 'admin') renderAdminClassSessions();
+    refreshContentDependentViews();
+    return;
+  }
+  // "Repeat weekly until": one class a week on the same day and time.
+  const repeatOn = !!document.getElementById('csRepeat')?.checked;
+  const until = document.getElementById('csRepeatUntil')?.value || '';
+  if(repeatOn && (!until || until <= date)) { showToast('Choose the last date to repeat until (after ' + date + '), or untick "Repeat weekly".', 'warning'); return; }
+  const dates = repeatOn ? CESTISCore.classSchedule.weeklyDates(date, until) : [date];
+  const seriesId = dates.length > 1 ? cestisGenId('CSS-') : null;
+
   const session = {
     id: cestisGenId('CS-'),
     name: name,
@@ -20502,13 +20530,26 @@ function createClassSession() {
     createdAt: new Date().toISOString()
   };
 
-  classSessions.push(session);
+  dates.forEach(function(d, i) {
+    // Each class of a series is its own record with its own room code.
+    const one = i === 0 ? session : Object.assign({}, session, { id: cestisGenId('CS-'), roomCode: generateRoomCode() });
+    one.date = d;
+    if(seriesId) { one.seriesId = seriesId; one.seriesIndex = i + 1; one.seriesCount = dates.length; }
+    classSessions.push(one);
+  });
   saveState();
   closeModal('createClassSessionModal');
+  if(dates.length > 1) {
+    showToast(dates.length + ' weekly classes "' + name + '" created, ' + dates[0] + ' to ' + dates[dates.length - 1]);
+    addNotification('New weekly classes: "' + name + '" — ' + dates.length + ' classes, ' + dates[0] + ' to ' + dates[dates.length - 1] + ' at ' + time, 'calendar', null, ['admin','instructor','student'], null, course ? { forCourse: course } : null);
+  } else {
   showToast('Class session "' + name + '" created successfully');
   // Notify students too — they have a class-sessions view and should hear about
   // a new scheduled session for their course.
   addNotification('New class session: "' + name + '"', 'calendar', null, ['admin','instructor','student'], null, course ? { forCourse: course } : null);
+  }
+  const rp = document.getElementById('csRepeat'); if(rp) rp.checked = false;
+  const ru = document.getElementById('csRepeatUntil'); if(ru) { ru.value = ''; ru.disabled = true; }
 
   // Reset form fields
   document.getElementById('csSessionName').value = '';
@@ -20523,6 +20564,15 @@ function createClassSession() {
   refreshContentDependentViews();
 }
 
+/* The instructor's classes, as two lists (audit IN-14): Upcoming — live
+   first, then soonest — and Past, most recent first (CESTISCore.
+   classSchedule). Each class shows its state (Live, Scheduled, Completed,
+   Recorded, Past) and has Edit and Delete; a weekly series says "week 3 of
+   8". The list used to be every class ever made, oldest first: after a term
+   the next class was card 121 of 125. */
+var iClassListTab = 'upcoming', iClassPastShown = 20;
+function iClassSetTab(tab) { iClassListTab = tab === 'past' ? 'past' : 'upcoming'; iClassPastShown = 20; renderInstructorClassSessions(); }
+function iClassShowMorePast() { iClassPastShown += 40; renderInstructorClassSessions(); }
 function renderInstructorClassSessions() {
   const container = document.getElementById('iClassSessionsList');
   if(!container) return;
@@ -20535,21 +20585,60 @@ function renderInstructorClassSessions() {
     container.innerHTML = '<p style="color:var(--text-muted);padding:16px;">No custom class sessions created yet. Click "+ New Class Session" to get started.</p>';
     return;
   }
-
-  container.innerHTML = mySessions.map(s => {
+  const today = localDateStr();
+  const parts = CESTISCore.classSchedule.split(mySessions, today);
+  const tab = (typeof iClassListTab !== 'undefined' && iClassListTab === 'past') ? 'past' : 'upcoming';
+  const list = tab === 'past' ? parts.past.slice(0, typeof iClassPastShown === 'number' ? iClassPastShown : 20) : parts.upcoming;
+  const tabs = '<div class="tabs" role="tablist" style="margin-bottom:12px;">' +
+    '<div class="tab' + (tab === 'upcoming' ? ' active' : '') + '" role="tab" tabindex="0" aria-selected="' + (tab === 'upcoming') + '" id="iClassTabUpcoming" onclick="iClassSetTab(\'upcoming\')" onkeydown="if(event.key===\'Enter\')iClassSetTab(\'upcoming\')">Upcoming (' + parts.upcoming.length + ')</div>' +
+    '<div class="tab' + (tab === 'past' ? ' active' : '') + '" role="tab" tabindex="0" aria-selected="' + (tab === 'past') + '" id="iClassTabPast" onclick="iClassSetTab(\'past\')" onkeydown="if(event.key===\'Enter\')iClassSetTab(\'past\')">Past (' + parts.past.length + ')</div></div>';
+  const dayName = d => { try { return new Date(d + 'T12:00:00').toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' }); } catch (e) { return d; } };
+  const cards = list.map(s => {
     const timeStr = s.time ? new Date('2000-01-01T'+s.time).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}) : s.time;
-    const timeParts = timeStr.split(' ');
-    return '<div class="class-schedule-card">' +
+    const timeParts = String(timeStr || '').split(' ');
+    const st = CESTISCore.classSchedule.statusOf(s, today);
+    const badge = st === 'past' ? '<span class="badge" style="background:var(--w-04);color:var(--text-muted);">Past</span>' :
+      st === 'cancelled' ? '<span class="badge badge-red">Cancelled</span>' : vcSessionStatusBadge(s);
+    const series = s.seriesId && s.seriesCount > 1 ? ' &bull; weekly, ' + escapeHtml(s.seriesIndex) + ' of ' + escapeHtml(s.seriesCount) : '';
+    return '<div class="class-schedule-card" data-class-status="' + escapeAttr(st) + '">' +
       '<div class="class-time-block" style="background:'+((typeColors[s.type]||'var(--blue)')+'22')+';">' +
         '<div class="time" style="font-size:13px;">'+escapeHtml(timeParts[0]||s.time)+'</div><div class="period">'+escapeHtml(timeParts[1]||'')+'</div></div>' +
-      '<div style="flex:1;"><div style="font-size:14px;font-weight:600;">' + escapeHtml(s.name) + '</div>' +
-        '<div style="font-size:12px;color:var(--text-muted);">' + escapeHtml(s.date) + ' &bull; ' + escapeHtml(s.duration) + 'min &bull; ' + escapeHtml(s.location) + '</div></div>' +
-      '<span class="badge badge-blue">' + escapeHtml(typeLabels[s.type]||s.type) + '</span>' +
-      '<button class="btn btn-sm btn-primary" onclick="enterVideoRoom(' + jsArg(s.name) + ',\'instructor\',' + jsArg(s.roomCode||'') + ')" style="margin-right:6px;">Join</button>' +
-      (s.roomCode ? '<span style="font-family:monospace;font-size:11px;color:var(--accent);margin-right:6px;" title="Room code for this session">'+escapeHtml(s.roomCode)+'</span>' : '') +
+      '<div style="flex:1;min-width:180px;"><div style="font-size:14px;font-weight:600;">' + escapeHtml(s.name) + '</div>' +
+        '<div style="font-size:12px;color:var(--text-muted);">' + escapeHtml(dayName(s.date)) + ' &bull; ' + escapeHtml(s.duration) + ' min &bull; ' + escapeHtml(s.location) + series + '</div></div>' +
+      badge + ' <span class="badge badge-blue">' + escapeHtml(typeLabels[s.type]||s.type) + '</span>' +
+      (st === 'live' || st === 'scheduled' ? '<button class="btn btn-sm btn-primary" onclick="enterVideoRoom(' + jsArg(s.name) + ',\'instructor\',' + jsArg(s.roomCode||'') + ')" style="margin-right:6px;">Join</button>' : '') +
+      (s.roomCode && st !== 'past' && st !== 'completed' ? '<span style="font-family:monospace;font-size:12px;color:var(--accent);margin-right:6px;" title="Room code for this session">'+escapeHtml(s.roomCode)+'</span>' : '') +
+      (st !== 'live' ? '<button class="btn btn-sm btn-secondary" onclick="openClassSessionEditor('+jsArg(s.id)+')" style="margin-right:6px;">Edit</button>' : '') +
       '<button class="btn btn-sm btn-danger" onclick="deleteClassSession('+jsArg(s.id)+')">Delete</button>' +
     '</div>';
   }).join('');
+  const empty = '<p style="color:var(--text-muted);padding:16px;">' + (tab === 'past' ? 'No past classes yet.' : 'No classes coming up. Click "+ New Class Session" to schedule one.') + '</p>';
+  const more = tab === 'past' && parts.past.length > list.length ? '<div style="text-align:center;margin-top:8px;"><button class="btn btn-sm btn-secondary" onclick="iClassShowMorePast()">Show older classes (' + (parts.past.length - list.length) + ' more)</button></div>' : '';
+  container.innerHTML = tabs + (cards || empty) + more;
+}
+// Edit a class: the class form, filled with it.
+var editingClassSessionId = null;
+function openClassSessionEditor(id) {
+  const cs = classSessions.find(x => x && x.id === id);
+  if(!cs) return;
+  try { populateCourseDropdowns(); } catch (e) {}
+  editingClassSessionId = cs.id;
+  const set = (k, v) => { const el = document.getElementById(k); if(el) el.value = v == null ? '' : v; };
+  set('csSessionName', cs.name); set('csCourse', cs.course); set('csDate', cs.date); set('csTime', cs.time);
+  set('csDuration', cs.duration || 90); set('csType', cs.type || 'theory'); set('csLocation', cs.location || '');
+  const t = document.getElementById('csModalTitle'); if(t) t.textContent = 'Edit Class Session';
+  const b = document.getElementById('csSaveBtn'); if(b) b.textContent = 'Save changes';
+  const rg = document.getElementById('csRepeatGroup'); if(rg) rg.style.display = 'none';
+  openModal('createClassSessionModal');
+}
+function classSessionEditorReset() {
+  if(!editingClassSessionId) return;
+  editingClassSessionId = null;
+  ['csSessionName', 'csDate', 'csTime', 'csLocation'].forEach(k => { const el = document.getElementById(k); if(el) el.value = ''; });
+  const d = document.getElementById('csDuration'); if(d) d.value = '90';
+  const t = document.getElementById('csModalTitle'); if(t) t.textContent = 'Create New Class Session';
+  const b = document.getElementById('csSaveBtn'); if(b) b.textContent = 'Create Session';
+  const rg = document.getElementById('csRepeatGroup'); if(rg) rg.style.display = '';
 }
 
 function renderInstructorRecordings() {
@@ -33343,7 +33432,7 @@ function deleteCalendarEvent(idx) {
 // The exam builder starts clean for "+ Create Exam" and forgets its target
 // when closed by any route (✕, Cancel, Publish) — see examBuilderOpening.
 function openModal(id) { if(id === 'createExamModal' && typeof examBuilderOpening === 'function') examBuilderOpening(); document.getElementById(id).classList.add('active'); }
-function closeModal(id) { if(id === 'createExamModal' && typeof examBuilderClosed === 'function') examBuilderClosed(); document.getElementById(id).classList.remove('active'); }
+function closeModal(id) { if(id === 'createExamModal' && typeof examBuilderClosed === 'function') examBuilderClosed(); if(id === 'createClassSessionModal' && typeof classSessionEditorReset === 'function') classSessionEditorReset(); document.getElementById(id).classList.remove('active'); }
 /* A toast stays for as long as CESTISCore.ui.toastPolicy() says \u2014 errors far
    longer than the 3s every toast used to get, which was often gone before it
    was read \u2014 and the clock stops while the pointer or keyboard focus is on

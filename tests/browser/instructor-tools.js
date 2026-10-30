@@ -495,6 +495,52 @@ const NOT_HANDED_IN = ['Leon Stewart', 'Kerry-Ann Palmer', 'Marlon Wright', 'Sas
     await shot(I, 'b3-instructor-import-exam');
   });
 
+  /* ----------------------------------------------------------- classes */
+  await section('classes', 'The class list: Upcoming and Past, a status on each, Edit, repeat weekly', async () => {
+    await go(I, 'i-classes');
+    await until(() => I.evaluate(() => !!document.getElementById('iClassSessionsList')), 10000);
+    await I.evaluate(() => { iClassSetTab('upcoming'); });
+    const up = await I.evaluate(() => ({ tabs: document.getElementById('iClassTabUpcoming').innerText + ' | ' + document.getElementById('iClassTabPast').innerText,
+      first: (document.querySelector('#iClassSessionsList .class-schedule-card') || {}).innerText || '', cards: document.querySelectorAll('#iClassSessionsList .class-schedule-card').length }));
+    ok(/Upcoming \(3\)/.test(up.tabs) && /Past \(30\)/.test(up.tabs), 'the list opens on Upcoming (3), with Past (30) a tab away (' + up.tabs + ')');
+    ok(/Session 31/.test(up.first) && /Scheduled/.test(up.first) && up.cards === 3, 'the next class is the first card, and says Scheduled');
+    await shot(I, 'b5-class-list-upcoming', { focus: '#iClassSessionsList' });
+    await I.click('#iClassTabPast');
+    const past = await I.evaluate(() => ({ first: (document.querySelector('#iClassSessionsList .class-schedule-card') || {}).innerText || '', n: document.querySelectorAll('#iClassSessionsList .class-schedule-card').length }));
+    ok(/Session 30/.test(past.first) && /Completed/.test(past.first) && past.n === 20, 'Past: the most recent first, Completed, 20 at a time (' + past.first.replace(/\s+/g, ' ').slice(0, 60) + ')');
+    await shot(I, 'b5-class-list-past', { focus: '#iClassSessionsList' });
+    // Five weekly classes in one form.
+    const days = await I.evaluate(() => { const A = CESTISCore.attendance, t = localDateStr(); let d = A.addDays(t, 1); while (A.weekday(d) !== 1) d = A.addDays(d, 1); return { start: d, until: A.addDays(d, 28) }; });
+    await I.click('#iVideoContent button:has-text("+ New Class Session")');
+    await I.fill('#csSessionName', 'Welding Theory — weekly');
+    await I.selectOption('#csCourse', W);
+    await I.fill('#csDate', days.start);
+    await I.fill('#csTime', '09:00');
+    await I.fill('#csDuration', '90');
+    await I.selectOption('#csType', 'virtual');
+    await I.check('#csRepeat');
+    await I.fill('#csRepeatUntil', days.until);
+    await shot(I, 'b5-new-class-repeat-weekly');
+    await I.click('#createClassSessionModal button:has-text("Create Session")');
+    await I.waitForTimeout(500);
+    const made = await I.evaluate(() => classSessions.filter(s => s.name === 'Welding Theory — weekly').map(s => s.date));
+    ok(made.length === 5, 'one form makes five weekly classes (' + made.join(', ') + ')');
+    await I.click('#iClassTabUpcoming');
+    const series = await I.evaluate(() => Array.from(document.querySelectorAll('#iClassSessionsList .class-schedule-card')).filter(c => /weekly, \d of 5/.test(c.innerText)).length);
+    ok(series === 5, 'each says which of the five it is');
+    // Edit one.
+    const card = I.locator('#iClassSessionsList .class-schedule-card', { hasText: 'weekly, 2 of 5' });
+    await card.locator('button:has-text("Edit")').click();
+    await I.waitForTimeout(300);
+    ok((await I.inputValue('#csSessionName')) === 'Welding Theory — weekly' && (await txt(I, '#csSaveBtn')) === 'Save changes', 'Edit opens the class in the form');
+    await I.fill('#csTime', '10:30');
+    await I.fill('#csLocation', 'Workshop Bay 3');
+    await I.click('#csSaveBtn');
+    await I.waitForTimeout(400);
+    const edited = await I.evaluate(() => classSessions.filter(s => s.name === 'Welding Theory — weekly').map(s => s.seriesIndex + ':' + s.time + ':' + s.location).join(','));
+    ok(/2:10:30:Workshop Bay 3/.test(edited) && (edited.match(/:09:00:/g) || []).length === 4, 'only that class changed (' + edited + ')');
+  });
+
   /* ----------------------------------------------------------- notices */
   await section('notices', 'A Welding assignment reaches Welding trainees, not Plumbing', async () => {
     await go(I, 'i-gradebook');

@@ -14389,6 +14389,54 @@
       LOW_ATTENDANCE: LOW_ATTENDANCE, RUN_ALERT: RUN_ALERT, RECENT_DAYS: RECENT_DAYS, PASS_DEFAULT: PASS_DEFAULT };
   })();
 
+  // ===================== THE CLASS LIST: upcoming and past, repeating weekly =====================
+  // After a term an instructor's class list was 125 cards in the order they
+  // were made, the next class at number 121, with no status, no Edit and no
+  // way to set a class every week (audit IN-14).
+  Core.classSchedule = (function () {
+    var A = function () { return Core.attendance; };
+    var MAX_REPEAT = 52;
+    /* Every week from `start` (that day of the week) up to and including
+       `until`; at most 52. A blank or earlier `until` is the one class. */
+    function weeklyDates(start, until, max) {
+      var a = A();
+      if (!a.isDate(start)) return [];
+      var out = [start], cap = Math.max(1, Math.min(max || MAX_REPEAT, MAX_REPEAT));
+      if (!a.isDate(until) || until <= start) return out;
+      var d = start;
+      while (out.length < cap) { d = a.addDays(d, 7); if (d > until) break; out.push(d); }
+      return out;
+    }
+    function when(s) { return String(s && s.date || '') + ' ' + String(s && s.time || ''); }
+    /* A class's state: 'live', 'completed', 'scheduled' (still to come, or
+       today and not yet over), or 'past' (its day has gone and it was never
+       run as a live class — a workshop session, say). */
+    function statusOf(s, today) {
+      if (!s) return 'scheduled';
+      if (s.status === 'live') return 'live';
+      if (s.status === 'completed') return 'completed';
+      if (s.status === 'cancelled') return 'cancelled';
+      return s.date && today && s.date < today ? 'past' : 'scheduled';
+    }
+    /* Upcoming (live first, then soonest) and Past (most recent first). */
+    function split(sessions, today) {
+      var up = [], past = [];
+      (sessions || []).forEach(function (s) {
+        if (!s) return;
+        var st = statusOf(s, today);
+        if (st === 'live' || st === 'scheduled') up.push(s); else past.push(s);
+      });
+      up.sort(function (a, b) {
+        var la = statusOf(a, today) === 'live' ? 0 : 1, lb = statusOf(b, today) === 'live' ? 0 : 1;
+        if (la !== lb) return la - lb;
+        return when(a) < when(b) ? -1 : when(a) > when(b) ? 1 : 0;
+      });
+      past.sort(function (a, b) { return when(a) < when(b) ? 1 : when(a) > when(b) ? -1 : 0; });
+      return { upcoming: up, past: past };
+    }
+    return { weeklyDates: weeklyDates, statusOf: statusOf, split: split, MAX_REPEAT: MAX_REPEAT };
+  })();
+
   // ===================== A TRAINEE'S CONTACT DETAILS FROM THEIR ACCOUNT =====================
   // The email and telephone typed when a trainee account is made (by the
   // office, or by the trainee registering from home) stayed on the account:
