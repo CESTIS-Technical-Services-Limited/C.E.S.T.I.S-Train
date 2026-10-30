@@ -1932,6 +1932,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 .alert-item.alert-link:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
 .alert-item.alert-link .alert-time { color:var(--accent); }
 .attn-table td { vertical-align:top; }
+.attn-table a.attn-tel { color:var(--accent); text-decoration:underline; }
 .attn-table th.num, .attn-table td.num { text-align:right; }
 .alert-item.alert-info { border-left-color:var(--blue); }
 .alert-item.alert-warning { border-left-color:var(--accent); }
@@ -16542,7 +16543,7 @@ function ensureAttentionPage(pageId) {
     '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
     (pageId === 'i-needs-attention' ? '' : '<select class="form-control" style="width:220px;" id="attnCourse-' + pageId + '" aria-label="Programme" onchange="renderNeedsAttention(' + jsArg(pageId) + ')"><option value="all">All programmes</option></select>') +
     '<input type="text" class="form-control" style="width:200px;" id="attnSearch-' + pageId + '" placeholder="Search a name..." aria-label="Search a name" oninput="renderNeedsAttention(' + jsArg(pageId) + ')"></div></div>' +
-    '<div class="table-wrapper"><table class="attn-table"><thead id="attnHead-' + pageId + '"></thead><tbody id="attnBody-' + pageId + '"></tbody></table></div></div>';
+    '<div class="table-wrapper"><table class="attn-table tbl-phone"><thead id="attnHead-' + pageId + '"></thead><tbody id="attnBody-' + pageId + '"></tbody></table></div></div>';
   if (pageId !== 'i-needs-attention') sec.insertAdjacentHTML('afterbegin', '<div id="attnOffice-' + pageId + '"></div>');
   mc.appendChild(sec);
 }
@@ -16573,30 +16574,33 @@ function renderNeedsAttention(pageId) {
   var rule = document.getElementById('attnRule-' + pageId);
   if (rule) rule.textContent = rows.length + ' trainee' + (rows.length !== 1 ? 's' : '') + (office ? '' : ' of your programme') + ', most urgent first. Listed for attendance below ' + AT.LOW_ATTENDANCE + '%, ' + AT.RUN_ALERT +
     ' or more absences in a row, a mark below the pass mark in the last ' + (AT.RECENT_DAYS / 7) + ' weeks, or work past its due date not handed in. Applicants and intakes that have ended are not listed.';
-  head.innerHTML = '<tr><th>Trainee</th><th>Last attended</th><th class="num">Absent in a row</th><th class="num">Attendance</th><th>Recent marks below the pass mark</th><th>Work not handed in</th>' +
-    (office ? '<th class="num">Owes</th>' : '') + '<th>Phone</th><th><span class="exam-sr-only">Actions</span></th></tr>';
+  // Five columns, so what the office and the instructor act on (the phone,
+  // what is owed, Message) is on screen without scrolling: who, their
+  // attendance, their marks, their missing work, and (office) what they owe.
+  head.innerHTML = '<tr><th>Trainee</th><th>Attendance</th><th title="Marked results below the pass mark in the last ' + (AT.RECENT_DAYS / 7) + ' weeks">Weak marks (' + (AT.RECENT_DAYS / 7) + ' wks)</th><th>Not handed in</th>' +
+    (office ? '<th class="num">Owes</th>' : '') + '<th><span class="exam-sr-only">Actions</span></th></tr>';
   if (!rows.length) {
-    body.innerHTML = '<tr><td colspan="' + (office ? 9 : 8) + '" style="text-align:center;color:var(--text-muted);padding:24px;">Nobody needs attention right now.</td></tr>';
+    body.innerHTML = '<tr><td colspan="' + (office ? 6 : 5) + '" style="text-align:center;color:var(--text-muted);padding:24px;">Nobody needs attention right now.</td></tr>';
     return;
   }
   body.innerHTML = rows.map(function(r) {
-    var since = r.lastAttended ? attentionShortDate(r.lastAttended) + (r.daysSinceAttended != null ? '<div style="font-size:11px;color:var(--text-muted);">' + r.daysSinceAttended + ' day' + (r.daysSinceAttended !== 1 ? 's' : '') + ' ago</div>' : '') : '<span style="color:var(--text-muted);">' + (r.held ? 'Not since the register began' : 'No register yet') + '</span>';
-    var runCls = r.absentRun >= AT.RUN_ALERT ? 'badge badge-red' : '';
-    var pctCls = r.pct == null ? '' : r.pct < AT.LOW_ATTENDANCE ? 'color:var(--red);font-weight:700;' : '';
+    var pctStyle = r.pct != null && r.pct < AT.LOW_ATTENDANCE ? 'color:var(--red);' : '';
+    var run = r.absentRun ? '<div><span class="badge ' + (r.absentRun >= AT.RUN_ALERT ? 'badge-red' : 'badge-amber') + '" style="white-space:nowrap;">' + r.absentRun + ' absent in a row</span></div>' : '';
+    var last = r.lastAttended ? 'Last here ' + escapeHtml(attentionShortDate(r.lastAttended)) + (r.daysSinceAttended != null ? ' (' + r.daysSinceAttended + ' day' + (r.daysSinceAttended !== 1 ? 's' : '') + ' ago)' : '')
+      : (r.held ? 'Not here since the register began' : 'No register yet');
+    var att = '<div><strong style="font-size:15px;' + pctStyle + '">' + (r.pct == null ? '—' : r.pct + '%') + '</strong>' + run + '</div><div style="font-size:12px;color:var(--text-muted);">' + last + '</div>';
     var marks = r.belowPass.slice(0, 3).map(function(b){ return '<div style="font-size:12px;">' + escapeHtml(b.title) + ': <strong style="color:var(--red);">' + b.pct + '%</strong> <span style="color:var(--text-muted);">(pass ' + b.passMark + '%)</span></div>'; }).join('') +
-      (r.belowPass.length > 3 ? '<div style="font-size:11px;color:var(--text-muted);">and ' + (r.belowPass.length - 3) + ' more</div>' : '') || '<span style="color:var(--text-muted);">—</span>';
+      (r.belowPass.length > 3 ? '<div style="font-size:12px;color:var(--text-muted);">and ' + (r.belowPass.length - 3) + ' more</div>' : '') || '<span style="color:var(--text-muted);">—</span>';
     var miss = r.missing.slice(0, 3).map(function(m){ return '<div style="font-size:12px;">' + escapeHtml(m.title) + ' <span style="color:var(--text-muted);">(due ' + escapeHtml(attentionShortDate(m.dueDate)) + ')</span></div>'; }).join('') +
-      (r.missing.length > 3 ? '<div style="font-size:11px;color:var(--text-muted);">and ' + (r.missing.length - 3) + ' more</div>' : '') || '<span style="color:var(--text-muted);">—</span>';
+      (r.missing.length > 3 ? '<div style="font-size:12px;color:var(--text-muted);">and ' + (r.missing.length - 3) + ' more</div>' : '') || '<span style="color:var(--text-muted);">—</span>';
     var owes = !office ? '' : '<td class="num">' + (r.owed == null ? '<span style="color:var(--text-muted);">—</span>' : r.owed === 'unpriced' ? '<span style="color:var(--text-muted);" title="No fee set on the School Fee record">No fee set</span>' : r.owed > 0 ? '<strong>$' + escapeHtml(Number(r.owed).toLocaleString('en-JM', { minimumFractionDigits: 2, maximumFractionDigits: 2 })) + '</strong>' : 'Paid up') + '</td>';
     var first = String(r.name).split(' ')[0];
     var draft = 'Hi ' + first + ', ' + (r.absentRun >= AT.RUN_ALERT ? 'we have missed you in class. ' : '') + (r.missing.length ? 'I have not received "' + r.missing[0].title + '" yet. ' : '') + 'Is everything all right? Let me know how I can help.';
-    return '<tr data-attn-id="' + escapeAttr(r.id) + '"><td><strong>' + escapeHtml(r.name) + '</strong><div style="font-size:11px;color:var(--text-muted);">' + escapeHtml(r.course) + (r.average != null ? ' · average ' + r.average + '%' : '') + '</div></td>' +
-      '<td>' + since + '</td>' +
-      '<td class="num">' + (r.absentRun ? '<span class="' + runCls + '">' + r.absentRun + '</span>' : '0') + '</td>' +
-      '<td class="num" style="' + pctCls + '">' + (r.pct == null ? '—' : r.pct + '%') + '</td>' +
-      '<td>' + marks + '</td><td>' + miss + '</td>' + owes +
-      '<td style="white-space:nowrap;">' + (r.phone ? '<a href="tel:' + escapeAttr(String(r.phone).replace(/[^0-9+]/g, '')) + '">' + escapeHtml(r.phone) + '</a>' : '<span style="color:var(--text-muted);">—</span>') + '</td>' +
-      '<td><button class="btn btn-sm btn-primary" onclick="openDirectChatWithTrainee(' + jsArg(r.id) + ',' + jsArg(draft) + ')">💬 Message</button></td></tr>';
+    var phone = r.phone ? '<div style="font-size:12px;margin-top:2px;"><a class="attn-tel" href="tel:' + escapeAttr(String(r.phone).replace(/[^0-9+]/g, '')) + '">📞 ' + escapeHtml(r.phone) + '</a></div>' : '';
+    return '<tr data-attn-id="' + escapeAttr(r.id) + '" data-pct="' + (r.pct == null ? '' : r.pct) + '"><td style="min-width:150px;"><strong>' + escapeHtml(r.name) + '</strong><div style="font-size:12px;color:var(--text-muted);">' + escapeHtml(r.course) + (r.average != null ? ' · average ' + r.average + '%' : '') + '</div>' + phone + '</td>' +
+      '<td style="min-width:150px;">' + att + '</td>' +
+      '<td style="min-width:180px;">' + marks + '</td><td style="min-width:160px;">' + miss + '</td>' + owes +
+      '<td><button class="btn btn-sm btn-primary" style="white-space:nowrap;" onclick="openDirectChatWithTrainee(' + jsArg(r.id) + ',' + jsArg(draft) + ')">💬 Message</button></td></tr>';
   }).join('');
 }
 // The Needs Attention page on screen, and the sidebar's count, after a change.

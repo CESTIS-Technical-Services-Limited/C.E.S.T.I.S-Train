@@ -322,7 +322,7 @@ const NOT_HANDED_IN = ['Leon Stewart', 'Kerry-Ann Palmer', 'Marlon Wright', 'Sas
     const oa = await O.$('#dashLowAttendanceAlert');
     ok(!!oa, 'the administrator\'s "below 70% attendance" alert is a link');
     if (oa) { const n = Number(((await oa.innerText()).match(/(\d+) student/) || [])[1]); await oa.click(); await O.waitForTimeout(700);
-      const lowRows = await O.evaluate(() => Array.from(document.querySelectorAll('#attnBody-needs-attention tr[data-attn-id] td:nth-child(4)')).filter(td => parseFloat(td.innerText) < 70).length);
+      const lowRows = await O.evaluate(() => Array.from(document.querySelectorAll('#attnBody-needs-attention tr[data-attn-id]')).filter(tr => tr.dataset.pct !== '' && Number(tr.dataset.pct) < 70).length);
       ok(n === lowRows && n >= 1, 'it opens the list, and its number is the list\'s count below 70% (' + n + ' / ' + lowRows + ')'); }
     const orows = await O.evaluate(() => Array.from(document.querySelectorAll('#attnBody-needs-attention tr[data-attn-id]')).map(tr => tr.innerText.replace(/\s+/g, ' ')));
     ok(orows.some(r => /Brandon Lee/.test(r)) && orows.some(r => /Damion Lewis/.test(r)), 'the office\'s list covers every programme');
