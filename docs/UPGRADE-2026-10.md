@@ -414,6 +414,11 @@ instructor and 6 trainees on phone settings, every connection's bytes read from 
      shows every right answer.
   4. **The gate (version 4)** is pasted again by the owner after this goes live.
   The printed footer names the programme, intake, unit and assessment — not a folder path.
+- **Content, Level 2 core units first (the owner's choice).** Welding Level 2 is written in full
+  (42 core units; the sample's options rewritten so the right one no longer stands out by length),
+  and its 26 shared units are filed under the other Level 2 programmes too. Every bank starts as
+  *To check*; `assessments/welding-fabrication/CHECK-LIST.md` lists what an instructor should
+  confirm against the Centre's equipment and rules.
 
 ### Grades, transcripts and Student Progress
 - **Renames and moves.** Renaming a trainee or moving them to another programme carries every
