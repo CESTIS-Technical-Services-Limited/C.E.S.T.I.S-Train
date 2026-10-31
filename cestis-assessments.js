@@ -215,12 +215,15 @@
 
   /* ---- Files: a PDF to look at or keep -------------------------------- */
   function blobOf(bytes, mime) { return bytes instanceof Blob ? bytes : new Blob([bytes], { type: mime || 'application/pdf' }); }
+  // As jsPDF's own saver does: the link is let go only well after the browser
+  // has the file (let go too soon, the file loses its name).
   function download(bytes, name, mime) {
     var url = URL.createObjectURL(blobOf(bytes, mime));
     var a = document.createElement('a');
-    a.href = url; a.download = name || 'record.pdf';
-    document.body.appendChild(a); a.click();
-    setTimeout(function () { URL.revokeObjectURL(url); if (a.parentNode) a.parentNode.removeChild(a); }, 4000);
+    // A dash a browser may not save under (the folder copies keep "—").
+    a.href = url; a.download = String(name || 'record.pdf').replace(/[\u2013\u2014]/g, '-'); a.rel = 'noopener';
+    setTimeout(function () { try { a.dispatchEvent(new MouseEvent('click')); } catch (e) { a.click(); } }, 0);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 40000);
   }
   /* View: in a new tab where the browser allows it, else saved. */
   function view(bytes, name) {

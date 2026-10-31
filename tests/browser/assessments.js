@@ -169,7 +169,7 @@ function seed({ MORE, PASSHASH }) {
     await op.waitForSelector('.assess-dlg [data-f="checklist"]', { timeout: 5000 });
     await op.fill('.assess-dlg [data-f="time"]', '3 hours 30 minutes');
     await op.click('.assess-dlg [data-dlg="save"]');
-    await op.waitForTimeout(300);
+    await op.waitForFunction(() => !document.querySelector('.assess-dlg [data-f="checklist"]'), null, { timeout: 5000 }).catch(async () => console.log('    (dialog still open: ' + await txt(op, '.assess-dlg .assess-err') + ')'));
     ok(await op.evaluate(id => exams.find(e => e.id === id).practical.time === '3 hours 30 minutes', p1), 'Check & edit: a practical\'s brief corrected and saved');
     // Theory 1's Check & edit opens the test builder on it.
     const t1id = await op.evaluate(() => exams.find(e => CESTISCore.assessments.isMaster(e) && e.assessment.kind === 'theory1').id);
@@ -232,6 +232,123 @@ function seed({ MORE, PASSHASH }) {
     const listed = await op.evaluate(() => exams.filter(e => (e.status === 'upcoming' || e.status === 'active') && !examIsPracticalTask(e)).map(e => e.assessment ? e.assessment.kind : 'other'));
     ok(listed.filter(k => k === 'theory1' || k === 'theory2').length === 2 && listed.indexOf('practical1') === -1, 'the Online Exams list shows the two theory tests, never a practical');
     await shot(op, '01b-assessments-opened');
+  });
+
+  /* ------------------------------------------- the gate, and phones at home */
+  const filesNamed = name => Object.values(drive.files).filter(f => f.name === name && !f.trashed);
+  async function gateOn() {
+    if (gate._on) return;
+    await op.evaluate(() => saveAccountsLedger());
+    await until(() => filesNamed('CESTIS_ACCOUNTS.json').length, 20000);
+    gate.world.get({ op: 'health' });
+    await op.evaluate(G => { systemSettings.traineeGate = { url: G, enabled: true, setAt: new Date().toISOString(), setBy: 'mthompson' }; saveState(); GATE_LIMITS.gapMs = 0; _gateRun.cfgAt = 0; }, GATE_URL);
+    await published();
+    gate._on = true;
+  }
+  // The office's publishing turn has sent everything it has.
+  async function published() {
+    await op.evaluate(() => { try { GATE_LIMITS.gapMs = 0; _gateRun.builtAt = 0; _gateRun.buildNow = true; } catch (e) {} });
+    await op.waitForFunction(() => { try { const s = JSON.parse(localStorage.getItem('cestisGatePublished') || '{}'); return !!s.syncedAt && !_gateRun.publishing && JSON.parse(localStorage.getItem('cestisGatePublishQueue') || '[]').length === 0; } catch (e) { return false; } }, null, { timeout: 180000, polling: 500 });
+  }
+  async function collect() {
+    await op.evaluate(() => { _gateRun.collectAt = 0; GATE_LIMITS.collectMs = 1000; return gateCollectTick({ refetch: true }); });
+    await op.waitForFunction(() => !_gateRun.collecting, null, { timeout: 30000 });
+  }
+  async function phone(label) {
+    const ctx = await K.computer({ phone: true, drive: null, gate, theme: 'dark' });
+    await ctx.addInitScript(() => { try { localStorage.setItem('cestis_sw_disabled', '1'); } catch (e) {} });
+    const page = K.watch(await ctx.newPage(), label);
+    await page.goto(base + LINK, { waitUntil: 'load' });
+    await page.waitForFunction(() => typeof _gateT !== 'undefined' && _gateT.decided, null, { timeout: 20000 });
+    PAGES[label] = page;
+    return page;
+  }
+  async function traineeIn(page, who) {
+    await page.evaluate(() => { const l = document.getElementById('studentLogin'); if (!l.classList.contains('active')) document.querySelector('#studentCard .role-enter-btn').click(); });
+    await page.waitForTimeout(150);
+    await page.fill('#studentUser', who.user);
+    await page.fill('#studentPass', TRAINEE_PASS);
+    await page.press('#studentPass', 'Enter');
+    await page.waitForFunction(() => document.readyState === 'complete' && !!(window.CESTISStore && CESTISStore.namespace), null, { timeout: 30000 }).catch(() => {});
+    await page.waitForFunction(() => typeof currentRole !== 'undefined' && currentRole === 'student' && document.getElementById('appShell').classList.contains('active'), null, { timeout: 60000 });
+    await page.waitForTimeout(1500);
+  }
+  const theoryId = kind => op.evaluate(k => (exams.find(e => CESTISCore.assessments.isAssessment(e) && !CESTISCore.assessments.isMaster(e) && e.assessment.kind === k) || {}).id, kind);
+  let tp = null;
+
+  await section('theory1', 'At home: Theory 1, extra time added while she sits it, Sign and submit, her own PDF', async () => {
+    await gateOn();
+    tp = await phone('tameka');
+    await traineeIn(tp, T.tameka);
+    await go(tp, 's-assessments');
+    await tp.waitForFunction(() => window.CESTISAssess && document.querySelector('#page-s-assessments .assess-kind'), null, { timeout: 20000 });
+    const mine = await txt(tp, '#page-s-assessments .assess');
+    ok(/My Assessments/.test(mine) && /MEMFAB0042C/.test(mine) && /Theory 1/.test(mine) && /Open now/.test(mine) && /45 questions/.test(mine), 'My Assessments: her unit, Theory 1 open now, 45 questions (' + mine.slice(0, 200) + ')');
+    ok(/Group (A|B)/.test(mine), 'and her practical group');
+    await shot(tp, '04-trainee-unit-page', { only: 'phone' });
+    const t1 = await theoryId('theory1');
+    await clickIn(tp, '#page-s-assessments [data-act="start"][data-id="' + t1 + '"]');
+    await tp.waitForFunction(() => !!currentExamSession && document.getElementById('studentExamTakingView').style.display !== 'none', null, { timeout: 30000 });
+    // She answers every question (the first four by tapping).
+    await tp.evaluate(() => { const s = currentExamSession; s.questions.forEach((q, i) => { if (i >= 4) { s.answers[i] = (i * 3) % 4; s.answeredAt[i] = Date.now(); } }); autoSaveExamProgress(); });
+    for (let i = 0; i < 4; i++) await tp.evaluate(i => { const lab = document.querySelector('#examQ-' + i + ' label[data-opt]'); if (lab) lab.click(); }, i);
+    await tp.waitForTimeout(500);
+    const before = await tp.evaluate(() => ({ left: currentExamSession.timeRemaining, extra: (document.getElementById('examTimerExtra') || {}).textContent || '' }));
+    ok(before.left > 2 * 3600 && before.left <= 150 * 60 && !before.extra, 'her clock: about 2 h 30 min, no extra time yet (' + before.left + ' s)');
+    // The office adds 15 minutes for her, from the invigilator page.
+    await go(op, 'invigilator');
+    await op.evaluate(id => { if (typeof invigPickExam === 'function') invigPickExam(id); }, t1);
+    await op.waitForTimeout(800);
+    await op.evaluate(sid => invigAddTime(sid), T.tameka.sid);
+    await op.waitForSelector('.assess-dlg [data-f="why"]', { timeout: 10000 });
+    await op.fill('.assess-dlg [data-f="why"]', 'Power cut at home');
+    await shot(op, '09-add-time-dialog', { only: 'desktop' });
+    await op.click('.assess-dlg [data-dlg="add"]');
+    await op.waitForTimeout(500);
+    const grant = await op.evaluate(id => (exams.find(e => e.id === id).extraTime || [])[0], t1);
+    ok(grant && grant.minutes === 15 && grant.studentId === T.tameka.sid && grant.byName === 'Marcia Thompson' && grant.byRole === 'admin' && grant.reason === 'Power cut at home', 'who, how much and why are kept (' + JSON.stringify(grant) + ')');
+    await published();
+    // Her phone asks every minute: hurry it.
+    await tp.evaluate(() => { currentExamSession._xtAt = 0; });
+    await until(() => tp.evaluate(() => /15 min/.test((document.getElementById('examTimerExtra') || {}).textContent || '')), 40000, 1000);
+    await tp.waitForTimeout(1500);
+    const moved = await tp.evaluate(() => ({ left: currentExamSession.timeRemaining, extra: (document.getElementById('examTimerExtra') || {}).textContent || '' }));
+    ok(moved && /Extra time: 15 min, added by the Administrator/.test(moved.extra) && moved.left > before.left + 13 * 60, 'at home her clock moves on by 15 minutes and says so (' + JSON.stringify(moved) + ')');
+    await shot(tp, '05-theory1-in-progress-extra-time');
+    // The invigilator page shows it.
+    await op.evaluate(() => { try { invigCheckNow(true); } catch (e) {} });
+    await op.waitForTimeout(1500);
+    const board = await txt(op, '#invigBoard');
+    ok(/\+15 min extra time/.test(board), 'the invigilator page shows her extra time (' + board.slice(0, 160) + ')');
+    await shot(op, '10-invigilator-extra-time', { only: 'desktop' });
+    // Sign and submit.
+    await tp.evaluate(() => examShowSummary());
+    await tp.waitForTimeout(400);
+    await tp.click('#examSubmitAllBtn');
+    await tp.waitForSelector('#examSignName', { timeout: 5000 });
+    const sign = await tp.evaluate(() => ({ name: document.getElementById('examSignName').textContent, font: getComputedStyle(document.getElementById('examSignName')).fontFamily,
+      disabled: document.getElementById('examConfirmGo').disabled, title: document.getElementById('examConfirmTitle').textContent }));
+    ok(sign.title === 'Sign and submit' && sign.name === T.tameka.name && /CESTIS Signature/.test(sign.font) && sign.disabled, '"Sign and submit": her full name in a script, the button waits for the tick (' + JSON.stringify(sign) + ')');
+    const fontOk = await tp.evaluate(() => document.fonts.load('40px "CESTIS Signature"').then(l => l.length > 0, () => false));
+    ok(fontOk, 'the handwriting font is this site\'s own, loaded');
+    await tp.check('#examSignConsent');
+    await shot(tp, '06-sign-and-submit');
+    await tp.click('#examConfirmGo');
+    const res = await until(() => tp.evaluate(() => { const r = examResults.find(x => x && x.examId === (window._t1id || '')); return r || null; }).catch(() => null), 1, 1);
+    await tp.evaluate(id => { window._t1id = id; }, t1);
+    const result = await until(() => tp.evaluate(id => { const r = examResults.find(x => x && x.examId === id); return r ? { sig: r.signature, score: r.score, prov: !!r.needsReview } : null; }, t1), 40000, 800);
+    ok(result && result.sig && result.sig.name === T.tameka.name && /^[0-9A-Z]{4}-[0-9A-Z]{4}$/.test(result.sig.id) && result.prov === false, 'submitted through the gate: marked, with her signature (' + JSON.stringify(result) + ')');
+    void res;
+    // Her own PDF, made on her phone.
+    const dl = tp.waitForEvent('download', { timeout: 60000 });
+    await tp.evaluate(id => assessMyRecord(id), t1);
+    const d = await dl;
+    const file = path.join(os.tmpdir(), 'assess-mine-' + Date.now() + '.pdf');
+    await d.saveAs(file);
+    const pdf = fs.readFileSync(file);
+    ok(/^%PDF/.test(pdf.slice(0, 5).toString()) && d.suggestedFilename() === T.tameka.name + ' (' + T.tameka.sid + ') - MEMFAB0042C Theory 1.pdf', 'her record downloads at once: ' + d.suggestedFilename());
+    ok(pdf.indexOf('GreatVibes') !== -1, 'with her signature in the script font embedded');
+    if (SHOTS) fs.copyFileSync(file, path.join(SHOTS, 'trainee-own-theory1.pdf'));
   });
 
   console.log('\n' + passed + ' passed, ' + failed + ' failed');

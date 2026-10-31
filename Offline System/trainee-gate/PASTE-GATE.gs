@@ -1772,6 +1772,12 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       // and every moment either copy holds (the invigilator's record).
       var act = mergeActivity(base.activity, other.activity, qmap, aligned && (Number(a.perPage) || 0) === (Number(b.perPage) || 0));
       if (act) out.activity = act; else delete out.activity;
+      // Her signature ("Sign and submit", a prepared assessment): whichever
+      // copy carries one (the newest, if both do) — a copy saved before she
+      // signed never takes it away.
+      var siga = a.signature && typeof a.signature === 'object' ? a.signature : null, sigb = b.signature && typeof b.signature === 'object' ? b.signature : null;
+      var sig = siga && sigb ? (msOf(sigb.at) > msOf(siga.at) ? sigb : siga) : (siga || sigb);
+      if (sig) out.signature = copyJson(sig); else delete out.signature;
       out.updatedAt = laterIso(a.updatedAt, b.updatedAt);
       if (a.savedAt || b.savedAt) out.savedAt = laterIso(a.savedAt, b.savedAt);
       out.status = 'open';
