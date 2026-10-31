@@ -1773,6 +1773,9 @@
     if (DEVICE_ONLY_KEYS.indexOf(key) !== -1) return false;
     if (key.indexOf('cestis_pagecloud_stamps__') === 0) return false;
     if (key.indexOf('__cestis_idb_only__:') === 0) return false;
+    // This computer's own notes about the Centre's safety (the weekly
+    // backups it has seen, the storage figure, its own id): Core.backups.
+    if (key.indexOf('cestisThisPc_') === 0) return false;
     // A trainee gate session's own records ('g1::…'): that trainee's slice,
     // kept apart on this device, never the Centre's.
     if (/^g[0-9]{1,3}::/.test(key)) return false;
@@ -4278,6 +4281,10 @@
                         trainee's exam result still in the exam outbox
          signinExpired  (staff) the sync sign-in this computer had has run out
          canConnect     the panel below the answer holds a Turn On Sync button
+         canRenew       (staff) the sync sign-in could not renew itself: the
+                        Reconnect button beside the chip renews it from a press
+         storageFull    (staff) a save was refused: the Centre's storage is full
+         isAdmin        the administrator is told what to do about it
        }
        Returns { state: 'saved'|'waiting'|'offline'|'attention', tone:
        'ok'|'warn'|'bad', icon: 'check'|'sync', label, chip (the label's
@@ -4335,8 +4342,26 @@
                   (s.pending ? 'Your changes' + since + ' are kept on this computer only and have not synced.'
                              : 'This computer is not syncing at the moment.'),
           advice: [!s.canConnect ? 'Ask the office to set up syncing on this computer.'
+                   : s.canRenew ? 'Press Reconnect (beside this) to renew syncing with one press, or ask the office.'
                    : s.signinExpired ? 'Press Turn On Sync below to sign in again, or ask the office.'
                    : 'Press Turn On Sync below, or ask the office to set up syncing on this computer.', keepNote] };
+      } else if (s.storageFull) {
+        /* A save was refused because the Centre's account has no room left
+           (OPS-2). It used to look like any other failure ("Sync needs
+           attention"), so nobody knew to tell the one person who can fix
+           it. Everybody is told to tell the administrator; the
+           administrator is told what to do. The work stays on this
+           computer either way, and goes up by itself once there is room. */
+        var kept = s.pending ? 'Your changes' + since + ' are kept on this computer.' : 'Anything you change is kept on this computer.';
+        out = s.isAdmin
+          ? { state: 'storage-full', tone: 'bad', label: 'Storage is full — make room to keep saving',
+              detail: 'Saving has stopped because there is no room left in the Centre’s account. ' + kept,
+              advice: ['Clear out old class recordings, or empty the trash, in the Centre’s account.',
+                       'Saving starts again by itself once there is room — nothing is lost meanwhile.', keepNote] }
+          : { state: 'storage-full', tone: 'bad', label: 'Storage is full — tell the administrator',
+              detail: 'Saving has stopped: there is no room left to save. ' + kept,
+              advice: ['Tell the administrator that storage is full.',
+                       'Keep working — your changes are sent by themselves once there is room.', keepNote] };
       } else if (s.pending) {
         var failing = (s.failures || 0) >= 1;
         out = { state: 'waiting', tone: failing ? 'bad' : 'warn', label: 'Changes waiting to sync',
@@ -4357,7 +4382,12 @@
       out.lastSaved = last;
       // A sign-in about to end: say so while there is still time to renew it.
       if (!s.lan && s.connected && s.tokenExpiresAt && s.tokenExpiresAt - now < 10 * 60000 && s.tokenExpiresAt > now) {
-        out.advice = out.advice.concat(['Syncing on this computer must be renewed by ' + hhmm(s.tokenExpiresAt) + ' — ask the office before then.']);
+        out.advice = out.advice.concat([s.canRenew ? 'Syncing on this computer must be renewed by ' + hhmm(s.tokenExpiresAt) + ' — press Reconnect (beside this) now.'
+          : 'Syncing on this computer must be renewed by ' + hhmm(s.tokenExpiresAt) + ' — ask the office before then.']);
+        if (out.tone === 'ok') out.tone = 'warn';
+      } else if (!s.lan && s.connected && s.canRenew) {
+        // It could not renew itself in the background (OPS-11): one press does it.
+        out.advice = out.advice.concat(['Syncing could not renew itself. Press Reconnect (beside this) to keep it going.']);
         if (out.tone === 'ok') out.tone = 'warn';
       }
       return out;
@@ -18795,6 +18825,395 @@
     }
     return { classPollDelay: classPollDelay, classStartMs: classStartMs, parseOffset: parseOffset, progress: progress,
       PHOTO: PHOTO, photoPlan: photoPlan, photoPick: photoPick, approvalWait: approvalWait, feeView: feeView };
+  })();
+
+  /* ==========================================================================
+     KEEPING THE RECORDS SAFE FOR YEARS (owner approved, group F; the
+     operations audit's OPS-1, OPS-2, OPS-4, OPS-10 and OPS-11; EF-6)
+
+     Pure rules for what the dashboard does to keep the Centre's records safe
+     and to show the Administrator, in one place, whether they are:
+
+       - WEEKLY BACKUPS (OPS-1). Once per ISO week the first administrator or
+         office PC that saves online makes a dated copy of the whole-Centre
+         backup (the master snapshot: the whole store, with its checksum and
+         counts), named "CESTIS-backup-2026-W44.json", in a "Backups" folder.
+         The newest KEEP_WEEKS (12) are kept. planPrune() decides what goes:
+         ONLY files whose name matches the pattern AND that carry this
+         system's mark (appProperties cestisBackup=weekly), and the caller
+         moves them to the trash — never deletes them. Two PCs in one week:
+         a second file with this week's name is a duplicate; the oldest is
+         kept, so the week still has exactly one.
+       - STORAGE (OPS-2, EF-6). How full the Centre's account is, and when a
+         save was refused because it is full (quotaExceeded()).
+       - THE SYSTEM HEALTH CARD (OPS-4, OPS-10). health() turns what the
+         Administrator's PC knows into one line per concern, each green,
+         amber or red with one plain "what to do".
+       - EACH STAFF COMPUTER'S LAST SAVE (OPS-10). stampDevice() /
+         mergeDevices(): a small map, carried with the backup, of when each
+         staff computer last sent a change, newest wins per computer.
+
+     No storage, no network, no clock of its own: every rule that depends on
+     the time takes it as an argument. Every word is neutral, by the owner's
+     rule: it says what happened and what to do, never where anything is kept
+     (tools/scan-ui-wording.js).
+     ========================================================================== */
+  Core.backups = (function () {
+    var KEEP_WEEKS = 12;
+    var DAY = 24 * 3600 * 1000;
+    var PREFIX = 'CESTIS-backup-';
+    var NAME_RE = /^CESTIS-backup-(\d{4})-W(\d{2})\.json$/;
+    var MARK = { key: 'cestisBackup', value: 'weekly' };
+    var FOLDER = { name: 'Backups', markKey: 'cestisBackupsFolder', markValue: '1' };
+    var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    var DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    function num(v) { var n = Number(v); return isFinite(n) ? n : 0; }
+    function str(v) { return v == null ? '' : String(v); }
+    function ms(v) { if (typeof v === 'number') return v; var t = Date.parse(str(v)); return isNaN(t) ? 0 : t; }
+
+    /* The ISO-8601 week of a moment, by this computer's own calendar date
+       (Monday starts the week; week 1 holds the year's first Thursday).
+       { year, week, label: '2026-W44' }. */
+    function isoWeek(when) {
+      var d = new Date(ms(when));
+      var t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+      var day = t.getUTCDay() || 7;
+      t.setUTCDate(t.getUTCDate() + 4 - day);
+      var y = t.getUTCFullYear();
+      var wk = Math.ceil(((t.getTime() - Date.UTC(y, 0, 1)) / DAY + 1) / 7);
+      return { year: y, week: wk, label: y + '-W' + (wk < 10 ? '0' : '') + wk };
+    }
+    function fileName(label) { return PREFIX + str(label) + '.json'; }
+    function parseName(name) {
+      var m = NAME_RE.exec(str(name));
+      return m ? { year: Number(m[1]), week: Number(m[2]), label: m[1] + '-W' + m[2] } : null;
+    }
+    /* Made by this system: the name's pattern AND the mark set when it was made. */
+    function isOurs(f) {
+      return !!f && !f.trashed && !!parseName(f.name) && !!f.appProperties && f.appProperties[MARK.key] === MARK.value;
+    }
+    // Of two copies of one week, the older: by creation time, then the lower id.
+    function older(a, b) {
+      var ta = ms(a.createdTime), tb = ms(b.createdTime);
+      if (ta !== tb) return ta < tb;
+      return str(a.id) < str(b.id);
+    }
+    /* Is this week's backup made already? Any file with this week's name
+       counts — a name collision is "already done" (it is never a reason to
+       make a second one). */
+    function weekDone(files, label) {
+      var name = fileName(label);
+      return (Array.isArray(files) ? files : []).some(function (f) { return f && !f.trashed && f.name === name; });
+    }
+    /* What to keep and what to move to the trash.
+       files: the Backups folder's listing ({ id, name, createdTime, appProperties, trashed }).
+       Only this system's weekly files are ever considered (isOurs); every
+       other file is left alone, whatever its name. A week later than this
+       computer's own (a clock set wrong somewhere) is kept and not counted.
+       Of the rest, one file per week (the oldest), the newest `keep` weeks.
+       Returns { keep: [file], trash: [file], weeks: [label newest first] }. */
+    function planPrune(files, now, keep) {
+      keep = keep > 0 ? Math.floor(keep) : KEEP_WEEKS;
+      var cur = isoWeek(now).label;
+      var byWeek = {};
+      (Array.isArray(files) ? files : []).forEach(function (f) {
+        if (!isOurs(f)) return;
+        var l = parseName(f.name).label;
+        (byWeek[l] = byWeek[l] || []).push(f);
+      });
+      var out = { keep: [], trash: [], weeks: [] };
+      var labels = Object.keys(byWeek).sort().reverse();
+      var counted = 0;
+      labels.forEach(function (l) {
+        var list = byWeek[l].slice().sort(function (a, b) { return older(a, b) ? -1 : older(b, a) ? 1 : 0; });
+        var first = list[0];
+        // A second file of the same week: a duplicate two PCs made at once.
+        list.slice(1).forEach(function (f) { out.trash.push(f); });
+        if (l > cur) { out.keep.push(first); out.weeks.push(l); return; }
+        if (counted < keep) { out.keep.push(first); out.weeks.push(l); counted++; }
+        else out.trash.push(first);
+      });
+      return out;
+    }
+    /* The newest of this system's weekly backups (or null). */
+    function newest(files) {
+      var best = null;
+      (Array.isArray(files) ? files : []).forEach(function (f) {
+        if (!isOurs(f)) return;
+        var l = parseName(f.name).label;
+        if (!best || l > best.label || (l === best.label && older(f, best.file))) best = { label: l, file: f };
+      });
+      return best ? { week: best.label, at: ms(best.file.createdTime), id: str(best.file.id), name: str(best.file.name) } : null;
+    }
+
+    /* ---- words ---- */
+    function pad(n) { return (n < 10 ? '0' : '') + n; }
+    function day(when) {
+      var d = new Date(ms(when));
+      return DAYS[d.getDay()] + ' ' + d.getDate() + ' ' + MONTHS[d.getMonth()] + ' ' + d.getFullYear();
+    }
+    function dayTime(when) { var d = new Date(ms(when)); return day(when) + ', ' + pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+    function ago(when, now) {
+      var mins = Math.max(0, Math.round((num(now) - ms(when)) / 60000));
+      if (mins < 1) return 'just now';
+      if (mins < 60) return mins + ' min ago';
+      var hrs = Math.round(mins / 60);
+      if (hrs < 24) return hrs + (hrs === 1 ? ' hour ago' : ' hours ago');
+      var days = Math.floor((num(now) - ms(when)) / DAY);
+      return days + (days === 1 ? ' day ago' : ' days ago');
+    }
+    function daysSince(when, now) { return Math.max(0, Math.floor((num(now) - ms(when)) / DAY)); }
+    function count(n, one, many) { n = num(n); return n.toLocaleString('en-US') + ' ' + (n === 1 ? one : (many || one + 's')); }
+    function gb(bytes) { var g = num(bytes) / 1073741824; return (g >= 100 ? g.toFixed(0) : g >= 10 ? g.toFixed(1) : g.toFixed(2)) + ' GB'; }
+
+    var PROMPT = 'Sign in on an office computer and let it save: it makes the weekly backup by itself.';
+    /* The Administrator's "Last backup" line (the sync panel and the health
+       card). last: newest() or null; checked: whether this PC has looked. */
+    function lastStatus(last, now, checked) {
+      if (!last || !last.at) {
+        if (!checked) return { tone: 'warn', days: null, text: 'Last backup: not checked on this computer yet', prompt: 'Turn on sync on this computer to see the weekly backups.' };
+        return { tone: 'warn', days: null, text: 'Last backup: none yet', prompt: PROMPT };
+      }
+      var d = daysSince(last.at, now);
+      var when = d === 0 ? 'today' : d === 1 ? 'yesterday' : d + ' days ago';
+      return { tone: d >= 14 ? 'bad' : d >= 7 ? 'warn' : 'ok', days: d, week: last.week || '',
+        text: 'Last backup: ' + day(last.at) + ' (' + when + ')',
+        prompt: d >= 7 ? 'No backup for ' + d + ' days. ' + PROMPT : '' };
+    }
+
+    /* ---- storage (OPS-2, EF-6) ---- */
+    var STORAGE_ADVICE = 'Clear out old class recordings, or empty the trash.';
+    /* q: { limit, usage, usageInDriveTrash } as the account reports them
+       (numbers or numeric text); full: a save was refused for want of room.
+       { known, tone, pct, used, limit, free, trash, text, advice }. */
+    function storage(q, full) {
+      q = q || {};
+      var limit = num(q.limit), used = num(q.usage), trash = num(q.usageInDriveTrash || q.trash);
+      var known = limit > 0 && (q.usage != null);
+      var pct = known ? Math.min(100, Math.round(used / limit * 1000) / 10) : null;
+      var out = { known: known, pct: pct, used: used, limit: limit, free: known ? Math.max(0, limit - used) : null, trash: trash };
+      if (full) {
+        out.tone = 'bad';
+        out.text = 'Storage is full — saving has stopped. Work is kept on each computer until there is room.';
+        out.advice = STORAGE_ADVICE + ' Then saving starts again by itself.';
+        return out;
+      }
+      if (!known) {
+        out.tone = q.usage != null && !limit ? 'ok' : 'warn';
+        out.text = q.usage != null && !limit ? 'Storage used: ' + gb(used) + ' (no limit)' : 'Storage: not checked on this computer yet';
+        out.advice = q.usage != null && !limit ? '' : 'Turn on sync on this computer to see the storage.';
+        return out;
+      }
+      out.tone = pct >= 95 ? 'bad' : pct >= 80 ? 'warn' : 'ok';
+      out.text = 'Storage: ' + gb(used) + ' used of ' + gb(limit) + ' (' + gb(out.free) + ' free, ' + Math.round(pct) + '% full)' +
+        (trash >= 100 * 1048576 ? ' — ' + gb(trash) + ' of it in the trash' : '');
+      out.advice = out.tone === 'ok' ? '' : (pct >= 95 ? 'Storage is almost full. ' : 'Storage is ' + Math.round(pct) + '% full. ') + STORAGE_ADVICE;
+      return out;
+    }
+    /* Was this refusal "the account is out of room"? body: the error answer
+       ({ error: { code, message, errors: [{ reason, message }] } }) or its
+       text. A rate limit (also 403) is not. */
+    function quotaExceeded(body) {
+      var b = body;
+      if (typeof b === 'string') { try { b = JSON.parse(b); } catch (e) { return /storage\s*quota|storageQuotaExceeded/i.test(b); } }
+      var e = b && b.error;
+      if (!e) return false;
+      var errs = Array.isArray(e.errors) ? e.errors : [];
+      if (errs.some(function (x) { return x && (x.reason === 'storageQuotaExceeded' || x.reason === 'quotaExceeded' && /storage/i.test(str(x.message))); })) return true;
+      if (errs.some(function (x) { return x && /rateLimit|userRateLimitExceeded|dailyLimitExceeded/i.test(str(x.reason)); })) return false;
+      return /storage\s*quota/i.test(str(e.message));
+    }
+
+    /* ---- the last manual Export ---- */
+    function exportStatus(last, now) {
+      if (!last) return { tone: 'warn', days: null, text: 'Last copy exported: none on record',
+        todo: 'Settings → Data Management → Export Backup, then copy the file to a USB stick (once a month).' };
+      var d = daysSince(last, now);
+      return { tone: d > 30 ? 'warn' : 'ok', days: d,
+        text: 'Last copy exported: ' + day(last) + ' (' + (d === 0 ? 'today' : d === 1 ? 'yesterday' : d + ' days ago') + ')',
+        todo: d > 30 ? 'More than 30 days ago. Export a copy (Settings → Data Management → Export Backup) and keep it on a USB stick.' : 'Nothing to do — export again within the month.' };
+    }
+
+    /* ---- each staff computer's last save ---- */
+    var SILENT_DAYS = 7;
+    /* A short, neutral name for the kind of computer ("Windows · Chrome"). */
+    function deviceLabel(ua) {
+      ua = str(ua);
+      var os = /Android/i.test(ua) ? 'Android' : /iPhone|iPad|iPod/i.test(ua) ? 'iPhone/iPad' : /Windows/i.test(ua) ? 'Windows' :
+        /Mac OS X|Macintosh/i.test(ua) ? 'Mac' : /CrOS/i.test(ua) ? 'Chromebook' : /Linux/i.test(ua) ? 'Linux' : 'Computer';
+      var br = /Edg\//.test(ua) ? 'Edge' : /OPR\//.test(ua) ? 'Opera' : /Firefox\//.test(ua) ? 'Firefox' : /Chrome\//.test(ua) ? 'Chrome' :
+        /Safari\//.test(ua) ? 'Safari' : 'browser';
+      return os + ' · ' + br;
+    }
+    var DEVICE_MAX = 60;
+    /* This computer's entry, set to `at` (only when a change it made has gone
+       up). map: { deviceId: { by, name, role, label, at } }. A new object. */
+    function stampDevice(map, id, who, at) {
+      var out = {};
+      Object.keys(map && typeof map === 'object' && !Array.isArray(map) ? map : {}).forEach(function (k) { out[k] = map[k]; });
+      if (!id) return out;
+      who = who || {};
+      out[str(id)] = { by: str(who.by), name: str(who.name), role: str(who.role), label: str(who.label), at: new Date(ms(at) || Date.now()).toISOString() };
+      return trimDevices(out);
+    }
+    // The newest DEVICE_MAX computers (a browser cleared becomes a new one).
+    function trimDevices(map) {
+      var ids = Object.keys(map);
+      if (ids.length <= DEVICE_MAX) return map;
+      ids.sort(function (a, b) { return ms(map[b] && map[b].at) - ms(map[a] && map[a].at); });
+      var out = {};
+      ids.slice(0, DEVICE_MAX).forEach(function (k) { out[k] = map[k]; });
+      return out;
+    }
+    /* Two copies of the map: per computer, the newer save wins. { map, changed }. */
+    function mergeDevices(mine, theirs) {
+      var a = mine && typeof mine === 'object' && !Array.isArray(mine) ? mine : {};
+      var b = theirs && typeof theirs === 'object' && !Array.isArray(theirs) ? theirs : {};
+      var out = {}, changed = false;
+      Object.keys(a).forEach(function (k) { out[k] = a[k]; });
+      Object.keys(b).forEach(function (k) {
+        var e = b[k];
+        if (!e || typeof e !== 'object' || !ms(e.at)) return;
+        if (!out[k] || ms(e.at) > ms(out[k].at)) { out[k] = e; changed = true; }
+      });
+      out = trimDevices(out);
+      return { map: out, changed: changed };
+    }
+    /* The list the health card shows, newest first. */
+    function devices(map, now) {
+      var m = map && typeof map === 'object' && !Array.isArray(map) ? map : {};
+      return Object.keys(m).map(function (k) {
+        var e = m[k] || {};
+        var at = ms(e.at);
+        var d = at ? daysSince(at, now) : null;
+        return { id: k, name: str(e.name || e.by || 'Someone'), by: str(e.by), role: str(e.role), label: str(e.label), at: at,
+          ago: at ? ago(at, now) : 'never', silent: d == null || d > SILENT_DAYS };
+      }).filter(function (e) { return e.at; }).sort(function (a, b) { return b.at - a.at; });
+    }
+
+    /* ---- the System health card (OPS-4, OPS-10) ----
+       s: {
+         now, lan (served on the Centre's own network: no weekly copies here,
+              no storage figure),
+         weekly:  { last: newest() | null, checked } ,
+         master:  { savedAt, savedBy, students, records } | null,
+         gate:    { setUp, enabled, statusTone ('ok'|'warn'|'bad'|'muted'), statusText,
+                    waiting (records not yet sent to trainees), waitingSince (ms),
+                    syncedAt (ms: all sent), judged (this PC has sent this session) },
+         storage: storage() input | null, storageFull,
+         devices: devices() | the map,
+         lastExport: ms | null
+       }
+       { tone (the worst line's), lines: [{ key, tone, title, text, todo, items? }], bellGate: '' | why } */
+    var RANK = { ok: 0, warn: 1, bad: 2 };
+    function health(s) {
+      s = s || {};
+      var now = num(s.now) || Date.now(), lines = [];
+      // 1. The weekly backup.
+      if (s.lan) {
+        lines.push({ key: 'weekly', tone: 'ok', title: 'Weekly backup', text: 'A dated copy of every file is kept each week, for 12 weeks.', todo: 'Nothing to do.' });
+      } else {
+        var w = lastStatus(s.weekly && s.weekly.last, now, !!(s.weekly && s.weekly.checked));
+        lines.push({ key: 'weekly', tone: w.tone, title: 'Weekly backup', text: w.text.replace(/^Last backup: /, 'Last made ') + (w.week ? ' · week ' + w.week.slice(-2).replace(/^0/, '') : ''),
+          todo: w.prompt || 'Nothing to do — one is made each week, and the last 12 are kept.' });
+      }
+      // 2. The whole-Centre backup (the master snapshot; on the Centre's own
+      //    network every save is merged into its files instead: no line).
+      var m = s.master;
+      if (s.lan) {
+        // (nothing: see the weekly copies above)
+      } else if (m && ms(m.savedAt)) {
+        var md = daysSince(m.savedAt, now);
+        lines.push({ key: 'master', tone: md > 7 ? 'bad' : md >= 3 ? 'warn' : 'ok', title: 'Whole-Centre backup',
+          text: 'Saved ' + dayTime(m.savedAt) + ' (' + ago(m.savedAt, now) + ')' + (m.savedBy ? ' by ' + str(m.savedBy) : '') +
+            (m.students != null ? ' · ' + count(m.students, 'trainee') : '') + (m.records != null ? ', ' + count(m.records, 'record') : ''),
+          todo: md >= 3 ? 'Sign in on an office computer and let it save.' : 'Nothing to do.' });
+      } else {
+        lines.push({ key: 'master', tone: 'warn', title: 'Whole-Centre backup', text: 'Not seen on this computer yet.',
+          todo: 'Turn on sync on this computer; it is read at sign-in.' });
+      }
+      // 3. Trainee sign-in from anywhere (the trainee gate).
+      var g = s.gate || {}, bellGate = '';
+      if (s.lan && !g.setUp) {
+        // (the Centre's own network signs trainees in by itself)
+      } else if (!g.setUp) {
+        lines.push({ key: 'gate', tone: 'warn', title: 'Trainee sign-in', text: 'Not set up — trainees cannot sign in from home yet.',
+          todo: 'When you are ready: Settings → Trainee Sign-in from Anywhere (about one supervised hour).' });
+      } else {
+        var gTone = g.statusTone === 'bad' ? 'bad' : g.statusTone === 'warn' ? 'warn' : g.statusTone === 'ok' ? 'ok' : 'warn';
+        var gText = str(g.statusText) || 'Not checked yet';
+        var gTodo = /^Needs attention/.test(gText) ? 'Open Settings → Trainee Sign-in from Anywhere and press Check.' : 'Nothing to do.';
+        if (g.enabled === false) { gText += ' · turned off'; gTodo = 'It is turned off: trainees sign in as before.'; }
+        var wait = num(g.waiting), since = ms(g.waitingSince), synced = ms(g.syncedAt);
+        if (g.enabled !== false) {
+          if (wait > 0 && since) {
+            var age = now - since;
+            gText += ' · ' + count(wait, 'update') + ' for trainees waiting since ' + dayTime(since) + ' (' + ago(since, now) + ')';
+            if (age > DAY) { gTone = 'bad'; gTodo = 'The oldest is more than a day old. Keep an office computer signed in and syncing; they go by themselves.'; }
+            else if (age > 3600000 && RANK[gTone] < 1) { gTone = 'warn'; gTodo = 'Keep an office computer signed in and syncing; they go by themselves.'; }
+          } else if (synced) {
+            gText += ' · records sent to trainees ' + ago(synced, now);
+            if (g.judged && now - synced > DAY) { gTone = 'bad'; gTodo = 'Trainees have had no update for more than a day. Keep an office computer signed in and syncing.'; }
+          }
+          if (g.enabled === true && (/^Needs attention/.test(str(g.statusText)) || (g.judged && ((wait > 0 && since && now - since > DAY) || (!wait && synced && now - synced > DAY))))) {
+            bellGate = /^Needs attention/.test(str(g.statusText)) ? str(g.statusText) : 'Trainees have not had an update for more than a day.';
+          }
+        }
+        lines.push({ key: 'gate', tone: gTone, title: 'Trainee sign-in', text: gText, todo: gTodo });
+      }
+      // 4. Storage.
+      if (!s.lan) {
+        var st = storage(s.storage, !!s.storageFull);
+        lines.push({ key: 'storage', tone: st.tone, title: 'Storage', text: st.text.replace(/^Storage: /, ''), todo: st.advice || 'Nothing to do.', pct: st.pct });
+      }
+      // 5. Each staff computer's last save.
+      if (!s.lan) {
+        var list = Array.isArray(s.devices) ? s.devices : devices(s.devices, now);
+        var silent = list.filter(function (e) { return e.silent; });
+        lines.push({ key: 'devices', tone: !list.length ? 'warn' : silent.length ? 'warn' : 'ok', title: 'Staff computers',
+          text: !list.length ? 'No staff computer has sent a change yet.' :
+            count(list.length, 'staff computer') + (silent.length ? ' · ' + silent.length + ' silent for more than ' + SILENT_DAYS + ' days' : ' · all saved within ' + SILENT_DAYS + ' days'),
+          todo: silent.length ? 'Open the dashboard on the silent computer, sign in and let it sync: its unsent work is kept there until then.' :
+            !list.length ? 'Each staff computer shows here once it has sent a change.' : 'Nothing to do.',
+          items: list.map(function (e) {
+            return { tone: e.silent ? 'warn' : 'ok', text: e.name + (e.label ? ' · ' + e.label : '') + ' — last save ' + e.ago + (e.silent ? ' (silent for more than ' + SILENT_DAYS + ' days)' : '') };
+          }) });
+      }
+      // 6. The last manual Export.
+      var ex = exportStatus(s.lastExport, now);
+      lines.push({ key: 'export', tone: ex.tone, title: 'Exported copy', text: ex.text, todo: ex.todo });
+      var worst = 'ok';
+      lines.forEach(function (l) { if (RANK[l.tone] > RANK[worst]) worst = l.tone; });
+      return { tone: worst, lines: lines, bellGate: bellGate };
+    }
+
+    /* ---- restoring a weekly backup: what it would add (the preview) ---- */
+    var PLAIN = {
+      voctrain_students: ['trainee', 'trainees'], voctrain_users: ['account', 'accounts'], voctrain_attendance: ['attendance row', 'attendance rows'],
+      voctrain_attendanceRegister: ['attendance mark', 'attendance marks'], voctrain_examResults: ['exam result', 'exam results'],
+      voctrain_certDownloadApprovals: ['certificate download approval', 'certificate download approvals'],
+      voctrain_instructorData: ['instructor record', 'instructor records'], voctrain_unitCatalogs: ['unit list', 'unit lists'],
+      voctrain_transcriptGrades: ['transcript grade', 'transcript grades'],
+      voctrain_certTranscriptRequests: ['certificate or transcript request', 'certificate and transcript requests'],
+      cestiSchoolFeeStudents: ['fee record', 'fee records'], cestiSchoolFeePayments: ['fee payment', 'fee payments']
+    };
+    /* res: Core.reconcileSnapshot(...)'s answer (a dry run). { total, lines: ['2 trainees', …], settings } */
+    function restorePreview(res) {
+      var r = (res && res.restored) || {}, total = 0, lines = [];
+      Object.keys(r).forEach(function (k) {
+        var n = num(r[k]); if (!n) return;
+        total += n;
+        var p = PLAIN[k] || ['other record', 'other records'];
+        lines.push(n + ' ' + (n === 1 ? p[0] : p[1]));
+      });
+      var settings = ((res && res.restoredKeys) || []).filter(function (k) { return !r[k]; }).length;
+      return { total: total, lines: lines, settings: settings, changed: !!(res && res.changed) };
+    }
+
+    return { KEEP_WEEKS: KEEP_WEEKS, MARK: MARK, FOLDER: FOLDER, SILENT_DAYS: SILENT_DAYS, STORAGE_ADVICE: STORAGE_ADVICE,
+      isoWeek: isoWeek, fileName: fileName, parseName: parseName, isOurs: isOurs, weekDone: weekDone, planPrune: planPrune, newest: newest,
+      day: day, dayTime: dayTime, ago: ago, lastStatus: lastStatus, storage: storage, quotaExceeded: quotaExceeded, exportStatus: exportStatus,
+      deviceLabel: deviceLabel, stampDevice: stampDevice, mergeDevices: mergeDevices, devices: devices, health: health, restorePreview: restorePreview };
   })();
 
   root.CESTISCore = Core;

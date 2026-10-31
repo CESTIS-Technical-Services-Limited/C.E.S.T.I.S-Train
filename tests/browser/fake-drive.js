@@ -8,10 +8,22 @@
      const { FakeDrive, driveTokenSeed } = require('./fake-drive');
      const drive = new FakeDrive();
      await ctx.route(/^https:\/\/(www\.googleapis\.com|oauth2\.googleapis\.com)\//, r => drive.handle(r));
-     // and put driveTokenSeed() into the device's storage so it syncs */
+     // and put driveTokenSeed() into the device's storage so it syncs
+
+   Also (the records-safe suite):
+     drive.quota = { limit, usage, usageInDriveTrash }   what about.get's storageQuota says
+     drive.full = true          the account is out of room: every upload, new
+                                file and copy is refused with 403
+                                storageQuotaExceeded (reads, listings and a
+                                move to the trash still work, as on the real one)
+     drive.copyBroken = true    files.copy answers 500 (a copy that cannot be made)
+     drive.copies               how many server-side copies were made */
 'use strict';
 function parse(v) { try { return JSON.parse(v); } catch (e) { return undefined; } }
-function FakeDrive() { this.files = {}; this.seq = 0; this.calls = 0; this.errors = []; }
+function FakeDrive() { this.files = {}; this.seq = 0; this.calls = 0; this.errors = []; this.quota = null; this.full = false; this.copyBroken = false; this.copies = 0; this.refused = 0; }
+// The answer the real one gives when the account has no room left.
+const QUOTA_REFUSAL = { error: { code: 403, message: "The user's Drive storage quota has been exceeded.",
+  errors: [{ domain: 'usageLimits', reason: 'storageQuotaExceeded', message: "The user's Drive storage quota has been exceeded." }] } };
 // The query's clauses, split on "and" — but not inside quotes, nor inside
 // an appProperties { key=… and value=… } clause.
 function clausesOf(q) {
@@ -119,10 +131,34 @@ FakeDrive.prototype.handle = async function (route) {
   try {
     if (method === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
     if (/\/oauth2\/v\d\/userinfo$/.test(p)) return json({ email: 'centre@example.org', name: 'Centre Drive' });
-    if (/\/drive\/v3\/about$/.test(p)) return json({ user: { displayName: 'Centre Drive', emailAddress: 'centre@example.org' }, storageQuota: { limit: '16106127360', usage: '1024' } });
+    if (/\/drive\/v3\/about$/.test(p)) {
+      const q = this.quota || { limit: 16106127360, usage: 1024 };
+      const sq = {};
+      Object.keys(q).forEach(k => { sq[k] = String(q[k]); });
+      return json({ user: { displayName: 'Centre Drive', emailAddress: 'centre@example.org' }, storageQuota: sq });
+    }
     let m;
     const body = req.postDataBuffer() || Buffer.alloc(0);
     const ctype = (await req.allHeaders())['content-type'] || '';
+    // Out of room: whatever would take more space is refused (OPS-2).
+    const growing = (/^\/upload\//.test(p) && (method === 'POST' || method === 'PATCH' || method === 'PUT')) ||
+      (/^\/drive\/v3\/files\/?$/.test(p) && method === 'POST') || (/\/copy$/.test(p) && method === 'POST');
+    if (this.full && growing) {
+      this.refused++;
+      const fm = /\/files\/([^/?]+)/.exec(p), tf = fm && this.files[fm[1]];
+      (this.refusedLog = this.refusedLog || []).push({ at: Date.now(), what: method + ' ' + (tf ? tf.name : p) });
+      return json(QUOTA_REFUSAL, 403);
+    }
+    // files.copy: a copy made where the file is kept (no upload).
+    if ((m = /^\/drive\/v3\/files\/([^/]+)\/copy$/.exec(p)) && method === 'POST') {
+      const src = this.files[m[1]];
+      if (!src) return json({ error: { code: 404, message: 'File not found: ' + m[1] } }, 404);
+      if (this.copyBroken) return json({ error: { code: 500, message: 'Internal Error' } }, 500);
+      let meta = {}; try { meta = JSON.parse(body.toString('utf8') || '{}'); } catch (e) {}
+      const f = this.put(null, Object.assign({ name: src.name, mimeType: src.mimeType, parents: src.parents }, meta), src.content);
+      this.copies++;
+      return json(this.meta(f));
+    }
     if (/^\/upload\/drive\/v3\/files\/?$/.test(p) && method === 'POST') {
       const type = url.searchParams.get('uploadType');
       if (type === 'resumable') {

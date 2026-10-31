@@ -346,6 +346,18 @@
       <div id="gateWaitingLine">Trainee work waiting for a decision: 0</div>
       <div id="gateWaitingList" hidden></div>
     </div>
+    <div class="gate-checks" id="gateChecksBox">
+      <h4 class="gate-h4">Checks after setup</h4>
+      <p class="gate-note">Press each one once after the setup (the setup sheet&rsquo;s live checks). Nothing here touches anybody&rsquo;s records. Write down what each says.</p>
+      <div class="gate-actions">
+        <button class="btn btn-secondary" id="gateCheckReach" onclick="gateLiveCheck('reach')">This page can reach it</button>
+        <button class="btn btn-secondary" id="gateCheckLarge" onclick="gateLiveCheck('large')">A large file arrives whole</button>
+        <button class="btn btn-secondary" id="gateCheckEmail" onclick="gateLiveCheck('email')">Email sign-in is accepted</button>
+        <button class="btn btn-secondary" id="gateCheckSearch" onclick="gateLiveCheck('search')">Files are found by name</button>
+        <button class="btn btn-secondary" id="gateCheckPage" onclick="gateLiveCheck('page')">Open the full check page</button>
+      </div>
+      <ul class="gate-check-results" id="gateCheckResults" aria-live="polite"></ul>
+    </div>
   </div>
 </div>
 
