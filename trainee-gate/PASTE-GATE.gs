@@ -1071,6 +1071,58 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       return c != null && start != null && c > start ? c : null;
     }
 
+    /* ---- Extra time (the owner: "the Administrator should be able to add
+       time if needed") ----------------------------------------------------
+       Each grant is kept on the exam itself, in exam.extraTime, and is never
+       changed or taken away once made:
+         { id, studentId: '<STU-…>' for one trainee | '' for the whole sitting,
+           minutes, reason, byId, byName, byRole, at }
+       The list is merged entry by entry on every path (Core.sync.RECORD_MAPS
+       .exams: unionStamps), so two people adding time on two computers both
+       keep theirs. An attempt's own deadline is never moved (mergeAttempt
+       only ever moves a deadline earlier): the time a trainee has is her
+       attempt's deadline PLUS the grants for her and for everyone — worked
+       out wherever the clock is read, so time added while she sits reaches
+       her clock as soon as the exam record does. */
+    var EXTRA_MAX_MIN = 600;
+    function grantsOf(exam) {
+      return (exam && Array.isArray(exam.extraTime) ? exam.extraTime : []).filter(function (g) {
+        var m = Number(g && g.minutes);
+        return g && typeof g === 'object' && isFinite(m) && m > 0 && m <= EXTRA_MAX_MIN;
+      });
+    }
+    /* The grants that apply to one trainee: the whole sitting's and her own.
+       Each grant counts once (by id) however many copies a merge saw. */
+    function extraGrantsFor(exam, studentId) {
+      var seen = {}, sid = studentId == null ? '' : String(studentId);
+      return grantsOf(exam).filter(function (g) {
+        var who = g.studentId == null ? '' : String(g.studentId);
+        if (who !== '' && who !== sid) return false;
+        var k = g.id != null && g.id !== '' ? String(g.id) : JSON.stringify(g);
+        if (seen[k]) return false;
+        seen[k] = 1;
+        return true;
+      });
+    }
+    function extraMinutesFor(exam, studentId) {
+      return extraGrantsFor(exam, studentId).reduce(function (n, g) { return n + Number(g.minutes); }, 0);
+    }
+    function extraMs(exam, studentId) { return extraMinutesFor(exam, studentId) * MIN; }
+    /* The most any one trainee has been given — how long after its own
+       closing time the sitting must stay open. */
+    function extraMaxMs(exam) {
+      var gs = grantsOf(exam);
+      if (!gs.length) return 0;
+      var people = { '': 1 };
+      gs.forEach(function (g) { if (g.studentId != null && g.studentId !== '') people[String(g.studentId)] = 1; });
+      return Object.keys(people).reduce(function (mx, sid) { return Math.max(mx, extraMs(exam, sid)); }, 0);
+    }
+
+    /* The window an exam is open. With extra time granted, the window stays
+       open that much longer (end) — so the paper is still served, and the
+       exam is still "open", while someone sits her extra minutes — and
+       baseEnd keeps the closing time the exam was set with: nobody's own
+       deadline is ever worked out from the longer window. */
     function windowOf(exam, offset) {
       if (!exam) return null;
       var dur = durationMs(exam);
@@ -1082,14 +1134,20 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
         start = start == null ? act : Math.min(start, act);
         end = Math.max(end == null ? 0 : end, act + dur);
       }
-      return start == null ? null : { start: start, end: end };
+      if (start == null) return null;
+      var w = { start: start, end: end };
+      var more = extraMaxMs(exam);
+      if (more && end != null) { w.baseEnd = end; w.end = end + more; }
+      return w;
     }
 
     /* The status an exam should have NOW. Pure: it never changes the exam.
        'completed' is final until staff reschedule; an exam without questions
-       never opens by itself. */
+       never opens by itself; a draft (a prepared assessment nobody has
+       opened yet, Core.assessments) never opens at all. */
     function statusAt(exam, nowMs, offset) {
       if (!exam) return 'upcoming';
+      if (exam.status === 'draft' || exam.status === 'cancelled') return 'upcoming';
       var stored = exam.status === 'active' || exam.status === 'completed' ? exam.status : 'upcoming';
       if (stored === 'completed') return 'completed';
       var w = windowOf(exam, offset);
@@ -1098,11 +1156,20 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       return nowMs >= w.end ? 'completed' : 'active';
     }
 
+    /* When an attempt started at startedAt must end: start + duration, never
+       after the exam's own closing time. Extra time is NOT in it (an
+       attempt's deadline is the base; deadlineWithExtra adds the grants). */
     function sessionDeadline(exam, startedAt, offset) {
       var d = startedAt + durationMs(exam);
       var w = windowOf(exam, offset);
-      if (w && w.end != null) d = Math.min(d, w.end);
+      var end = w ? (w.baseEnd != null ? w.baseEnd : w.end) : null;
+      if (end != null) d = Math.min(d, end);
       return d;
+    }
+    /* A trainee's real deadline: her attempt's own, plus her extra time. */
+    function deadlineWithExtra(exam, baseDeadline, studentId) {
+      var b = Number(baseDeadline);
+      return isFinite(b) && b > 0 ? b + extraMs(exam, studentId) : b;
     }
 
     /* The trainee's copy of the questions: everything that would give an
@@ -1110,7 +1177,9 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
        trainee gets the prompts (rows) and the list of answers to choose from
        (choices, in alphabetical order so their order says nothing about which
        row they belong to); the tolerance of a numerical answer goes too. */
-    var KEY_FIELDS = { correctAnswer: 1, pairs: 1, distractors: 1, tolerance: 1 };
+    // An essay's model answer and its marking points (a prepared assessment,
+    // Core.assessments) are the marker's, never the trainee's.
+    var KEY_FIELDS = { correctAnswer: 1, pairs: 1, distractors: 1, tolerance: 1, modelAnswer: 1, markingPoints: 1 };
     function publicQuestions(questionData) {
       return (Array.isArray(questionData) ? questionData : []).map(function (q) {
         var c = {};
@@ -1390,7 +1459,11 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
             if (validKey(kq, null)) { frac = markMatch(ans, kq.pairs); key = matchPairs(kq).map(function (p) { return p.answer; }); extra.rows = matchPairs(kq).map(function (p) { return p.prompt; }); }
           } else if (validKey(kq, key)) {
             if (q.type === 'multi') frac = markMulti(ans, key, { allOrNothing: !!kq.allOrNothing, optionCount: (kq.options || q.options || []).length });
-            else if (q.type === 'shortanswer') frac = shortAnswerMatches(ans, key) ? 1 : 0;
+            // A short answer that matches an accepted answer is marked at
+            // once. One that does not is wrong — unless the question says it
+            // waits for a person then (manualIfNoMatch: a prepared Theory 2,
+            // the owner's rule: "otherwise they wait for marking").
+            else if (q.type === 'shortanswer') frac = shortAnswerMatches(ans, key) ? 1 : (kq.manualIfNoMatch ? null : 0);
             else { frac = numericalMatches(ans, key, kq.tolerance) ? 1 : 0; extra.tolerance = Number(kq.tolerance) || 0; }
           }
           out.totalPoints += pts;
@@ -2283,6 +2356,8 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       DEFAULT_OFFSET: DEFAULT_OFFSET, offsetMinutes: offsetMinutes, centreTime: centreTime, centreParts: centreParts,
       defaultStart: defaultStart, windowOf: windowOf, hasQuestions: hasQuestions, statusAt: statusAt,
       sessionDeadline: sessionDeadline, publicQuestions: publicQuestions, mark: mark, keyProblems: keyProblems,
+      extraGrantsFor: extraGrantsFor, extraMinutesFor: extraMinutesFor, extraMs: extraMs, extraMaxMs: extraMaxMs,
+      deadlineWithExtra: deadlineWithExtra, EXTRA_MAX_MIN: EXTRA_MAX_MIN,
       fixKeyAfterOptionRemoved: fixKeyAfterOptionRemoved, isProvisional: isProvisional, isFinal: isFinal,
       passRateOf: passRateOf, averageOf: averageOf, canRevealAnswers: canRevealAnswers,
       legacyKey: legacyKey, syncKey: syncKey, translateLegacyTombs: translateLegacyTombs, csvCell: csvCell,
@@ -2871,6 +2946,923 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
     };
   })();
 
+  /* ---- from cestis-core.js: Core.assessments ---- */
+  Core.assessments = (function () {
+    var KINDS = {
+      theory1: { key: 'theory1', label: 'Theory 1', long: 'Theory Assessment 1', type: 'theory', minutes: 150, passMark: 70, mcq: 45 },
+      theory2: { key: 'theory2', label: 'Theory 2', long: 'Theory Assessment 2', type: 'theory', minutes: 215, passMark: 70, essays: 10, shortAnswers: 15 },
+      practical1: { key: 'practical1', label: 'Practical 1', long: 'Practical Assessment 1', type: 'practical' },
+      practical2: { key: 'practical2', label: 'Practical 2', long: 'Practical Assessment 2', type: 'practical' }
+    };
+    var ORDER = ['theory1', 'theory2', 'practical1', 'practical2'];
+    var MARKS = { mcq: 1, short: 2, essay: 5 };
+    var GROUP_MIN = 4, GROUP_MAX = 5;
+    var BANK_FORMAT = 'cestis-assessment-bank', BANK_VERSION = 1;
+    var WORK_KEY = 'voctrain_assessmentWork';
+    var ROOT_FOLDER = 'Assessment Results';
+    var GRANT_MAX_MIN = 240, REASON_MAX = 200, CAPTION_MAX = 120, COMMENT_MAX = 1000, NAME_MAX = 120;
+    var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+    function str(v) { return v == null ? '' : String(v); }
+    function trim(v) { return str(v).replace(/\s+/g, ' ').trim(); }
+    function isObj(v) { return !!v && typeof v === 'object' && !Array.isArray(v); }
+    function copy(v) { return v === undefined || v === null ? v : JSON.parse(JSON.stringify(v)); }
+    function msOf(v) { var t = typeof v === 'number' ? v : Date.parse(v || ''); return isFinite(t) && t > 0 ? t : 0; }
+    function iso(ms) { return new Date(ms).toISOString(); }
+    function pad2(n) { return (n < 10 ? '0' : '') + n; }
+    function list(v) { return Array.isArray(v) ? v : []; }
+    function noMarkup(s) { return !/[<>]/.test(str(s)); }
+
+    /* ---- Kinds -------------------------------------------------------- */
+    function kindOf(exam) { var a = exam && exam.assessment; return isObj(a) && KINDS[a.kind] ? a.kind : null; }
+    function isAssessment(exam) { return !!kindOf(exam); }
+    function isPractical(exam) { var k = kindOf(exam); return !!k && KINDS[k].type === 'practical'; }
+    function isTheory(exam) { var k = kindOf(exam); return !!k && KINDS[k].type === 'theory'; }
+    function isMaster(exam) { return isAssessment(exam) && exam.assessment.master === true; }
+
+    /* ---- Units, and matching a bank to them --------------------------- */
+    function normCode(c) { return str(c).toUpperCase().replace(/[^A-Z0-9]/g, ''); }
+    function normTitle(t) { return str(t).toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, ' ').trim(); }
+    function slug(s) { return normTitle(s).replace(/ /g, '-') || 'programme'; }
+    function unitLabel(unit) {
+      var c = trim(unit && unit.code), t = trim(unit && (unit.title != null ? unit.title : unit.name));
+      return c && t ? c + ' ' + t : (c || t);
+    }
+    /* The Centre's units, from the Qualification Plan (Transcript-Grades'
+       qualifications: {id, title, skillArea, level, code, units:[{code,
+       name}]}), programme by programme. opts.only(qual) keeps some. */
+    function unitsFrom(catalogs, opts) {
+      opts = opts || {};
+      return list(catalogs).filter(function (q) { return isObj(q) && Array.isArray(q.units) && (!opts.only || opts.only(q)); }).map(function (q) {
+        var seen = {};
+        return {
+          qual: { id: str(q.id), title: trim(q.title), skillArea: trim(q.skillArea), level: q.level == null ? '' : q.level, code: trim(q.code) },
+          units: q.units.filter(function (u) {
+            if (!isObj(u)) return false;
+            var k = normCode(u.code) || normTitle(u.name || u.title);
+            if (!k || seen[k]) return false;
+            seen[k] = 1;
+            return true;
+          }).map(function (u) { return { code: trim(u.code), title: trim(u.name != null ? u.name : u.title), coreElective: trim(u.coreElective) }; })
+        };
+      }).sort(function (a, b) { return a.qual.title < b.qual.title ? -1 : a.qual.title > b.qual.title ? 1 : 0; });
+    }
+    /* The unit list the owner sends for the full banks: programme,
+       qualification, level, unit code, unit title (a CSV a spreadsheet opens). */
+    function unitsCsv(catalogs) {
+      var cell = Core.exams.csvCell;
+      var lines = [['Programme', 'Qualification', 'Qualification code', 'Level', 'Unit code', 'Unit title', 'Core/Elective'].map(cell).join(',')];
+      unitsFrom(catalogs).forEach(function (p) {
+        p.units.forEach(function (u) {
+          lines.push([p.qual.skillArea, p.qual.title, p.qual.code, p.qual.level, u.code, u.title, u.coreElective || 'Core'].map(cell).join(','));
+        });
+      });
+      return '﻿' + lines.join('\r\n') + '\r\n';
+    }
+    /* Which prepared bank answers to one of the Centre's units: the same
+       programme (its qualification id or code, else its skill area) and the
+       same unit code; failing the code, the same unit title written the same
+       way (capitals, spaces and punctuation aside). index: the entries of
+       assessments/index.json. -> the entry, or null ("No prepared
+       assessments yet"). */
+    function sameProgramme(entry, qual) {
+      if (!entry || !qual) return false;
+      if (entry.qualId && qual.id && str(entry.qualId) === str(qual.id)) return true;
+      if (entry.qualCode && qual.code && normCode(entry.qualCode) === normCode(qual.code)) return true;
+      return !!entry.programme && normTitle(entry.programme) === normTitle(qual.skillArea) &&
+        (entry.level == null || entry.level === '' || qual.level == null || qual.level === '' || Number(entry.level) === Number(qual.level));
+    }
+    function matchBank(index, qual, unit) {
+      var entries = list(index && index.banks ? index.banks : index).filter(isObj);
+      var code = normCode(unit && unit.code), title = normTitle(unit && (unit.title != null ? unit.title : unit.name));
+      var byCode = entries.filter(function (e) { return code && normCode(e.unitCode) === code && sameProgramme(e, qual); });
+      if (byCode.length) return byCode[0];
+      var byTitle = entries.filter(function (e) { return title && normTitle(e.unitTitle) === title && sameProgramme(e, qual); });
+      return byTitle.length ? byTitle[0] : null;
+    }
+
+    /* ---- The bank file ------------------------------------------------- */
+    function nonEmpty(s) { return trim(s) !== ''; }
+    /* Everything a bank must hold, said plainly; -> { ok, problems:[text],
+       counts }. Every multiple-choice question has four different options and
+       exactly one key; every short answer at least one accepted answer; every
+       essay a model answer and at least two marking points; every practical a
+       brief, photos to take, at least three checks and its safety points. */
+    function checkBank(bank) {
+      var problems = [], ids = {};
+      var say = function (t) { problems.push(t); };
+      var idOk = function (id, where) {
+        var s = trim(id);
+        if (!/^[A-Za-z0-9._-]{1,40}$/.test(s)) { say(where + ': its id is missing or not a plain word'); return; }
+        if (ids[s]) say(where + ': the id ' + s + ' is used twice');
+        ids[s] = 1;
+      };
+      if (!isObj(bank)) return { ok: false, problems: ['The file is not a question bank.'], counts: {} };
+      if (bank.format !== BANK_FORMAT) say('format must be "' + BANK_FORMAT + '"');
+      if (Number(bank.version) !== BANK_VERSION) say('version must be ' + BANK_VERSION);
+      if (!nonEmpty(bank.programme)) say('programme is missing');
+      if (!isObj(bank.unit) || (!nonEmpty(bank.unit.code) && !nonEmpty(bank.unit.title))) say('unit needs a code or a title');
+      var t1 = isObj(bank.theory1) ? bank.theory1 : null, t2 = isObj(bank.theory2) ? bank.theory2 : null;
+      var counts = { mcq: 0, shortAnswers: 0, essays: 0 };
+      if (!t1) say('theory1 is missing');
+      else {
+        var qs = list(t1.questions);
+        counts.mcq = qs.length;
+        if (qs.length !== KINDS.theory1.mcq) say('theory1 must have ' + KINDS.theory1.mcq + ' questions (it has ' + qs.length + ')');
+        qs.forEach(function (q, i) {
+          var w = 'theory1 question ' + (i + 1);
+          if (!isObj(q)) { say(w + ' is not a question'); return; }
+          idOk(q.id, w);
+          if (!nonEmpty(q.stem)) say(w + ': the question is blank');
+          var o = list(q.options);
+          if (o.length !== 4 || !o.every(nonEmpty)) say(w + ': it needs exactly 4 options, none blank');
+          var seen = {};
+          o.forEach(function (x) { var k = normTitle(x); if (seen[k]) say(w + ': two options say the same'); seen[k] = 1; });
+          if (!(typeof q.answer === 'number' && q.answer >= 0 && q.answer <= 3 && Math.floor(q.answer) === q.answer)) say(w + ': answer must be the number of the one right option (0–3)');
+          if (!nonEmpty(q.topic)) say(w + ': topic is missing');
+          [q.stem].concat(o).forEach(function (s) { if (!noMarkup(s)) say(w + ': no < or > in the text'); });
+        });
+      }
+      if (!t2) say('theory2 is missing');
+      else {
+        var sa = list(t2.shortAnswers), es = list(t2.essays);
+        counts.shortAnswers = sa.length; counts.essays = es.length;
+        if (sa.length !== KINDS.theory2.shortAnswers) say('theory2 must have ' + KINDS.theory2.shortAnswers + ' short answers (it has ' + sa.length + ')');
+        if (es.length !== KINDS.theory2.essays) say('theory2 must have ' + KINDS.theory2.essays + ' essays (it has ' + es.length + ')');
+        sa.forEach(function (q, i) {
+          var w = 'theory2 short answer ' + (i + 1);
+          if (!isObj(q)) { say(w + ' is not a question'); return; }
+          idOk(q.id, w);
+          if (!nonEmpty(q.stem)) say(w + ': the question is blank');
+          if (!list(q.accepted).filter(nonEmpty).length) say(w + ': it needs at least one accepted answer');
+          if (q.marks != null && !(Number(q.marks) > 0)) say(w + ': marks must be more than 0');
+          if (!nonEmpty(q.topic)) say(w + ': topic is missing');
+        });
+        es.forEach(function (q, i) {
+          var w = 'theory2 essay ' + (i + 1);
+          if (!isObj(q)) { say(w + ' is not a question'); return; }
+          idOk(q.id, w);
+          if (!nonEmpty(q.stem)) say(w + ': the question is blank');
+          if (!nonEmpty(q.modelAnswer)) say(w + ': the model answer is missing');
+          if (list(q.markingPoints).filter(nonEmpty).length < 2) say(w + ': it needs at least 2 marking points');
+          if (q.marks != null && !(Number(q.marks) > 0)) say(w + ': marks must be more than 0');
+          if (!nonEmpty(q.topic)) say(w + ': topic is missing');
+        });
+      }
+      ['practical1', 'practical2'].forEach(function (k) {
+        var p = bank[k];
+        if (!isObj(p)) { say(k + ' is missing'); return; }
+        if (!nonEmpty(p.title)) say(k + ': title is missing');
+        if (!nonEmpty(p.brief)) say(k + ': the task brief is missing');
+        if (!list(p.photos).filter(nonEmpty).length) say(k + ': list the photos to take');
+        if (list(p.checklist).filter(nonEmpty).length < 3) say(k + ': it needs at least 3 things the assessor checks');
+        if (!list(p.safety).filter(nonEmpty).length) say(k + ': list the safety points');
+      });
+      return { ok: !problems.length, problems: problems, counts: counts };
+    }
+
+    /* The exam a bank makes for one kind: the prepared copy (the "master"),
+       a draft nobody can sit, named after the programme and the unit exactly
+       as the Centre names them. o: { id, programme, qual:{id,title,code,
+       skillArea,level}, unit:{code,title}, bankRef, by, byRole, at }. */
+    function examTitle(programme, unit, kind) {
+      return [trim(programme), unitLabel(unit), KINDS[kind] ? KINDS[kind].label : ''].filter(Boolean).join(' — ');
+    }
+    function practicalBrief(p) {
+      p = isObj(p) ? p : {};
+      var lines = function (v) { return list(v).map(trim).filter(Boolean); };
+      return { title: trim(p.title), brief: str(p.brief).trim(), time: trim(p.time), materials: lines(p.materials),
+        photos: lines(p.photos), checklist: lines(p.checklist), safety: lines(p.safety) };
+    }
+    function bankToExam(bank, kind, o) {
+      o = o || {};
+      if (!KINDS[kind] || !isObj(bank)) return null;
+      var K = KINDS[kind], id = str(o.id), unit = o.unit || bank.unit || {}, qual = o.qual || {};
+      var programme = trim(o.programme || qual.skillArea || bank.programme);
+      var exam = {
+        id: id, title: examTitle(programme, unit, kind), course: programme, date: '', time: '',
+        status: 'draft', students: 0, questions: 0, questionData: [],
+        instructions: '', answersRelease: 'after-close', allowFlag: true,
+        createdBy: o.by == null ? '' : o.by, createdByRole: o.byRole || '', createdAt: o.at || '',
+        assessment: { v: 1, kind: kind, master: true, programme: programme, qualId: str(qual.id), qualTitle: trim(qual.title), qualCode: trim(qual.code),
+          unitCode: trim(unit.code), unitTitle: trim(unit.title != null ? unit.title : unit.name), bank: str(o.bankRef), bankVersion: str(bank.written || bank.updated || ''),
+          ready: false }
+      };
+      var qid = function (q) { return 'Q-' + id + '-' + trim(q.id); };
+      if (kind === 'theory1') {
+        var t1 = bank.theory1 || {};
+        exam.duration = Number(t1.minutes) || K.minutes;
+        exam.passMark = Number(t1.passMark) || K.passMark;
+        exam.questionsPerPage = 5; exam.shuffleQuestions = false; exam.shuffleOptions = true;
+        exam.instructions = str(t1.instructions).trim() || ('Answer all ' + K.mcq + ' questions. Choose the one best answer for each. Time allowed: 2 hours 30 minutes.');
+        exam.questionData = list(t1.questions).map(function (q) {
+          return { id: qid(q), type: 'mcq', text: trim(q.stem), options: list(q.options).map(trim), correctAnswer: q.answer, points: MARKS.mcq, topic: trim(q.topic) };
+        });
+      } else if (kind === 'theory2') {
+        var t2 = bank.theory2 || {}, sa = list(t2.shortAnswers), es = list(t2.essays);
+        exam.duration = Number(t2.minutes) || K.minutes;
+        exam.passMark = Number(t2.passMark) || K.passMark;
+        exam.questionsPerPage = 1; exam.shuffleQuestions = false; exam.shuffleOptions = false;
+        exam.instructions = str(t2.instructions).trim() || ('Section A: ' + K.shortAnswers + ' short answers. Section B: ' + K.essays + ' essay questions. Answer every question. Time allowed: 3 hours 35 minutes.');
+        var saMarks = sa.reduce(function (n, q) { return n + (Number(q.marks) || MARKS.short); }, 0);
+        var esMarks = es.reduce(function (n, q) { return n + (Number(q.marks) || MARKS.essay); }, 0);
+        exam.questionData = [{ id: 'Q-' + id + '-SA', type: 'info', text: 'Section A — Short answers (' + sa.length + ' questions, ' + saMarks + ' marks). Write a short answer to each. An answer that matches the expected answer is marked at once; any other answer is marked by your assessor.', points: 0 }]
+          .concat(sa.map(function (q) {
+            return { id: qid(q), type: 'shortanswer', text: trim(q.stem), correctAnswer: list(q.accepted).map(trim).filter(Boolean), manualIfNoMatch: true,
+              points: Number(q.marks) || MARKS.short, topic: trim(q.topic) };
+          }))
+          .concat([{ id: 'Q-' + id + '-ES', type: 'info', text: 'Section B — Essays (' + es.length + ' questions, ' + esMarks + ' marks). Answer each question in full sentences. Your assessor marks these.', points: 0 }])
+          .concat(es.map(function (q) {
+            return { id: qid(q), type: 'essay', text: trim(q.stem), points: Number(q.marks) || MARKS.essay, topic: trim(q.topic),
+              modelAnswer: str(q.modelAnswer).trim(), markingPoints: list(q.markingPoints).map(trim).filter(Boolean) };
+          }));
+      } else {
+        var p = practicalBrief(bank[kind]);
+        exam.duration = 0; exam.passMark = null;
+        exam.practical = p;
+        exam.instructions = p.brief;
+      }
+      exam.questions = Core.exams.questionCount(exam);
+      return exam;
+    }
+
+    /* ---- Where a unit's assessments stand ----------------------------- */
+    function sameUnit(a, unit) {
+      if (!isObj(a)) return false;
+      var c = normCode(unit && unit.code);
+      if (c) return normCode(a.unitCode) === c;
+      return normTitle(a.unitTitle) === normTitle(unit && (unit.title != null ? unit.title : unit.name));
+    }
+    /* The prepared copy of one assessment of one unit (oldest, if two
+       computers prepared it at once), and the copies opened from it. */
+    function masterFor(exams, qual, unit, kind) {
+      var found = list(exams).filter(function (e) {
+        if (!isMaster(e) || e.assessment.kind !== kind || !sameUnit(e.assessment, unit)) return false;
+        return !qual || !e.assessment.qualId || !qual.id || str(e.assessment.qualId) === str(qual.id);
+      });
+      found.sort(function (a, b) { return (msOf(a.createdAt) - msOf(b.createdAt)) || (str(a.id) < str(b.id) ? -1 : 1); });
+      return found[0] || null;
+    }
+    function copiesOf(exams, masterId) {
+      return list(exams).filter(function (e) { return isAssessment(e) && !isMaster(e) && str(e.assessment.from) === str(masterId); });
+    }
+    /* 'none' (no prepared copy yet) | 'to-check' | 'ready' | 'opened', and
+       the intakes it is open for. */
+    function statusOf(master, copies) {
+      if (!master) return { state: 'none', label: 'Not prepared yet', intakes: [] };
+      var opened = list(copies).filter(function (e) { return e && e.status !== 'cancelled'; });
+      var intakes = [];
+      opened.forEach(function (e) { var l = trim(e.assessment && e.assessment.intake) || trim(e.course); if (l && intakes.indexOf(l) === -1) intakes.push(l); });
+      if (!master.assessment.ready) return { state: 'to-check', label: 'To check', intakes: intakes };
+      if (intakes.length) return { state: 'opened', label: 'Opened for ' + intakes.join(', '), intakes: intakes };
+      return { state: 'ready', label: 'Ready', intakes: [] };
+    }
+    /* Who may prepare, check and open: the Administrator, and an instructor
+       for their own programme (the page passes `own`). Admin Staff may look. */
+    function mayCheck(role, own) { return role === 'admin' || (role === 'instructor' && own !== false); }
+    function markReady(master, who, atIso) {
+      if (!isMaster(master)) return null;
+      master.assessment.ready = true;
+      master.assessment.readyAt = atIso;
+      master.assessment.readyBy = str(who && who.id);
+      master.assessment.readyByName = trim(who && who.name);
+      master.assessment.readyByRole = str(who && who.role);
+      return master;
+    }
+    function markToCheck(master) {
+      if (!isMaster(master)) return null;
+      master.assessment.ready = false;
+      ['readyAt', 'readyBy', 'readyByName', 'readyByRole'].forEach(function (f) { delete master.assessment[f]; });
+      return master;
+    }
+    /* "Open for an intake…": a copy of a Ready assessment for one intake's
+       training centre, with its dates. o: { id, course (the intake's centre,
+       as exams name it), intake (its label), centreId, date, time, closeDate,
+       closeTime, by, byRole, byName, at }. -> { exam } | { error }. */
+    function openCopy(master, o) {
+      o = o || {};
+      if (!isMaster(master)) return { error: 'not-prepared' };
+      if (!master.assessment.ready) return { error: 'not-ready' };
+      if (!trim(o.course)) return { error: 'no-intake' };
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(str(o.date)) || !/^\d{1,2}:\d{2}$/.test(str(o.time))) return { error: 'no-date' };
+      var practical = isPractical(master);
+      if (practical && !/^\d{4}-\d{2}-\d{2}$/.test(str(o.closeDate))) return { error: 'no-close' };
+      var off = o.offset;
+      if (o.closeDate) {
+        var s = Core.exams.centreTime(o.date, o.time, off), c = Core.exams.centreTime(o.closeDate, o.closeTime || '23:59', off);
+        if (s == null || c == null || c <= s) return { error: 'close-before-open' };
+      }
+      var c2 = Core.exams.copyExam(master, { id: o.id, title: master.title, course: o.course, date: o.date, time: o.time, by: o.by, byRole: o.byRole, at: o.at });
+      if (!c2) return { error: 'not-prepared' };
+      if (o.closeDate) { c2.closeDate = o.closeDate; c2.closeTime = o.closeTime || '23:59'; } else { delete c2.closeDate; delete c2.closeTime; }
+      delete c2.extraTime;
+      c2.status = 'upcoming';
+      var a = copy(master.assessment);
+      a.master = false; a.from = str(master.id);
+      ['ready', 'readyAt', 'readyBy', 'readyByName', 'readyByRole'].forEach(function (f) { delete a[f]; });
+      a.checkedBy = trim(master.assessment.readyByName); a.checkedAt = str(master.assessment.readyAt);
+      a.intake = trim(o.intake) || trim(o.course); a.centreId = o.centreId == null ? '' : str(o.centreId);
+      a.openedAt = str(o.at); a.openedBy = str(o.by); a.openedByName = trim(o.byName);
+      c2.assessment = a;
+      if (practical) c2.practical = copy(master.practical);
+      return { exam: c2 };
+    }
+    /* A practical's state on the given clock: 'draft' (the prepared copy),
+       'upcoming', 'open' (the group can add photos and hand in), 'closed'. */
+    function practicalStatus(exam, nowMs, offset) {
+      if (!exam || exam.status === 'draft' || isMaster(exam)) return 'draft';
+      if (exam.status === 'cancelled') return 'closed';
+      var w = Core.exams.windowOf({ date: exam.date, time: exam.time, closeDate: exam.closeDate, closeTime: exam.closeTime, duration: exam.duration || 1440 }, offset);
+      if (!w) return 'upcoming';
+      if (nowMs < w.start) return 'upcoming';
+      return nowMs >= w.end ? 'closed' : 'open';
+    }
+    /* The label of an intake: its months ("Sep 2026 – Jun 2027") when the
+       training centre has dates, else its name. */
+    function monthYear(dateStr) {
+      var m = /^(\d{4})-(\d{2})/.exec(str(dateStr));
+      return m ? MONTHS[Number(m[2]) - 1] + ' ' + m[1] : '';
+    }
+    function intakeLabel(centre) {
+      if (!isObj(centre)) return '';
+      var a = monthYear(centre.startDate || centre.courseStart || centre.start), b = monthYear(centre.endDate || centre.courseEnd || centre.end);
+      if (a && b) return a + ' – ' + b;
+      return a || trim(centre.label || centre.name);
+    }
+
+    /* ---- Extra time ---------------------------------------------------- */
+    /* The Administrator, and Admin Staff whose access includes Online Exams.
+       Instructors do not control a test's timing in this system (the owner:
+       "if unsure, Administrator and Admin Staff only"). */
+    function mayAddTime(role, access) { return role === 'admin' || (role === 'adminstaff' && !!(access && access.exams === true)); }
+    var ROLE_LABEL = { admin: 'the Administrator', adminstaff: 'Admin Staff', instructor: 'the instructor' };
+    function roleLabel(role) { return ROLE_LABEL[role] || 'the office'; }
+    /* o: { id, studentId ('' = the whole sitting), minutes, reason, byId,
+       byName, byRole, at }. -> { grant } | { error: 'minutes'|'reason'|'who' } */
+    function makeGrant(o) {
+      o = o || {};
+      var m = Number(o.minutes);
+      if (!(isFinite(m) && m >= 1 && m <= GRANT_MAX_MIN && Math.floor(m) === m)) return { error: 'minutes' };
+      var reason = trim(o.reason);
+      if (!reason || reason.length > REASON_MAX || !noMarkup(reason)) return { error: 'reason' };
+      if (!o.byRole || !trim(o.byName)) return { error: 'who' };
+      return { grant: { id: str(o.id), studentId: o.studentId == null ? '' : str(o.studentId), minutes: m, reason: reason,
+        byId: str(o.byId), byName: trim(o.byName), byRole: str(o.byRole), at: str(o.at) } };
+    }
+    function addGrant(exam, grant) {
+      if (!isObj(exam) || !isObj(grant)) return exam;
+      if (!Array.isArray(exam.extraTime)) exam.extraTime = [];
+      if (!exam.extraTime.some(function (g) { return g && grant.id && g.id === grant.id; })) exam.extraTime.push(copy(grant));
+      return exam;
+    }
+    /* What one trainee may know of the extra time: hers and the whole
+       sitting's — how much, when, by which role and why. Never another
+       trainee's id. */
+    function grantsForTrainee(exam, studentId) {
+      return Core.exams.extraGrantsFor(exam, studentId).map(function (g) {
+        return { id: str(g.id), minutes: Number(g.minutes), at: str(g.at), byRole: str(g.byRole), reason: trim(g.reason), scope: g.studentId ? 'you' : 'all' };
+      });
+    }
+    /* 15 -> "15 min"; 60 -> "1 h"; 75 -> "1 h 15 min". */
+    function minutesText(m) {
+      m = Math.max(0, Math.round(Number(m) || 0));
+      if (m < 60) return m + ' min';
+      return Math.floor(m / 60) + ' h' + (m % 60 ? ' ' + (m % 60) + ' min' : '');
+    }
+    function extraLine(g) {
+      return 'Extra time: ' + minutesText(g.minutes) + ', added by ' + roleLabel(g.byRole) + (g.scope === 'all' || g.studentId === '' ? ' for the whole sitting' : '');
+    }
+
+    /* ---- The trainee's signature (in the manner of DocuSign) ----------- */
+    /* "SIG" ids are worked out from what was signed (the attempt, or the
+       group and the trainee), the name and the moment, so every device that
+       draws the record shows the same id. */
+    function signatureId(basis, name, at) {
+      var h = (Core.hashString('sig|' + str(basis) + '|' + trim(name) + '|' + str(at)) + '00000000').toUpperCase().replace(/[^0-9A-Z]/g, '');
+      return h.slice(0, 4) + '-' + h.slice(4, 8);
+    }
+    function makeSignature(o) {
+      o = o || {};
+      var name = trim(o.name);
+      if (!name || name.length > NAME_MAX || !noMarkup(name) || !msOf(o.at)) return null;
+      var at = iso(msOf(o.at));
+      return { v: 1, name: name, at: at, id: signatureId(o.basis, name, at), consent: true };
+    }
+    /* A signature as it may be kept: well formed, consented, and — when the
+       official name is given — in that name (a trainee cannot sign as anyone
+       else); its id worked out again from the basis. null when it is not one. */
+    function cleanSignature(sig, o) {
+      o = o || {};
+      if (!isObj(sig) || sig.consent !== true || !msOf(sig.at)) return null;
+      var name = trim(o.name) || trim(sig.name);
+      if (!name || name.length > NAME_MAX || !noMarkup(name)) return null;
+      var at = iso(msOf(sig.at));
+      return { v: 1, name: name, at: at, id: signatureId(o.basis != null ? o.basis : '', name, at), consent: true };
+    }
+
+    /* ---- Dates as the record prints them (the Centre's clock) ---------- */
+    function when(msOrIso, offset, withTime) {
+      var ms = msOf(msOrIso);
+      if (!ms) return '';
+      var p = Core.exams.centreParts(ms, offset);
+      var d = p.date.split('-');
+      var out = Number(d[2]) + ' ' + MONTHS[Number(d[1]) - 1] + ' ' + d[0];
+      return withTime === false ? out : out + ', ' + p.time;
+    }
+    function clockOnly(msOrIso, offset) { var ms = msOf(msOrIso); return ms ? Core.exams.centreParts(ms, offset).time : ''; }
+    function signedLine(sig, offset) {
+      if (!isObj(sig)) return '';
+      return 'Electronically signed by ' + trim(sig.name) + ' · ' + when(sig.at, offset) + ' · Signature ID ' + str(sig.id);
+    }
+
+    /* ---- Groups for a practical (4 or 5) -------------------------------- */
+    function groupName(i) {
+      var s = '', n = i;
+      do { s = String.fromCharCode(65 + (n % 26)) + s; n = Math.floor(n / 26) - 1; } while (n >= 0);
+      return 'Group ' + s;
+    }
+    /* The intake's register cut into groups of 4 or 5, in name order: as many
+       groups as needed so none has more than 5, the sizes as even as they
+       can be. A roll that cannot be cut into 4s and 5s (6, 7, 11) gives a
+       smaller group, and says so, for the instructor to change.
+       people: [{id, name}] -> { groups: [[id]], note } */
+    function splitGroups(people, opts) {
+      opts = opts || {};
+      var max = opts.max || GROUP_MAX, min = opts.min || GROUP_MIN;
+      var seen = {};
+      var roll = list(people).filter(function (p) { if (!p || p.id == null || seen[str(p.id)]) return false; seen[str(p.id)] = 1; return true; })
+        .slice().sort(function (a, b) { var x = Core.normName(a.name), y = Core.normName(b.name); return x < y ? -1 : x > y ? 1 : (str(a.id) < str(b.id) ? -1 : 1); });
+      var n = roll.length;
+      if (!n) return { groups: [], note: '' };
+      var k = Math.max(1, Math.ceil(n / max));
+      var base = Math.floor(n / k), extra = n % k, at = 0, groups = [];
+      for (var g = 0; g < k; g++) {
+        var size = base + (g < extra ? 1 : 0);
+        groups.push(roll.slice(at, at + size).map(function (p) { return str(p.id); }));
+        at += size;
+      }
+      var small = groups.map(function (gr, i) { return gr.length < min ? groupName(i) + ' has ' + gr.length : ''; }).filter(Boolean);
+      return { groups: groups, note: small.length ? small.join('; ') + ' — move someone, or keep it as it is.' : '' };
+    }
+    function makeGroup(o) {
+      o = o || {};
+      var members = [], seen = {};
+      list(o.members).forEach(function (m) { var s = str(m); if (s && !seen[s]) { seen[s] = 1; members.push(s); } });
+      return { id: str(o.id), type: 'group', examId: str(o.examId), name: trim(o.name) || 'Group', members: members,
+        createdBy: str(o.by), createdByName: trim(o.byName), createdAt: str(o.at), updatedAt: str(o.at) };
+    }
+    function live(r) { return isObj(r) && !r.withdrawn && !r.deleted; }
+    function workOf(work, type, examId) {
+      return list(work).filter(function (r) { return live(r) && r.type === type && (examId == null || str(r.examId) === str(examId)); });
+    }
+    function groupsOf(work, examId) {
+      return workOf(work, 'group', examId).sort(function (a, b) { return a.name < b.name ? -1 : a.name > b.name ? 1 : (str(a.id) < str(b.id) ? -1 : 1); });
+    }
+    /* The group a trainee is in for one practical (the first by name if an
+       edit on two computers left her in two). */
+    function groupOf(work, examId, studentId) {
+      return groupsOf(work, examId).filter(function (g) { return g.members.map(str).indexOf(str(studentId)) !== -1; })[0] || null;
+    }
+    /* Anything the instructor should look at before the groups are kept:
+       somebody in two groups, somebody on the register in none, a group that
+       is not 4 or 5, an empty group. */
+    function groupProblems(groups, rosterIds) {
+      var out = [], where = {};
+      list(groups).forEach(function (g) {
+        var n = list(g.members).length;
+        if (!n) out.push({ kind: 'empty', group: g.name, text: g.name + ' has nobody in it.' });
+        else if (n < GROUP_MIN || n > GROUP_MAX) out.push({ kind: 'size', group: g.name, n: n, text: g.name + ' has ' + n + ' (groups are 4 or 5).' });
+        list(g.members).forEach(function (m) { (where[str(m)] = where[str(m)] || []).push(g.name); });
+      });
+      Object.keys(where).forEach(function (sid) { if (where[sid].length > 1) out.push({ kind: 'twice', studentId: sid, groups: where[sid], text: 'Somebody is in ' + where[sid].join(' and ') + '.' }); });
+      list(rosterIds).forEach(function (sid) { if (!where[str(sid)]) out.push({ kind: 'missing', studentId: str(sid), text: 'Somebody on the register is in no group.' }); });
+      return out;
+    }
+    /* What a group member sees of the others: the first name and the first
+       letter of the surname ("Tameka R."), and initials for the round badge —
+       never a student ID, and never a full name (the gate's privacy sweep
+       would take a full name out of her records). */
+    function nameParts(full) { return trim(full).split(' ').filter(Boolean); }
+    function memberShort(full) {
+      var p = nameParts(full);
+      if (!p.length) return 'A member';
+      return p.length > 1 ? p[0] + ' ' + p[p.length - 1].charAt(0).toUpperCase() + '.' : p[0];
+    }
+    function initials(full) {
+      var p = nameParts(full);
+      return ((p[0] || '?').charAt(0) + (p.length > 1 ? p[p.length - 1].charAt(0) : '')).toUpperCase();
+    }
+
+    /* ---- What a group hands in --------------------------------------- */
+    function photoRecord(o) {
+      o = o || {};
+      var cap = trim(o.caption).slice(0, CAPTION_MAX);
+      return { id: str(o.id), type: 'photo', examId: str(o.examId), groupId: str(o.groupId), studentId: str(o.studentId),
+        accountId: str(o.accountId), caption: noMarkup(cap) ? cap : cap.replace(/[<>]/g, ''), addedAt: str(o.at), updatedAt: str(o.at),
+        driveFiles: list(o.files).map(function (f) { return { id: str(f.id), name: trim(f.name), size: Number(f.size) || 0, type: str(f.type) }; }),
+        w: Number(o.w) || 0, h: Number(o.h) || 0 };
+    }
+    function signoffId(groupId, studentId) { return 'AS-' + str(groupId) + '-' + str(studentId); }
+    /* A member's sign-off. handIn: this member handed the group's work in
+       (the first hand-in stands for the whole group). */
+    function signoffRecord(o) {
+      o = o || {};
+      var sig = cleanSignature(o.signature, { name: o.name, basis: str(o.groupId) + '|' + str(o.studentId) });
+      if (!sig) return null;
+      var rec = { id: signoffId(o.groupId, o.studentId), type: 'signoff', examId: str(o.examId), groupId: str(o.groupId),
+        studentId: str(o.studentId), accountId: str(o.accountId), signature: sig, handIn: o.handIn === true, updatedAt: str(o.at) };
+      if (rec.handIn) rec.handInAt = str(o.at);
+      return rec;
+    }
+    /* The state of one group's practical: its photos (oldest first), when it
+       was handed in and by whom (the first hand-in), who has signed. */
+    function groupState(group, work) {
+      if (!isObj(group)) return null;
+      var gid = str(group.id), members = list(group.members).map(str);
+      var photos = list(work).filter(function (r) { return live(r) && r.type === 'photo' && str(r.groupId) === gid; })
+        .sort(function (a, b) { return (msOf(a.addedAt) - msOf(b.addedAt)) || (str(a.id) < str(b.id) ? -1 : 1); });
+      var offs = list(work).filter(function (r) { return live(r) && r.type === 'signoff' && str(r.groupId) === gid; });
+      var handed = null, signed = {};
+      offs.forEach(function (s) {
+        if (members.indexOf(str(s.studentId)) === -1) return;
+        if (s.signature) signed[str(s.studentId)] = s.signature;
+        var t = msOf(s.handInAt);
+        if (s.handIn && t && (!handed || t < handed.ms)) handed = { ms: t, at: iso(t), by: str(s.studentId) };
+      });
+      var byMember = {};
+      photos.forEach(function (p) { byMember[str(p.studentId)] = (byMember[str(p.studentId)] || 0) + 1; });
+      return {
+        groupId: gid, examId: str(group.examId), name: group.name, members: members, photos: photos, byMember: byMember,
+        handedIn: handed ? { at: handed.at, by: handed.by } : null,
+        late: handed ? photos.filter(function (p) { return msOf(p.addedAt) > handed.ms; }).map(function (p) { return p.id; }) : [],
+        signed: signed, unsigned: members.filter(function (m) { return !signed[m]; })
+      };
+    }
+    /* What one member's own device is given of her group (the gate's slice,
+       or her page at the Centre): the others by "Tameka R." only, the photos
+       by caption and who added them, the hand-in, her own signature. Never
+       another member's student ID, full name, result or comment. names:
+       { studentId: full name }. */
+    function traineeView(group, work, studentId, names) {
+      var st = groupState(group, work);
+      if (!st || st.members.indexOf(str(studentId)) === -1) return null;
+      names = names || {};
+      var me = str(studentId);
+      var short = function (sid) { return sid === me ? 'You' : memberShort(names[sid]); };
+      return {
+        id: st.groupId, examId: st.examId, name: st.name,
+        members: st.members.map(function (sid) { return { n: sid === me ? trim(names[sid]) || 'You' : memberShort(names[sid]), i: initials(names[sid]), me: sid === me, signed: !!st.signed[sid] }; }),
+        photos: st.photos.map(function (p) {
+          var f = list(p.driveFiles)[0] || null;
+          return { id: str(p.id), caption: trim(p.caption), by: short(str(p.studentId)), at: str(p.addedAt), mine: str(p.studentId) === me, fileId: f ? str(f.id) : '', late: st.late.indexOf(p.id) !== -1 };
+        }),
+        handedInAt: st.handedIn ? st.handedIn.at : '', handedInBy: st.handedIn ? short(st.handedIn.by) : '',
+        mySignature: st.signed[me] || null, signedCount: Object.keys(st.signed).length, total: st.members.length
+      };
+    }
+
+    /* ---- The assessor's result, member by member ---------------------- */
+    var OUTCOMES = { competent: 'Competent', nyc: 'Not yet competent' };
+    function practicalResultId(examId, studentId) { return 'APR-' + str(examId) + '-' + str(studentId); }
+    /* o: { examId, groupId, studentId, outcome, checklist:[{text, met}],
+       comment, by:{id,name,role}, at }. -> { rec } | { error } */
+    function practicalResult(o) {
+      o = o || {};
+      if (!OUTCOMES[o.outcome]) return { error: 'outcome' };
+      var comment = str(o.comment).trim();
+      if (comment.length > COMMENT_MAX || !noMarkup(comment)) return { error: 'comment' };
+      var checks = list(o.checklist).map(function (c) { return { text: trim(c && c.text), met: !!(c && c.met) }; }).filter(function (c) { return c.text; });
+      return { rec: { id: practicalResultId(o.examId, o.studentId), type: 'result', examId: str(o.examId), groupId: str(o.groupId), studentId: str(o.studentId),
+        outcome: o.outcome, checklist: checks, comment: comment, assessorId: str(o.by && o.by.id), assessorName: trim(o.by && o.by.name),
+        assessorRole: str(o.by && o.by.role), markedAt: str(o.at), updatedAt: str(o.at) } };
+    }
+    function resultsOf(work, examId) { return workOf(work, 'result', examId); }
+    function memberResult(work, examId, studentId) {
+      return resultsOf(work, examId).filter(function (r) { return str(r.studentId) === str(studentId); })
+        .sort(function (a, b) { return msOf(b.updatedAt) - msOf(a.updatedAt); })[0] || null;
+    }
+    /* 'final' once every member has a result, else 'provisional'. */
+    function practicalPaperStatus(group, work) {
+      var st = groupState(group, work);
+      if (!st) return 'provisional';
+      return st.members.length && st.members.every(function (m) { return !!memberResult(work, st.examId, m); }) ? 'final' : 'provisional';
+    }
+    function theoryPaperStatus(result) { return Core.exams.isProvisional(result) ? 'provisional' : 'final'; }
+
+    /* ---- Where the record is filed -------------------------------------- */
+    /* A name a folder or file can carry: no slashes or the characters Windows
+       refuses, no control characters, spaces tidied, at most `max`. */
+    function safeName(s, max) {
+      var out = str(s).replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/[\\/:*?"<>|]/g, '-').replace(/\s+/g, ' ').trim().replace(/^\.+/, '');
+      max = max || 120;
+      return (out.length > max ? out.slice(0, max).trim() : out) || 'Untitled';
+    }
+    function unitFolder(o) {
+      var c = trim(o.unitCode), t = trim(o.unitTitle);
+      return safeName(c && t ? c + ' — ' + t : (c || t), 100);
+    }
+    /* Assessment Results / Programme / Intake / Unit / Theory 1 [/ Group B] */
+    function folderPath(o) {
+      o = o || {};
+      var p = [ROOT_FOLDER, safeName(o.programme || 'Programme', 80), safeName(o.intake || 'Intake', 60), unitFolder(o), KINDS[o.kind] ? KINDS[o.kind].label : 'Assessment'];
+      if (o.groupName) p.push(safeName(o.groupName, 40));
+      return p;
+    }
+    function unitShort(o) { return trim(o.unitCode) || trim(o.unitTitle); }
+    /* "<Full Name> (<STU-id>) — <Unit> <Assessment>.pdf" */
+    function paperFileName(o) {
+      o = o || {};
+      return safeName(trim(o.name) + ' (' + trim(o.studentId) + ') — ' + unitShort(o) + ' ' + (KINDS[o.kind] ? KINDS[o.kind].label : ''), 180) + '.pdf';
+    }
+    /* "Group B — <Unit> Practical 1.pdf" */
+    function groupFileName(o) {
+      o = o || {};
+      return safeName(trim(o.groupName) + ' — ' + unitShort(o) + ' ' + (KINDS[o.kind] ? KINDS[o.kind].label : ''), 180) + '.pdf';
+    }
+    /* "01 Set up.jpg" */
+    function photoFileName(i, caption, type) {
+      var ext = /png/i.test(str(type)) ? 'png' : /webp/i.test(str(type)) ? 'webp' : /hei[cf]/i.test(str(type)) ? 'heic' : 'jpg';
+      return pad2(i + 1) + ' ' + safeName(caption || 'Photo', 80) + '.' + ext;
+    }
+    function zipName(o) { return safeName(trim(o.groupName) + ' — ' + unitShort(o) + ' ' + (KINDS[o.kind] ? KINDS[o.kind].label : '') + ' — photos', 180) + '.zip'; }
+    /* The record's number, the same on every device that draws it: the year
+       and six letters worked out from what it records (the attempt, or the
+       group). */
+    function docNumber(basis, atIso) {
+      var y = /^(\d{4})/.exec(str(atIso));
+      var h = (Core.hashString('ar|' + str(basis)) + '000000').toUpperCase().replace(/[^0-9A-Z]/g, '');
+      return 'AR-' + (y ? y[1] : '0000') + '-' + h.slice(0, 6);
+    }
+    /* Which papers must be (re)filed: one never filed, one filed as
+       provisional that is now final, one whose content changed (a mark or a
+       comment). items: [{ key, status, hash }]; filed: the 'filed' records. */
+    function filedId(key) { return 'AF-' + Core.hashString('af|' + str(key)); }
+    function filingDue(items, work) {
+      var byKey = {};
+      workOf(work, 'filed').forEach(function (f) {
+        var k = str(f.key);
+        if (!byKey[k] || msOf(f.updatedAt) > msOf(byKey[k].updatedAt)) byKey[k] = f;
+      });
+      return list(items).filter(function (it) {
+        var f = byKey[str(it.key)];
+        if (!f || !f.fileId) return true;
+        if (f.status === 'final' && it.status === 'provisional') return false;   // never back to provisional
+        return f.status !== it.status || str(f.hash) !== str(it.hash);
+      }).map(function (it) { var f = byKey[str(it.key)]; return Object.assign({}, it, { reason: !f || !f.fileId ? 'new' : f.status !== it.status ? 'marked' : 'changed', filed: f || null }); });
+    }
+    function filedRecord(o) {
+      o = o || {};
+      return { id: filedId(o.key), type: 'filed', key: str(o.key), examId: str(o.examId), studentId: str(o.studentId || ''), groupId: str(o.groupId || ''),
+        status: o.status === 'final' ? 'final' : 'provisional', fileId: str(o.fileId), folderId: str(o.folderId), name: str(o.name), path: list(o.path).map(str),
+        docNo: str(o.docNo), hash: str(o.hash), traineeFiles: isObj(o.traineeFiles) ? copy(o.traineeFiles) : {}, photoFiles: isObj(o.photoFiles) ? copy(o.photoFiles) : {},
+        filedAt: str(o.at), filedBy: str(o.by), updatedAt: str(o.at) };
+    }
+
+    /* ---- The record as a PDF: the data, worked out here (pure) ---------
+       cestis-assessment-pdf.js only lays it out. */
+    function verdictOf(status, passed) {
+      if (status === 'provisional') return { text: 'PROVISIONAL — AWAITING MARKING', tone: 'provisional' };
+      return passed ? { text: 'COMPETENT', tone: 'pass' } : { text: 'NOT YET COMPETENT', tone: 'fail' };
+    }
+    function answerText(q, a) {
+      var ans = a ? a.studentAnswer : null;
+      if (ans === null || ans === undefined || ans === '' || (Array.isArray(ans) && !ans.some(function (x) { return x !== null && x !== undefined && x !== ''; }))) return '';
+      if (q && (q.type === 'mcq' || q.type === 'multi')) return '';
+      if (q && q.type === 'tf') return ans === true ? 'True' : ans === false ? 'False' : str(ans);
+      if (Array.isArray(ans)) return ans.map(function (x) { return x == null || x === '' ? '—' : str(x); }).join('; ');
+      return str(ans);
+    }
+    function correctText(q, a) {
+      var k = a && a.correctAnswer !== undefined && a.correctAnswer !== null ? a.correctAnswer : (q ? q.correctAnswer : null);
+      if (k === null || k === undefined) return '';
+      if (q && q.type === 'shortanswer') return Core.exams.acceptedAnswers(k).join(' / ');
+      if (q && q.type === 'tf') return k === true ? 'True' : 'False';
+      if (q && q.type === 'match' && Array.isArray(k)) return k.join('; ');
+      if (q && (q.type === 'mcq' || q.type === 'multi')) return '';
+      return Array.isArray(k) ? k.join('; ') : str(k);
+    }
+    function fmtMark(n) { var x = Math.round((Number(n) || 0) * 100) / 100; return String(x); }
+    /* o: { exam, result (or null while it is not marked yet), questions (the
+       paper as the trainee saw it, with options: the exam's questionData on a
+       staff PC, her own copy on her device), answers (her answers, when there
+       is no result yet), student {id, name, course}, signature, sat {where:
+       'home'|'centre'|'', invigilated, invigilatorName}, centreName, offset,
+       madeAt (ms), revealAnswers (her own copy: only once the release rule
+       allows), filedAt (the folder path, for the footer), basis (the attempt
+       id, for the number) } -> the model. */
+    function theoryModel(o) {
+      o = o || {};
+      var exam = o.exam || {}, a = exam.assessment || {}, r = o.result || null, off = o.offset, kind = KINDS[a.kind] ? a.kind : 'theory1';
+      var stu = o.student || {};
+      var status = r ? theoryPaperStatus(r) : 'provisional';
+      var reveal = o.revealAnswers !== false;
+      var byId = {};
+      list(o.questions).forEach(function (q) { if (q && q.id != null) byId[str(q.id)] = q; });
+      var answers = r && Array.isArray(r.answers) ? r.answers : null;
+      var started = r ? (r.startedAt || Core.exams.attemptStartMs(r)) : o.startedAt;
+      var finished = r ? r.submittedAt : o.finishedAt;
+      var grants = Core.exams.extraGrantsFor(exam, stu.id);
+      var rows = [
+        ['Trainee', trim(stu.name || (r && r.studentName))],
+        ['Trainee ID', str(stu.id || (r && r.studentId))],
+        ['Programme', trim(a.programme || exam.course)],
+        ['Intake', trim(a.intake) || trim(exam.course)],
+        ['Unit', unitLabel({ code: a.unitCode, title: a.unitTitle })],
+        ['Assessment', (KINDS[kind] ? KINDS[kind].long : 'Assessment')],
+        ['Started · finished', started ? when(started, off) + (finished ? ' · ' + clockOnly(finished, off) : '') : ''],
+        ['Time allowed', minutesText(exam.duration)]
+      ];
+      if (grants.length) grants.forEach(function (g) { rows.push(['Extra time', minutesText(g.minutes) + ', added by ' + roleLabel(g.byRole) + (g.studentId ? '' : ' (whole sitting)') + (g.reason ? ' — ' + trim(g.reason) : '')]); });
+      else rows.push(['Extra time', 'None']);
+      var sat = o.sat || {};
+      var where = sat.where === 'home' ? 'From home' : sat.where === 'centre' ? 'At the Centre' : '';
+      rows.push(['Sat', [where, sat.invigilated ? (sat.where === 'home' ? 'invigilated online' : 'invigilated') : 'not invigilated'].filter(Boolean).join(', ')]);
+      var total = r ? Number(r.totalPoints) || 0 : 0, earned = r ? Number(r.earnedPoints) || 0 : 0;
+      var verdict = verdictOf(status, r && r.passed);
+      var result = r ? {
+        score: fmtMark(earned) + ' / ' + fmtMark(total), pct: (Number(r.score) || 0) + '%', passMark: (exam.passMark == null ? '' : exam.passMark + '%'),
+        line: fmtMark(earned) + ' / ' + fmtMark(total) + ' (' + (Number(r.score) || 0) + '%) · pass mark ' + (exam.passMark == null ? '—' : exam.passMark + '%') + (status === 'provisional' ? ' · ' + (Number(r.pendingCount) || 0) + ' answer(s) awaiting marking' : ''),
+        verdict: verdict.text, tone: verdict.tone
+      } : { score: '', pct: '', passMark: exam.passMark == null ? '' : exam.passMark + '%', line: 'Submitted — the marks follow once the test is marked.', verdict: verdictOf('provisional').text, tone: 'provisional' };
+      // Every question in the order of the exam's own paper (a shuffled
+      // attempt still prints as the paper reads), with her answer.
+      var order = list(exam.questionData).length ? list(exam.questionData) : list(o.questions);
+      var ansById = {};
+      if (answers) answers.forEach(function (x, i) { if (x && x.questionId != null) ansById[str(x.questionId)] = x; else if (x) ansById['#' + i] = x; });
+      else list(o.questions).forEach(function (q, i) { if (q && q.id != null) ansById[str(q.id)] = { questionId: q.id, studentAnswer: list(o.answers)[i] }; });
+      var n = 0, section = '';
+      var questions = [];
+      order.forEach(function (q0) {
+        if (!q0) return;
+        var q = byId[str(q0.id)] || q0;
+        if (q.type === 'info') { section = trim(q.text); return; }
+        n++;
+        var ax = ansById[str(q.id)] || null;
+        var out = { n: n, text: trim(q.text), type: q.type, section: section, points: Number(q.points) || 0 };
+        section = '';
+        if (ax && r) {
+          out.outcome = Core.exams.outcomeOf(ax);
+          out.marks = out.outcome === 'pending' ? 'awaiting marking' : fmtMark(ax.earnedPoints) + ' / ' + fmtMark(ax.points != null ? ax.points : q.points);
+        } else { out.outcome = r ? 'incorrect' : 'submitted'; out.marks = r ? '0 / ' + fmtMark(q.points) : '— / ' + fmtMark(q.points); }
+        var given = ax ? ax.studentAnswer : null;
+        if (q.type === 'mcq' || q.type === 'multi') {
+          var key = ax && ax.correctAnswer !== undefined ? ax.correctAnswer : q.correctAnswer;
+          out.options = list(q.options).map(function (t, i) {
+            var g = Array.isArray(given) ? given.indexOf(i) !== -1 : given === i;
+            var c = reveal && key != null && (Array.isArray(key) ? key.indexOf(i) !== -1 : key === i);
+            return { letter: String.fromCharCode(97 + i), text: trim(t), given: g, correct: !!c };
+          });
+          if (given === null || given === undefined || (Array.isArray(given) && !given.length)) out.answer = 'No answer given';
+        } else {
+          out.answer = answerText(q, ax) || 'No answer given';
+          var ct = reveal ? correctText(q, ax) : '';
+          if (ct && out.outcome !== 'correct') out.correct = ct;
+        }
+        if (ax && trim(ax.feedback)) out.comment = { by: trim(ax.gradedBy && ax.gradedBy !== 'auto' ? ax.gradedBy : ''), text: trim(ax.feedback) };
+        questions.push(out);
+      });
+      var sig = o.signature || (r && r.signature) || null;
+      var basis = o.basis || (r && (r.attemptId || r.id)) || '';
+      return {
+        v: 1, kind: 'theory', docNo: docNumber(basis, (r && r.submittedAt) || iso(o.madeAt || 0)), centreName: trim(o.centreName),
+        recordTitle: 'Assessment record · Theory', heading: unitLabel({ code: a.unitCode, title: a.unitTitle }) + ' · ' + (KINDS[kind] ? KINDS[kind].long : ''),
+        rows: rows, result: result, questions: questions, provisional: status === 'provisional', revealAnswers: reveal,
+        signatures: {
+          trainee: sig ? { name: trim(sig.name), line: signedLine(sig, off) } : { name: '', line: '', unsigned: r && r.autoSubmitted ? 'Not signed — submitted automatically when the time ran out.' : 'Not signed.' },
+          staff: ['Administrator', 'Invigilator', 'Programme Coordinator']
+        },
+        footer: { made: 'Made ' + when(o.madeAt || Date.now(), off), filed: list(o.path).join(' / ') }
+      };
+    }
+    /* o: { exam (the practical), group, work, students {id: {id, name}},
+       centreName, offset, madeAt, path, memberOnly (a member's own copy: her
+       result and signature only), photoMeta {photoId: {w, h}} }. */
+    function practicalModel(o) {
+      o = o || {};
+      var exam = o.exam || {}, a = exam.assessment || {}, p = exam.practical || {}, off = o.offset, kind = KINDS[a.kind] ? a.kind : 'practical1';
+      var st = groupState(o.group, o.work) || { members: [], photos: [], signed: {}, late: [] };
+      var names = {};
+      Object.keys(o.students || {}).forEach(function (k) { var s = o.students[k]; names[str(k)] = trim(s && s.name); });
+      var only = o.memberOnly ? str(o.memberOnly) : null;
+      var status = practicalPaperStatus(o.group, o.work);
+      if (only) status = memberResult(o.work, exam.id, only) ? 'final' : 'provisional';
+      var checklist = list(p.checklist);
+      var members = st.members.map(function (sid) {
+        var res = memberResult(o.work, exam.id, sid);
+        var show = !only || sid === only;
+        return {
+          id: sid, name: names[sid] || 'A member', mine: sid === only,
+          result: !show ? '' : res ? OUTCOMES[res.outcome] + (res.outcome === 'nyc' && res.comment ? ': ' + res.comment : '') : 'Awaiting marking',
+          outcome: show && res ? res.outcome : '', comment: show && res ? trim(res.comment) : '', assessor: show && res ? trim(res.assessorName) : '',
+          checks: show ? checklist.map(function (c) { var m = res ? list(res.checklist).filter(function (x) { return normTitle(x.text) === normTitle(c); })[0] : null; return m ? (m.met ? 'met' : 'not') : ''; }) : null,
+          signature: show && st.signed[sid] ? { name: trim(st.signed[sid].name), line: signedLine(st.signed[sid], off) } : null,
+          notSigned: show && !st.signed[sid] ? 'Not yet signed' : ''
+        };
+      });
+      var rows = [
+        ['Programme', trim(a.programme || exam.course)],
+        ['Intake', trim(a.intake) || trim(exam.course)],
+        ['Unit', unitLabel({ code: a.unitCode, title: a.unitTitle })],
+        ['Assessment', (KINDS[kind] ? KINDS[kind].long : '') + ' · ' + trim(o.group && o.group.name)],
+        ['Task', trim(p.title)],
+        ['Handed in', st.handedIn ? when(st.handedIn.at, off) + (names[st.handedIn.by] ? ' by ' + names[st.handedIn.by] : '') : 'Not handed in yet'],
+        ['Photos', st.photos.length + (st.late.length ? ' (' + st.late.length + ' added after the hand-in)' : '')]
+      ];
+      if (only) rows.unshift(['Trainee', (names[only] || '') + ' (' + only + ')']);
+      var verdict = only ? verdictOf(status, (memberResult(o.work, exam.id, only) || {}).outcome === 'competent') : null;
+      return {
+        v: 1, kind: 'practical', docNo: docNumber('grp|' + str(o.group && o.group.id) + (only ? '|' + only : ''), st.handedIn ? st.handedIn.at : iso(o.madeAt || 0)),
+        centreName: trim(o.centreName), recordTitle: 'Assessment record · Practical (group)',
+        heading: unitLabel({ code: a.unitCode, title: a.unitTitle }) + ' · ' + (KINDS[kind] ? KINDS[kind].long : '') + ' · ' + trim(o.group && o.group.name),
+        rows: rows, members: members, checklist: checklist, memberOnly: !!only,
+        result: verdict ? { line: status === 'final' ? 'Result recorded by the assessor' : 'Awaiting the assessor\'s result', verdict: verdict.text, tone: verdict.tone } : null,
+        provisional: status === 'provisional', brief: str(p.brief).trim(), safety: list(p.safety),
+        photos: st.photos.map(function (ph) { return { id: str(ph.id), caption: trim(ph.caption) || 'Photo', by: names[str(ph.studentId)] || 'A member', at: when(ph.addedAt, off), late: st.late.indexOf(ph.id) !== -1 }; }),
+        signatures: { staff: ['Administrator', 'Assessor', 'Programme Coordinator'] },
+        footer: { made: 'Made ' + when(o.madeAt || Date.now(), off), filed: list(o.path).join(' / ') }
+      };
+    }
+    /* A model's content hash: a paper is filed again when this changes. */
+    function modelHash(model) {
+      var m = copy(model) || {};
+      if (m.footer) delete m.footer.made;
+      return 'h1-' + Core.hashString(JSON.stringify(m));
+    }
+
+    /* ---- The Assessment Results page ------------------------------------ */
+    /* Every completed assessment, newest first: a theory result per trainee,
+       a practical per group. o: { exams, results, work, students (list),
+       filters: {programme, intake, unit, kind, status}, offset } */
+    function resultRows(o) {
+      o = o || {};
+      var F = o.filters || {};
+      var byExam = {};
+      list(o.exams).forEach(function (e) { if (isAssessment(e) && !isMaster(e)) byExam[str(e.id)] = e; });
+      var names = {};
+      list(o.students).forEach(function (s) { if (s && s.id != null) names[str(s.id)] = trim(s.name); });
+      var rows = [];
+      list(o.results).forEach(function (r) {
+        var e = r && !r.archived ? byExam[str(r.examId)] : null;
+        if (!e || isPractical(e)) return;
+        var st = theoryPaperStatus(r);
+        rows.push({ kind: 'theory', key: 'res:' + str(r.id), resultId: str(r.id), examId: str(e.id), studentId: str(r.studentId), name: names[str(r.studentId)] || trim(r.studentName),
+          assessment: e.assessment.kind, unitCode: str(e.assessment.unitCode), unitTitle: str(e.assessment.unitTitle), programme: str(e.assessment.programme), intake: str(e.assessment.intake || e.course),
+          finished: str(r.submittedAt), status: st, score: Number(r.score) || 0, earned: Number(r.earnedPoints) || 0, total: Number(r.totalPoints) || 0, passed: !!r.passed, pending: Number(r.pendingCount) || 0 });
+      });
+      list(o.work).forEach(function (g) {
+        if (!live(g) || g.type !== 'group') return;
+        var e = byExam[str(g.examId)];
+        if (!e || !isPractical(e)) return;
+        var st = groupState(g, o.work);
+        if (!st.handedIn) return;
+        rows.push({ kind: 'practical', key: 'grp:' + str(g.id), groupId: str(g.id), examId: str(e.id), groupName: g.name, members: st.members.map(function (m) { return names[m] || m; }),
+          memberIds: st.members.slice(), assessment: e.assessment.kind, unitCode: str(e.assessment.unitCode), unitTitle: str(e.assessment.unitTitle), programme: str(e.assessment.programme),
+          intake: str(e.assessment.intake || e.course), finished: st.handedIn.at, status: practicalPaperStatus(g, o.work), photos: st.photos.length,
+          marked: st.members.filter(function (m) { return !!memberResult(o.work, e.id, m); }).length });
+      });
+      rows = rows.filter(function (x) {
+        if (F.programme && normTitle(x.programme) !== normTitle(F.programme)) return false;
+        if (F.intake && normTitle(x.intake) !== normTitle(F.intake)) return false;
+        if (F.unit && normCode(x.unitCode) !== normCode(F.unit) && normTitle(x.unitTitle) !== normTitle(F.unit)) return false;
+        if (F.kind && x.assessment !== F.kind) return false;
+        if (F.status && x.status !== F.status) return false;
+        return true;
+      });
+      rows.sort(function (a, b) { return (msOf(b.finished) - msOf(a.finished)) || (a.key < b.key ? -1 : 1); });
+      return rows;
+    }
+    function resultCounts(rows) {
+      var c = { completed: 0, awaiting: 0, groups: 0, photos: 0, final: 0 };
+      list(rows).forEach(function (r) {
+        c.completed++;
+        if (r.status === 'provisional') c.awaiting++; else c.final++;
+        if (r.kind === 'practical') { c.groups++; c.photos += r.photos || 0; }
+      });
+      return c;
+    }
+
+    return {
+      KINDS: KINDS, ORDER: ORDER, MARKS: MARKS, GROUP_MIN: GROUP_MIN, GROUP_MAX: GROUP_MAX, BANK_FORMAT: BANK_FORMAT, BANK_VERSION: BANK_VERSION,
+      WORK_KEY: WORK_KEY, ROOT_FOLDER: ROOT_FOLDER, GRANT_MAX_MIN: GRANT_MAX_MIN, OUTCOMES: OUTCOMES,
+      kindOf: kindOf, isAssessment: isAssessment, isPractical: isPractical, isTheory: isTheory, isMaster: isMaster,
+      normCode: normCode, normTitle: normTitle, slug: slug, unitLabel: unitLabel, unitsFrom: unitsFrom, unitsCsv: unitsCsv, matchBank: matchBank,
+      checkBank: checkBank, examTitle: examTitle, bankToExam: bankToExam, practicalBrief: practicalBrief,
+      masterFor: masterFor, copiesOf: copiesOf, statusOf: statusOf, mayCheck: mayCheck, markReady: markReady, markToCheck: markToCheck,
+      openCopy: openCopy, practicalStatus: practicalStatus, intakeLabel: intakeLabel,
+      mayAddTime: mayAddTime, roleLabel: roleLabel, makeGrant: makeGrant, addGrant: addGrant, grantsForTrainee: grantsForTrainee,
+      minutesText: minutesText, extraLine: extraLine,
+      signatureId: signatureId, makeSignature: makeSignature, cleanSignature: cleanSignature, signedLine: signedLine, when: when,
+      groupName: groupName, splitGroups: splitGroups, makeGroup: makeGroup, groupsOf: groupsOf, groupOf: groupOf, groupProblems: groupProblems,
+      memberShort: memberShort, initials: initials,
+      photoRecord: photoRecord, signoffId: signoffId, signoffRecord: signoffRecord, groupState: groupState, traineeView: traineeView,
+      practicalResultId: practicalResultId, practicalResult: practicalResult, memberResult: memberResult,
+      practicalPaperStatus: practicalPaperStatus, theoryPaperStatus: theoryPaperStatus,
+      safeName: safeName, folderPath: folderPath, paperFileName: paperFileName, groupFileName: groupFileName, photoFileName: photoFileName,
+      zipName: zipName, docNumber: docNumber, filedId: filedId, filingDue: filingDue, filedRecord: filedRecord,
+      theoryModel: theoryModel, practicalModel: practicalModel, modelHash: modelHash, resultRows: resultRows, resultCounts: resultCounts
+    };
+  })();
+
   /* ---- from cestis-core.js: Core.gate ---- */
   Core.gate = (function () {
     var VERSION = 1;
@@ -2902,7 +3894,7 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
     // A key written inside a gate namespace ('g1::voctrain_students').
     var NS_KEY = /^g[0-9]{1,3}::/;
     // Anything that would give an answer away. Never in a slice or a paper.
-    var KEY_NAMES = { correctAnswer: 1, pairs: 1, distractors: 1, tolerance: 1 };
+    var KEY_NAMES = { correctAnswer: 1, pairs: 1, distractors: 1, tolerance: 1, modelAnswer: 1, markingPoints: 1 };
 
     var hasOwn = Object.prototype.hasOwnProperty;
     function isObj(v) { return !!v && typeof v === 'object' && !Array.isArray(v); }
@@ -4775,6 +5767,10 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       var start = msOf(attempt.startTime) || nowMs;
       var deadline = Core.exams.sessionDeadline(exam, start, keyFile.centreUtcOffset);
       if (msOf(attempt.deadline) && msOf(attempt.deadline) < deadline) deadline = msOf(attempt.deadline);
+      // Her extra time (Core.exams.extraGrantsFor: hers and the sitting's),
+      // from the key file's copy of the exam.
+      var extra = Core.exams.extraMs ? Core.exams.extraMs(exam, attempt.studentId) : 0;
+      deadline += extra;
       var received = msOf(opts.receivedAt) || nowMs;
       var id = resultId(attempt.id, opts.crypto);
       var result = {
@@ -4790,11 +5786,19 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       };
       if (opts.auto) result.autoSubmitted = true;
       if (ignored.length) result.ignoredQuestionIds = ignored;
-      // Late answers are kept and flagged for staff, never refused.
+      // Her signature (a prepared assessment's "Sign and submit"), kept in
+      // her own name as the records give it.
+      if (attempt.signature && Core.assessments) {
+        var sig = Core.assessments.cleanSignature(attempt.signature, { name: result.studentName, basis: str(attempt.id) });
+        if (sig) result.signature = sig;
+      }
+      // Late answers are kept and flagged for staff, never refused. Her own
+      // extra time counts; nobody else's does.
       var win = Core.exams.windowOf(exam, keyFile.centreUtcOffset);
+      var winEnd = win ? (win.baseEnd != null ? win.baseEnd : win.end) : null;
       var first = msOf(opts.firstSeen);
       var dur = (parseInt(exam.duration, 10) || 90) * 60000;
-      if ((win && win.end != null && received > win.end + LATE_GRACE_MS) || (first && received > first + dur + LATE_GRACE_MS)) result.late = true;
+      if ((winEnd != null && received > winEnd + extra + LATE_GRACE_MS) || (first && received > first + dur + extra + LATE_GRACE_MS)) result.late = true;
       var retired = Core.exams.retireAttempt(attempt, id, result.submittedAt);
       var keyHash = str(keyFile.hash) || hashOf({ exam: exam, centreUtcOffset: str(keyFile.centreUtcOffset) });
       return { result: result, retired: retired, keyHash: keyHash,

@@ -819,12 +819,12 @@ function sPaste() {
   const coreText = fs.readFileSync(path.join(__dirname, '..', 'cestis-core.js'), 'utf8');
   const al = paste.allowlistCore(coreText);
   assert(al.chunks.every(c => coreText.indexOf(c.text) !== -1), 'every allowlisted part is a verbatim run of cestis-core.js');
-  assertEq(al.chunks.map(c => c.name.split(' ')[0]), ['the', 'Core.naturalKey', 'Core.stableStudentId', 'Core.programmeIdentity', 'Core.accountLoginScore', 'Core.accountAccess', 'Core.exams', 'Core.enrolment', 'Core.gate'],
-    'the parts: the helpers, the student ID (naturalKey, stableStudentId, programmeIdentity, enrolment), accountLoginScore, accountAccess, exams, gate');
+  assertEq(al.chunks.map(c => c.name.split(' ')[0]), ['the', 'Core.naturalKey', 'Core.stableStudentId', 'Core.programmeIdentity', 'Core.accountLoginScore', 'Core.accountAccess', 'Core.exams', 'Core.enrolment', 'Core.assessments', 'Core.gate'],
+    'the parts: the helpers, the student ID (naturalKey, stableStudentId, programmeIdentity, enrolment), accountLoginScore, accountAccess, exams, assessments (version 4), gate');
   const gs = fs.readFileSync(path.join(__dirname, '..', 'trainee-gate', 'Gate.gs'), 'utf8');
   const used = new Set();
   for (const m of gs.matchAll(/\b(?:G\.core|CESTISCore)\.([A-Za-z_$][\w$]*)/g)) used.add(m[1]);
-  const carried = new Set(['hashString', 'normName', 'normCourse', 'naturalKey', 'stableStudentId', 'programmeIdentity', 'accountLoginScore', 'accountAccess', 'exams', 'enrolment', 'gate']);
+  const carried = new Set(['hashString', 'normName', 'normCourse', 'naturalKey', 'stableStudentId', 'programmeIdentity', 'accountLoginScore', 'accountAccess', 'exams', 'enrolment', 'assessments', 'gate']);
   assertEq([...used].filter(u => !carried.has(u)), [], 'Gate.gs uses only modules the allowlist paste carries');
   const sizes = { allowlist: Buffer.byteLength(paste.build('allowlist')), full: Buffer.byteLength(paste.build('full')) };
   console.log('  paste size: allowlist ' + sizes.allowlist + ' bytes, full ' + sizes.full + ' bytes; left out: ' + al.missing.join(', '));
