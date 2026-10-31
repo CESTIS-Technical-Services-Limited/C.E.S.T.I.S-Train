@@ -317,4 +317,5 @@ Nothing to set up beyond pasting version 4 (section 2). What it does, so you kno
   One member hands in for the whole group and signs then; the others sign the next time they open
   it. Each trainee may send about 50 files a day (the same allowance as coursework).
 - **On the Centre's own network** (the Offline System) the program answers the extra time and the
-  signatures, but photos need the internet: the instructor adds them from an office computer.
+  signatures, but photos need the internet: the group sends them from a phone, over mobile data or
+  from home (the owner's decision, 31 October 2026). Staff cannot add a group's photos for them.
