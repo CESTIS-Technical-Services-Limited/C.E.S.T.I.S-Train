@@ -16802,7 +16802,7 @@
       var cap = trim(o.caption).slice(0, CAPTION_MAX);
       return { id: str(o.id), type: 'photo', examId: str(o.examId), groupId: str(o.groupId), studentId: str(o.studentId),
         accountId: str(o.accountId), caption: noMarkup(cap) ? cap : cap.replace(/[<>]/g, ''), addedAt: str(o.at), updatedAt: str(o.at),
-        driveFiles: list(o.files).map(function (f) { return { id: str(f.id), name: trim(f.name), size: Number(f.size) || 0, type: str(f.type) }; }),
+        driveFiles: list(o.files).filter(isObj).map(function (f) { return { id: str(f.id || f.driveFileId), driveFileId: str(f.driveFileId || f.id), name: trim(f.name), size: Number(f.size) || 0, type: str(f.type) }; }),
         w: Number(o.w) || 0, h: Number(o.h) || 0 };
     }
     function signoffId(groupId, studentId) { return 'AS-' + str(groupId) + '-' + str(studentId); }
@@ -17736,10 +17736,10 @@
       'voctrain_calendarEvents', 'voctrain_classSessions', 'voctrain_vcSessions', 'voctrain_resources',
       'voctrain_driveResources', 'voctrain_transcriptGrades', 'voctrain_unitCatalogs', 'voctrain_certTranscriptRequests',
       'voctrain_certDownloadApprovals', 'voctrain_support_messages', 'voctrain_chatRooms', 'voctrain_skillAreas',
-      'voctrain_instructorData'];
+      'voctrain_instructorData', 'voctrain_assessmentWork'];
     var MAPS = ['voctrain_transcriptProfiles', 'voctrain_studentProfiles', 'voctrain_certTemplates'];
     var OWNED = ['voctrain_examResults', 'voctrain_examAttempts', 'voctrain_attendanceRegister', 'voctrain_submissions',
-      'voctrain_transcriptGrades', 'voctrain_certTranscriptRequests', 'voctrain_certDownloadApprovals'];
+      'voctrain_transcriptGrades', 'voctrain_certTranscriptRequests', 'voctrain_certDownloadApprovals', 'voctrain_assessmentWork'];
     // Deletions a trainee's device may need: those of the shared pools a slice draws on.
     var PROGRAMME_TOMBS = ['announcements', 'exams', 'calendarEvents', 'classSessions', 'instructorAssignments',
       'instructorResources', 'driveResources', 'chatRooms', 'notifications', 'certTemplates'];
@@ -17925,6 +17925,14 @@
         ctx.L[k].forEach(function (r) { if (r.studentId != null) (by[str(r.studentId)] = by[str(r.studentId)] || []).push(r); });
         ctx.owned[k] = by;
       });
+      // A group's photos and sign-offs by group, and every trainee's name (for
+      // what a member sees of the others: Core.assessments.traineeView).
+      ctx.awByGroup = dict();
+      ctx.L.voctrain_assessmentWork.forEach(function (r) {
+        if ((r.type === 'photo' || r.type === 'signoff') && r.groupId != null) (ctx.awByGroup[str(r.groupId)] = ctx.awByGroup[str(r.groupId)] || []).push(r);
+      });
+      ctx.studentNames = dict();
+      allStudents.forEach(function (st) { if (st && st.id != null) ctx.studentNames[str(st.id)] = str(st.name); });
       ctx.support = dict();
       ctx.L.voctrain_support_messages.forEach(function (m) {
         [m.accountId, m.studentId].forEach(function (id) { if (id != null && id !== '') (ctx.support[str(id)] = ctx.support[str(id)] || []).push(m); });
@@ -18119,10 +18127,17 @@
       ['readBy', 'clearedBy', 'dismissedBy'].forEach(function (f) { if (Array.isArray(r[f])) r[f] = cutList(r[f], own); });
       return r;
     }
-    function examMeta(e) {
+    // A prepared assessment's own details a trainee may see (Core.assessments).
+    var ASSESSMENT_FIELDS = ['v', 'kind', 'programme', 'qualId', 'qualTitle', 'qualCode', 'unitCode', 'unitTitle', 'intake', 'centreId'];
+    function examMeta(e, t) {
       var m = pick(e, EXAM_FIELDS);
       m.questions = Core.exams.questionCount(e);
       m.questionData = [];
+      if (isObj(e.assessment)) m.assessment = pick(e.assessment, ASSESSMENT_FIELDS);
+      if (isObj(e.practical)) m.practical = copy(e.practical);
+      // Her extra time, and the whole sitting's — never another trainee's.
+      var xt = t && Core.assessments ? Core.assessments.grantsForTrainee(e, t.stu) : [];
+      if (xt.length) m.extraTime = xt;
       return m;
     }
     function examForTrainee(ctx, e, t) {
@@ -18219,7 +18234,7 @@
       if (Core.accountAccess.firstCodeInForce(t.account)) card.firstCode = true;
       card.emailOtpLogin = !!t.account.emailOtpLogin;
       d.voctrain_users = [card];
-      d.voctrain_exams = ctx.L.voctrain_exams.filter(function (e) { return examForTrainee(ctx, e, t); }).map(examMeta);
+      d.voctrain_exams = ctx.L.voctrain_exams.filter(function (e) { return examForTrainee(ctx, e, t); }).map(function (e) { return examMeta(e, t); });
       d.voctrain_examResults = ownedOf(ctx, 'voctrain_examResults', t).map(function (r) { return redactResult(r, null, now, ctx.offset); });
       d.voctrain_examAttempts = ownedOf(ctx, 'voctrain_examAttempts', t).map(function (a) {
         if (Array.isArray(a.questions)) a.questions = a.questions.map(stripKeys);
@@ -18308,6 +18323,30 @@
           if (!hasOwn.call(d[k], t.stu) && hasOwn.call(ctx.M[k], x)) d[k][t.stu] = copy(ctx.M[k][x]);
         });
       });
+      // Prepared assessments (Core.assessments): her own photos and sign-offs
+      // (hers to change), her own practical results and filed papers (what the
+      // office keeps of where a paper is, never); and each group she is in, as
+      // she may see it — the others as "Tameka R.", their photos by caption.
+      var AW = Core.assessments, myExams = dict();
+      d.voctrain_exams.forEach(function (e) { myExams[str(e.id)] = 1; });
+      d.voctrain_assessmentWork = ownedOf(ctx, 'voctrain_assessmentWork', t).filter(function (r) {
+        return (r.type === 'photo' || r.type === 'signoff' || r.type === 'result' || r.type === 'filed') && str(r.studentId) === t.stu;
+      }).map(function (r) {
+        if (r.type !== 'filed') return r;
+        var tf = isObj(r.traineeFiles) ? str(r.traineeFiles[t.stu]) : '';
+        return { id: str(r.id), type: 'filed', key: str(r.key), examId: str(r.examId), studentId: t.stu, groupId: str(r.groupId), status: str(r.status),
+          docNo: str(r.docNo), traineeFile: tf, filedAt: str(r.filedAt), updatedAt: str(r.updatedAt) };
+      });
+      d.voctrain_assessmentGroups = [];
+      var groupFiles = [];
+      if (AW) ctx.L.voctrain_assessmentWork.forEach(function (g) {
+        if (g.type !== 'group' || g.withdrawn || !myExams[str(g.examId)] || !Array.isArray(g.members) || g.members.map(str).indexOf(t.stu) === -1) return;
+        var v = AW.traineeView(g, ctx.awByGroup[str(g.id)] || [], t.stu, ctx.studentNames);
+        if (!v) return;
+        v.photos.forEach(function (p) { if (p.fileId) groupFiles.push(p.fileId); });
+        d.voctrain_assessmentGroups.push(v);
+      });
+
       d.voctrain_certTemplates = {};
       Object.keys(ctx.M.voctrain_certTemplates).forEach(function (k) {
         if (!(k === course || sameCourse(k))) return;
@@ -18332,7 +18371,10 @@
       });
 
       var files = [];
-      ['voctrain_resources', 'voctrain_driveResources', 'voctrain_assignments', 'voctrain_submissions'].forEach(function (k) { fileIdsOf(d[k], files, 0); });
+      ['voctrain_resources', 'voctrain_driveResources', 'voctrain_assignments', 'voctrain_submissions', 'voctrain_assessmentWork'].forEach(function (k) { fileIdsOf(d[k], files, 0); });
+      // Her group's photos (to see one full size) and her own filed papers.
+      groupFiles.forEach(function (f) { files.push(f); });
+      d.voctrain_assessmentWork.forEach(function (r) { if (r.type === 'filed' && r.traineeFile) files.push(r.traineeFile); });
       var access = {
         papers: uniqSorted(d.voctrain_exams.filter(function (e) { return e.questions > 0; }).map(function (e) { return e.id; })),
         rooms: uniqSorted(d.voctrain_chatRooms.map(function (r) { return r.id; })),
@@ -18496,10 +18538,12 @@
         seen[k] = 1; return true;
       });
     }
+    var ASSESS_ITEM_MAX = 16 * 1024;
     function ownFiles(slice, opts) {
       var m = dict();
       (Array.isArray(opts.ownUploads) ? opts.ownUploads : []).forEach(function (id) { if (id) m[str(id)] = 1; });
       var ids = []; fileIdsOf(sliceData(slice, 'voctrain_submissions'), ids, 0);
+      fileIdsOf(sliceData(slice, 'voctrain_assessmentWork').filter(function (r) { return r && r.type === 'photo'; }), ids, 0);
       ids.forEach(function (id) { m[id] = 1; });
       return m;
     }
@@ -18530,7 +18574,7 @@
       }
       return null;
     }
-    function normAttempt(a, me) {
+    function normAttempt(a, me, name) {
       var r = copy(a);
       r.questions = r.questions.map(stripKeys);
       r.accountId = str(me.acct);
@@ -18541,6 +18585,12 @@
       if (r.activity !== undefined) {
         var act = Core.exams.activityOf ? Core.exams.activityOf(r.activity) : null;
         if (act) r.activity = act; else delete r.activity;
+      }
+      // Her signature ("Sign and submit", Core.assessments): kept only when
+      // well formed and consented; in her own name when the slice gives it.
+      if (r.signature !== undefined) {
+        var sig = Core.assessments ? Core.assessments.cleanSignature(r.signature, { name: name || '', basis: str(r.id) }) : null;
+        if (sig) r.signature = sig; else delete r.signature;
       }
       return r;
     }
@@ -18555,7 +18605,7 @@
       if (key === 'voctrain_examAttempts') {
         var why = checkAttempt(rec, me, slice, opts, false);
         if (why) return verdict(item, false, { reason: why });
-        return verdict(item, true, { key: key, rec: normAttempt(rec, me) });
+        return verdict(item, true, { key: key, rec: normAttempt(rec, me, ownStudent ? str(ownStudent.name) : '') });
       }
       if (key === 'voctrain_submissions') {
         if (str(rec.studentId) !== str(me.stu) || !mine('accountId')) return verdict(item, false, { reason: 'not-yours' });
@@ -18621,6 +18671,36 @@
         if (ownUser) m.senderName = str(ownUser.name);
         m.readBy = [str(me.acct)];
         return verdict(item, true, { key: key, rec: m });
+      }
+      if (key === 'voctrain_assessmentWork') {
+        var AW = Core.assessments;
+        if (!AW || str(rec.studentId) !== str(me.stu) || !mine('accountId')) return verdict(item, false, { reason: 'not-yours' });
+        if (rec.type !== 'photo' && rec.type !== 'signoff') return verdict(item, false, { reason: 'not-yours' });
+        if (rec.id == null || rec.id === '' || !rec.groupId || !rec.examId) return verdict(item, false, { reason: 'malformed' });
+        if (utf8Length(JSON.stringify(rec)) > ASSESS_ITEM_MAX) return verdict(item, false, { reason: 'too-large' });
+        if (data) {
+          var grp = sliceData(slice, 'voctrain_assessmentGroups').filter(function (g) { return str(g.id) === str(rec.groupId); })[0];
+          if (!grp || str(grp.examId) !== str(rec.examId)) return verdict(item, false, { reason: 'not-your-group' });
+        }
+        var ownName = ownStudent ? str(ownStudent.name) : '';
+        var aw;
+        if (rec.type === 'photo') {
+          var pf = []; fileIdsOf(rec, pf, 0);
+          if (slice || Array.isArray(opts.ownUploads)) {
+            var mayUse = ownFiles(slice, opts);
+            if (pf.some(function (f) { return !mayUse[f]; })) return verdict(item, false, { reason: 'not-own-file' });
+          }
+          aw = AW.photoRecord({ id: rec.id, examId: rec.examId, groupId: rec.groupId, studentId: me.stu, accountId: me.acct, caption: rec.caption,
+            at: rec.addedAt || rec.updatedAt, files: rec.driveFiles, w: rec.w, h: rec.h });
+          if (rec.withdrawn === true) aw.withdrawn = true;
+          if (rec.updatedAt) aw.updatedAt = str(rec.updatedAt);
+        } else {
+          aw = AW.signoffRecord({ groupId: rec.groupId, examId: rec.examId, studentId: me.stu, accountId: me.acct, name: ownName || (rec.signature && rec.signature.name),
+            signature: rec.signature, handIn: rec.handIn === true, at: rec.updatedAt || rec.handInAt });
+          if (!aw || str(rec.id) !== aw.id) return verdict(item, false, { reason: 'malformed' });
+          if (aw.handIn && rec.handInAt) aw.handInAt = str(rec.handInAt);
+        }
+        return verdict(item, true, { key: key, rec: aw });
       }
       if (key === 'voctrain_studentProfiles') {
         var pk = str(item.recId);
@@ -18711,7 +18791,8 @@
       if (item.kind === 'submit') {
         var why = checkAttempt(item.attempt, me, slice, opts, true);
         if (why) return verdict(item, false, { reason: why });
-        return verdict(item, true, { attempt: normAttempt(item.attempt, me) });
+        var who = sliceData(slice, 'voctrain_students')[0];
+        return verdict(item, true, { attempt: normAttempt(item.attempt, me, who ? str(who.name) : '') });
       }
       return verdict(item, false, { reason: 'not-yours' });
     }
@@ -18776,7 +18857,7 @@
     /* ---- From an inbox to the backup merge (§5.6) ---- */
     var PAYLOAD_NAMES = { voctrain_examAttempts: 'examAttempts', voctrain_submissions: 'assignmentSubmissions',
       voctrain_support_messages: 'supportMessages', voctrain_studentProfiles: 'studentProfiles',
-      voctrain_chatMessages: 'chatMessages', voctrain_examResults: 'examResults' };
+      voctrain_chatMessages: 'chatMessages', voctrain_examResults: 'examResults', voctrain_assessmentWork: 'assessmentWork' };
     // Merged by the record rules of the Centre's network (Core.pageCloud), not mergeBackupData.
     var RECORD_ONLY = { voctrain_certTranscriptRequests: 1 };
     /* A partial backup payload: only the collections present, each under the
