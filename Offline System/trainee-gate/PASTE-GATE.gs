@@ -2955,8 +2955,8 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
   /* ---- from cestis-core.js: Core.assessments ---- */
   Core.assessments = (function () {
     var KINDS = {
-      theory1: { key: 'theory1', label: 'Theory 1', long: 'Theory Assessment 1', type: 'theory', minutes: 150, passMark: 70, mcq: 45 },
-      theory2: { key: 'theory2', label: 'Theory 2', long: 'Theory Assessment 2', type: 'theory', minutes: 215, passMark: 70, essays: 10, shortAnswers: 15 },
+      theory1: { key: 'theory1', label: 'Theory 1', long: 'Theory Assessment 1', type: 'theory', minutes: 150, passMark: 65, mcq: 45 },
+      theory2: { key: 'theory2', label: 'Theory 2', long: 'Theory Assessment 2', type: 'theory', minutes: 215, passMark: 65, essays: 10, shortAnswers: 15 },
       practical1: { key: 'practical1', label: 'Practical 1', long: 'Practical Assessment 1', type: 'practical' },
       practical2: { key: 'practical2', label: 'Practical 2', long: 'Practical Assessment 2', type: 'practical' }
     };
@@ -3158,7 +3158,8 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       if (kind === 'theory1') {
         var t1 = bank.theory1 || {};
         exam.duration = Number(t1.minutes) || K.minutes;
-        exam.passMark = Number(t1.passMark) || K.passMark;
+        // The Centre's pass mark (65%) for every prepared test: a bank file cannot change it.
+        exam.passMark = K.passMark;
         exam.questionsPerPage = 5; exam.shuffleQuestions = false; exam.shuffleOptions = true;
         exam.instructions = str(t1.instructions).trim() || ('Answer all ' + K.mcq + ' questions. Choose the one best answer for each. Time allowed: 2 hours 30 minutes.');
         exam.questionData = list(t1.questions).map(function (q) {
@@ -3167,7 +3168,7 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       } else if (kind === 'theory2') {
         var t2 = bank.theory2 || {}, sa = list(t2.shortAnswers), es = list(t2.essays);
         exam.duration = Number(t2.minutes) || K.minutes;
-        exam.passMark = Number(t2.passMark) || K.passMark;
+        exam.passMark = K.passMark;
         exam.questionsPerPage = 1; exam.shuffleQuestions = false; exam.shuffleOptions = false;
         exam.instructions = str(t2.instructions).trim() || ('Section A: ' + K.shortAnswers + ' short answers. Section B: ' + K.essays + ' essay questions. Answer every question. Time allowed: 3 hours 35 minutes.');
         var saMarks = sa.reduce(function (n, q) { return n + (Number(q.marks) || MARKS.short); }, 0);

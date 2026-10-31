@@ -71,7 +71,7 @@ console.log('The four assessments, and what a bank must hold');
   assert(!A.checkBank(null).ok && !A.checkBank(Object.assign(makeBank(), { format: 'x' })).ok, 'not a bank, or another format, does not pass');
 
   const t1 = A.bankToExam(bank, 'theory1', { id: 'EX-T1', qual: QUAL, unit: UNIT, by: 'INS-1', byRole: 'instructor', at: '2026-10-31T12:00:00.000Z' });
-  assert(t1.status === 'draft' && t1.date === '' && t1.duration === 150 && t1.passMark === 70, 'Theory 1: a draft, no date, 150 minutes, pass mark 70%');
+  assert(t1.status === 'draft' && t1.date === '' && t1.duration === 150 && t1.passMark === 65, 'Theory 1: a draft, no date, 150 minutes, pass mark 65% (the bank says 70: the Centre\'s 65% applies)');
   assert(t1.questionData.length === 45 && t1.questionData.every(q => q.type === 'mcq' && q.options.length === 4 && q.points === 1) && X.questionCount(t1) === 45, 'Theory 1: 45 multiple choice, 1 mark each');
   assert(t1.questionData[3].correctAnswer === bank.theory1.questions[3].answer && t1.questionData[0].id === 'Q-EX-T1-T1-01', 'each key kept, each question with a stable id');
   assert(t1.title === 'Welding & Fabrication — MEMFAB0042C ' + UNIT.title + ' — Theory 1', 'named after the programme and the unit, as the Centre names them (' + t1.title + ')');
@@ -356,7 +356,7 @@ console.log('The PDF\'s content (theory)');
   assert(row('Started · finished') === '30 Oct 2026, 10:01 · 10:42' && row('Time allowed') === '2 h 30 min', 'started, finished and the time allowed, on the Centre\'s clock');
   assert(row('Extra time') === '15 min, added by the Administrator — Power cut' && model.rows.filter(r => r[0] === 'Extra time').length === 1, 'her extra time (and not another trainee\'s)');
   assert(row('Sat') === 'From home, invigilated online', 'where it was sat, and that it was invigilated');
-  assert(model.result.score === '40 / 45' && model.result.pct === '89%' && model.result.passMark === '70%' && model.result.verdict === 'COMPETENT', 'the result box (' + model.result.line + ')');
+  assert(model.result.score === '40 / 45' && model.result.pct === '89%' && model.result.passMark === '65%' && model.result.verdict === 'COMPETENT', 'the result box (' + model.result.line + ')');
   assert(model.questions.length === 45 && model.questions[0].options.length === 4 && model.questions[0].options.some(o => o.given && o.correct) && model.questions[0].marks === '1 / 1', 'every question, the answer given, the right answer and the marks');
   const wrong = model.questions[40];
   assert(wrong.marks === '0 / 1' && wrong.options.some(o => o.given && !o.correct) && wrong.options.some(o => o.correct && !o.given), 'a wrong answer shows the right one too');

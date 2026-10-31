@@ -58,7 +58,7 @@ function textOf(doc) {
     assert(text.indexOf('30 Oct 2026, 09:01 · 11:42') !== -1, 'started and finished, on the Centre\'s clock');
     assert(text.indexOf('2 h 30 min') !== -1 && text.indexOf('15 min, added by the Administrator') !== -1, 'time allowed and the extra time, and who added it');
     assert(text.indexOf('From home, invigilated online') !== -1, 'where it was sat');
-    assert(text.indexOf('COMPETENT') !== -1 && /40 \/ 45 \(89%\) · pass mark 70%/.test(text), 'the result box (' + s.model.result.line + ')');
+    assert(text.indexOf('COMPETENT') !== -1 && /40 \/ 45 \(89%\) · pass mark 65%/.test(text), 'the result box (' + s.model.result.line + ')');
     assert(text.indexOf('45.  ') !== -1 && text.indexOf('No answer given') !== -1, 'all 45 questions, a blank answer said so');
     assert(text.indexOf('answer given · correct') !== -1 && text.indexOf('correct answer') !== -1, 'the answer given, the right answer marked');
     assert(/\/BaseFont \/[A-Z]*\+?GreatVibes/.test(raw) || raw.indexOf('GreatVibes') !== -1, 'the signature font is embedded in the file');

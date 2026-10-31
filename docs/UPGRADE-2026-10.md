@@ -403,6 +403,17 @@ instructor and 6 trainees on phone settings, every connection's bytes read from 
 - **The trainee gate is version 4.** Paste the new `trainee-gate/PASTE-GATE.gs` (SETUP.md,
   section 8). Until it is pasted, home sitting of the prepared assessments and practical photos
   from home wait; everything else works as before.
+- **The owner's decisions (31 October 2026, on the screenshots and sample papers).**
+  1. **Pass mark 65%** for every prepared theory test (`CESTISCore.assessments.KINDS`); a bank
+     file cannot change it. A practical has no percentage: each member is Competent or Not yet
+     competent.
+  2. **Photos come from phones.** On the Centre's own network a trainee cannot send photos; the
+     group sends them over mobile data or from home.
+  3. **A trainee's own copy** marks her answers right or wrong but never shows the right answer
+     to one she got wrong, so the tests can be used again for the next intake. The office copy
+     shows every right answer.
+  4. **The gate (version 4)** is pasted again by the owner after this goes live.
+  The printed footer names the programme, intake, unit and assessment — not a folder path.
 
 ### Grades, transcripts and Student Progress
 - **Renames and moves.** Renaming a trainee or moving them to another programme carries every

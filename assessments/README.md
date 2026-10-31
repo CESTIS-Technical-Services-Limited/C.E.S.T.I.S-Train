@@ -46,7 +46,7 @@ using manual metal arc welding process (MMAW) — Theory 1*.
   "unit": { "code": "MEMFAB0042C", "title": "Perform weld in the flat and horizontal positions using manual metal arc welding process (MMAW)" },
 
   "theory1": {                          // 45 multiple choice, 2 h 30 min
-    "minutes": 150, "passMark": 70,
+    "minutes": 150,
     "instructions": "Answer all 45 questions …",
     "questions": [                      // exactly 45
       { "id": "T1-01", "topic": "Safety and PPE",
@@ -57,7 +57,7 @@ using manual metal arc welding process (MMAW) — Theory 1*.
   },
 
   "theory2": {                          // 15 short answers + 10 essays, 3 h 35 min
-    "minutes": 215, "passMark": 70,
+    "minutes": 215,
     "instructions": "Section A has 15 short answers …",
     "shortAnswers": [                   // exactly 15
       { "id": "T2-S01", "topic": "Electrodes",
@@ -98,6 +98,9 @@ What happens to each part:
   points or the accepted answers.
 - **Practicals:** the group sees the brief, the materials, the safety points and the photos to
   take; the assessor records a result for each member against the `checklist`, with a comment.
+- **Pass mark:** 65% for both theory tests, the Centre's rule for every prepared assessment. It is
+  not set in a bank file (a `passMark` there is ignored). A practical has no percentage: each member
+  is Competent or Not yet competent.
 
 ## What the content writers need, for each programme
 
