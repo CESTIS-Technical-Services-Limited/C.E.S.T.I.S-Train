@@ -116,3 +116,8 @@ What happens to each part:
    gas and machinery work.
 
 The sample bank is `welding-fabrication/memfab0042c.json` (Welding Level 2, MEMFAB0042C).
+
+## What is written so far
+
+- **Welding Level 2: every core unit (42).** These units are shared with other Level 2 programmes, so their banks are also filed under those programmes, with that programme's names (26 copies): communication, maths, OH&S, human relations, entrepreneurship, professionalism, measuring, marking out, drawings, reports, customer service, quotations, ordering materials, mobile devices, computer applications, social media and time management.
+- Each programme folder has a `CHECK-LIST.md`: the points an instructor should confirm against the Centre's own equipment, stock and rules (gas pressures, filter shades, currents, local terms) before marking a test Ready.
