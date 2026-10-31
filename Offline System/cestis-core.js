@@ -16825,6 +16825,15 @@
         w: Number(o.w) || 0, h: Number(o.h) || 0 };
     }
     function signoffId(groupId, studentId) { return 'AS-' + str(groupId) + '-' + str(studentId); }
+    /* A photo's id is its sender's own: "AP-<her trainee id>-…". Every record
+       in voctrain_assessmentWork is merged by id, so a photo can then never
+       stand in for the group, a result, a filing note, a sign-off or another
+       member's photo. */
+    function photoIdPrefix(studentId) { return 'AP-' + str(studentId) + '-'; }
+    function photoIdOk(id, studentId) {
+      var p = photoIdPrefix(studentId), s = str(id);
+      return !!str(studentId) && s.indexOf(p) === 0 && s.length > p.length && s.length <= p.length + 40 && /^[A-Za-z0-9._-]+$/.test(s.slice(p.length));
+    }
     /* A member's sign-off. handIn: this member handed the group's work in
        (the first hand-in stands for the whole group). */
     function signoffRecord(o) {
@@ -16979,8 +16988,15 @@
         var f = byKey[str(it.key)];
         if (!f || !f.fileId) return true;
         if (f.status === 'final' && it.status === 'provisional') return false;   // never back to provisional
+        // A part that did not go through last time (her own copy, a photo, a
+        // member's copy) keeps the paper due until it does.
+        if (list(f.unfinished).length) return true;
         return f.status !== it.status || str(f.hash) !== str(it.hash);
-      }).map(function (it) { var f = byKey[str(it.key)]; return Object.assign({}, it, { reason: !f || !f.fileId ? 'new' : f.status !== it.status ? 'marked' : 'changed', filed: f || null }); });
+      }).map(function (it) {
+        var f = byKey[str(it.key)];
+        var why = !f || !f.fileId ? 'new' : f.status !== it.status ? 'marked' : str(f.hash) !== str(it.hash) ? 'changed' : 'unfinished';
+        return Object.assign({}, it, { reason: why, filed: f || null });
+      });
     }
     function filedRecord(o) {
       o = o || {};
@@ -16989,6 +17005,8 @@
         docNo: str(o.docNo), hash: str(o.hash), traineeFiles: isObj(o.traineeFiles) ? copy(o.traineeFiles) : {}, photoFiles: isObj(o.photoFiles) ? copy(o.photoFiles) : {},
         // Each file's own content hash: a file whose content did not change is not sent again.
         parts: isObj(o.parts) ? copy(o.parts) : {},
+        // The parts still to put in place: 'mine', 'photo:<id>', 'm:<studentId>'.
+        unfinished: list(o.unfinished).map(str).filter(Boolean),
         filedAt: str(o.at), filedBy: str(o.by), updatedAt: str(o.at) };
     }
 
@@ -17315,7 +17333,7 @@
       signatureId: signatureId, makeSignature: makeSignature, cleanSignature: cleanSignature, signedLine: signedLine, when: when,
       groupName: groupName, splitGroups: splitGroups, makeGroup: makeGroup, groupsOf: groupsOf, groupOf: groupOf, groupProblems: groupProblems,
       memberShort: memberShort, initials: initials,
-      photoRecord: photoRecord, signoffId: signoffId, signoffRecord: signoffRecord, groupState: groupState, traineeView: traineeView,
+      photoRecord: photoRecord, photoIdPrefix: photoIdPrefix, photoIdOk: photoIdOk, signoffId: signoffId, signoffRecord: signoffRecord, groupState: groupState, traineeView: traineeView,
       practicalResultId: practicalResultId, practicalResult: practicalResult, memberResult: memberResult,
       practicalPaperStatus: practicalPaperStatus, theoryPaperStatus: theoryPaperStatus,
       safeName: safeName, folderPath: folderPath, paperFileName: paperFileName, groupFileName: groupFileName, photoFileName: photoFileName,
@@ -18799,6 +18817,9 @@
         var ownName = ownStudent ? str(ownStudent.name) : '';
         var aw;
         if (rec.type === 'photo') {
+          // Her own id space only (AW.photoIdOk): never the group's, a
+          // result's, a filing note's or another member's photo's.
+          if (!AW.photoIdOk(rec.id, me.stu)) return verdict(item, false, { reason: 'malformed' });
           var pf = []; fileIdsOf(rec, pf, 0);
           if (slice || Array.isArray(opts.ownUploads)) {
             var mayUse = ownFiles(slice, opts);

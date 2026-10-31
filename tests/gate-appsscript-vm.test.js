@@ -998,24 +998,31 @@ function sAssessments(src) {
   assertEq(w.post({ op: 'upload', token: s.token, name: 'x.jpg', mime: 'image/jpeg', base64: jpg.toString('base64'), purpose: 'nonsense', refId: 'AG-1' }).error, 'bad-request', 'an unknown purpose is refused');
 
   const at = iso(w.clock.now);
-  const photo = AS.photoRecord({ id: 'AP-1', examId: 'EX-PRAC', groupId: 'AG-1', studentId: T.stu.id, accountId: T.acct.id, caption: 'Set up', at, files: [{ id: up.fileId, driveFileId: up.fileId, name: up.name }] });
+  const P1 = AS.photoIdPrefix(T.stu.id) + '1';
+  const photo = AS.photoRecord({ id: P1, examId: 'EX-PRAC', groupId: 'AG-1', studentId: T.stu.id, accountId: T.acct.id, caption: 'Set up', at, files: [{ id: up.fileId, driveFileId: up.fileId, name: up.name }] });
   const sig = AS.makeSignature({ name: T.stu.name, at, basis: 'AG-1|' + T.stu.id });
   const off = AS.signoffRecord({ groupId: 'AG-1', examId: 'EX-PRAC', studentId: T.stu.id, accountId: T.acct.id, name: T.stu.name, signature: sig, handIn: true, at });
   const rc = deliver(env, [item(env, s, 'rec', { key: 'voctrain_assessmentWork', rec: photo }), item(env, s, 'rec', { key: 'voctrain_assessmentWork', rec: off })]).receipts;
   assertEq(rc.map(r => r.ok), [true, true], 'her photo and her sign-off (she hands in for the group) are taken');
   const bad = deliver(env, [
-    item(env, s, 'rec', { key: 'voctrain_assessmentWork', rec: Object.assign({}, photo, { id: 'AP-2', studentId: U.stu.id }) }),
+    item(env, s, 'rec', { key: 'voctrain_assessmentWork', rec: Object.assign({}, photo, { id: AS.photoIdPrefix(T.stu.id) + '2', studentId: U.stu.id }) }),
     item(env, s, 'rec', { key: 'voctrain_assessmentWork', rec: { id: 'APR-X', type: 'result', examId: 'EX-PRAC', groupId: 'AG-1', studentId: T.stu.id, outcome: 'competent', updatedAt: at } }),
-    item(env, s, 'rec', { key: 'voctrain_assessmentWork', rec: Object.assign({}, photo, { id: 'AP-3', driveFiles: [{ id: 'FILE-NOT-HERS', driveFileId: 'FILE-NOT-HERS' }] }) }),
-    item(env, sN, 'rec', { key: 'voctrain_assessmentWork', rec: Object.assign({}, photo, { id: 'AP-4', studentId: N.stu.id, accountId: N.acct.id, driveFiles: [] }) })
+    item(env, s, 'rec', { key: 'voctrain_assessmentWork', rec: Object.assign({}, photo, { id: AS.photoIdPrefix(T.stu.id) + '3', driveFiles: [{ id: 'FILE-NOT-HERS', driveFileId: 'FILE-NOT-HERS' }] }) }),
+    item(env, sN, 'rec', { key: 'voctrain_assessmentWork', rec: Object.assign({}, photo, { id: AS.photoIdPrefix(N.stu.id) + '4', studentId: N.stu.id, accountId: N.acct.id, driveFiles: [] }) }),
+    // A photo may not borrow another record's id: the group's, a result's, a sign-off's, a filing note's, or another member's photo's.
+    item(env, s, 'rec', { key: 'voctrain_assessmentWork', rec: Object.assign({}, photo, { id: 'AG-1', driveFiles: [] }) }),
+    item(env, s, 'rec', { key: 'voctrain_assessmentWork', rec: Object.assign({}, photo, { id: 'APR-EX-PRAC-' + T.stu.id, driveFiles: [] }) }),
+    item(env, s, 'rec', { key: 'voctrain_assessmentWork', rec: Object.assign({}, photo, { id: 'AS-AG-1-' + U.stu.id, driveFiles: [] }) }),
+    item(env, s, 'rec', { key: 'voctrain_assessmentWork', rec: Object.assign({}, photo, { id: 'grp:AG-1', driveFiles: [] }) }),
+    item(env, s, 'rec', { key: 'voctrain_assessmentWork', rec: Object.assign({}, photo, { id: AS.photoIdPrefix(U.stu.id) + 'theirs', driveFiles: [] }) })
   ]).receipts;
-  assertEq(bad.map(r => r.ok + ':' + r.reason), ['false:not-yours', 'false:not-yours', 'false:not-own-file', 'false:not-your-group'],
-    'refused: a photo in another member\'s name, a result (the assessor\'s), a file that is not hers, a group she is not in');
+  assertEq(bad.map(r => r.ok + ':' + r.reason), ['false:not-yours', 'false:not-yours', 'false:not-own-file', 'false:not-your-group', 'false:malformed', 'false:malformed', 'false:malformed', 'false:malformed', 'false:malformed'],
+    'refused: a photo in another member\'s name, a result (the assessor\'s), a file that is not hers, a group she is not in, and a photo under the group\'s, a result\'s, a sign-off\'s, a filing note\'s or another member\'s photo id');
   const lane = w.drive.json(w.drive.child(folderOf(env, T.acct.id).id, 'CESTISINBOX.L-' + s.sid + '.json', 'file').id);
   assertEq(lane.records.voctrain_assessmentWork.map(r => r.type).sort(), ['photo', 'signoff'], 'kept in her lane');
   const col = G.collect([{ fileId: 'LANE-T', version: '1', modifiedTime: at, folderAcct: T.acct.id, json: lane }],
     { accounts: C.store.voctrain_users, students: C.store.voctrain_students, deletedUserIds: [] });
-  assertEq(col.payload.data.assessmentWork.map(r => r.id).sort(), ['AP-1', 'AS-AG-1-' + T.stu.id], 'the office collects them under assessmentWork');
+  assertEq(col.payload.data.assessmentWork.map(r => r.id).sort(), [P1, 'AS-AG-1-' + T.stu.id].sort(), 'the office collects them under assessmentWork');
 
   const paper = w.post({ op: 'paper', token: s.token, examId: examOf(T) }).paper;
   const att = attemptOf(env, paper, T, 'ATT-SIGNED', { signature: AS.makeSignature({ name: 'Somebody Else', at, basis: 'ATT-SIGNED' }) });

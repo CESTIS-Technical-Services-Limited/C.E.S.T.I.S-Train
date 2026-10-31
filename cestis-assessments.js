@@ -645,7 +645,7 @@
     groupView.picked = [];
     groupView.waiting = groupView.waiting || [];
     Promise.all(picked.map(function (pk) {
-      var id = gen('AP-');
+      var id = gen(A.photoIdPrefix(s.id));
       var rec = A.photoRecord({ id: id, examId: e.id, groupId: g.id, studentId: s.id, accountId: sess && sess.acct, caption: pk.caption, at: nowIso(), files: [], w: pk.w, h: pk.h });
       if (pk.thumb) keepThumb(g.id, id, pk.thumb);
       return readDataUrl(pk.file).then(function (dataUrl) {

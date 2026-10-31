@@ -688,7 +688,7 @@
   async function fileOne(due) {
     var it = due, prev = due.filed || {}, parts = Object.assign({}, prev.parts || {}), at = S.nowIso(), by = me().name;
     var folderId = await folderFor(it.path);
-    var tf = Object.assign({}, prev.traineeFiles || {}), recs = [], fileId = prev.fileId || '';
+    var tf = Object.assign({}, prev.traineeFiles || {}), recs = [], fileId = prev.fileId || '', unfinished = [];
     var same = function (part, h, id) { return id && parts[part] === h; };
     if (it.kind === 'theory') {
       var h1 = A.modelHash(it.model);
@@ -696,17 +696,17 @@
       var hers = traineeFolderOf(it.studentId), h2 = A.modelHash(it.mine);
       if (hers && !same('mine', h2, tf[it.studentId])) {
         try { tf[it.studentId] = await putFile(hers, it.key + '|mine', 'trainee', it.name, await S.renderPdf(it.mine), 'application/pdf', tf[it.studentId]); parts.mine = h2; }
-        catch (e) { if (e && e.storageFull) throw e; console.warn('[Assessments] her own copy was not put in her folder this time:', e && e.message); }
+        catch (e) { if (e && e.storageFull) throw e; unfinished.push('mine'); console.warn('[Assessments] her own copy was not put in her folder this time:', e && e.message); }
       }
       recs.push(A.filedRecord({ key: it.key, examId: it.examId, studentId: it.studentId, status: it.status, fileId: fileId, folderId: folderId, name: it.name, path: it.path,
-        docNo: it.model.docNo, hash: it.hash, traineeFiles: tf, parts: parts, at: at, by: by }));
+        docNo: it.model.docNo, hash: it.hash, traineeFiles: tf, parts: parts, unfinished: unfinished, at: at, by: by }));
     } else {
       var pf = Object.assign({}, prev.photoFiles || {});
       for (var i = 0; i < it.photos.length; i++) {
         var p = it.photos[i];
         if (!p.fileId) continue;
         try { pf[p.id] = await putPhoto(folderId, p, pf[p.id]); }
-        catch (e) { if (e && e.storageFull) throw e; console.warn('[Assessments] a photo was not copied this time:', e && e.message); }
+        catch (e) { if (e && e.storageFull) throw e; unfinished.push('photo:' + p.id); console.warn('[Assessments] a photo was not copied this time:', e && e.message); }
       }
       var hg = A.modelHash(it.model) + '|' + it.photos.map(function (x) { return x.id; }).join(',');
       if (!same('office', hg, fileId) || !(await liveId(fileId))) {
@@ -724,13 +724,13 @@
             var mm = small.cut ? Object.assign({}, m.model, { photos: [] }) : m.model;
             tf[m.studentId] = await putFile(herF, it.key + '|' + m.studentId, 'trainee', m.name, await S.renderPdf(mm, { photos: small.photos }), 'application/pdf', tf[m.studentId]);
             parts['m:' + m.studentId] = hm;
-          } catch (e) { if (e && e.storageFull) throw e; console.warn('[Assessments] a member\'s own copy was not put in her folder this time:', e && e.message); continue; }
+          } catch (e) { if (e && e.storageFull) throw e; unfinished.push('m:' + m.studentId); console.warn('[Assessments] a member\'s own copy was not put in her folder this time:', e && e.message); continue; }
         }
         recs.push(A.filedRecord({ key: 'mem:' + it.groupId + ':' + m.studentId, examId: it.examId, studentId: m.studentId, groupId: it.groupId,
           status: m.model.provisional ? 'provisional' : 'final', name: m.name, docNo: m.model.docNo, traineeFiles: (function () { var o = {}; o[m.studentId] = tf[m.studentId]; return o; })(), at: at, by: by }));
       }
       recs.unshift(A.filedRecord({ key: it.key, examId: it.examId, groupId: it.groupId, status: it.status, fileId: fileId, folderId: folderId, name: it.name, path: it.path,
-        docNo: it.model.docNo, hash: it.hash, traineeFiles: tf, photoFiles: pf, parts: parts, at: at, by: by }));
+        docNo: it.model.docNo, hash: it.hash, traineeFiles: tf, photoFiles: pf, parts: parts, unfinished: unfinished, at: at, by: by }));
     }
     // Only ever more: a filed record replaces its older self (newest wins).
     S.saveWork(recs);
@@ -749,7 +749,12 @@
       if (!due.length) return { ran: true, done: 0, left: 0 };
       await S.pdfKit();
       for (var i = 0; i < due.length && done < (o.max || 4); i++) {
-        try { await fileOne(due[i]); done++; left--; delete filing.failedAt[due[i].key]; }
+        try {
+          var rec = await fileOne(due[i]); done++; left--;
+          // A part still unfinished is tried again in 10 minutes, not every minute.
+          if (rec && rec.unfinished && rec.unfinished.length) filing.failedAt[due[i].key] = Date.now();
+          else delete filing.failedAt[due[i].key];
+        }
         catch (e) {
           failed++;
           filing.failedAt[due[i].key] = Date.now();

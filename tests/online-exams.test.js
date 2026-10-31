@@ -106,6 +106,8 @@ const PAGE_FNS = [
   'examAttemptsArrived', 'examAdoptAttempt', 'examRedrawKeepingFocus', 'examDismissNote', 'examAttemptEndedElsewhere', 'examListNote',
   'examResultFor', 'examPublishSoon', 'examPublishNow', 'examSaveOnLeaving', 'examPullBeforeStart', 'examCanAskCentre', 'examStartFresh',
   'examSaveDraftNow', 'examOpenAttemptsFor', 'examSubmitExpiredAttempts', 'examSubmittedHere', 'examAfterSignIn', 'examOutboxSendOnLan',
+  // Her clock with any extra time (prepared assessments).
+  'examExtraKey', 'examExtraMsFor', 'examEffectiveDeadline', 'examAttemptDeadline', 'examGateExtraKeep', 'examGateExtraFetch', 'examGateExtraForget', 'examFind',
   // What the invigilator sees of the attempt (CESTISCore.exams activity).
   'examActivityReady', 'examDeviceCode', 'examDeviceLabel', 'examActivityEvent', 'examActivityNote', 'examActivityMark', 'examWindowLeft', 'examWindowBack',
   'examPageSwitched', 'examNetBack', 'examActivityNetAtStart', 'examLiveWatched', 'examLiveTargets', 'examLivePulseBody', 'examLivePulse', 'examLivePulseDone'
@@ -154,7 +156,7 @@ function makePage(opts) {
     adminStaffAccessDefaults() { return {}; }, indexedDB: { deleteDatabase() {} },
     exams: [], examResults: [], students: [], userAccounts: [], notifications: [], systemSettings: {},
     currentRole: 'admin', currentStudent: null, currentInstructor: null, currentLoggedInUser: null,
-    currentExamSession: null, examTimerInterval: null, _isExamPreviewMode: false, _examDraftTimer: null,
+    currentExamSession: null, examTimerInterval: null, _isExamPreviewMode: false, _examDraftTimer: null, _examGateExtra: {}, _examGateExtraAsked: {},
     examBuilderQuestions: [], editingExamId: null, examBuilderNewId: null, examBuilderCopiedFrom: null, examBuilderDraftId: null, importedQuestions: [], importRawTextContent: '', importSelectedFile: null,
     EXAM_OUTBOX_KEY: 'cestisExamOutbox', _sessionWiped: false,
     examAttempts: [], EXAM_PUBLISH_MS: 30000, _examPublishTimer: null, _examLastPublish: 0, _examDraftFirstAt: 0, scheduleDebouncedCloudSave() {},

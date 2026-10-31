@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <script src="cestis-config.js?v=284ebb2a"></script>
-<script src="cestis-core.js?v=0a2b61da"></script>
+<script src="cestis-core.js?v=03aa2b77"></script>
 <script src="cestis-form-modal.js?v=74020c38" defer></script>
 <!-- Inert until a page registers: the CMC Board registers as a READ-ONLY reader
      so the operating pages' books reach its dashboards without anyone syncing. -->
@@ -340,8 +340,8 @@
     // group's photos — all from this site, the first time they are needed.
     // A trainee's phone fetches only CESTISAssess (and the PDF parts when she
     // downloads her record); the staff part never reaches it.
-    CESTISAssess: { local: 'cestis-assessments.js?v=fb9910a2', cdn: [] },
-    CESTISAssessStaff: { local: 'cestis-assessments-staff.js?v=7852af0f', cdn: [] },
+    CESTISAssess: { local: 'cestis-assessments.js?v=a9833358', cdn: [] },
+    CESTISAssessStaff: { local: 'cestis-assessments-staff.js?v=2e07061f', cdn: [] },
     CESTISAssessPdf: { local: 'cestis-assessment-pdf.js?v=3db9ea79', cdn: [] },
     PDFLib: { local: 'vendor/pdf-lib-1.17.1.min.js', cdn: [] },
     JSZip: { local: 'vendor/jszip-3.10.1.min.js', cdn: [] },
@@ -9386,7 +9386,7 @@ function sessionHeartbeat() {
   if(currentRole === 'student' && currentExamSession && !_isExamPreviewMode && !_sessionLocked) {
     try {
       var _exp = Number(CESTISStore.getItem('voctrain_sessionExpiry')) || 0;
-      var _more = CESTISCore.sessionAccess.examGrace(Date.now(), _sessionLastActivity, _exp, Number(currentExamSession.deadline) || 0);
+      var _more = CESTISCore.sessionAccess.examGrace(Date.now(), _sessionLastActivity, _exp, examEffectiveDeadline(currentExamSession) || 0);
       if(_more > _exp) CESTISStore.setItem('voctrain_sessionExpiry', String(_more));
     } catch(e) {}
   }
@@ -9498,6 +9498,7 @@ function stopSessionExpiryCheck() {
 // Called on student logout or session expiry
 function clearSensitiveStudentData() {
   _sessionWiped = true;
+  try { examGateExtraForget(); } catch (e) {}
   var sessionRole = currentRole || CESTISStore.getItem('voctrain_sessionRole');
   // Only do selective clearing for student role; admins/instructors wipe all data
   if(sessionRole !== 'student') {
@@ -16628,7 +16629,7 @@ function renderStudentExams(){
       if(alreadyTaken){ badgeHtml = '<span class="badge badge-green"><span class="badge-dot"></span>Completed</span>'; }
       else if(sentLater){ badgeHtml = '<span class="badge badge-amber"><span class="badge-dot"></span>Submitted — waiting to send</span>'; }
       else if(draft){
-        var left = Math.max(0, Math.floor((draft.deadline - Date.now())/1000));
+        var left = Math.max(0, Math.floor((examAttemptDeadline(draft) - Date.now())/1000));
         // "Continue your attempt", on whichever PC she signs in at: the same
         // attempt, its answers and its original clock — never a second one.
         badgeHtml = '<div class="exam-continue"><button class="btn btn-sm btn-primary" onclick="startStudentExam('+jsArg(e.id)+')">'+(left > 0 ? 'Continue your attempt ('+Math.floor(left/60)+':'+String(left%60).padStart(2,'0')+' left)' : 'Submit saved answers')+'</button>'
@@ -17054,7 +17055,7 @@ function studentOpenTests(s) {
     var cur = null;
     try { cur = examCurrentAttempt(s.id, e.id); } catch (x) { cur = null; }
     if (cur && cur.attempt) {
-      var left = Math.max(0, Math.floor(((cur.attempt.deadline || 0) - Date.now()) / 1000));
+      var left = Math.max(0, Math.floor((examAttemptDeadline(cur.attempt) - Date.now()) / 1000));
       out.push({ exam: e, action: 'continue', leftS: left });
       return;
     }
@@ -31469,6 +31470,13 @@ function examResultFor(studentId, examId) {
 // ran out while the trainee was away (power cut, closed tab, signed out), the
 // saved answers are submitted now — once — and the result says so.
 function examResumeDraft(d, ids) {
+  // Her clock is the attempt's own deadline plus her extra time. From home,
+  // the gate is asked for that time once before an attempt whose deadline
+  // has passed is submitted.
+  if (Date.now() >= examAttemptDeadline(d)) {
+    var ask = examGateExtraFetch(d.examId, d.studentId);
+    if (ask) { ask.then(function() { if (!currentExamSession) examResumeDraft(d, ids); }); return; }
+  }
   var n = d.questions.length;
   currentExamSession = {
     attemptId: d.id, alsoIds: (ids && ids.length ? ids : [d.id]).map(String),
@@ -31477,7 +31485,7 @@ function examResumeDraft(d, ids) {
     answeredAt: Array.isArray(d.answeredAt) ? d.answeredAt.slice() : new Array(n).fill(0),
     flaggedAt: Array.isArray(d.flaggedAt) ? d.flaggedAt.slice() : new Array(n).fill(0),
     startTime: d.startTime, deadline: d.deadline,
-    timeRemaining: Math.max(0, Math.ceil((d.deadline - Date.now()) / 1000)),
+    timeRemaining: Math.max(0, Math.ceil((examAttemptDeadline(d) - Date.now()) / 1000)),
     studentId: d.studentId, studentName: d.studentName,
     course: d.course || '', perPage: d.perPage || 0, page: d.page || 0, current: d.current || 0, posAt: d.posAt || 0,
     allowFlag: d.allowFlag !== false, view: 'attempt',
@@ -31486,7 +31494,7 @@ function examResumeDraft(d, ids) {
     activity: examActivityReady() ? (CESTISCore.exams.activityOf(d.activity) || { v: 1 }) : d.activity
   };
   if (examActivityReady() && !currentExamSession.activity.lay) currentExamSession.activity.lay = CESTISCore.exams.activityLayout(d.questions, d.perPage);
-  if (Date.now() >= d.deadline) {
+  if (Date.now() >= examAttemptDeadline(d)) {
     submitExam(true, { away: true });
     return;
   }
@@ -31520,7 +31528,7 @@ function examOpenAttemptsFor(studentId) {
 // Is a test in progress for this trainee, on this PC or shared? running:
 // only one whose clock has not run out yet.
 function examHasDraftFor(studentId, running) {
-  return examOpenAttemptsFor(studentId).some(function(cur) { return !running || Number(cur.attempt.deadline) > Date.now(); });
+  return examOpenAttemptsFor(studentId).some(function(cur) { return !running || examAttemptDeadline(cur.attempt) > Date.now(); });
 }
 // After the sign-in sync: a test whose time ran out while the trainee was
 // away (a power cut, a closed tab, a sign-out, a session that ran out) is
@@ -31544,8 +31552,14 @@ function examAfterSignIn() {
 function examSubmitExpiredAttempts() {
   var me = currentStudent;
   if (!me || currentRole !== 'student' || currentExamSession || _isExamPreviewMode) return 0;
-  var due = examOpenAttemptsFor(me.id).filter(function(cur) { var t = Number(cur.attempt.deadline); return t > 0 && Date.now() >= t; });
+  var due = examOpenAttemptsFor(me.id).filter(function(cur) { var t = examAttemptDeadline(cur.attempt); return t > 0 && Date.now() >= t; });
   if (!due.length) return 0;
+  // From home: ask the gate for any extra time first, then decide again.
+  var asks = due.map(function(cur) { return examGateExtraFetch(cur.attempt.examId, me.id); }).filter(Boolean);
+  if (asks.length) {
+    Promise.all(asks).then(function() { if (currentStudent && currentStudent.id === me.id && !currentExamSession) examSubmitExpiredAttempts(); });
+    return 0;
+  }
   try { showPage('s-exams'); } catch (e) {}
   var n = 0;
   due.forEach(function(cur) {
@@ -31981,24 +31995,53 @@ function examStartFresh(e, me, fromGate) {
    (CESTISCore.exams.extraMs). At the Centre the exam record brings them; from
    home her phone asks the gate every minute while she sits the test
    (CESTISGate.examTime) and keeps the larger — time is only ever added. */
-var _examGateExtra = {};
+// What the gate said, kept per trainee and exam: a second trainee on the
+// same phone never inherits the first one's time.
+var _examGateExtra = {}, _examGateExtraAsked = {};
+function examExtraKey(examId, studentId) { return String(studentId == null ? '' : studentId) + '|' + String(examId); }
 function examExtraMsFor(examId, studentId) {
   var e = examFind(examId), local = 0;
   try { local = e ? CESTISCore.exams.extraMs(e, studentId) : 0; } catch (x) { local = 0; }
-  var g = _examGateExtra[String(examId)];
+  var g = _examGateExtra[examExtraKey(examId, studentId)];
   return Math.max(local, g && g.ms ? g.ms : 0);
 }
 function examEffectiveDeadline(s) {
   var base = s.deadline || (s.startTime + (parseInt(s.duration) || 90) * 60000);
   return _isExamPreviewMode ? base : base + examExtraMsFor(s.examId, s.studentId);
 }
+// A saved attempt's deadline with her extra time: every check of "has the
+// time run out?" (resume, the sign-in, My Exams, the session clock) asks this.
+function examAttemptDeadline(a) {
+  if (!a) return 0;
+  var own = Number(a.deadline) || 0;
+  var dl = examEffectiveDeadline({ deadline: own, startTime: Number(a.startTime) || 0, duration: a.duration, examId: a.examId, studentId: a.studentId });
+  return isFinite(dl) && dl > 0 ? dl : own;
+}
+function examGateExtraKeep(examId, studentId, res) {
+  if (!res || res.ok !== true) return;
+  var k = examExtraKey(examId, studentId), was = _examGateExtra[k];
+  var ms = Math.max(0, Number(res.minutes) || 0) * 60000;
+  if (!was || ms >= (was.ms || 0)) _examGateExtra[k] = { ms: ms, grants: Array.isArray(res.grants) ? res.grants : [] };
+}
+// From home: before an attempt whose own deadline has passed is called
+// finished, the gate is asked once for her extra time. null when there is
+// nothing to ask (at the Centre the exam record brings the time).
+function examGateExtraFetch(examId, studentId) {
+  if (_isExamPreviewMode || !(typeof cestisGateSession === 'function' && cestisGateSession()) || !window.CESTISGate || typeof CESTISGate.examTime !== 'function') return null;
+  var k = examExtraKey(examId, studentId);
+  if (_examGateExtraAsked[k]) return null;
+  _examGateExtraAsked[k] = 1;
+  return Promise.resolve().then(function() { return CESTISGate.examTime(examId); })
+    .then(function(res) { examGateExtraKeep(examId, studentId, res); }, function() {});
+}
+function examGateExtraForget() { _examGateExtra = {}; _examGateExtraAsked = {}; }
 // "Extra time: 15 min, added by the Administrator" — as the record prints it.
 function examExtraLine(examId, studentId) {
   var ms = examExtraMsFor(examId, studentId);
   if (!ms || !window.CESTISCore || !CESTISCore.assessments) return '';
   var e = examFind(examId), roles = {};
   try { CESTISCore.exams.extraGrantsFor(e, studentId).forEach(function(g) { roles[g.byRole || ''] = 1; }); } catch (x) {}
-  var g = _examGateExtra[String(examId)];
+  var g = _examGateExtra[examExtraKey(examId, studentId)];
   if (g && Array.isArray(g.grants)) g.grants.forEach(function(x) { roles[x.byRole || ''] = 1; });
   var who = Object.keys(roles).filter(Boolean).map(CESTISCore.assessments.roleLabel);
   return 'Extra time: ' + CESTISCore.assessments.minutesText(Math.round(ms / 60000)) + (who.length ? ', added by ' + who.join(' and ') : '');
@@ -32010,9 +32053,7 @@ function examGateExtraPoll(s) {
   CESTISGate.examTime(s.examId).then(function(res) {
     s._xtAsking = false;
     if (!res || res.ok !== true) return;
-    var was = _examGateExtra[String(s.examId)];
-    var ms = Math.max(0, Number(res.minutes) || 0) * 60000;
-    if (!was || ms >= (was.ms || 0)) _examGateExtra[String(s.examId)] = { ms: ms, grants: Array.isArray(res.grants) ? res.grants : [] };
+    examGateExtraKeep(s.examId, s.studentId, res);
     try { updateExamTimerDisplay(); } catch (e) {}
   }, function() { s._xtAsking = false; });
 }

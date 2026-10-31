@@ -224,6 +224,10 @@ console.log('A group hands in once; every member signs; nobody sees another\'s I
   const group = A.makeGroup({ id: 'AG-1', examId: 'EX-P', name: 'Group B', members: ['STU-k', 'STU-t', 'STU-d', 'STU-n', 'STU-k'], by: 'INS', at: '2026-10-28T10:00:00.000Z' });
   assert(group.members.length === 4 && group.type === 'group', 'a group record, each member once');
   const work = [group];
+  // A photo's id is its sender's own.
+  assert(A.photoIdPrefix('STU-a') === 'AP-STU-a-' && A.photoIdOk('AP-STU-a-k3x9', 'STU-a'), 'a photo id: AP-<her trainee id>-…');
+  assert(!A.photoIdOk('AG-1', 'STU-a') && !A.photoIdOk('APR-EX-STU-a', 'STU-a') && !A.photoIdOk('AS-AG-1-STU-a', 'STU-a') && !A.photoIdOk('res:R1', 'STU-a'), '...never the group\'s, a result\'s, a sign-off\'s or a filing note\'s id');
+  assert(!A.photoIdOk('AP-STU-b-k3x9', 'STU-a') && !A.photoIdOk('AP-STU-a-', 'STU-a') && !A.photoIdOk('AP-STU-a-x y', 'STU-a') && !A.photoIdOk('AP--x', ''), '...nor another member\'s photo, an empty or odd one');
   const ph = (id, who, at, cap) => A.photoRecord({ id, examId: 'EX-P', groupId: 'AG-1', studentId: who, accountId: 'USR-' + who, caption: cap, at, files: [{ id: 'F-' + id, name: id + '.jpg', size: 400000, type: 'image/jpeg' }] });
   work.push(ph('P1', 'STU-k', '2026-10-29T18:00:00.000Z', 'Set up'), ph('P2', 'STU-t', '2026-10-29T18:05:00.000Z', 'Root <pass>'), ph('P3', 'STU-k', '2026-10-29T18:09:00.000Z', 'Top view'));
   assert(work[2].caption === 'Root pass', 'markup taken out of a caption');
@@ -331,6 +335,13 @@ console.log('Where each record is filed, and its name');
   const due = A.filingDue([{ key: 'res:R1', status: 'final', hash: 'h9' }, { key: 'res:R2', status: 'final', hash: 'h2' }, { key: 'res:R3', status: 'provisional', hash: 'h3' }, { key: 'res:R2', status: 'provisional', hash: 'h0' }], work);
   assert(due.map(d => d.key + ':' + d.reason).join() === 'res:R1:marked,res:R3:new', 'filed when new; filed again when marked; a final paper never goes back to provisional (' + due.map(d => d.key + ':' + d.reason).join() + ')');
   assert(A.filingDue([{ key: 'res:R2', status: 'final', hash: 'h-new' }], work)[0].reason === 'changed', 'filed again when a mark or comment changed');
+  // A part that did not go through (her own copy, a photo, a member's copy) keeps the paper due.
+  const half = [A.filedRecord({ key: 'res:R5', status: 'final', fileId: 'F5', hash: 'h5', unfinished: ['mine'], at: '2026-10-30T16:00:00.000Z' })];
+  const d5 = A.filingDue([{ key: 'res:R5', status: 'final', hash: 'h5' }], half);
+  assert(d5.length === 1 && d5[0].reason === 'unfinished', 'a paper whose own copy did not go through is due again (' + (d5[0] && d5[0].reason) + ')');
+  const whole = [A.filedRecord({ key: 'res:R5', status: 'final', fileId: 'F5', hash: 'h5', unfinished: [], at: '2026-10-30T16:05:00.000Z' })].concat(half);
+  assert(A.filingDue([{ key: 'res:R5', status: 'final', hash: 'h5' }], whole).length === 0, '...and not once every part is in place (the newer record says so)');
+  assert(JSON.stringify(A.filedRecord({ key: 'k', unfinished: ['photo:P1', '', null, 'm:S2'] }).unfinished) === '["photo:P1","m:S2"]', 'the unfinished parts are kept as plain names');
   assert(work[0].id === A.filedId('res:R1') && work[0].type === 'filed', 'one filing record per paper');
 }
 
