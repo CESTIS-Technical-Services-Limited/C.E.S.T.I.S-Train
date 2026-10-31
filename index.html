@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <script src="cestis-config.js?v=284ebb2a"></script>
-<script src="cestis-core.js?v=09267ae3"></script>
+<script src="cestis-core.js?v=11cfcaca"></script>
 <script src="cestis-form-modal.js?v=74020c38" defer></script>
 <!-- Inert until a page registers: the CMC Board registers as a READ-ONLY reader
      so the operating pages' books reach its dashboards without anyone syncing. -->
@@ -335,6 +335,16 @@
       cdn: [{ src: 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js' }, { src: 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js' }] },
     jspdf: { local: 'vendor/jspdf-2.5.1.umd.min.js',
       cdn: [{ src: 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js' }, { src: 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js' }] },
+    // Prepared assessments (the owner's plan, 31 October 2026): the pages, the
+    // printed record, and the libraries that join PDFs and make a ZIP of a
+    // group's photos — all from this site, the first time they are needed.
+    // A trainee's phone fetches only CESTISAssess (and the PDF parts when she
+    // downloads her record); the staff part never reaches it.
+    CESTISAssess: { local: 'cestis-assessments.js?v=35344bbf', cdn: [] },
+    CESTISAssessStaff: { local: 'cestis-assessments-staff.js?v=d6a08a2a', cdn: [] },
+    CESTISAssessPdf: { local: 'cestis-assessment-pdf.js?v=90c0b23b', cdn: [] },
+    PDFLib: { local: 'vendor/pdf-lib-1.17.1.min.js', cdn: [] },
+    JSZip: { local: 'vendor/jszip-3.10.1.min.js', cdn: [] },
     OTPAuth: { cdn: [{ src: 'https://cdnjs.cloudflare.com/ajax/libs/otpauth/9.2.2/otpauth.umd.min.js' }, { src: 'https://cdn.jsdelivr.net/npm/otpauth@9.2.2/dist/otpauth.umd.min.js' }] },
     QRCode: { cdn: [{ src: 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js' }, { src: 'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js' }] },
     emailjs: { cdn: [{ src: 'https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js' }, { src: 'https://unpkg.com/@emailjs/browser@4/dist/email.min.js' }],
@@ -7272,6 +7282,11 @@ var examAttempts = [];
 // by register, its notes and sign-offs entry by entry, deleted only by a
 // tombstone, like the Centre's other records.
 var examRegisters = [];
+// Prepared assessments' own records (CESTISCore.assessments): practical
+// groups, the photos a group adds, each member's sign-off and hand-in, the
+// assessor's result for each member, and where each completed paper is
+// filed. One list, merged record by record (newest edit wins), never deleted.
+var assessmentWork = [];
 
 var calendarEvents = [];
 
@@ -7413,6 +7428,10 @@ function syncCollections() {
     // day). A register is never deleted from this page, and a trainee's
     // sign-out empties this PC's copy — which must never read as a deletion.
     { name: 'examRegisters',         get: function(){ return examRegisters; },         key: syncKeyById, removals: false },
+    // Prepared assessments' groups, photos, sign-offs, results and filing
+    // (CESTISCore.assessments): kept record by record; a photo taken back is
+    // marked withdrawn, never removed, so a shorter list is never a deletion.
+    { name: 'assessmentWork',        get: function(){ return assessmentWork; },        key: syncKeyById, removals: false },
     // Download approvals, one per trainee: stamped when they change; merged
     // by the certificate rules (CESTISCore.certs.mergeApprovals).
     { name: 'certDownloadApprovals', get: function(){ return certDownloadApprovals; }, key: function(r){ return r && r.studentId != null ? String(r.studentId) : undefined; }, removals: false },
@@ -8191,7 +8210,7 @@ function exportDataBackup() {
     // "session" in it (voctrain_session*) — and so left these out of the file.
     'voctrain_vcSessions',
     'voctrain_resources','voctrain_driveResources','voctrain_studentProfiles','voctrain_instructorProfiles',
-    'voctrain_systemSettings','voctrain_examResults','voctrain_examAttempts','voctrain_examRegisters','voctrain_calendarEvents','voctrain_adrTasks',
+    'voctrain_systemSettings','voctrain_examResults','voctrain_examAttempts','voctrain_examRegisters','voctrain_assessmentWork','voctrain_calendarEvents','voctrain_adrTasks',
     'voctrain_adrStaffMeta','voctrain_adminStaffAccess','voctrain_instructorData','voctrain_certDownloadApprovals',
     'voctrain_skillAreas','voctrain_certTemplates','voctrain_chatRooms','voctrain_chatMessages',
     'voctrain_chatProfiles','voctrain_chatFollows',
@@ -9185,14 +9204,20 @@ function lmsChatFlushDriveSyncNow() {
 // unless an Administrator turns it off — the owner: "both the office admin
 // staff and administrators can create accounts for students". Trainee
 // accounts only: Admin Staff can never create or approve a staff login.
-var AS_ACCESS_DEFAULTS = { attendance:false, announcements:false, calendar:false, students:false, studentsmanage:false, certificates:false, reports:false, training:false, exams:false, invigilation:false, video:true, resources:false, supportmessages:false, traineeaccounts:true };
+// 'assessmentresults' (Assessment Results: completed assessments, their PDFs
+// and a group's photos) has no fixed default: until the Administrator ticks
+// or unticks it, it follows Online Exams or Certificates (the owner: "defaulting
+// on for anyone who has Online Exams or Certificates ticked") — null here, and
+// worked out by AS_ACCESS_DERIVED.
+var AS_ACCESS_DEFAULTS = { attendance:false, announcements:false, calendar:false, students:false, studentsmanage:false, certificates:false, reports:false, training:false, exams:false, invigilation:false, video:true, resources:false, supportmessages:false, traineeaccounts:true, assessmentresults:null };
+var AS_ACCESS_DERIVED = { assessmentresults: function(o) { return !!(o.exams || o.certificates); } };
 function adminStaffAccessDefaults() { return Object.assign({}, AS_ACCESS_DEFAULTS); }
 var adminStaffAccessSettings = adminStaffAccessDefaults();
 // The sections an Admin Staff member may use: their own ticks when the
 // Administrator has given them their own, else the grid's (the default for
 // everybody) — CESTISCore.staffAccess.forPerson.
 function asAccessFor(userId) {
-  try { return CESTISCore.staffAccess.forPerson(adminStaffAccessSettings, AS_ACCESS_DEFAULTS, userId); }
+  try { return CESTISCore.staffAccess.forPerson(adminStaffAccessSettings, AS_ACCESS_DEFAULTS, userId, typeof AS_ACCESS_DERIVED !== 'undefined' ? AS_ACCESS_DERIVED : null); }
   catch(e) { return Object.assign(adminStaffAccessDefaults(), adminStaffAccessSettings || {}); }
 }
 // …and the one signed in on this device.
@@ -9229,7 +9254,8 @@ function applyAdminStaffAccess(next) {
   var nextAt = Date.parse(next.updatedAt || '') || 0, haveAt = Date.parse(adminStaffAccessSettings.updatedAt || '') || 0;
   if (haveAt && nextAt < haveAt) { if (changed) refreshAdminStaffNav(); return changed; }
   var merged = adminStaffAccessDefaults();
-  Object.keys(next).forEach(function(k) { if (k === 'updatedAt' || k === 'people') return; merged[k] = !!next[k]; });
+  // A key still on its worked-out default (null) stays so: it is not "off".
+  Object.keys(next).forEach(function(k) { if (k === 'updatedAt' || k === 'people') return; merged[k] = (next[k] === null || next[k] === undefined) && AS_ACCESS_DEFAULTS[k] === null ? null : !!next[k]; });
   Object.keys(merged).forEach(function(k) {
     if (adminStaffAccessSettings[k] !== merged[k]) { adminStaffAccessSettings[k] = merged[k]; changed = true; }
   });
@@ -9528,6 +9554,15 @@ function clearSensitiveStudentData() {
   // (the staff's copies are untouched; a staff sign-in's unsent work is kept
   // by the guard above).
   try { examRegisters = []; CESTISStore.removeItem('voctrain_examRegisters'); } catch(e) {}
+  // 3d. Prepared assessments: only her own photos and sign-offs stay (one
+  // not sent yet is never lost); groups, results and filing are the staff's.
+  try {
+    var myWork = (Array.isArray(assessmentWork) ? assessmentWork : []).filter(function(r) {
+      return r && (r.type === 'photo' || r.type === 'signoff') && studentId && r.studentId === studentId;
+    });
+    assessmentWork = myWork;
+    CESTISStore.setItem('voctrain_assessmentWork', JSON.stringify(myWork));
+  } catch(e) {}
 
   // 4. Keep only this student's profile
   try {
@@ -9716,6 +9751,7 @@ function clearAllSessionData() {
   examResults = [];
   examAttempts = [];
   examRegisters = [];
+  assessmentWork = [];
   calendarEvents = [];
   classSessions = [];
   adminMeetings = [];
@@ -9871,6 +9907,7 @@ function saveState() {
     saveCollection('voctrain_examResults', examResults);
     try { examAttemptsPersist(); } catch(e) {}
     saveCollection('voctrain_examRegisters', examRegisters);
+    saveCollection('voctrain_assessmentWork', assessmentWork);
     saveCollection('voctrain_calendarEvents', calendarEvents);
     saveCollection('voctrain_instructorData', instructorData);
     saveCollection('voctrain_certDownloadApprovals', certDownloadApprovals);
@@ -10045,6 +10082,8 @@ function loadState() {
     if(Array.isArray(eat)) examAttempts = eat;
     var xreg = safeJsonParse(CESTISStore.getItem('voctrain_examRegisters'), null);
     if(Array.isArray(xreg)) examRegisters = xreg;
+    var awk = safeJsonParse(CESTISStore.getItem('voctrain_assessmentWork'), null);
+    if(Array.isArray(awk)) assessmentWork = awk;
     if(ce) { var _cc={class:'var(--blue)',exam:'var(--red)',deadline:'var(--accent)',meeting:'var(--purple)'}; calendarEvents = ce.map(function(e){if(!e.color){e.color=_cc[e.type]||'var(--blue)';}return e;}); }
     var adrT = safeJsonParse(CESTISStore.getItem('voctrain_adrTasks'), null);
     var adrM = safeJsonParse(CESTISStore.getItem('voctrain_adrStaffMeta'), null);
@@ -14932,6 +14971,8 @@ function buildAdminSidebar() {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Online Exams</div>
     <div class="nav-item" data-page="invigilator" onclick="showPage('invigilator')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>Exam Invigilator</div>
+    <div class="nav-item" data-page="assessments" onclick="showPage('assessments')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Assessments<span class="nav-badge" id="assessToCheckBadge" style="display:none;background:var(--accent);">0</span></div>
     <div class="nav-item" data-page="import-exam" onclick="showPage('import-exam')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Import Exam</div>
     <div class="nav-item" data-page="pdf-workshop" onclick="showPage('pdf-workshop')">
@@ -14953,6 +14994,8 @@ function buildAdminSidebar() {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>Certificates</div>
     <div class="nav-item" data-page="transcript-grades" onclick="showPage('transcript-grades')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>Transcript/Grades</div>
+    <div class="nav-item" data-page="assessment-results" onclick="showPage('assessment-results')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><path d="M9 14l2 2 4-4"/></svg>Assessment Results</div>
     <div class="nav-item" data-page="cert-transcript-requests" onclick="showPage('cert-transcript-requests')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>Cert/Transcript Requests<span class="nav-badge" id="ctrRequestsBadge" style="display:none;background:var(--red);">0</span></div>
     </div>
@@ -15016,6 +15059,8 @@ function buildStudentSidebar() {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg>My Assignments</div>
     <div class="nav-item" data-page="s-exams" onclick="showPage('s-exams')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>My Exams</div>
+    <div class="nav-item" data-page="s-assessments" onclick="showPage('s-assessments')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>My Assessments</div>
     <div class="nav-item" data-page="s-transcript-grades" onclick="showPage('s-transcript-grades')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>Transcript/Grades</div>
     <div class="nav-item" data-page="s-certificate" onclick="showPage('s-certificate')">
@@ -15058,6 +15103,8 @@ function buildInstructorSidebar() {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>Qual Plan/Curriculum</div>
     <div class="nav-item" data-page="i-exams" onclick="showPage('i-exams')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Online Exams</div>
+    <div class="nav-item" data-page="i-assessments" onclick="showPage('i-assessments')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Assessments<span class="nav-badge" id="iAssessToCheckBadge" style="display:none;background:var(--accent);">0</span></div>
     <div class="nav-item" data-page="i-import-exam" onclick="showPage('i-import-exam')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Import Exam</div>
     <div class="nav-item" data-page="i-invigilator" onclick="showPage('i-invigilator')">
@@ -15198,6 +15245,21 @@ var cestisFeatureConfig = {
     onMount: function() {
       renderExamsUpcoming();
     }
+  },
+  // Prepared assessments (cestis-assessments*.js, loaded on first use): the
+  // units' four assessments, the office's Assessment Results, and a trainee's
+  // own units, group practicals and papers.
+  'assessments': {
+    file: 'Pages/Assessments.html',
+    onMount: function(prefix) { assessMount('assessments', prefix); }
+  },
+  'assessment-results': {
+    file: 'Pages/Assessment-Results.html',
+    onMount: function(prefix) { assessMount('assessment-results', prefix); }
+  },
+  'my-assessments': {
+    file: 'Pages/Student-Assessments.html',
+    onMount: function(prefix) { assessMount('my-assessments', prefix); }
   },
   // The Exam Invigilator: one page for every staff role (who may open it and
   // which exams they see: CESTISCore.invigilation).
@@ -15511,6 +15573,10 @@ var AS_PAGE_PERMISSION = {
   'as-resources': 'resources', 'as-support-messages': 'supportmessages',
   'as-attendance': 'attendance', 'as-announcements': 'announcements', 'as-calendar': 'calendar',
   'as-trainee-accounts': 'traineeaccounts',
+  // Prepared assessments: Admin Staff look at them with Online Exams ticked;
+  // Assessment Results has its own tick (on for anyone with Online Exams or
+  // Certificates until the Administrator says otherwise).
+  'assessments': 'exams', 'assessment-results': 'assessmentresults',
   // The Administrator's working pages Admin Staff open when ticked (OF-2).
   'training': 'training', 'a-resources': 'resources', 'exams': 'exams', 'attendance': 'attendance',
   'announcements': 'announcements', 'calendar': 'calendar', 'certificates': 'certificates', 'reports': 'reports'
@@ -15584,7 +15650,7 @@ function showPage(pageId) {
   }
   const titles = {
     dashboard:'Dashboard',video:'Video Conference',students:'Student Progress',
-    training:'Training Centres','course-duration':'Course / Training Centre Duration','transfer-trainees':'Transfer Trainees','enrolment-registers':'Enrolment Registers','a-resources':'Resource Manager',exams:'Online Exams',invigilator:'Exam Invigilator','i-invigilator':'Exam Invigilator','as-invigilator':'Exam Invigilator','import-exam':'Import Exam','i-import-exam':'Import Exam',certificates:'Certificate Tracking','cert-downloads':'Certificate Downloads',
+    training:'Training Centres','course-duration':'Course / Training Centre Duration','transfer-trainees':'Transfer Trainees','enrolment-registers':'Enrolment Registers','a-resources':'Resource Manager',exams:'Online Exams',assessments:'Assessments','i-assessments':'Assessments','assessment-results':'Assessment Results','s-assessments':'My Assessments',invigilator:'Exam Invigilator','i-invigilator':'Exam Invigilator','as-invigilator':'Exam Invigilator','import-exam':'Import Exam','i-import-exam':'Import Exam',certificates:'Certificate Tracking','cert-downloads':'Certificate Downloads',
     reports:'Reports & Analytics','verify-users':'Verify Users',settings:'Settings',
     attendance:'Attendance Management',announcements:'Announcements',calendar:'Calendar & Schedule',
     's-dashboard':'My Dashboard','s-video':'My Classes','s-progress':'My Progress',
@@ -15970,6 +16036,12 @@ function buildAdminPages() {
   </section>
 
   <!-- EXAM INVIGILATOR (live board and sitting registers) -->
+  <section class="page" id="page-assessments">
+    <div class="cestis-mount" data-feature="assessments" data-prefix="admin"></div>
+  </section>
+  <section class="page" id="page-assessment-results">
+    <div class="cestis-mount" data-feature="assessment-results" data-prefix="admin"></div>
+  </section>
   <section class="page" id="page-invigilator">
     <div class="cestis-mount" data-feature="invigilator" data-prefix="admin"></div>
   </section>
@@ -16515,7 +16587,7 @@ function renderStudentExams(){
   if(typeof resolveExamStatuses === 'function'){ try{ resolveExamStatuses(); }catch(e){} }
   // What the trainee sees is worked out on the Centre's clock here and now;
   // this device never writes an exam's status (see resolveExamStatuses).
-  var mine = function(e){ return e && (e.course === s.course || instructorCourseMatch(e.course, s.course)); };
+  var mine = function(e){ return (typeof examTraineeListed !== 'function' || examTraineeListed(e)) && (e.course === s.course || instructorCourseMatch(e.course, s.course)); };
   var up = document.getElementById('studentUpcomingExams');
   if(up){
     up.innerHTML = exams.filter(function(e){
@@ -16856,6 +16928,9 @@ function buildStudentPages() {
   </section>
 
   <!-- STUDENT EXAMS -->
+  <section class="page" id="page-s-assessments">
+    <div class="cestis-mount" data-feature="my-assessments" data-prefix="student"></div>
+  </section>
   <section class="page" id="page-s-exams">
     <div class="cestis-mount" data-feature="s-exams" data-prefix="student"></div>
   </section>
@@ -17555,6 +17630,9 @@ function buildInstructorPages() {
   </section>
 
   <!-- EXAM INVIGILATOR (Instructor: their programmes' exams) -->
+  <section class="page" id="page-i-assessments">
+    <div class="cestis-mount" data-feature="assessments" data-prefix="instructor"></div>
+  </section>
   <section class="page" id="page-i-invigilator">
     <div class="cestis-mount" data-feature="invigilator" data-prefix="instructor"></div>
   </section>
@@ -26115,6 +26193,7 @@ var CESTIS_SHARED_COLLECTIONS = {
   // hold an older copy of the attempt open here (examAttemptsMergeIncoming).
   voctrain_examAttempts:        function(v){ examAttemptsMergeIncoming(v); },
   voctrain_examRegisters:       function(v){ invigRegistersMergeIncoming(v); },
+  voctrain_assessmentWork:      function(v){ assessWorkMergeIncoming(v); },
   voctrain_certDownloadApprovals: function(v){ certDownloadApprovals = v; },
   voctrain_skillAreas:          function(v){ skillAreas = CESTISCore.catalogue.liveCentres(v, CESTISStore); },
   voctrain_users:               function(v){ userAccounts = v; },
@@ -29280,6 +29359,11 @@ function examStatusNow(e) {
   return CESTISCore.exams.statusAt(e, Date.now(), examCentreOffset());
 }
 function examIsStaffSession() { return currentRole === 'admin' || currentRole === 'instructor' || currentRole === 'adminstaff'; }
+/* A practical (a prepared assessment with no questions) lives on the
+   Assessments pages, not in the Online Exams lists; a prepared test still To
+   check or Ready (status 'draft') is never in a trainee's list at all. */
+function examIsPracticalTask(e) { return !!(e && window.CESTISCore && CESTISCore.assessments && CESTISCore.assessments.isPractical(e)); }
+function examTraineeListed(e) { return !!e && e.status !== 'draft' && e.status !== 'cancelled' && !examIsPracticalTask(e); }
 // Exam buttons pass the exam's id. A position in the array (what they passed
 // before) still works, but a sync that removed an exam in between used to
 // point every later button at a different exam.
@@ -29326,7 +29410,7 @@ function renderExams(filter) {
   if(filter) adminExamFilter = filter;
   else filter = adminExamFilter;
   resolveExamStatuses();
-  const filtered = exams.filter(e=>e.status===(filter||'upcoming'));
+  const filtered = exams.filter(e=>e.status===(filter||'upcoming') && !(typeof examIsPracticalTask === 'function' && examIsPracticalTask(e)));
   const tbody = document.getElementById('examTableBody');
   if(!tbody) return;
   // Render exam stats
@@ -29394,7 +29478,7 @@ function renderInstructorExams(filter) {
   // use: a strict name match hid exams the trainees could see.
   var inMyCourse = function(e){ return e && (e.course === courseFilter || instructorCourseMatch(e.course, courseFilter)); };
   var allExams = courseFilter ? exams.filter(inMyCourse) : exams;
-  var filtered = allExams.filter(function(e){ return e.status === (filter || 'upcoming'); });
+  var filtered = allExams.filter(function(e){ return e.status === (filter || 'upcoming') && !(typeof examIsPracticalTask === 'function' && examIsPracticalTask(e)); });
 
   // Target ONLY the instructor-specific elements. Never fall back to the admin
   // examTableBody/examStatsGrid: this function is invoked by refreshContentDependentViews(),
@@ -30154,6 +30238,11 @@ function createExam() {
 
   var off = examCentreOffset();
   var course = document.getElementById('examCourse').value;
+  // A prepared assessment still being checked (CESTISCore.assessments) keeps
+  // its programme and has no dates: it is opened for an intake, with dates,
+  // from the Assessments page — never from here.
+  var _prepared = !!(editing && CESTISCore.assessments && CESTISCore.assessments.isMaster(editing));
+  if(_prepared) course = editing.course;
   var duration = parseInt(document.getElementById('examDuration').value)||90;
   var passMark = Math.min(100, Math.max(1, parseInt(document.getElementById('examPassMark').value)||60));
   var relEl = document.getElementById('examAnswersRelease');
@@ -30176,7 +30265,8 @@ function createExam() {
   // time) — it used to mean 09:00 today, so a quiz built in the afternoon
   // was over before it was published.
   var dflt = CESTISCore.exams.defaultStart(Date.now(), off);
-  if(!dateVal || !timeVal) { dateVal = dateVal || dflt.date; timeVal = timeVal || dflt.time; schedChanged = true; }
+  if(_prepared) { dateVal = ''; timeVal = ''; closeOn = false; closeDate = ''; closeTime = ''; schedChanged = false; }
+  else if(!dateVal || !timeVal) { dateVal = dateVal || dflt.date; timeVal = timeVal || dflt.time; schedChanged = true; }
   var startMs = CESTISCore.exams.centreTime(dateVal, timeVal, off);
   if(closeOn) {
     var closeMs = CESTISCore.exams.centreTime(closeDate, closeTime, off);
@@ -30624,7 +30714,11 @@ function editExam(idx) {
   if(typeof staffSectionRefused === 'function' && staffSectionRefused('exams')) return;
   var e = examFind(idx);
   if(!e) return;
-  if(currentRole === 'instructor' && currentInstructor && e.createdBy !== currentInstructor.id) {
+  // A prepared assessment of her own programme is hers to check and correct,
+  // whoever prepared it (the Assessments page's "Check & edit").
+  var _ownPrepared = currentRole === 'instructor' && currentInstructor && CESTISCore.assessments && CESTISCore.assessments.isMaster(e) &&
+    (e.course === currentInstructor.course || instructorCourseMatch(e.course, currentInstructor.course));
+  if(currentRole === 'instructor' && currentInstructor && e.createdBy !== currentInstructor.id && !_ownPrepared) {
     alert('You can only edit exams you created. This exam was created by an administrator.');
     return;
   }
@@ -33614,6 +33708,40 @@ function invigApplyAttendance() {
   closeModal('invigAttendModal');
   showToast('Added ' + done.length + ' mark' + (done.length === 1 ? '' : 's') + ' to the attendance for ' + invigDayText(dlg.date, true) + (locked ? ' · ' + locked + ' on a closed register were not changed' : ''), 'success');
   invigRenderRegister();
+}
+/* ---- Prepared assessments: the pages are in cestis-assessments.js (a
+   trainee's units, group practicals, "Sign and submit", her own record) and
+   cestis-assessments-staff.js (the Assessments page, Assessment Results, the
+   practical marking, adding time, filing the office copy), fetched from this
+   site the first time a page needs them — never on a trainee's first load. */
+function assessLoad(staff) {
+  var need = staff ? ['CESTISAssess', 'CESTISAssessStaff'] : ['CESTISAssess'];
+  return need.reduce(function(p, n) { return p.then(function() { return cestisNeedLib(n); }); }, Promise.resolve());
+}
+function assessMount(feature, prefix) {
+  var staff = feature !== 'my-assessments';
+  return assessLoad(staff).then(function() {
+    return (staff ? CESTISAssessStaff : CESTISAssess).mount(feature, prefix);
+  }).catch(function(e) {
+    console.warn('[Assessments] could not open', feature, e);
+    document.querySelectorAll('[data-assess-page="' + feature + '"]').forEach(function(root) {
+      root.innerHTML = '<div class="card" role="alert">This page could not be opened just now. Check the connection, then open it again.</div>';
+    });
+  });
+}
+// Prepared assessments' records that arrived from another device, tab or the
+// Centre's copy: record by record, the newest edit winning, never adopted
+// wholesale and never shortened. Returns true when anything changed.
+function assessWorkMergeIncoming(incoming) {
+  if (!Array.isArray(incoming) || !window.CESTISCore) return false;
+  if (!Array.isArray(assessmentWork)) assessmentWork = [];
+  var out = CESTISCore.sync.mergeList(assessmentWork, incoming, syncKeyById, { tombs: syncTombsFor('assessmentWork') });
+  var changed = !!(out.added || out.updated || out.removed);
+  if (changed) {
+    try { saveCollection('voctrain_assessmentWork', assessmentWork); } catch (e) {}
+    try { if (window.CESTISAssess && typeof CESTISAssess.refresh === 'function') CESTISAssess.refresh('work'); } catch (e) {}
+  }
+  return changed;
 }
 // Registers that arrived from another device, tab or the Centre's copy:
 // register by register, notes and sign-offs entry by entry (never adopted
@@ -38089,6 +38217,7 @@ async function mergeFromCloud() {
     try { if (typeof examAttemptsMergeIncoming === 'function') examAttemptsMergeIncoming(backupData.data.examAttempts); } catch(e) {}
     // The sittings' registers: register by register, notes entry by entry.
     try { if (typeof invigRegistersMergeIncoming === 'function') invigRegistersMergeIncoming(backupData.data.examRegisters); } catch(e) {}
+    try { if (typeof assessWorkMergeIncoming === 'function') assessWorkMergeIncoming(backupData.data.assessmentWork); } catch(e) {}
 
     // Merge chat data from cloud backup
     if (backupData.data.chatRooms) {
@@ -39381,6 +39510,8 @@ async function savePerUserBackup() {
         examAttempts: (typeof examAttempts !== 'undefined' && Array.isArray(examAttempts)) ? examAttempts : [],
         // The sittings' registers are the staff's: a trainee's device sends none.
         examRegisters: currentRole === 'student' ? undefined : ((typeof examRegisters !== 'undefined' && Array.isArray(examRegisters)) ? examRegisters : []),
+        // A trainee's device sends only her own photos and sign-offs.
+        assessmentWork: (typeof assessmentWork !== 'undefined' && Array.isArray(assessmentWork)) ? (currentRole === 'student' ? assessmentWork.filter(function(r) { return r && (r.type === 'photo' || r.type === 'signoff') && currentStudent && r.studentId === currentStudent.id; }) : assessmentWork) : [],
         announcements: announcements,
         attendanceRecords: attendanceRecords,
         vcSessions: vcSessions,
@@ -40078,8 +40209,9 @@ async function mergeBackupData(backupData) {
       var _exBefore = {};
       exams.forEach(function(e){ if (e && e.id != null) _exBefore[e.id] = e.title; });
       var _exTombs = CESTISCore.exams.translateLegacyTombs(syncTombsFor('exams'), exams, backupData.data.exams);
+      // Extra time given at a sitting is kept grant by grant (RECORD_MAPS.exams).
       var _exOut = CESTISCore.sync.mergeList(exams, backupData.data.exams, CESTISCore.exams.syncKey,
-        { tombs: _exTombs, accept: function(c){ return !_de[c.id] && !(_det[c.title] && (c.id == null || c.id === '')); } });
+        CESTISCore.sync.mapRules('exams', { tombs: _exTombs, accept: function(c){ return !_de[c.id] && !(_det[c.title] && (c.id == null || c.id === '')); } }));
       if (_exOut.added || _exOut.updated || _exOut.removed) changed = true;
       // An exam deleted elsewhere: its results here are archived, as they are
       // on the device that deleted it, instead of lingering as orphans.
@@ -40148,6 +40280,7 @@ async function mergeBackupData(backupData) {
     // The invigilators' registers of each sitting (CESTISCore.invigilation):
     // register by register, a note or a sign-off entry by entry.
     if (typeof invigRegistersMergeIncoming === 'function' && invigRegistersMergeIncoming(backupData.data.examRegisters)) changed = true;
+    if (typeof assessWorkMergeIncoming === 'function' && assessWorkMergeIncoming(backupData.data.assessmentWork)) changed = true;
 
     // Merge chat rooms
     if (Array.isArray(backupData.data.chatRooms)) {
@@ -41104,6 +41237,8 @@ async function autoSaveToAllFolders() {
         examAttempts: (typeof examAttempts !== 'undefined' && Array.isArray(examAttempts)) ? examAttempts : [],
         // The invigilators' registers (a trainee's device sends none).
         examRegisters: currentRole === 'student' ? undefined : ((typeof examRegisters !== 'undefined' && Array.isArray(examRegisters)) ? examRegisters : []),
+        // A trainee's device sends only her own photos and sign-offs.
+        assessmentWork: (typeof assessmentWork !== 'undefined' && Array.isArray(assessmentWork)) ? (currentRole === 'student' ? assessmentWork.filter(function(r) { return r && (r.type === 'photo' || r.type === 'signoff') && currentStudent && r.studentId === currentStudent.id; }) : assessmentWork) : [],
         chatRooms: lmsChatRooms,
         chatMessages: CESTISCore.chat.stripUploadedBytes(lmsChatMessages), // attachments Drive already holds travel as their link
         chatProfiles: lmsChatProfiles,
@@ -49718,7 +49853,8 @@ var asAccessPages = [
   { key:'video', label:'Video Conference', desc:'Join and manage video sessions' },
   { key:'resources', label:'Resource Manager', desc:'Access shared resources' },
   { key:'supportmessages', label:'Support Messages', desc:'Send and receive support messages' },
-  { key:'traineeaccounts', label:'Trainee Accounts', desc:'Add trainee accounts, and approve or reject trainees\' registrations (trainees only)' }
+  { key:'traineeaccounts', label:'Trainee Accounts', desc:'Add trainee accounts, and approve or reject trainees\' registrations (trainees only)' },
+  { key:'assessmentresults', label:'Assessment Results', desc:'View, print and download completed assessments and a group\'s photos (on for anyone with Online Exams or Certificates, unless you turn it off)' }
 ];
 
 function loadAdminStaffAccess() {
@@ -49772,7 +49908,8 @@ function renderAdminStaffAccessGrid() {
   var known = adminStaffAccessDefaults();
   asAccessDraft = who ? asAccessFor(who) : (function() {
     var d = {};
-    Object.keys(known).forEach(function(k) { d[k] = (k in adminStaffAccessSettings) ? !!adminStaffAccessSettings[k] : !!known[k]; });
+    Object.keys(known).forEach(function(k) { d[k] = (k in adminStaffAccessSettings && adminStaffAccessSettings[k] !== null) ? !!adminStaffAccessSettings[k] : !!known[k]; });
+    if (typeof AS_ACCESS_DERIVED !== 'undefined') Object.keys(AS_ACCESS_DERIVED).forEach(function(k) { if (adminStaffAccessSettings[k] == null) d[k] = AS_ACCESS_DERIVED[k](d); });
     return d;
   })();
   var note = document.getElementById('asAccessPersonNote');
@@ -49887,6 +50024,13 @@ function buildAdminStaffSidebar() {
   if(my.invigilation) {
     if(!hasAdditional) { html += '<div class="nav-section-label">Permitted Functions</div>'; hasAdditional = true; }
     html += '<div class="nav-item" data-page="as-invigilator" onclick="showPage(\'as-invigilator\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>Exam Invigilator</div>';
+  }
+  if(my.exams) {
+    html += '<div class="nav-item" data-page="assessments" onclick="showPage(\'assessments\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Assessments</div>';
+  }
+  if(my.assessmentresults) {
+    if(!hasAdditional) { html += '<div class="nav-section-label">Permitted Functions</div>'; hasAdditional = true; }
+    html += '<div class="nav-item" data-page="assessment-results" onclick="showPage(\'assessment-results\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><path d="M9 14l2 2 4-4"/></svg>Assessment Results</div>';
   }
 
   var hasMgmt = false;
@@ -50191,6 +50335,8 @@ function buildAdminStaffPages() {
   html += '<section class="page" id="page-a-resources"><div class="cestis-mount" data-feature="a-resources" data-prefix="admin"></div></section>';
   html += '<section class="page" id="page-exams"><div class="cestis-mount" data-feature="exams" data-prefix="admin"></div></section>';
   html += '<section class="page" id="page-as-invigilator">' + '<div class="cestis-mount" data-feature="invigilator" data-prefix="adminstaff"></div>' + '</section>';
+  html += '<section class="page" id="page-assessments"><div class="cestis-mount" data-feature="assessments" data-prefix="adminstaff"></div></section>';
+  html += '<section class="page" id="page-assessment-results"><div class="cestis-mount" data-feature="assessment-results" data-prefix="adminstaff"></div></section>';
   html += '<section class="page" id="page-attendance"><div class="cestis-mount" data-feature="attendance" data-prefix="admin"></div></section>';
   html += '<section class="page" id="page-announcements"><div class="cestis-mount" data-feature="announcements" data-prefix="admin"></div></section>';
   html += '<section class="page" id="page-calendar"><div class="cestis-mount" data-feature="calendar" data-prefix="admin"></div></section>';

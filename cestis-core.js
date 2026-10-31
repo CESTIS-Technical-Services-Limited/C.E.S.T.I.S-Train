@@ -11345,6 +11345,9 @@
       // The invigilator's register of each sitting (Core.invigilation): by
       // register; its notes and sign-offs entry by entry.
       { key: 'voctrain_examRegisters', type: 'list', tombs: 'examRegisters', id: byId, maps: 'examRegisters' },
+      // Prepared assessments' groups, photos, sign-offs, results and filing
+      // (Core.assessments): record by record, the newest edit winning.
+      { key: 'voctrain_assessmentWork', type: 'list', id: byId, studentField: 'studentId' },
       // The dated register: merged mark by mark with the register's own rule
       // (a real mark beats an upgrade estimate; newest mark wins; history kept).
       // Listed before the prefix below, which would otherwise claim it.
@@ -15565,12 +15568,18 @@
     /* The sections one Admin Staff member may use: the defaults, then the
        grid's ticks (everybody's default), then their own ticks if they have
        their own. Only the known keys (those in `defaults`) are answered. */
-    function forPerson(grid, defaults, userId) {
+    /* A key whose default is null has no fixed default: until it is ticked
+       or unticked (in the grid or the person's own ticks) it is worked out
+       from the others by derive[key](ticks) — e.g. Assessment Results follows
+       Online Exams or Certificates. */
+    function forPerson(grid, defaults, userId, derive) {
       var out = {};
-      Object.keys(defaults || {}).forEach(function (k) { out[k] = !!defaults[k]; });
-      if (isObj(grid)) Object.keys(out).forEach(function (k) { if (k in grid) out[k] = !!grid[k]; });
+      var set = function (v) { return v !== null && v !== undefined; };
+      Object.keys(defaults || {}).forEach(function (k) { out[k] = defaults[k] === null ? null : !!defaults[k]; });
+      if (isObj(grid)) Object.keys(out).forEach(function (k) { if (k in grid && set(grid[k])) out[k] = !!grid[k]; });
       var own = ownTicks(grid, userId);
-      if (own) Object.keys(out).forEach(function (k) { if (k in own) out[k] = !!own[k]; });
+      if (own) Object.keys(out).forEach(function (k) { if (k in own && set(own[k])) out[k] = !!own[k]; });
+      Object.keys(out).forEach(function (k) { if (out[k] === null) out[k] = !!(derive && typeof derive[k] === 'function' && derive[k](out)); });
       return out;
     }
     /* Merge another copy's people into ours, person by person, newest edit
