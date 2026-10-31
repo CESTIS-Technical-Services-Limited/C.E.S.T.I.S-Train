@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <script src="cestis-config.js?v=284ebb2a"></script>
-<script src="cestis-core.js?v=aabfdf8f"></script>
+<script src="cestis-core.js?v=13a50053"></script>
 <script src="cestis-form-modal.js?v=74020c38" defer></script>
 <!-- Inert until a page registers: the CMC Board registers as a READ-ONLY reader
      so the operating pages' books reach its dashboards without anyone syncing. -->
@@ -340,8 +340,8 @@
     // group's photos — all from this site, the first time they are needed.
     // A trainee's phone fetches only CESTISAssess (and the PDF parts when she
     // downloads her record); the staff part never reaches it.
-    CESTISAssess: { local: 'cestis-assessments.js?v=95d0d5f8', cdn: [] },
-    CESTISAssessStaff: { local: 'cestis-assessments-staff.js?v=7a95ab47', cdn: [] },
+    CESTISAssess: { local: 'cestis-assessments.js?v=be8d5f01', cdn: [] },
+    CESTISAssessStaff: { local: 'cestis-assessments-staff.js?v=c1436c91', cdn: [] },
     CESTISAssessPdf: { local: 'cestis-assessment-pdf.js?v=90c0b23b', cdn: [] },
     PDFLib: { local: 'vendor/pdf-lib-1.17.1.min.js', cdn: [] },
     JSZip: { local: 'vendor/jszip-3.10.1.min.js', cdn: [] },
@@ -30848,6 +30848,9 @@ function openGradingPanel(resultId) {
       bodyHtml += '</div>';
     }
 
+    // A prepared assessment's essay: its model answer and marking points.
+    bodyHtml += examMarkingGuideHtml(exam, a.questionId);
+
     // Auto-match hint for fill-in-blank
     if(a.type === 'fill' && a.autoMatch !== null && a.autoMatch !== undefined) {
       bodyHtml += '<div style="font-size:11px;margin-bottom:8px;color:'+(a.autoMatch?'var(--green)':'var(--red)')+';">'+(a.autoMatch?'✓ Exact match detected':'✗ Does not match expected answer')+'</div>';
@@ -30927,6 +30930,18 @@ function openGradingPanel(resultId) {
   document.body.appendChild(panel);
 }
 
+/* A prepared assessment's essay (CESTISCore.assessments): the model answer
+   and the marking points the bank gives, for whoever marks it. Staff only:
+   neither ever reaches a trainee (CESTISCore.exams.KEY_FIELDS). */
+function examMarkingGuideHtml(exam, questionId) {
+  var q = exam && Array.isArray(exam.questionData) ? exam.questionData.filter(function(x){ return x && String(x.id) === String(questionId); })[0] : null;
+  if(!q || (!q.modelAnswer && !(Array.isArray(q.markingPoints) && q.markingPoints.length))) return '';
+  var h = '<div class="exam-marking-guide" style="background:var(--blue-dim);border:1px solid var(--border-light);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:8px;">';
+  if(q.modelAnswer) h += '<div style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:var(--info-text);margin-bottom:4px;">Model answer</div><div style="font-size:13px;white-space:pre-wrap;margin-bottom:6px;">' + escapeHtml(q.modelAnswer) + '</div>';
+  if(Array.isArray(q.markingPoints) && q.markingPoints.length) h += '<div style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:var(--info-text);margin-bottom:4px;">Marking points</div><ul style="margin:0 0 0 18px;padding:0;font-size:12.5px;line-height:1.6;">' + q.markingPoints.map(function(m){ return '<li>' + escapeHtml(m) + '</li>'; }).join('') + '</ul>';
+  return h + '</div>';
+}
+
 function closeGradingPanel() {
   var panel = document.getElementById('gradingPanel');
   var overlay = document.getElementById('gradingOverlay');
@@ -30968,6 +30983,7 @@ function openQuestionMarking(examId, questionId) {
   html += '<div style="font-size:13px;font-weight:600;margin-bottom:6px;">' + escapeHtml(q.text) + '</div>';
   html += '<div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;">' + escapeHtml(examTypeLabel(q.type)) + ' &bull; ' + q.points + ' pt' + (q.points !== 1 ? 's' : '') + '</div>';
   if(model) html += '<div style="background:var(--green-dim);border:1px solid rgba(46,204,113,0.2);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:12px;"><div style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:var(--green);margin-bottom:4px;">' + (q.type === 'fill' ? 'Expected Answer' : 'Model Answer') + '</div><div style="font-size:13px;">' + escapeHtml(model) + '</div></div>';
+  html += examMarkingGuideHtml(exam, q.id);
   entries.forEach(function(en, k) {
     var a = en.answer, pts = Number(a.points) || 0;
     var shown = Array.isArray(a.studentAnswer) ? a.studentAnswer.filter(function(x){ return x != null && x !== ''; }).join(', ') : a.studentAnswer;
@@ -33857,6 +33873,21 @@ function invigApplyAttendance() {
 function assessLoad(staff) {
   var need = staff ? ['CESTISAssess', 'CESTISAssessStaff'] : ['CESTISAssess'];
   return need.reduce(function(p, n) { return p.then(function() { return cestisNeedLib(n); }); }, Promise.resolve());
+}
+/* Every completed prepared assessment filed in the Assessment Results folder
+   by an office PC (the Administrator's or Admin Staff's), beside the save,
+   never waited for: the staff part is fetched only once there is an
+   assessment opened for an intake (CESTISAssessStaff.fileTick decides when). */
+var _assessFilingLoadAt = 0;
+function assessFilingTick() {
+  if (currentRole !== 'admin' && currentRole !== 'adminstaff') return;
+  if (!isCloudConnected || !googleAccessToken) return;
+  if (typeof cestisGateSession === 'function' && cestisGateSession()) return;
+  if (!Array.isArray(exams) || !exams.some(function(e) { return e && e.assessment && e.assessment.master === false; })) return;
+  if (window.CESTISAssessStaff) { try { CESTISAssessStaff.fileTick(); } catch (e) { console.warn('[Assessments]', e); } return; }
+  if (Date.now() - _assessFilingLoadAt < 5 * 60 * 1000) return;
+  _assessFilingLoadAt = Date.now();
+  assessLoad(true).then(function() { try { CESTISAssessStaff.fileTick(); } catch (e) {} }, function() {});
 }
 // Her own record of a prepared assessment, from the result screen.
 function assessMyRecord(examId) {
@@ -41314,6 +41345,8 @@ async function autoSaveToAllFolders() {
     try { if (typeof gateStaffTick === 'function') gateStaffTick(); } catch (e) { console.warn('[TraineeGate]', e); }
     // The week's dated backup (OPS-1): once a week, on its own, never waited for.
     try { if (typeof cestisWeeklyBackupTick === 'function') cestisWeeklyBackupTick(); } catch (e) { console.warn('[WeeklyBackup]', e); }
+    // Completed prepared assessments filed in the Assessment Results folder.
+    try { if (typeof assessFilingTick === 'function') assessFilingTick(); } catch (e) { console.warn('[Assessments]', e); }
     // While storage is noted as full: one small look at the storage figure
     // every 2 minutes; room again clears the note, and saving resumes.
     try {

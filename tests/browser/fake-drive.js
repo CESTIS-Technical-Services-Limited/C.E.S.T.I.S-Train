@@ -17,9 +17,17 @@
                                 storageQuotaExceeded (reads, listings and a
                                 move to the trash still work, as on the real one)
      drive.copyBroken = true    files.copy answers 500 (a copy that cannot be made)
-     drive.copies               how many server-side copies were made */
+     drive.copies               how many server-side copies were made
+
+   A file that is not text (a PDF, a photo) is kept byte for byte (f._bytes)
+   and read back as it was sent, with its own type; a file's content
+   replaced is kept as a revision (f.revisions: { version, size, md5,
+   modifiedTime, keepForever } — keepForever: that content was sent with
+   keepRevisionForever=true, as Drive marks the new head revision). */
 'use strict';
 function parse(v) { try { return JSON.parse(v); } catch (e) { return undefined; } }
+const isTextType = t => !t || /json|^text\/|charset/i.test(String(t));
+const bytesOf = f => (f._bytes ? f._bytes : Buffer.from(f.content || '', 'utf8'));
 function FakeDrive() { this.files = {}; this.seq = 0; this.calls = 0; this.errors = []; this.quota = null; this.full = false; this.copyBroken = false; this.copies = 0; this.refused = 0; }
 // The answer the real one gives when the account has no room left.
 const QUOTA_REFUSAL = { error: { code: 403, message: "The user's Drive storage quota has been exceeded.",
@@ -69,10 +77,10 @@ FakeDrive.prototype.list = function (q) {
 FakeDrive.prototype.meta = function (f) {
   return { id: f.id, name: f.name, mimeType: f.mimeType, parents: f.parents, modifiedTime: f.modifiedTime, createdTime: f.createdTime,
     description: f.description || '', appProperties: Object.assign({}, f.appProperties || {}), trashed: !!f.trashed,
-    version: String(f.version), size: String(Buffer.byteLength(f.content || '')), webViewLink: 'https://drive.example/' + f.id,
-    webContentLink: 'https://drive.example/dl/' + f.id, md5Checksum: require('crypto').createHash('md5').update(f.content || '').digest('hex') };
+    version: String(f.version), size: String(bytesOf(f).length), webViewLink: 'https://drive.example/' + f.id,
+    webContentLink: 'https://drive.example/dl/' + f.id, md5Checksum: require('crypto').createHash('md5').update(bytesOf(f)).digest('hex') };
 };
-FakeDrive.prototype.put = function (id, meta, content) {
+FakeDrive.prototype.put = function (id, meta, content, opts) {
   // (clock: an optional stand-in for the time, for a suite that runs its
   // pages on a clock of its own.)
   const now = new Date((this.clock ? this.clock() : Date.now()) + (this.seq++)).toISOString();
@@ -93,7 +101,18 @@ FakeDrive.prototype.put = function (id, meta, content) {
       Object.keys(meta.appProperties).forEach(k => { if (meta.appProperties[k] === null) delete f.appProperties[k]; else f.appProperties[k] = String(meta.appProperties[k]); });
     }
   }
-  if (content != null) f.content = content;
+  if (content != null) {
+    // The content it had is kept as a revision (as Drive keeps one).
+    if (f.version > 0 && (f.content || f._bytes)) {
+      const old = bytesOf(f);
+      (f.revisions = f.revisions || []).push({ version: f.version, size: old.length, md5: require('crypto').createHash('md5').update(old).digest('hex'),
+        modifiedTime: f.modifiedTime, keepForever: !!f.headKeep });
+    }
+    if (Buffer.isBuffer(content)) { f._bytes = content; f.content = content.toString('latin1'); }
+    else { delete f._bytes; f.content = content; }
+    // keepRevisionForever marks the content just sent (the new head).
+    f.headKeep = !!(opts && opts.keepForever);
+  }
   f.version++; f.modifiedTime = now;
   return f;
 };
@@ -107,8 +126,10 @@ function parseMultipart(buf, ctype) {
   const headOf = p => p.slice(0, Math.max(0, p.indexOf('\r\n\r\n')));
   if (parts.length >= 2 && !parts.some(p => /name="/i.test(headOf(p)))) {
     const bodyOf = p => { const i = p.indexOf('\r\n\r\n'); return i === -1 ? '' : Buffer.from(p.slice(i + 4).replace(/\r\n$/, ''), 'latin1').toString('utf8'); };
+    const rawOf = p => { const i = p.indexOf('\r\n\r\n'); return i === -1 ? Buffer.alloc(0) : Buffer.from(p.slice(i + 4).replace(/\r\n$/, ''), 'latin1'); };
+    const typeOf = p => (/content-type:\s*([^\r\n;]+)/i.exec(headOf(p)) || [])[1] || '';
     try { out.meta = JSON.parse(bodyOf(parts[0])); } catch (e) { out.meta = null; }
-    out.content = bodyOf(parts[1]);
+    out.content = isTextType(typeOf(parts[1])) ? bodyOf(parts[1]) : rawOf(parts[1]);
     return out;
   }
   parts.forEach(p => {
@@ -155,7 +176,7 @@ FakeDrive.prototype.handle = async function (route) {
       if (!src) return json({ error: { code: 404, message: 'File not found: ' + m[1] } }, 404);
       if (this.copyBroken) return json({ error: { code: 500, message: 'Internal Error' } }, 500);
       let meta = {}; try { meta = JSON.parse(body.toString('utf8') || '{}'); } catch (e) {}
-      const f = this.put(null, Object.assign({ name: src.name, mimeType: src.mimeType, parents: src.parents }, meta), src.content);
+      const f = this.put(null, Object.assign({ name: src.name, mimeType: src.mimeType, parents: src.parents }, meta), src._bytes ? Buffer.from(src._bytes) : src.content);
       this.copies++;
       return json(this.meta(f));
     }
@@ -166,14 +187,15 @@ FakeDrive.prototype.handle = async function (route) {
         const f = this.put(null, meta, '');
         return route.fulfill({ status: 200, headers: Object.assign({ Location: 'https://www.googleapis.com/upload/drive/v3/files/' + f.id + '?uploadType=resumable-put' }, cors), body: '' });
       }
-      const mp = parseMultipart(body, ctype) || { meta: null, content: body.toString('utf8') };
-      return json(this.meta(this.put(null, mp.meta || {}, mp.content == null ? '' : mp.content)));
+      const mp = parseMultipart(body, ctype) || { meta: null, content: isTextType(ctype) ? body.toString('utf8') : Buffer.from(body) };
+      return json(this.meta(this.put(null, mp.meta || {}, mp.content == null ? '' : mp.content, { keepForever: url.searchParams.get('keepRevisionForever') === 'true' })));
     }
     if ((m = /^\/upload\/drive\/v3\/files\/([^/]+)$/.exec(p)) && (method === 'PATCH' || method === 'PUT')) {
       if (!this.files[m[1]]) return json({ error: { code: 404, message: 'File not found' } }, 404);
       const type = url.searchParams.get('uploadType');
-      if (type === 'multipart') { const mp = parseMultipart(body, ctype) || {}; return json(this.meta(this.put(m[1], mp.meta, mp.content))); }
-      return json(this.meta(this.put(m[1], null, body.toString('utf8'))));
+      const keep = { keepForever: url.searchParams.get('keepRevisionForever') === 'true' };
+      if (type === 'multipart') { const mp = parseMultipart(body, ctype) || {}; return json(this.meta(this.put(m[1], mp.meta, mp.content, keep))); }
+      return json(this.meta(this.put(m[1], null, isTextType(ctype) ? body.toString('utf8') : Buffer.from(body), keep)));
     }
     if (/^\/drive\/v3\/files\/?$/.test(p)) {
       if (method === 'GET') {
@@ -190,7 +212,10 @@ FakeDrive.prototype.handle = async function (route) {
       if (m[2]) return json({ id: 'perm1', role: 'reader', type: 'anyone' });
       if (!f) return json({ error: { code: 404, message: 'File not found: ' + m[1] } }, 404);
       if (method === 'GET') {
-        if (url.searchParams.get('alt') === 'media') return route.fulfill({ status: 200, contentType: 'application/json', headers: Object.assign({ ETag: '"' + f.version + '"' }, cors), body: f.content || '' });
+        if (url.searchParams.get('alt') === 'media') {
+          if (f._bytes) return route.fulfill({ status: 200, contentType: f.mimeType || 'application/octet-stream', headers: Object.assign({ ETag: '"' + f.version + '"' }, cors), body: f._bytes });
+          return route.fulfill({ status: 200, contentType: 'application/json', headers: Object.assign({ ETag: '"' + f.version + '"' }, cors), body: f.content || '' });
+        }
         return json(this.meta(f));
       }
       if (method === 'PATCH') {
@@ -215,6 +240,7 @@ FakeDrive.prototype.handle = async function (route) {
 FakeDrive.prototype.dumps = function () {
   const out = {};
   Object.values(this.files).forEach(f => {
+    if (f._bytes) return;
     const v = parse(f.content);
     if (!v || typeof v !== 'object') return;
     let dump = {};

@@ -410,6 +410,24 @@ console.log('The PDF\'s content (a group practical)');
   const mj = JSON.stringify(mine.members.filter(x => x.id !== 'S2'));
   assert(mine.memberOnly && mine.result.verdict === 'NOT YET COMPETENT' && mine.members.find(x => x.id === 'S2').result.indexOf('Not yet competent') === 0, 'a member\'s own copy: her result');
   assert(mj.indexOf('Competent') === -1 && mj.indexOf('Suggestion') === -1 && mj.indexOf('Electronically') === -1, 'and nobody else\'s result, comment or signature');
+  const all = JSON.stringify(mine);
+  assert(mine.members.map(x => x.name).join() === 'Kemar J.,Tameka Richards,Damion L.' && all.indexOf('Kemar Johnson') === -1 && all.indexOf('Damion Lewis') === -1 && all.indexOf('"S1"') === -1 && all.indexOf('"S3"') === -1,
+    'her own copy names the others as her phone does ("Kemar J."), never their full names or IDs');
+  assert(mine.photos[0].by === 'Kemar J.' && mine.photos[6].by === 'Tameka Richards', 'and who added each photo the same way');
+  assert(m.members[0].name === 'Kemar Johnson' && m.members[0].id === 'S1', 'the office copy keeps every full name');
+}
+
+console.log('Where it was sat (the "Sat" line)');
+{
+  const bank = makeBank();
+  const t1 = A.bankToExam(bank, 'theory1', { id: 'EX-S', qual: QUAL, unit: UNIT });
+  const sat = o => A.theoryModel({ exam: t1, result: null, questions: t1.questionData, student: { id: 'S', name: 'N' }, offset: OFF, sat: o }).rows.find(r => r[0] === 'Sat')[1];
+  assert(sat({ where: 'home', invigilated: true }) === 'From home, invigilated online' && sat({ where: 'centre', invigilated: false }) === 'At the Centre, not invigilated', 'from home, invigilated online; at the Centre, not invigilated');
+  assert(sat({ where: 'centre' }) === 'At the Centre' && sat({}) === '—', 'nothing said of invigilation when it was not recorded');
+  const m2 = JSON.parse(JSON.stringify(t1)); A.markReady(m2, { id: 'I', name: 'Ian', role: 'instructor' }, '2026-10-01T10:00:00.000Z');
+  const o1 = A.openCopy(m2, { id: 'C1', course: 'Welding', date: '2026-11-02', time: '09:00', invigilated: true, offset: OFF });
+  const o2 = A.openCopy(m2, { id: 'C2', course: 'Welding', date: '2026-11-02', time: '09:00', offset: OFF });
+  assert(o1.exam.assessment.invigilated === true && !('invigilated' in o2.exam.assessment), 'the sitting\'s invigilation, when the opener said');
 }
 
 console.log('The Assessment Results page');
@@ -435,6 +453,67 @@ console.log('The Assessment Results page');
   assert(A.resultRows({ exams: [t1, pr], results, work, filters: { status: 'final' } }).length === 1 && A.resultRows({ exams: [t1, pr], results, work, filters: { kind: 'practical1' } }).length === 1 &&
     A.resultRows({ exams: [t1, pr], results, work, filters: { unit: 'memfab0042c', programme: 'welding & fabrication', intake: 'SEP 2026' } }).length === 3 &&
     A.resultRows({ exams: [t1, pr], results, work, filters: { intake: 'Jan 2027' } }).length === 0, 'filters: programme, intake, unit, assessment, result status');
+}
+
+console.log('What the office files (the papers, their copies, filed again when they change)');
+{
+  const bank = makeBank();
+  const ready = k => { const m = A.bankToExam(bank, k, { id: 'M-' + k, qual: QUAL, unit: UNIT }); A.markReady(m, { id: 'I', name: 'Ian Barrett', role: 'instructor' }, '2026-10-01T10:00:00.000Z'); return m; };
+  const open = (k, id) => A.openCopy(ready(k), { id, course: 'Welding & Fabrication — Sep 2026', intake: 'Sep 2026 – Jun 2027', date: '2026-10-30', time: '09:00', closeDate: k.indexOf('practical') === 0 ? '2026-11-06' : '', invigilated: k.indexOf('theory') === 0 ? true : undefined, offset: OFF }).exam;
+  const t1 = open('theory1', 'EX-F1'), t2 = open('theory2', 'EX-F2'), p1 = open('practical1', 'EX-F3');
+  const people = [{ id: 'STU-a', name: 'Kemar Johnson' }, { id: 'STU-b', name: 'Tameka Richards' }, { id: 'STU-c', name: 'Damion Lewis' }, { id: 'STU-d', name: 'Nadine Bailey' }];
+  const ans1 = t1.questionData.map(q => q.type === 'mcq' ? q.correctAnswer : null);
+  const m1 = X.mark(X.publicQuestions(t1.questionData), ans1, t1.questionData);
+  const r1 = { id: 'RES-F1', attemptId: 'ATT-F1', examId: 'EX-F1', studentId: 'STU-a', studentName: 'Kemar Johnson', answers: m1.gradedResults, score: 100, totalPoints: m1.totalPoints, earnedPoints: m1.earnedPoints,
+    passed: true, needsReview: false, reviewComplete: true, pendingCount: 0, startedAt: '2026-10-30T14:00:00.000Z', submittedAt: '2026-10-30T16:00:00.000Z', markedBy: 'gate',
+    signature: A.makeSignature({ name: 'Kemar Johnson', at: '2026-10-30T16:00:00.000Z', basis: 'ATT-F1' }) };
+  const ans2 = t2.questionData.map(q => q.type === 'shortanswer' ? 'something else' : q.type === 'essay' ? 'My essay' : null);
+  const m2 = X.mark(X.publicQuestions(t2.questionData), ans2, t2.questionData);
+  const r2 = { id: 'RES-F2', attemptId: 'ATT-F2', examId: 'EX-F2', studentId: 'STU-b', answers: m2.gradedResults, score: 0, totalPoints: m2.totalPoints, earnedPoints: m2.earnedPoints,
+    passed: false, needsReview: true, reviewComplete: false, pendingCount: m2.manualCount, startedAt: '2026-10-30T14:00:00.000Z', submittedAt: '2026-10-30T17:30:00.000Z' };
+  const group = A.makeGroup({ id: 'AG-F', examId: 'EX-F3', name: 'Group A', members: ['STU-a', 'STU-b', 'STU-c', 'STU-d'], at: '2026-10-30T10:00:00.000Z' });
+  const work = [group];
+  for (let i = 0; i < 3; i++) work.push(A.photoRecord({ id: 'PH-F' + i, examId: 'EX-F3', groupId: 'AG-F', studentId: i ? 'STU-b' : 'STU-d', caption: ['Set up', 'Root pass', 'Cap'][i], at: '2026-10-31T1' + i + ':00:00.000Z', files: [{ id: 'DF' + i, driveFileId: 'DF' + i, type: 'image/jpeg', size: 1000 }], w: 1200, h: 900 }));
+  work.push(A.signoffRecord({ groupId: 'AG-F', examId: 'EX-F3', studentId: 'STU-b', name: 'Tameka Richards', signature: A.makeSignature({ name: 'Tameka Richards', at: '2026-10-31T13:00:00.000Z' }), handIn: true, at: '2026-10-31T13:00:00.000Z' }));
+  const base = { exams: [ready('theory1'), t1, t2, p1], results: [r1, r2], work, students: people, centreName: 'C', offset: OFF, now: Date.parse('2026-10-31T18:00:00Z'), canReveal: () => false };
+  let items = A.paperItems(base);
+  const k = key => items.find(x => x.key === key);
+  assert(items.map(x => x.key).join() === 'res:RES-F1,res:RES-F2,grp:AG-F', 'a paper per theory result and one per group that handed in; the prepared copy files nothing (' + items.map(x => x.key).join() + ')');
+  const i1 = k('res:RES-F1'), i2 = k('res:RES-F2'), ip = k('grp:AG-F');
+  assert(i1.path.join(' / ') === 'Assessment Results / Welding & Fabrication / Sep 2026 – Jun 2027 / MEMFAB0042C — Perform weld in the flat and horizontal positions using manual metal arc welding / Theory 1',
+    'Assessment Results / Programme / Intake / Unit / Theory 1 (' + i1.path.join(' / ') + ')');
+  assert(i1.name === 'Kemar Johnson (STU-a) — MEMFAB0042C Theory 1.pdf' && i1.status === 'final' && i2.status === 'provisional', '"<Full Name> (<STU-id>) — <Unit> <Assessment>.pdf"; marked, and awaiting marking');
+  assert(i1.model.rows.find(r => r[0] === 'Sat')[1] === 'From home, invigilated online', 'where it was sat, from the record (from home, invigilated online)');
+  assert(i1.model.signatures.trainee.name === 'Kemar Johnson' && /Electronically signed by Kemar Johnson/.test(i1.model.signatures.trainee.line), 'her signature on the office copy');
+  const keyed = q => q.options && q.options.some(o => o.correct);
+  assert(i1.model.questions.filter(keyed).length === 45 && i1.mine.questions.filter(keyed).length === 0 && !i1.reveal, 'the office copy shows every right answer; her own copy none before the release');
+  const later = A.paperItems(Object.assign({}, base, { canReveal: () => true }));
+  assert(later[0].mine.questions.filter(keyed).length === 45 && later[0].hash !== i1.hash, 'once the answers are released her copy shows them, and the paper is filed again');
+  assert(ip.path[ip.path.length - 1] === 'Group A' && ip.path[ip.path.length - 2] === 'Practical 1' && ip.name === 'Group A — MEMFAB0042C Practical 1.pdf' && ip.status === 'provisional', 'a practical in its group\'s folder ("Group A — <Unit> Practical 1.pdf"), provisional until every member has a result');
+  assert(ip.photos.map(p => p.name).join('|') === '01 Set up.jpg|02 Root pass.jpg|03 Cap.jpg' && ip.photos[0].fileId === 'DF0' && ip.photos[0].w === 1200, 'the photos, numbered with their captions, and where each one is');
+  assert(ip.members.length === 4 && ip.members[1].name === 'Tameka Richards (STU-b) — MEMFAB0042C Practical 1.pdf' && ip.members[1].model.memberOnly && ip.zip === 'Group A — MEMFAB0042C Practical 1 — photos.zip', 'each member\'s own copy, and the photos\' ZIP name');
+  assert(JSON.stringify(ip.members[1].model).indexOf('Kemar Johnson') === -1, 'a member\'s own copy never carries another member\'s full name');
+  assert(A.paperItems(Object.assign({}, base, { only: 'grp:AG-F' })).length === 1, 'just one paper, when asked for one');
+
+  // Filed: nothing more to do until something changes.
+  let due = A.filingDue(items, []);
+  assert(due.length === 3 && due.every(d => d.reason === 'new'), 'never filed: all three are due');
+  const filed = items.map(it => A.filedRecord({ key: it.key, examId: it.examId, studentId: it.studentId, groupId: it.groupId, status: it.status, fileId: 'F-' + it.key, hash: it.hash, at: '2026-10-31T18:01:00.000Z' }));
+  assert(A.filingDue(items, filed).length === 0, 'filed: nothing due');
+  // Marked: the final replaces the provisional.
+  const idx = r2.answers.map((a, i) => (X.outcomeOf(a) === 'pending' ? i : -1)).filter(i => i >= 0);
+  const marks = {}; idx.forEach(i => { marks[i] = { points: 1, feedback: 'Seen.' }; });
+  X.applyManualMarks(r2, marks, { by: 'Ian Barrett', passMark: 70 });
+  items = A.paperItems(base);
+  due = A.filingDue(items, filed);
+  assert(due.length === 1 && due[0].key === 'res:RES-F2' && due[0].reason === 'marked' && due[0].filed.fileId === 'F-res:RES-F2', 'marked: the provisional paper is due again, into the same file (' + due.map(d => d.key + ':' + d.reason).join() + ')');
+  // A photo late, a member's result: the group's paper is due again.
+  work.push(A.practicalResult({ examId: 'EX-F3', groupId: 'AG-F', studentId: 'STU-a', outcome: 'competent', checklist: [], comment: '', by: { name: 'Ian Barrett' }, at: '2026-10-31T19:00:00.000Z' }).rec);
+  items = A.paperItems(base);
+  due = A.filingDue(items, filed);
+  assert(due.map(d => d.key + ':' + d.reason).join() === 'res:RES-F2:marked,grp:AG-F:changed', 'a member\'s result changes the group\'s paper: filed again (' + due.map(d => d.key + ':' + d.reason).join() + ')');
+  const fin = filed.map(f => Object.assign({}, f, { status: 'final' }));
+  assert(A.filingDue([{ key: 'grp:AG-F', status: 'provisional', hash: 'x' }], fin).length === 0, 'a paper filed as final never goes back to provisional');
 }
 
 console.log('The units, for the owner to send (Export units)');

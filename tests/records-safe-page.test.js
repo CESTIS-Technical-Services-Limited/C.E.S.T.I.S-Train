@@ -206,7 +206,7 @@ for (const page of PAGES) {
     assert(/self\.state\.storageFull = !!\(e && e\.storageFull\)/.test(pc) && /storageFull: !!p\.state\.storageFull/.test(pc), w + ': the page remembers it until a save goes through');
     const chipSrc = fs.readFileSync(path.join(ROOT, page.dir, 'cestis-sync-chip.js'), 'utf8');
     assert(/if \(st\.storageFull\) full = true;/.test(chipSrc) && /storageFull: !lanOn && connected && full/.test(chipSrc), w + ': the sibling pages\' chip reads it');
-    assert(/k\.indexOf\('cestisThisPc_'\) === 0\) return true/.test(pc) && /excludePrefixes: \['cestis_pagecloud_stamps__', 'cestisThisPc_'\]/.test(pc), w + ': this computer\'s own notes never travel on the Centre\'s network');
+    assert(/k\.indexOf\('cestisThisPc_'\) === 0\) return true/.test(pc) && /excludePrefixes: \['cestis_pagecloud_stamps__', 'cestisThisPc_'(, '[A-Za-z_]+')*\]/.test(pc), w + ': this computer\'s own notes never travel on the Centre\'s network');
   }
 
   console.log('The pieces are on the pages (' + w + ')');
@@ -223,7 +223,8 @@ for (const page of PAGES) {
   assert(/reason: 'storage-full'/.test(auto) && /STORAGE_FULL_RETRY_MS/.test(auto), w + ': a full account: the backup is resent every 2 minutes, not every 5 seconds');
   assert(/delete backupData\.data\.deviceSaves;\s*const _dataStr/.test(auto), w + ': each computer\'s last-save note does not make a save "changed"');
   assert(/cestisWeeklyBackupTick\(\)/.test(auto), w + ': the week\'s backup is looked after beside the 5-second save');
-  assert(/var GATE_EXPECTED_VERSION = 3;/.test(s), w + ': the trainee sign-in program stays version 3');
+  // Version 4 (prepared assessments) is the next one after F1's version 3.
+  assert(/var GATE_EXPECTED_VERSION = [34];/.test(s), w + ': the trainee sign-in program is version 3, or 4 with prepared assessments');
 }
 
 console.log('The trainee sign-in card and its setup sheet');
@@ -235,7 +236,7 @@ const sec3 = setup.slice(setup.indexOf('## 3. Live checks'), setup.indexOf('## 4
 assert(!/F12|console|```js/.test(sec3), 'the setup sheet\'s live checks paste no code into the browser');
 ['This page can reach it', 'A large file arrives whole', 'Email sign-in is accepted', 'Files are found by name', 'Open the full check page'].forEach(b => assert(sec3.indexOf('**' + b + '**') !== -1, 'the setup sheet says to press "' + b + '"'));
 const gs = fs.readFileSync(path.join(ROOT, 'trainee-gate', 'Gate.gs'), 'utf8');
-assert(/var GATE_VERSION = 3;/.test(gs) && /'diag\.echo': gateDiagEcho, 'diag\.tokeninfo': gateDiagTokenInfo/.test(gs), 'the gate itself is unchanged: version 3, its own diag checks');
+assert(/var GATE_VERSION = [34];/.test(gs) && /'diag\.echo': gateDiagEcho, 'diag\.tokeninfo': gateDiagTokenInfo/.test(gs), 'the gate itself: version 3 (4 with prepared assessments), its own diag checks');
 
 console.log('Running the Centre: one plain page (OPS-3, OPS-13)');
 const run = fs.readFileSync(path.join(ROOT, 'docs', 'RUNNING-THE-CENTRE.md'), 'utf8');

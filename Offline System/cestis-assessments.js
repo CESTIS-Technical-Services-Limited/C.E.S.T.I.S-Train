@@ -342,6 +342,32 @@
     } catch (e) {}
     return best;
   }
+  /* The office's copy of her record, put in her own folder (from home she
+     downloads it): the newest filed record of hers for this assessment. */
+  function officeCopyFor(examId) {
+    var s = me();
+    if (!s || !gateSession()) return null;
+    return allWork().filter(function (r) { return r && r.type === 'filed' && r.traineeFile && str(r.examId) === str(examId) && str(r.studentId) === str(s.id); })
+      .sort(function (a, b) { return (Date.parse(b.updatedAt || '') || 0) - (Date.parse(a.updatedAt || '') || 0); })[0] || null;
+  }
+  function officeButton(e) {
+    var f = officeCopyFor(e.id);
+    return f ? '<button type="button" class="btn btn-secondary" data-act="officepdf" data-id="' + esc(e.id) + '">The office copy (PDF)' + (f.status === 'provisional' ? ' — provisional' : '') + '</button>' : '';
+  }
+  function officePdf(examId) {
+    var f = officeCopyFor(examId), e = examById(examId), s = me();
+    if (!f || !e || !s || !W.CESTISGate || !W.CESTISGate.fileGet) return;
+    toast('Opening the office copy…', 'info');
+    var name = A.paperFileName({ name: s.name, studentId: s.id, unitCode: e.assessment.unitCode, unitTitle: e.assessment.unitTitle, kind: e.assessment.kind });
+    return W.CESTISGate.fileGet(f.traineeFile).then(function (res) {
+      if (!res || res.ok !== true || !res.base64) { toast('The office copy cannot be opened just now. Try again later.', 'warning'); return; }
+      var bin = atob(res.base64), bytes = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      download(bytes, name);
+      toast('The office copy is saved to this device: ' + name);
+    }, function () { toast('The office copy cannot be opened just now. Try again later.', 'warning'); });
+  }
+  Trainee.officePdf = function (id) { return officePdf(id); };
   function whenText(ms) { return A.when(ms, offset()); }
   function clockText(ms) {
     try { var p = X.centreParts(ms, offset()); var t = p.time.split(':').map(Number); return (t[0] % 12 || 12) + ':' + String(t[1]).padStart(2, '0') + (t[0] >= 12 ? ' pm' : ' am'); } catch (e) { return ''; }
@@ -358,7 +384,7 @@
       var prov = X.isProvisional(r);
       chip = prov ? '<span class="assess-chip is-check">Awaiting marking</span>' : (r.passed ? '<span class="assess-chip is-ready">Competent</span>' : '<span class="assess-chip is-fail">Not yet competent</span>');
       line = 'Submitted ' + esc(whenText(r.submittedAt)) + (prov ? ' · marks so far ' + esc(r.score) + '%' : ' · ' + esc(r.score) + '%');
-      acts = '<button type="button" class="btn btn-secondary" data-act="mypdf" data-id="' + esc(e.id) + '">Download my record (PDF)</button>';
+      acts = '<button type="button" class="btn btn-secondary" data-act="mypdf" data-id="' + esc(e.id) + '">Download my record (PDF)</button>' + officeButton(e);
     } else if (sentLater) {
       chip = '<span class="assess-chip is-check">Submitted</span>';
       line = 'Submitted ' + esc(whenText(sentLater.submittedAt)) + '. Your result follows once it reaches the office.';
@@ -391,7 +417,7 @@
       chip = mineRes ? (mineRes.outcome === 'competent' ? '<span class="assess-chip is-ready">Competent</span>' : '<span class="assess-chip is-fail">Not yet competent</span>')
         : g.handedInAt ? '<span class="assess-chip is-open">Handed in</span>' : st === 'open' ? '<span class="assess-chip is-ready">Open now</span>' : st === 'upcoming' ? '<span class="assess-chip is-none">Opens ' + esc(whenText(X.windowOf({ date: e.date, time: e.time, duration: 1 }, offset()).start)) + '</span>' : '<span class="assess-chip is-none">Closed</span>';
       line = esc(g.name) + ' · ' + g.photos.length + ' of ' + list(p.photos).length + ' photos' + (p.title ? '<br>' + esc(p.title) : '');
-      acts = '<button type="button" class="btn ' + (g.handedInAt && g.mySignature ? 'btn-secondary' : 'btn-primary') + '" data-act="group" data-id="' + esc(e.id) + '">' + (g.handedInAt && !g.mySignature ? 'Sign for your part' : 'Open group task') + '</button>';
+      acts = '<button type="button" class="btn ' + (g.handedInAt && g.mySignature ? 'btn-secondary' : 'btn-primary') + '" data-act="group" data-id="' + esc(e.id) + '">' + (g.handedInAt && !g.mySignature ? 'Sign for your part' : 'Open group task') + '</button>' + officeButton(e);
     }
     return '<div class="assess-kind"><div class="assess-kind-top"><span class="assess-kind-name">' + esc(K.label) + '</span>' + chip + '</div>' +
       '<div class="assess-kind-meta">' + line + '</div>' + (acts ? '<div class="assess-acts">' + acts + '</div>' : '') + '</div>';
@@ -507,7 +533,7 @@
   function photosCanBeSent() {
     if (!gateSession()) return { ok: false, why: 'Photos are added from your own phone at home. At the Centre, your instructor can add them for the group.' };
     var sess = W.CESTISGate && W.CESTISGate.session ? W.CESTISGate.session() : null;
-    if (!sess || (sess.base && sess.base.kind === 'lan')) return { ok: false, why: 'Photos cannot be sent from the Centre\'s own network. Add them from your phone at home, or ask your instructor.' };
+    if (!sess || (sess.base && sess.base.kind === 'lan')) return { ok: false, why: 'Photos are added from your own phone at home. Ask your instructor if you cannot.' };
     return { ok: true };
   }
   var groupView = { examId: null };
@@ -700,6 +726,7 @@
       var act = b.getAttribute('data-act'), id = b.getAttribute('data-id');
       if (act === 'start') { try { W.showPage('s-exams'); } catch (x) {} setTimeout(function () { try { W.startStudentExam(id); } catch (x) {} }, 120); }
       else if (act === 'mypdf') myPdf(id);
+      else if (act === 'officepdf') officePdf(id);
       else if (act === 'group') { var g = groupFor(id); openGroup(id); if (g && g.handedInAt && !g.mySignature) setTimeout(function () { handIn(true); }, 200); }
     });
   }

@@ -99,7 +99,7 @@ function setup() {
   vm.createContext(ctx);
   vm.runInContext('var gradingResultId = null; var questionMarking = null;\n' +
     ['openGradingPanel', 'closeGradingPanel', 'setGradePoints', 'updateGradingPreview', 'submitGrading', 'notifyMarkingAudience', 'examTypeLabel',
-     'examGraderName', 'examRecordManualMarks']
+     'examGraderName', 'examRecordManualMarks', 'examMarkingGuideHtml']
       .map(n => extractFunction(INDEX, n)).join('\n'), ctx);
   return { ctx, page };
 }
@@ -131,6 +131,19 @@ console.log('Awarding points moves the preview, and Save Grades marks the essay'
   assert(ctx.students[0].score === '83%', 'the trainee\'s score follows the final result');
   assert(ctx.saves === 1, 'and it was saved');
   assert(!ctx.document.getElementById('gradingPanel') && vm.runInContext('gradingResultId', ctx) === null, 'the panel closes afterwards');
+}
+
+console.log('A prepared assessment\'s essay: its model answer and marking points beside it');
+{
+  const { ctx } = setup();
+  ctx.exams[0].questionData = [{ id: 'Q3', type: 'essay', text: 'Explain flushing.', modelAnswer: 'Flush with fresh water after salt <exposure>.', markingPoints: ['Names fresh water', 'Says why: salt corrodes'] }];
+  ctx.examResults[0].answers[2].questionId = 'Q3';
+  vm.runInContext('openGradingPanel("RES-1")', ctx);
+  const html = ctx.document.getElementById('gradingPanel').innerHTML;
+  assert(/Model answer<\/div><div[^>]*>Flush with fresh water after salt &lt;exposure&gt;\./.test(html) && /<li>Names fresh water<\/li><li>Says why: salt corrodes<\/li>/.test(html), 'the model answer and each marking point, escaped');
+  ctx.exams[0].questionData = [{ id: 'Q3', type: 'essay', text: 'Explain flushing.' }];
+  vm.runInContext('openGradingPanel("RES-1")', ctx);
+  assert(!/Marking points/.test(ctx.document.getElementById('gradingPanel').innerHTML), 'nothing extra for a question without them');
 }
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

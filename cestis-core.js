@@ -16290,7 +16290,11 @@
                       studentId, outcome, checklist:[{text, met}], comment,
                       assessorName, assessorId, markedAt }                     staff
            filed    { id: AF-<key>, type, key, examId, status, fileId, path,
-                      name, docNo, hash, traineeFiles, photoFiles, filedAt }   staff
+                      name, docNo, hash, traineeFiles, photoFiles, parts,
+                      filedAt }                                                staff
+                    key 'res:<resultId>' (a theory paper), 'grp:<groupId>' (a
+                    group's paper and photos), 'mem:<groupId>:<studentId>' (a
+                    member's own copy, in her own folder of the trainee gate)
        - Extra time is on the exam (exam.extraTime, Core.exams.extraGrantsFor).
        - A trainee's signature travels in her attempt and her result
          (attempt.signature / result.signature) and in her practical sign-off.
@@ -16616,6 +16620,10 @@
       a.checkedBy = trim(master.assessment.readyByName); a.checkedAt = str(master.assessment.readyAt);
       a.intake = trim(o.intake) || trim(o.course); a.centreId = o.centreId == null ? '' : str(o.centreId);
       a.openedAt = str(o.at); a.openedBy = str(o.by); a.openedByName = trim(o.byName);
+      // Whether the sitting is watched (the invigilator page): what the
+      // printed record says under "Sat". Not given: it says nothing of it.
+      if (!practical && typeof o.invigilated === 'boolean') a.invigilated = o.invigilated;
+      else delete a.invigilated;
       c2.assessment = a;
       if (practical) c2.practical = copy(master.practical);
       return { exam: c2 };
@@ -16973,6 +16981,8 @@
       return { id: filedId(o.key), type: 'filed', key: str(o.key), examId: str(o.examId), studentId: str(o.studentId || ''), groupId: str(o.groupId || ''),
         status: o.status === 'final' ? 'final' : 'provisional', fileId: str(o.fileId), folderId: str(o.folderId), name: str(o.name), path: list(o.path).map(str),
         docNo: str(o.docNo), hash: str(o.hash), traineeFiles: isObj(o.traineeFiles) ? copy(o.traineeFiles) : {}, photoFiles: isObj(o.photoFiles) ? copy(o.photoFiles) : {},
+        // Each file's own content hash: a file whose content did not change is not sent again.
+        parts: isObj(o.parts) ? copy(o.parts) : {},
         filedAt: str(o.at), filedBy: str(o.by), updatedAt: str(o.at) };
     }
 
@@ -17034,7 +17044,8 @@
       else rows.push(['Extra time', 'None']);
       var sat = o.sat || {};
       var where = sat.where === 'home' ? 'From home' : sat.where === 'centre' ? 'At the Centre' : '';
-      rows.push(['Sat', [where, sat.invigilated ? (sat.where === 'home' ? 'invigilated online' : 'invigilated') : 'not invigilated'].filter(Boolean).join(', ')]);
+      var inv = sat.invigilated === true ? (sat.where === 'home' ? 'invigilated online' : 'invigilated') : sat.invigilated === false ? 'not invigilated' : '';
+      rows.push(['Sat', [where, inv].filter(Boolean).join(', ') || '—']);
       var total = r ? Number(r.totalPoints) || 0 : 0, earned = r ? Number(r.earnedPoints) || 0 : 0;
       var verdict = verdictOf(status, r && r.passed);
       var result = r ? {
@@ -17076,7 +17087,10 @@
           var ct = reveal ? correctText(q, ax) : '';
           if (ct && out.outcome !== 'correct') out.correct = ct;
         }
-        if (ax && trim(ax.feedback)) out.comment = { by: trim(ax.gradedBy && ax.gradedBy !== 'auto' ? ax.gradedBy : ''), text: trim(ax.feedback) };
+        if (ax && trim(ax.feedback)) {
+          var marker = trim(ax.gradedBy && ax.gradedBy !== 'auto' ? ax.gradedBy : '');
+          out.comment = { by: marker === 'admin' ? 'the Administrator' : marker, text: trim(ax.feedback) };
+        }
         questions.push(out);
       });
       var sig = o.signature || (r && r.signature) || null;
@@ -17105,11 +17119,13 @@
       var status = practicalPaperStatus(o.group, o.work);
       if (only) status = memberResult(o.work, exam.id, only) ? 'final' : 'provisional';
       var checklist = list(p.checklist);
+      // A member's own copy names the others as her phone does ("Tameka R.").
+      var nameOf = function (sid) { return !only || sid === only ? names[sid] || 'A member' : memberShort(names[sid]); };
       var members = st.members.map(function (sid) {
         var res = memberResult(o.work, exam.id, sid);
         var show = !only || sid === only;
         return {
-          id: sid, name: names[sid] || 'A member', mine: sid === only,
+          id: only && sid !== only ? '' : sid, name: nameOf(sid), mine: sid === only,
           result: !show ? '' : res ? OUTCOMES[res.outcome] + (res.outcome === 'nyc' && res.comment ? ': ' + res.comment : '') : 'Awaiting marking',
           outcome: show && res ? res.outcome : '', comment: show && res ? trim(res.comment) : '', assessor: show && res ? trim(res.assessorName) : '',
           checks: show ? checklist.map(function (c) { var m = res ? list(res.checklist).filter(function (x) { return normTitle(x.text) === normTitle(c); })[0] : null; return m ? (m.met ? 'met' : 'not') : ''; }) : null,
@@ -17123,7 +17139,7 @@
         ['Unit', unitLabel({ code: a.unitCode, title: a.unitTitle })],
         ['Assessment', (KINDS[kind] ? KINDS[kind].long : '') + ' · ' + trim(o.group && o.group.name)],
         ['Task', trim(p.title)],
-        ['Handed in', st.handedIn ? when(st.handedIn.at, off) + (names[st.handedIn.by] ? ' by ' + names[st.handedIn.by] : '') : 'Not handed in yet'],
+        ['Handed in', st.handedIn ? when(st.handedIn.at, off) + (names[st.handedIn.by] ? ' by ' + nameOf(st.handedIn.by) : '') : 'Not handed in yet'],
         ['Photos', st.photos.length + (st.late.length ? ' (' + st.late.length + ' added after the hand-in)' : '')]
       ];
       if (only) rows.unshift(['Trainee', (names[only] || '') + ' (' + only + ')']);
@@ -17135,7 +17151,7 @@
         rows: rows, members: members, checklist: checklist, memberOnly: !!only,
         result: verdict ? { line: status === 'final' ? 'Result recorded by the assessor' : 'Awaiting the assessor\'s result', verdict: verdict.text, tone: verdict.tone } : null,
         provisional: status === 'provisional', brief: str(p.brief).trim(), safety: list(p.safety),
-        photos: st.photos.map(function (ph) { return { id: str(ph.id), caption: trim(ph.caption) || 'Photo', by: names[str(ph.studentId)] || 'A member', at: when(ph.addedAt, off), late: st.late.indexOf(ph.id) !== -1 }; }),
+        photos: st.photos.map(function (ph) { return { id: str(ph.id), caption: trim(ph.caption) || 'Photo', by: nameOf(str(ph.studentId)), at: when(ph.addedAt, off), late: st.late.indexOf(ph.id) !== -1 }; }),
         signatures: { staff: ['Administrator', 'Assessor', 'Programme Coordinator'] },
         footer: { made: 'Made ' + when(o.madeAt || Date.now(), off), filed: list(o.path).join(' / ') }
       };
@@ -17199,6 +17215,80 @@
       return c;
     }
 
+    /* ---- The papers the office files ------------------------------------
+       Every completed assessment as the office files it: a theory result
+       per trainee (the office copy with every right answer; her own copy
+       with them only once the exam's release rule allows), a practical per
+       group (the group's copy with every member's result, each member's own
+       copy with hers only, the photos). Pure: the PDFs are drawn from these
+       models by cestis-assessment-pdf.js. hash: a paper is filed again when
+       it changes (filingDue).
+       o: { exams, results, work, students (list), centreName, offset, now,
+            canReveal(exam) -> bool (default: the exam's release rule),
+            only: a key (just that one) } */
+    function paperItems(o) {
+      o = o || {};
+      var now = Number(o.now) || Date.now(), off = o.offset, only = o.only ? str(o.only) : '';
+      var names = {};
+      list(o.students).forEach(function (s) { if (s && s.id != null) names[str(s.id)] = trim(s.name); });
+      var byExam = {};
+      list(o.exams).forEach(function (e) { if (isAssessment(e) && !isMaster(e)) byExam[str(e.id)] = e; });
+      var reveal = typeof o.canReveal === 'function' ? o.canReveal : function (e) { try { return !!Core.exams.canRevealAnswers(e, now, off); } catch (x) { return false; } };
+      var items = [];
+      list(o.results).forEach(function (r) {
+        var e = r && !r.archived ? byExam[str(r.examId)] : null;
+        if (!e || isPractical(e)) return;
+        var key = 'res:' + str(r.id);
+        if (only && only !== key) return;
+        var a = e.assessment, sid = str(r.studentId), name = names[sid] || trim(r.studentName);
+        var unit = { programme: a.programme || e.course, intake: a.intake || e.course, unitCode: a.unitCode, unitTitle: a.unitTitle, kind: a.kind };
+        var path = folderPath(unit);
+        var base = { exam: e, questions: e.questionData, student: { id: sid, name: name }, signature: r.signature || null,
+          sat: { where: r.markedBy === 'gate' ? 'home' : 'centre', invigilated: typeof a.invigilated === 'boolean' ? a.invigilated : undefined },
+          centreName: o.centreName, offset: off, madeAt: now, path: path, basis: r.attemptId || r.id };
+        var model = theoryModel(Object.assign({}, base, { result: r }));
+        var show = !!reveal(e), r2 = r;
+        if (!show) { r2 = copy(r); list(r2.answers).forEach(function (x) { if (isObj(x)) delete x.correctAnswer; }); }
+        var mine = theoryModel(Object.assign({}, base, { result: r2, revealAnswers: show }));
+        items.push({ key: key, kind: 'theory', assessment: a.kind, examId: str(e.id), resultId: str(r.id), studentId: sid, studentName: name,
+          status: theoryPaperStatus(r), path: path, name: paperFileName({ name: name, studentId: sid, unitCode: a.unitCode, unitTitle: a.unitTitle, kind: a.kind }),
+          model: model, mine: mine, reveal: show, hash: 'h1-' + Core.hashString(modelHash(model) + '|' + modelHash(mine)) });
+      });
+      list(o.work).forEach(function (g) {
+        if (!live(g) || g.type !== 'group') return;
+        var e = byExam[str(g.examId)];
+        if (!e || !isPractical(e)) return;
+        var key = 'grp:' + str(g.id);
+        if (only && only !== key) return;
+        var st = groupState(g, o.work);
+        if (!st || !st.handedIn) return;
+        var a = e.assessment;
+        var unit = { programme: a.programme || e.course, intake: a.intake || e.course, unitCode: a.unitCode, unitTitle: a.unitTitle, kind: a.kind, groupName: g.name };
+        var path = folderPath(unit);
+        var students = {};
+        st.members.forEach(function (sid) { students[sid] = { name: names[sid] || '' }; });
+        list(o.work).forEach(function (p) { if (p && p.type === 'photo' && str(p.groupId) === str(g.id) && !students[str(p.studentId)]) students[str(p.studentId)] = { name: names[str(p.studentId)] || '' }; });
+        var base = { exam: e, group: g, work: o.work, students: students, centreName: o.centreName, offset: off, madeAt: now, path: path };
+        var model = practicalModel(base);
+        var members = st.members.map(function (sid) {
+          return { studentId: sid, studentName: names[sid] || '', name: paperFileName({ name: names[sid] || 'Trainee', studentId: sid, unitCode: a.unitCode, unitTitle: a.unitTitle, kind: a.kind }),
+            model: practicalModel(Object.assign({}, base, { memberOnly: sid })) };
+        });
+        var photos = st.photos.map(function (p, i) {
+          var f = list(p.driveFiles)[0] || {};
+          return { id: str(p.id), fileId: str(f.driveFileId || f.id), type: str(f.type) || 'image/jpeg', size: Number(f.size) || 0, w: Number(p.w) || 0, h: Number(p.h) || 0,
+            caption: trim(p.caption), name: photoFileName(i, p.caption, f.type) };
+        });
+        items.push({ key: key, kind: 'practical', assessment: a.kind, examId: str(e.id), groupId: str(g.id), groupName: g.name, status: practicalPaperStatus(g, o.work),
+          path: path, name: groupFileName({ groupName: g.name, unitCode: a.unitCode, unitTitle: a.unitTitle, kind: a.kind }),
+          zip: zipName({ groupName: g.name, unitCode: a.unitCode, unitTitle: a.unitTitle, kind: a.kind }),
+          model: model, members: members, photos: photos,
+          hash: 'h1-' + Core.hashString(modelHash(model) + '|' + members.map(function (m) { return modelHash(m.model); }).join('|') + '|' +
+            photos.map(function (p) { return p.id + ':' + p.fileId + ':' + p.name; }).join(',')) });
+      });
+      return items;
+    }
+
     return {
       KINDS: KINDS, ORDER: ORDER, MARKS: MARKS, GROUP_MIN: GROUP_MIN, GROUP_MAX: GROUP_MAX, BANK_FORMAT: BANK_FORMAT, BANK_VERSION: BANK_VERSION,
       WORK_KEY: WORK_KEY, ROOT_FOLDER: ROOT_FOLDER, GRANT_MAX_MIN: GRANT_MAX_MIN, OUTCOMES: OUTCOMES,
@@ -17217,7 +17307,8 @@
       practicalPaperStatus: practicalPaperStatus, theoryPaperStatus: theoryPaperStatus,
       safeName: safeName, folderPath: folderPath, paperFileName: paperFileName, groupFileName: groupFileName, photoFileName: photoFileName,
       zipName: zipName, docNumber: docNumber, filedId: filedId, filingDue: filingDue, filedRecord: filedRecord,
-      theoryModel: theoryModel, practicalModel: practicalModel, modelHash: modelHash, resultRows: resultRows, resultCounts: resultCounts
+      theoryModel: theoryModel, practicalModel: practicalModel, modelHash: modelHash, resultRows: resultRows, resultCounts: resultCounts,
+      paperItems: paperItems
     };
   })();
   Core.gate = (function () {
