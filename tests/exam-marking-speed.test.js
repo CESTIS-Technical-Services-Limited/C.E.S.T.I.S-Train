@@ -132,7 +132,7 @@ function setup() {
   vm.createContext(ctx);
   vm.runInContext('var gradingResultId = null; var questionMarking = null;\n' +
     ['openGradingPanel', 'closeGradingPanel', 'setGradePoints', 'updateGradingPreview', 'submitGrading', 'notifyMarkingAudience', 'examTypeLabel',
-     'examGraderName', 'examRecordManualMarks', 'openQuestionMarking', 'qmSet', 'saveQuestionMarking'].map(fn).join('\n'), ctx);
+     'examGraderName', 'examRecordManualMarks', 'examMarkingGuideHtml', 'openQuestionMarking', 'qmSet', 'saveQuestionMarking'].map(fn).join('\n'), ctx);
   return ctx;
 }
 {

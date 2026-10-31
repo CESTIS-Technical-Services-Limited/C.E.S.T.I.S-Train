@@ -97,7 +97,7 @@ const GSI = `(function(){
       systemSettings.lastExport = { at: new Date(now - o.exported * DAY).toISOString(), by: 'mthompson' };
       systemSettings.traineeGate = { url: GATE, enabled: true, setAt: new Date(now - 30 * DAY).toISOString(), setBy: 'mthompson' };
       const st = gatePublishedState(gateDevRead('cestisGatePublished', null));
-      st.health = o.gateOk ? { ok: true, version: 3, trainees: 214, accepting: true, url: GATE, at: new Date(now - 3600000).toISOString() } : { ok: false, reason: 'no-answer', url: GATE, at: new Date(now - 3600000).toISOString() };
+      st.health = o.gateOk ? { ok: true, version: 4, trainees: 214, accepting: true, url: GATE, at: new Date(now - 3600000).toISOString() } : { ok: false, reason: 'no-answer', url: GATE, at: new Date(now - 3600000).toISOString() };
       st.syncedAt = new Date(now - 180000).toISOString(); delete st.waitingSince;
       gateDevWrite('cestisGatePublished', st); gateDevWrite('cestisGatePublishQueue', []);
       _gateRun.cfgMissing = false; _gateRun.lastError = ''; _gateRun.cfgTooNew = false;

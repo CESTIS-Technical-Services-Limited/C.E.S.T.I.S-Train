@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <script src="cestis-config.js?v=284ebb2a"></script>
-<script src="cestis-core.js?v=5121ca9b"></script>
+<script src="cestis-core.js?v=6d9da60a"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Qual Plan / Curriculum — C.E.S.T.I.S</title>
 <style>
@@ -39,6 +39,11 @@
   .qp-header h1 { font-size:22px; font-weight:700; }
   .qp-header p { font-size:13px; color:var(--text-muted); margin-top:4px; }
   .qp-controls { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:18px; }
+  .qp-export { display:flex; flex-direction:column; align-items:flex-end; gap:6px; max-width:340px; }
+  .qp-export[hidden] { display:none; }
+  .qp-export-btn { background:linear-gradient(135deg,var(--accent-fill,#f0a500),var(--accent-end,#d4900a)); color:var(--on-accent,#000); border:0; border-radius:var(--radius-sm); padding:9px 16px; font-weight:700; font-size:13px; cursor:pointer; }
+  .qp-export-btn:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  .qp-export-note { font-size:12px; color:var(--text-muted); text-align:right; line-height:1.4; }
   .qp-input, .qp-select {
     background: var(--bg-input);
     border: 1px solid var(--border-light);
@@ -132,6 +137,10 @@
   <div>
     <h1>Qualification Plans &amp; Curriculums</h1>
     <p id="qpSubtitle">Qualification plan and curriculum documents for each skill area.</p>
+  </div>
+  <div class="qp-export" id="qpExportWrap" hidden>
+    <button type="button" class="qp-export-btn" id="qpExportUnits" onclick="qpExportUnits()">Export units</button>
+    <span class="qp-export-note">Every programme's units (programme, unit code, unit title) as a spreadsheet file, to send for the prepared assessments.</span>
   </div>
 </div>
 
@@ -756,6 +765,34 @@ function qpInit() {
 
   qpRender();
   qpWatchReconnect();
+  if (qpRole === 'admin' || qpRole === 'adminstaff' || qpRole === 'instructor') document.getElementById('qpExportWrap').hidden = false;
+}
+
+/* "Export units" (the owner's plan, 31 October 2026): every programme's units
+   from the Qualification Plan (the transcript's qualifications — programme,
+   qualification, unit code, unit title) as a CSV a spreadsheet opens, so the
+   owner can send the list for the prepared assessments. The dashboard's own
+   copy of the plan first; the plans written into the system otherwise. */
+function qpUnitCatalogs() {
+  var raw = null;
+  try { if (window.parent && window.parent !== window && window.parent.CESTISStore) raw = window.parent.CESTISStore.getItem('voctrain_unitCatalogs'); } catch (e) { raw = null; }
+  if (raw == null) { try { raw = localStorage.getItem('voctrain_unitCatalogs'); } catch (e) { raw = null; } }
+  var list = null;
+  try { list = JSON.parse(raw || 'null'); } catch (e) { list = null; }
+  return CESTISCore.Transcript.ensureSeeded(Array.isArray(list) ? list : []);
+}
+function qpExportUnits() {
+  var csv = CESTISCore.assessments.unitsCsv(qpUnitCatalogs());
+  var d = new Date(), pad = function (n) { return (n < 10 ? '0' : '') + n; };
+  var name = 'Units-' + d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + '.csv';
+  var url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  var a = document.createElement('a');
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click();
+  setTimeout(function () { URL.revokeObjectURL(url); a.parentNode && a.parentNode.removeChild(a); }, 4000);
+  var n = csv.split('\r\n').length - 2;
+  var btn = document.getElementById('qpExportUnits');
+  if (btn) { btn.textContent = 'Exported ' + n + ' units'; setTimeout(function () { btn.textContent = 'Export units'; }, 4000); }
 }
 
 document.addEventListener('DOMContentLoaded', qpInit);

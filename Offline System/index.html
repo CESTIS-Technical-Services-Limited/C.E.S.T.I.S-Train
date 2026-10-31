@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <script src="cestis-config.js?v=284ebb2a"></script>
-<script src="cestis-core.js?v=5121ca9b"></script>
+<script src="cestis-core.js?v=6d9da60a"></script>
 <script src="cestis-form-modal.js?v=74020c38" defer></script>
 <!-- Inert until a page registers: the CMC Board registers as a READ-ONLY reader
      so the operating pages' books reach its dashboards without anyone syncing. -->
-<script src="cestis-page-cloud.js?v=50679424"></script>
-<script src="cestis-gate-client.js?v=e98c2d11" defer></script>
+<script src="cestis-page-cloud.js?v=5bb7972d"></script>
+<script src="cestis-gate-client.js?v=0e26cf0d" defer></script>
 <!-- The staff and board modules: Staff Appraisals, the CMC Board's portal and
      the certificate designs' seed (about 255 KB, 61 KB on the wire). A trainee's
      phone never runs them, so they are not downloaded on a trainee's sign-in link
@@ -335,6 +335,16 @@
       cdn: [{ src: 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js' }, { src: 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js' }] },
     jspdf: { local: 'vendor/jspdf-2.5.1.umd.min.js',
       cdn: [{ src: 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js' }, { src: 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js' }] },
+    // Prepared assessments (the owner's plan, 31 October 2026): the pages, the
+    // printed record, and the libraries that join PDFs and make a ZIP of a
+    // group's photos — all from this site, the first time they are needed.
+    // A trainee's phone fetches only CESTISAssess (and the PDF parts when she
+    // downloads her record); the staff part never reaches it.
+    CESTISAssess: { local: 'cestis-assessments.js?v=fb9910a2', cdn: [] },
+    CESTISAssessStaff: { local: 'cestis-assessments-staff.js?v=7852af0f', cdn: [] },
+    CESTISAssessPdf: { local: 'cestis-assessment-pdf.js?v=90c0b23b', cdn: [] },
+    PDFLib: { local: 'vendor/pdf-lib-1.17.1.min.js', cdn: [] },
+    JSZip: { local: 'vendor/jszip-3.10.1.min.js', cdn: [] },
     OTPAuth: { cdn: [{ src: 'https://cdnjs.cloudflare.com/ajax/libs/otpauth/9.2.2/otpauth.umd.min.js' }, { src: 'https://cdn.jsdelivr.net/npm/otpauth@9.2.2/dist/otpauth.umd.min.js' }] },
     QRCode: { cdn: [{ src: 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js' }, { src: 'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js' }] },
     emailjs: { cdn: [{ src: 'https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js' }, { src: 'https://unpkg.com/@emailjs/browser@4/dist/email.min.js' }],
@@ -3196,6 +3206,21 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 .exam-confirm p { font-size:14px; color:var(--text-secondary); margin-bottom:10px; line-height:1.5; }
 .exam-confirm .exam-confirm-warn { color:var(--accent); }
 .exam-confirm-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:18px; flex-wrap:wrap; }
+.invig-extra { color:var(--accent); font-weight:600; }
+.invig-addtime { margin-top:4px; padding:3px 9px; font-size:12px; }
+/* Extra time on her clock, and "Sign and submit" (prepared assessments). The
+   signature font is this site's own (vendor/fonts, SIL OFL), fetched only
+   when the dialog shows her name. */
+@font-face { font-family:"CESTIS Signature"; src:url("vendor/fonts/GreatVibes-Regular-latin.ttf") format("truetype"); font-display:swap; }
+.enp-extra { display:block; margin-top:4px; font-size:12px; font-weight:600; color:var(--accent); }
+.exam-sign { max-width:540px; }
+.exam-sign-box { border:1px dashed var(--border-light); border-radius:var(--radius); padding:14px 16px 10px; background:var(--w-02); margin:6px 0 12px; }
+.exam-sign-label { font-size:12px; font-weight:600; color:var(--text-secondary); text-transform:uppercase; letter-spacing:.5px; }
+.exam-sign-name { font-family:"CESTIS Signature","Brush Script MT","Segoe Script",cursive; font-size:44px; line-height:1.2; color:var(--info-text); border-bottom:1.5px solid var(--text-secondary); padding:2px 4px; min-height:56px; overflow-wrap:anywhere; }
+.exam-sign-under { font-size:12px; color:var(--text-muted); margin-top:6px; }
+.exam-sign-consent { display:flex; gap:10px; align-items:flex-start; font-size:14px; color:var(--text-primary); cursor:pointer; margin:4px 0; }
+.exam-sign-consent input { width:20px; height:20px; margin-top:1px; flex:none; }
+@media (max-width:600px) { .exam-sign-name { font-size:36px; } }
 /* The review page (showExamResult): summary table, coloured boxes, marks */
 .exam-review-summary { width:100%; max-width:780px; border-collapse:collapse; margin:0 0 16px; background:var(--bg-card); border:1px solid var(--border-light); }
 .exam-review-summary th { width:160px; text-align:right; padding:8px 16px; background:var(--surface-2); color:var(--text-secondary); font-size:13px; font-weight:600; border-bottom:1px solid var(--border); vertical-align:top; }
@@ -7272,6 +7297,11 @@ var examAttempts = [];
 // by register, its notes and sign-offs entry by entry, deleted only by a
 // tombstone, like the Centre's other records.
 var examRegisters = [];
+// Prepared assessments' own records (CESTISCore.assessments): practical
+// groups, the photos a group adds, each member's sign-off and hand-in, the
+// assessor's result for each member, and where each completed paper is
+// filed. One list, merged record by record (newest edit wins), never deleted.
+var assessmentWork = [];
 
 var calendarEvents = [];
 
@@ -7413,6 +7443,10 @@ function syncCollections() {
     // day). A register is never deleted from this page, and a trainee's
     // sign-out empties this PC's copy — which must never read as a deletion.
     { name: 'examRegisters',         get: function(){ return examRegisters; },         key: syncKeyById, removals: false },
+    // Prepared assessments' groups, photos, sign-offs, results and filing
+    // (CESTISCore.assessments): kept record by record; a photo taken back is
+    // marked withdrawn, never removed, so a shorter list is never a deletion.
+    { name: 'assessmentWork',        get: function(){ return assessmentWork; },        key: syncKeyById, removals: false },
     // Download approvals, one per trainee: stamped when they change; merged
     // by the certificate rules (CESTISCore.certs.mergeApprovals).
     { name: 'certDownloadApprovals', get: function(){ return certDownloadApprovals; }, key: function(r){ return r && r.studentId != null ? String(r.studentId) : undefined; }, removals: false },
@@ -8191,7 +8225,7 @@ function exportDataBackup() {
     // "session" in it (voctrain_session*) — and so left these out of the file.
     'voctrain_vcSessions',
     'voctrain_resources','voctrain_driveResources','voctrain_studentProfiles','voctrain_instructorProfiles',
-    'voctrain_systemSettings','voctrain_examResults','voctrain_examAttempts','voctrain_examRegisters','voctrain_calendarEvents','voctrain_adrTasks',
+    'voctrain_systemSettings','voctrain_examResults','voctrain_examAttempts','voctrain_examRegisters','voctrain_assessmentWork','voctrain_calendarEvents','voctrain_adrTasks',
     'voctrain_adrStaffMeta','voctrain_adminStaffAccess','voctrain_instructorData','voctrain_certDownloadApprovals',
     'voctrain_skillAreas','voctrain_certTemplates','voctrain_chatRooms','voctrain_chatMessages',
     'voctrain_chatProfiles','voctrain_chatFollows',
@@ -9185,14 +9219,20 @@ function lmsChatFlushDriveSyncNow() {
 // unless an Administrator turns it off — the owner: "both the office admin
 // staff and administrators can create accounts for students". Trainee
 // accounts only: Admin Staff can never create or approve a staff login.
-var AS_ACCESS_DEFAULTS = { attendance:false, announcements:false, calendar:false, students:false, studentsmanage:false, certificates:false, reports:false, training:false, exams:false, invigilation:false, video:true, resources:false, supportmessages:false, traineeaccounts:true };
+// 'assessmentresults' (Assessment Results: completed assessments, their PDFs
+// and a group's photos) has no fixed default: until the Administrator ticks
+// or unticks it, it follows Online Exams or Certificates (the owner: "defaulting
+// on for anyone who has Online Exams or Certificates ticked") — null here, and
+// worked out by AS_ACCESS_DERIVED.
+var AS_ACCESS_DEFAULTS = { attendance:false, announcements:false, calendar:false, students:false, studentsmanage:false, certificates:false, reports:false, training:false, exams:false, invigilation:false, video:true, resources:false, supportmessages:false, traineeaccounts:true, assessmentresults:null };
+var AS_ACCESS_DERIVED = { assessmentresults: function(o) { return !!(o.exams || o.certificates); } };
 function adminStaffAccessDefaults() { return Object.assign({}, AS_ACCESS_DEFAULTS); }
 var adminStaffAccessSettings = adminStaffAccessDefaults();
 // The sections an Admin Staff member may use: their own ticks when the
 // Administrator has given them their own, else the grid's (the default for
 // everybody) — CESTISCore.staffAccess.forPerson.
 function asAccessFor(userId) {
-  try { return CESTISCore.staffAccess.forPerson(adminStaffAccessSettings, AS_ACCESS_DEFAULTS, userId); }
+  try { return CESTISCore.staffAccess.forPerson(adminStaffAccessSettings, AS_ACCESS_DEFAULTS, userId, typeof AS_ACCESS_DERIVED !== 'undefined' ? AS_ACCESS_DERIVED : null); }
   catch(e) { return Object.assign(adminStaffAccessDefaults(), adminStaffAccessSettings || {}); }
 }
 // …and the one signed in on this device.
@@ -9229,7 +9269,8 @@ function applyAdminStaffAccess(next) {
   var nextAt = Date.parse(next.updatedAt || '') || 0, haveAt = Date.parse(adminStaffAccessSettings.updatedAt || '') || 0;
   if (haveAt && nextAt < haveAt) { if (changed) refreshAdminStaffNav(); return changed; }
   var merged = adminStaffAccessDefaults();
-  Object.keys(next).forEach(function(k) { if (k === 'updatedAt' || k === 'people') return; merged[k] = !!next[k]; });
+  // A key still on its worked-out default (null) stays so: it is not "off".
+  Object.keys(next).forEach(function(k) { if (k === 'updatedAt' || k === 'people') return; merged[k] = (next[k] === null || next[k] === undefined) && AS_ACCESS_DEFAULTS[k] === null ? null : !!next[k]; });
   Object.keys(merged).forEach(function(k) {
     if (adminStaffAccessSettings[k] !== merged[k]) { adminStaffAccessSettings[k] = merged[k]; changed = true; }
   });
@@ -9528,6 +9569,15 @@ function clearSensitiveStudentData() {
   // (the staff's copies are untouched; a staff sign-in's unsent work is kept
   // by the guard above).
   try { examRegisters = []; CESTISStore.removeItem('voctrain_examRegisters'); } catch(e) {}
+  // 3d. Prepared assessments: only her own photos and sign-offs stay (one
+  // not sent yet is never lost); groups, results and filing are the staff's.
+  try {
+    var myWork = (Array.isArray(assessmentWork) ? assessmentWork : []).filter(function(r) {
+      return r && (r.type === 'photo' || r.type === 'signoff') && studentId && r.studentId === studentId;
+    });
+    assessmentWork = myWork;
+    CESTISStore.setItem('voctrain_assessmentWork', JSON.stringify(myWork));
+  } catch(e) {}
 
   // 4. Keep only this student's profile
   try {
@@ -9716,6 +9766,7 @@ function clearAllSessionData() {
   examResults = [];
   examAttempts = [];
   examRegisters = [];
+  assessmentWork = [];
   calendarEvents = [];
   classSessions = [];
   adminMeetings = [];
@@ -9871,6 +9922,7 @@ function saveState() {
     saveCollection('voctrain_examResults', examResults);
     try { examAttemptsPersist(); } catch(e) {}
     saveCollection('voctrain_examRegisters', examRegisters);
+    saveCollection('voctrain_assessmentWork', assessmentWork);
     saveCollection('voctrain_calendarEvents', calendarEvents);
     saveCollection('voctrain_instructorData', instructorData);
     saveCollection('voctrain_certDownloadApprovals', certDownloadApprovals);
@@ -10045,6 +10097,8 @@ function loadState() {
     if(Array.isArray(eat)) examAttempts = eat;
     var xreg = safeJsonParse(CESTISStore.getItem('voctrain_examRegisters'), null);
     if(Array.isArray(xreg)) examRegisters = xreg;
+    var awk = safeJsonParse(CESTISStore.getItem('voctrain_assessmentWork'), null);
+    if(Array.isArray(awk)) assessmentWork = awk;
     if(ce) { var _cc={class:'var(--blue)',exam:'var(--red)',deadline:'var(--accent)',meeting:'var(--purple)'}; calendarEvents = ce.map(function(e){if(!e.color){e.color=_cc[e.type]||'var(--blue)';}return e;}); }
     var adrT = safeJsonParse(CESTISStore.getItem('voctrain_adrTasks'), null);
     var adrM = safeJsonParse(CESTISStore.getItem('voctrain_adrStaffMeta'), null);
@@ -14932,6 +14986,8 @@ function buildAdminSidebar() {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Online Exams</div>
     <div class="nav-item" data-page="invigilator" onclick="showPage('invigilator')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>Exam Invigilator</div>
+    <div class="nav-item" data-page="assessments" onclick="showPage('assessments')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Assessments<span class="nav-badge" id="assessToCheckBadge" style="display:none;background:var(--accent);">0</span></div>
     <div class="nav-item" data-page="import-exam" onclick="showPage('import-exam')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Import Exam</div>
     <div class="nav-item" data-page="pdf-workshop" onclick="showPage('pdf-workshop')">
@@ -14953,6 +15009,8 @@ function buildAdminSidebar() {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>Certificates</div>
     <div class="nav-item" data-page="transcript-grades" onclick="showPage('transcript-grades')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>Transcript/Grades</div>
+    <div class="nav-item" data-page="assessment-results" onclick="showPage('assessment-results')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><path d="M9 14l2 2 4-4"/></svg>Assessment Results</div>
     <div class="nav-item" data-page="cert-transcript-requests" onclick="showPage('cert-transcript-requests')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>Cert/Transcript Requests<span class="nav-badge" id="ctrRequestsBadge" style="display:none;background:var(--red);">0</span></div>
     </div>
@@ -15016,6 +15074,8 @@ function buildStudentSidebar() {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg>My Assignments</div>
     <div class="nav-item" data-page="s-exams" onclick="showPage('s-exams')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>My Exams</div>
+    <div class="nav-item" data-page="s-assessments" onclick="showPage('s-assessments')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>My Assessments</div>
     <div class="nav-item" data-page="s-transcript-grades" onclick="showPage('s-transcript-grades')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>Transcript/Grades</div>
     <div class="nav-item" data-page="s-certificate" onclick="showPage('s-certificate')">
@@ -15058,6 +15118,8 @@ function buildInstructorSidebar() {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>Qual Plan/Curriculum</div>
     <div class="nav-item" data-page="i-exams" onclick="showPage('i-exams')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Online Exams</div>
+    <div class="nav-item" data-page="i-assessments" onclick="showPage('i-assessments')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Assessments<span class="nav-badge" id="iAssessToCheckBadge" style="display:none;background:var(--accent);">0</span></div>
     <div class="nav-item" data-page="i-import-exam" onclick="showPage('i-import-exam')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Import Exam</div>
     <div class="nav-item" data-page="i-invigilator" onclick="showPage('i-invigilator')">
@@ -15198,6 +15260,21 @@ var cestisFeatureConfig = {
     onMount: function() {
       renderExamsUpcoming();
     }
+  },
+  // Prepared assessments (cestis-assessments*.js, loaded on first use): the
+  // units' four assessments, the office's Assessment Results, and a trainee's
+  // own units, group practicals and papers.
+  'assessments': {
+    file: 'Pages/Assessments.html',
+    onMount: function(prefix) { assessMount('assessments', prefix); }
+  },
+  'assessment-results': {
+    file: 'Pages/Assessment-Results.html',
+    onMount: function(prefix) { assessMount('assessment-results', prefix); }
+  },
+  'my-assessments': {
+    file: 'Pages/Student-Assessments.html',
+    onMount: function(prefix) { assessMount('my-assessments', prefix); }
   },
   // The Exam Invigilator: one page for every staff role (who may open it and
   // which exams they see: CESTISCore.invigilation).
@@ -15511,6 +15588,10 @@ var AS_PAGE_PERMISSION = {
   'as-resources': 'resources', 'as-support-messages': 'supportmessages',
   'as-attendance': 'attendance', 'as-announcements': 'announcements', 'as-calendar': 'calendar',
   'as-trainee-accounts': 'traineeaccounts',
+  // Prepared assessments: Admin Staff look at them with Online Exams ticked;
+  // Assessment Results has its own tick (on for anyone with Online Exams or
+  // Certificates until the Administrator says otherwise).
+  'assessments': 'exams', 'assessment-results': 'assessmentresults',
   // The Administrator's working pages Admin Staff open when ticked (OF-2).
   'training': 'training', 'a-resources': 'resources', 'exams': 'exams', 'attendance': 'attendance',
   'announcements': 'announcements', 'calendar': 'calendar', 'certificates': 'certificates', 'reports': 'reports'
@@ -15584,7 +15665,7 @@ function showPage(pageId) {
   }
   const titles = {
     dashboard:'Dashboard',video:'Video Conference',students:'Student Progress',
-    training:'Training Centres','course-duration':'Course / Training Centre Duration','transfer-trainees':'Transfer Trainees','enrolment-registers':'Enrolment Registers','a-resources':'Resource Manager',exams:'Online Exams',invigilator:'Exam Invigilator','i-invigilator':'Exam Invigilator','as-invigilator':'Exam Invigilator','import-exam':'Import Exam','i-import-exam':'Import Exam',certificates:'Certificate Tracking','cert-downloads':'Certificate Downloads',
+    training:'Training Centres','course-duration':'Course / Training Centre Duration','transfer-trainees':'Transfer Trainees','enrolment-registers':'Enrolment Registers','a-resources':'Resource Manager',exams:'Online Exams',assessments:'Assessments','i-assessments':'Assessments','assessment-results':'Assessment Results','s-assessments':'My Assessments',invigilator:'Exam Invigilator','i-invigilator':'Exam Invigilator','as-invigilator':'Exam Invigilator','import-exam':'Import Exam','i-import-exam':'Import Exam',certificates:'Certificate Tracking','cert-downloads':'Certificate Downloads',
     reports:'Reports & Analytics','verify-users':'Verify Users',settings:'Settings',
     attendance:'Attendance Management',announcements:'Announcements',calendar:'Calendar & Schedule',
     's-dashboard':'My Dashboard','s-video':'My Classes','s-progress':'My Progress',
@@ -15970,6 +16051,12 @@ function buildAdminPages() {
   </section>
 
   <!-- EXAM INVIGILATOR (live board and sitting registers) -->
+  <section class="page" id="page-assessments">
+    <div class="cestis-mount" data-feature="assessments" data-prefix="admin"></div>
+  </section>
+  <section class="page" id="page-assessment-results">
+    <div class="cestis-mount" data-feature="assessment-results" data-prefix="admin"></div>
+  </section>
   <section class="page" id="page-invigilator">
     <div class="cestis-mount" data-feature="invigilator" data-prefix="admin"></div>
   </section>
@@ -16515,7 +16602,7 @@ function renderStudentExams(){
   if(typeof resolveExamStatuses === 'function'){ try{ resolveExamStatuses(); }catch(e){} }
   // What the trainee sees is worked out on the Centre's clock here and now;
   // this device never writes an exam's status (see resolveExamStatuses).
-  var mine = function(e){ return e && (e.course === s.course || instructorCourseMatch(e.course, s.course)); };
+  var mine = function(e){ return (typeof examTraineeListed !== 'function' || examTraineeListed(e)) && (e.course === s.course || instructorCourseMatch(e.course, s.course)); };
   var up = document.getElementById('studentUpcomingExams');
   if(up){
     up.innerHTML = exams.filter(function(e){
@@ -16856,6 +16943,9 @@ function buildStudentPages() {
   </section>
 
   <!-- STUDENT EXAMS -->
+  <section class="page" id="page-s-assessments">
+    <div class="cestis-mount" data-feature="my-assessments" data-prefix="student"></div>
+  </section>
   <section class="page" id="page-s-exams">
     <div class="cestis-mount" data-feature="s-exams" data-prefix="student"></div>
   </section>
@@ -17555,6 +17645,9 @@ function buildInstructorPages() {
   </section>
 
   <!-- EXAM INVIGILATOR (Instructor: their programmes' exams) -->
+  <section class="page" id="page-i-assessments">
+    <div class="cestis-mount" data-feature="assessments" data-prefix="instructor"></div>
+  </section>
   <section class="page" id="page-i-invigilator">
     <div class="cestis-mount" data-feature="invigilator" data-prefix="instructor"></div>
   </section>
@@ -26115,6 +26208,7 @@ var CESTIS_SHARED_COLLECTIONS = {
   // hold an older copy of the attempt open here (examAttemptsMergeIncoming).
   voctrain_examAttempts:        function(v){ examAttemptsMergeIncoming(v); },
   voctrain_examRegisters:       function(v){ invigRegistersMergeIncoming(v); },
+  voctrain_assessmentWork:      function(v){ assessWorkMergeIncoming(v); },
   voctrain_certDownloadApprovals: function(v){ certDownloadApprovals = v; },
   voctrain_skillAreas:          function(v){ skillAreas = CESTISCore.catalogue.liveCentres(v, CESTISStore); },
   voctrain_users:               function(v){ userAccounts = v; },
@@ -29280,6 +29374,11 @@ function examStatusNow(e) {
   return CESTISCore.exams.statusAt(e, Date.now(), examCentreOffset());
 }
 function examIsStaffSession() { return currentRole === 'admin' || currentRole === 'instructor' || currentRole === 'adminstaff'; }
+/* A practical (a prepared assessment with no questions) lives on the
+   Assessments pages, not in the Online Exams lists; a prepared test still To
+   check or Ready (status 'draft') is never in a trainee's list at all. */
+function examIsPracticalTask(e) { return !!(e && window.CESTISCore && CESTISCore.assessments && CESTISCore.assessments.isPractical(e)); }
+function examTraineeListed(e) { return !!e && e.status !== 'draft' && e.status !== 'cancelled' && !examIsPracticalTask(e); }
 // Exam buttons pass the exam's id. A position in the array (what they passed
 // before) still works, but a sync that removed an exam in between used to
 // point every later button at a different exam.
@@ -29326,7 +29425,7 @@ function renderExams(filter) {
   if(filter) adminExamFilter = filter;
   else filter = adminExamFilter;
   resolveExamStatuses();
-  const filtered = exams.filter(e=>e.status===(filter||'upcoming'));
+  const filtered = exams.filter(e=>e.status===(filter||'upcoming') && !(typeof examIsPracticalTask === 'function' && examIsPracticalTask(e)));
   const tbody = document.getElementById('examTableBody');
   if(!tbody) return;
   // Render exam stats
@@ -29394,7 +29493,7 @@ function renderInstructorExams(filter) {
   // use: a strict name match hid exams the trainees could see.
   var inMyCourse = function(e){ return e && (e.course === courseFilter || instructorCourseMatch(e.course, courseFilter)); };
   var allExams = courseFilter ? exams.filter(inMyCourse) : exams;
-  var filtered = allExams.filter(function(e){ return e.status === (filter || 'upcoming'); });
+  var filtered = allExams.filter(function(e){ return e.status === (filter || 'upcoming') && !(typeof examIsPracticalTask === 'function' && examIsPracticalTask(e)); });
 
   // Target ONLY the instructor-specific elements. Never fall back to the admin
   // examTableBody/examStatsGrid: this function is invoked by refreshContentDependentViews(),
@@ -30154,6 +30253,11 @@ function createExam() {
 
   var off = examCentreOffset();
   var course = document.getElementById('examCourse').value;
+  // A prepared assessment still being checked (CESTISCore.assessments) keeps
+  // its programme and has no dates: it is opened for an intake, with dates,
+  // from the Assessments page — never from here.
+  var _prepared = !!(editing && CESTISCore.assessments && CESTISCore.assessments.isMaster(editing));
+  if(_prepared) course = editing.course;
   var duration = parseInt(document.getElementById('examDuration').value)||90;
   var passMark = Math.min(100, Math.max(1, parseInt(document.getElementById('examPassMark').value)||60));
   var relEl = document.getElementById('examAnswersRelease');
@@ -30176,7 +30280,8 @@ function createExam() {
   // time) — it used to mean 09:00 today, so a quiz built in the afternoon
   // was over before it was published.
   var dflt = CESTISCore.exams.defaultStart(Date.now(), off);
-  if(!dateVal || !timeVal) { dateVal = dateVal || dflt.date; timeVal = timeVal || dflt.time; schedChanged = true; }
+  if(_prepared) { dateVal = ''; timeVal = ''; closeOn = false; closeDate = ''; closeTime = ''; schedChanged = false; }
+  else if(!dateVal || !timeVal) { dateVal = dateVal || dflt.date; timeVal = timeVal || dflt.time; schedChanged = true; }
   var startMs = CESTISCore.exams.centreTime(dateVal, timeVal, off);
   if(closeOn) {
     var closeMs = CESTISCore.exams.centreTime(closeDate, closeTime, off);
@@ -30624,7 +30729,11 @@ function editExam(idx) {
   if(typeof staffSectionRefused === 'function' && staffSectionRefused('exams')) return;
   var e = examFind(idx);
   if(!e) return;
-  if(currentRole === 'instructor' && currentInstructor && e.createdBy !== currentInstructor.id) {
+  // A prepared assessment of her own programme is hers to check and correct,
+  // whoever prepared it (the Assessments page's "Check & edit").
+  var _ownPrepared = currentRole === 'instructor' && currentInstructor && CESTISCore.assessments && CESTISCore.assessments.isMaster(e) &&
+    (e.course === currentInstructor.course || instructorCourseMatch(e.course, currentInstructor.course));
+  if(currentRole === 'instructor' && currentInstructor && e.createdBy !== currentInstructor.id && !_ownPrepared) {
     alert('You can only edit exams you created. This exam was created by an administrator.');
     return;
   }
@@ -30739,6 +30848,9 @@ function openGradingPanel(resultId) {
       bodyHtml += '</div>';
     }
 
+    // A prepared assessment's essay: its model answer and marking points.
+    bodyHtml += examMarkingGuideHtml(exam, a.questionId);
+
     // Auto-match hint for fill-in-blank
     if(a.type === 'fill' && a.autoMatch !== null && a.autoMatch !== undefined) {
       bodyHtml += '<div style="font-size:11px;margin-bottom:8px;color:'+(a.autoMatch?'var(--green)':'var(--red)')+';">'+(a.autoMatch?'✓ Exact match detected':'✗ Does not match expected answer')+'</div>';
@@ -30818,6 +30930,18 @@ function openGradingPanel(resultId) {
   document.body.appendChild(panel);
 }
 
+/* A prepared assessment's essay (CESTISCore.assessments): the model answer
+   and the marking points the bank gives, for whoever marks it. Staff only:
+   neither ever reaches a trainee (CESTISCore.exams.KEY_FIELDS). */
+function examMarkingGuideHtml(exam, questionId) {
+  var q = exam && Array.isArray(exam.questionData) ? exam.questionData.filter(function(x){ return x && String(x.id) === String(questionId); })[0] : null;
+  if(!q || (!q.modelAnswer && !(Array.isArray(q.markingPoints) && q.markingPoints.length))) return '';
+  var h = '<div class="exam-marking-guide" style="background:var(--blue-dim);border:1px solid var(--border-light);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:8px;">';
+  if(q.modelAnswer) h += '<div style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:var(--info-text);margin-bottom:4px;">Model answer</div><div style="font-size:13px;white-space:pre-wrap;margin-bottom:6px;">' + escapeHtml(q.modelAnswer) + '</div>';
+  if(Array.isArray(q.markingPoints) && q.markingPoints.length) h += '<div style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:var(--info-text);margin-bottom:4px;">Marking points</div><ul style="margin:0 0 0 18px;padding:0;font-size:12.5px;line-height:1.6;">' + q.markingPoints.map(function(m){ return '<li>' + escapeHtml(m) + '</li>'; }).join('') + '</ul>';
+  return h + '</div>';
+}
+
 function closeGradingPanel() {
   var panel = document.getElementById('gradingPanel');
   var overlay = document.getElementById('gradingOverlay');
@@ -30859,6 +30983,7 @@ function openQuestionMarking(examId, questionId) {
   html += '<div style="font-size:13px;font-weight:600;margin-bottom:6px;">' + escapeHtml(q.text) + '</div>';
   html += '<div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;">' + escapeHtml(examTypeLabel(q.type)) + ' &bull; ' + q.points + ' pt' + (q.points !== 1 ? 's' : '') + '</div>';
   if(model) html += '<div style="background:var(--green-dim);border:1px solid rgba(46,204,113,0.2);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:12px;"><div style="font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:var(--green);margin-bottom:4px;">' + (q.type === 'fill' ? 'Expected Answer' : 'Model Answer') + '</div><div style="font-size:13px;">' + escapeHtml(model) + '</div></div>';
+  html += examMarkingGuideHtml(exam, q.id);
   entries.forEach(function(en, k) {
     var a = en.answer, pts = Number(a.points) || 0;
     var shown = Array.isArray(a.studentAnswer) ? a.studentAnswer.filter(function(x){ return x != null && x !== ''; }).join(', ') : a.studentAnswer;
@@ -31144,7 +31269,9 @@ function examAttemptRecord(s) {
     questions: s.questions, answers: s.answers, flagged: s.flagged, answeredAt: s.answeredAt, flaggedAt: s.flaggedAt,
     startTime: s.startTime, deadline: s.deadline, perPage: s.perPage || 0, page: s.page || 0, current: s.current || 0,
     posAt: s.posAt || 0, allowFlag: s.allowFlag !== false, status: 'open', updatedAt: at, savedAt: at,
-    activity: s.activity || undefined
+    activity: s.activity || undefined,
+    // "Sign and submit" (a prepared assessment): her adopted signature.
+    signature: s.signature || undefined
   };
 }
 // Put attempt records into the shared list: read from the store first (another
@@ -31847,15 +31974,59 @@ function examStartFresh(e, me, fromGate) {
   startExamTimer();
 }
 
+/* ---- Extra time (prepared assessments: the owner, "the Administrator should
+   be able to add time if needed") ----
+   An attempt's own deadline never moves; her clock is that deadline plus the
+   grants on the exam for her and for the whole sitting
+   (CESTISCore.exams.extraMs). At the Centre the exam record brings them; from
+   home her phone asks the gate every minute while she sits the test
+   (CESTISGate.examTime) and keeps the larger — time is only ever added. */
+var _examGateExtra = {};
+function examExtraMsFor(examId, studentId) {
+  var e = examFind(examId), local = 0;
+  try { local = e ? CESTISCore.exams.extraMs(e, studentId) : 0; } catch (x) { local = 0; }
+  var g = _examGateExtra[String(examId)];
+  return Math.max(local, g && g.ms ? g.ms : 0);
+}
+function examEffectiveDeadline(s) {
+  var base = s.deadline || (s.startTime + (parseInt(s.duration) || 90) * 60000);
+  return _isExamPreviewMode ? base : base + examExtraMsFor(s.examId, s.studentId);
+}
+// "Extra time: 15 min, added by the Administrator" — as the record prints it.
+function examExtraLine(examId, studentId) {
+  var ms = examExtraMsFor(examId, studentId);
+  if (!ms || !window.CESTISCore || !CESTISCore.assessments) return '';
+  var e = examFind(examId), roles = {};
+  try { CESTISCore.exams.extraGrantsFor(e, studentId).forEach(function(g) { roles[g.byRole || ''] = 1; }); } catch (x) {}
+  var g = _examGateExtra[String(examId)];
+  if (g && Array.isArray(g.grants)) g.grants.forEach(function(x) { roles[x.byRole || ''] = 1; });
+  var who = Object.keys(roles).filter(Boolean).map(CESTISCore.assessments.roleLabel);
+  return 'Extra time: ' + CESTISCore.assessments.minutesText(Math.round(ms / 60000)) + (who.length ? ', added by ' + who.join(' and ') : '');
+}
+function examGateExtraPoll(s) {
+  if (!s || _isExamPreviewMode || !(typeof cestisGateSession === 'function' && cestisGateSession()) || !window.CESTISGate || typeof CESTISGate.examTime !== 'function') return;
+  if (s._xtAsking || (s._xtAt && Date.now() - s._xtAt < 60000)) return;
+  s._xtAsking = true; s._xtAt = Date.now();
+  CESTISGate.examTime(s.examId).then(function(res) {
+    s._xtAsking = false;
+    if (!res || res.ok !== true) return;
+    var was = _examGateExtra[String(s.examId)];
+    var ms = Math.max(0, Number(res.minutes) || 0) * 60000;
+    if (!was || ms >= (was.ms || 0)) _examGateExtra[String(s.examId)] = { ms: ms, grants: Array.isArray(res.grants) ? res.grants : [] };
+    try { updateExamTimerDisplay(); } catch (e) {}
+  }, function() { s._xtAsking = false; });
+}
+
 function startExamTimer() {
   if(examTimerInterval) clearInterval(examTimerInterval);
   var lastSave = Date.now();
   examTimerInterval = setInterval(function() {
     var s = currentExamSession;
     if(!s) { clearInterval(examTimerInterval); examTimerInterval = null; return; }
-    // Remaining time is read off the fixed deadline, so a tab the browser
-    // throttled, a reload or a resume all show the same clock.
-    var deadline = s.deadline || (s.startTime + (parseInt(s.duration) || 90) * 60000);
+    // Remaining time is read off the fixed deadline (and her extra time), so a
+    // tab the browser throttled, a reload or a resume all show the same clock.
+    if (typeof examGateExtraPoll === 'function') examGateExtraPoll(s);
+    var deadline = typeof examEffectiveDeadline === 'function' ? examEffectiveDeadline(s) : (s.deadline || (s.startTime + (parseInt(s.duration) || 90) * 60000));
     s.timeRemaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
     updateExamTimerDisplay();
     // Saved every 15 seconds by the clock (an `elapsed % 30` test was skipped
@@ -31884,6 +32055,10 @@ function updateExamTimerDisplay() {
   if(!el || !currentExamSession) return;
   var s = currentExamSession, t = s.timeRemaining;
   el.textContent = examClock(t);
+  // Her extra time, said under the clock.
+  var xl = typeof examExtraLine === 'function' ? examExtraLine(s.examId, s.studentId) : '', xe = document.getElementById('examTimerExtra');
+  if (xl && !xe) { var tb = document.getElementById('examTimerBox'); if (tb) { xe = document.createElement('span'); xe.className = 'enp-extra'; xe.id = 'examTimerExtra'; tb.appendChild(xe); } }
+  if (xe && xe.textContent !== xl) xe.textContent = xl;
   var el2 = document.getElementById('examTimerValue2');   // the Summary page's own line
   if(el2) { el2.textContent = examClock(t); el2.className = 'timer-value' + (t <= 60 ? ' danger' : t <= 300 ? ' warning' : ''); }
   // The last five minutes are shown in the warning colour (the last one in
@@ -31950,7 +32125,8 @@ function examNavPanelHtml(s, onPage) {
   // On a phone the panel is a strip: this button opens and closes the boxes.
   html += '<button type="button" class="enp-toggle" id="examNavToggle" aria-controls="examNavBody" aria-expanded="' + (s._navOpen ? 'true' : 'false') + '" onclick="examToggleNavStrip()">'
     + '<span>Questions</span> <span class="enp-toggle-count" id="examNavToggleCount">' + counts.answered + '/' + counts.total + '</span> <span class="enp-chev" aria-hidden="true">&#9662;</span></button>';
-  html += '<div class="enp-timer" id="examTimerBox" role="timer" aria-label="Time left">Time left <strong class="timer-value" id="examTimerValue">' + examClock(s.timeRemaining) + '</strong></div>';
+  var _xl = typeof examExtraLine === 'function' ? examExtraLine(s.examId, s.studentId) : '';
+  html += '<div class="enp-timer" id="examTimerBox" role="timer" aria-label="Time left">Time left <strong class="timer-value" id="examTimerValue">' + examClock(s.timeRemaining) + '</strong>' + (_xl ? '<span class="enp-extra" id="examTimerExtra">' + escapeHtml(_xl) + '</span>' : '') + '</div>';
   html += '<div class="exam-sr-only" id="examTimerAnnounce" aria-live="assertive"></div>';
   html += '<div class="enp-body" id="examNavBody">';
   html += '<div class="enp-boxes" role="group" aria-label="Questions">';
@@ -32236,7 +32412,8 @@ function examSummaryHtml(s) {
   html += '<div class="exam-summary-actions">';
   html += '<button type="button" class="btn btn-secondary" onclick="examReturnToAttempt()">Return to attempt</button>';
   html += '<div class="exam-summary-time">Time left <strong class="timer-value" id="examTimerValue2">' + examClock(s.timeRemaining) + '</strong></div>';
-  if(s.deadline) html += '<p class="exam-summary-due">This attempt must be submitted by ' + escapeHtml(examCentreDateTime(s.deadline)) + '. When the time runs out, your answers are submitted automatically.</p>';
+  var _due = typeof examEffectiveDeadline === 'function' ? examEffectiveDeadline(s) : s.deadline, _dueX = typeof examExtraLine === 'function' ? examExtraLine(s.examId, s.studentId) : '';
+  if(s.deadline) html += '<p class="exam-summary-due">This attempt must be submitted by ' + escapeHtml(examCentreDateTime(_due)) + (_dueX ? ' (' + escapeHtml(_dueX) + ')' : '') + '. When the time runs out, your answers are submitted automatically.</p>';
   if(c.unanswered) html += '<p class="exam-summary-warn">' + c.unanswered + ' of ' + c.total + ' question' + (c.total !== 1 ? 's are' : ' is') + ' not answered yet.</p>';
   html += '<button type="button" class="btn btn-primary exam-submit-all" id="examSubmitAllBtn" onclick="examConfirmSubmit()">Submit all and finish</button>';
   html += '</div></div></div></div>';
@@ -32246,6 +32423,49 @@ function examSummaryHtml(s) {
 // "Submit all and finish" asks first, on the page (a dialog that can be
 // read, tabbed through and cancelled with Escape), saying how many
 // questions are still unanswered.
+/* A prepared assessment (CESTISCore.assessments) is signed before it is
+   submitted — the owner: "the trainee signs before submitting", her name in
+   a handwritten style "like it was signed by them", as DocuSign does. */
+function examIsAssessmentSession(s) {
+  if (!s || _isExamPreviewMode || !window.CESTISCore || !CESTISCore.assessments) return false;
+  return CESTISCore.assessments.isAssessment(examFind(s.examId));
+}
+function examSignAndSubmit(s, warn) {
+  var name = String(s.studentName || (currentStudent && currentStudent.name) || '').replace(/\s+/g, ' ').trim();
+  var overlay = document.createElement('div');
+  overlay.className = 'exam-confirm-overlay';
+  overlay.id = 'examConfirmOverlay';
+  overlay.innerHTML = '<div class="exam-confirm exam-sign" role="dialog" aria-modal="true" aria-labelledby="examConfirmTitle" aria-describedby="examConfirmBody">'
+    + '<h3 id="examConfirmTitle">Sign and submit</h3>'
+    + '<div id="examConfirmBody">' + warn + '<p>Once you submit, you will no longer be able to change your answers.</p>'
+    + '<div class="exam-sign-label">Adopt your signature</div>'
+    + '<div class="exam-sign-box"><div class="exam-sign-name" id="examSignName" aria-label="Your signature: ' + escapeHtml(name) + '">' + escapeHtml(name) + '</div>'
+    + '<div class="exam-sign-under">' + escapeHtml(name) + ' · ' + escapeHtml(examCentreDateTime(Date.now())) + '</div></div>'
+    + '<label class="exam-sign-consent"><input type="checkbox" id="examSignConsent"> <span>I confirm this is my own work.</span></label></div>'
+    + '<div class="exam-confirm-actions"><button type="button" class="btn btn-secondary" id="examConfirmCancel" onclick="examCloseConfirm(true)">Cancel</button>'
+    + '<button type="button" class="btn btn-primary" id="examConfirmGo" disabled onclick="examSignedSubmit()">Sign and submit</button></div></div>';
+  overlay.onkeydown = function(ev) {
+    if(ev.key === 'Escape') { ev.preventDefault(); examCloseConfirm(true); return; }
+    if(ev.key === 'Tab') {
+      var f = Array.prototype.filter.call(overlay.querySelectorAll('input,button'), function(x) { return !x.disabled; });
+      var i = f.indexOf(document.activeElement);
+      if(ev.shiftKey && i <= 0) { ev.preventDefault(); f[f.length - 1].focus(); }
+      else if(!ev.shiftKey && i === f.length - 1) { ev.preventDefault(); f[0].focus(); }
+    }
+  };
+  document.body.appendChild(overlay);
+  var box = document.getElementById('examSignConsent');
+  if(box) box.onchange = function() { document.getElementById('examConfirmGo').disabled = !box.checked; };
+  if(box && box.focus) box.focus();
+}
+function examSignedSubmit() {
+  var s = currentExamSession, box = document.getElementById('examSignConsent');
+  if(!s || !box || !box.checked) return;
+  var sig = CESTISCore.assessments.makeSignature({ name: s.studentName || (currentStudent && currentStudent.name), at: new Date(examStampNow()).toISOString(), basis: s.attemptId });
+  if(sig) s.signature = sig;
+  examSubmitConfirmed();
+}
+
 function examConfirmSubmit() {
   var s = currentExamSession;
   if(!s) return;
@@ -32256,6 +32476,7 @@ function examConfirmSubmit() {
   if(none > 0) warn += '<p class="exam-confirm-warn">You have <strong>' + none + ' unanswered question' + (none !== 1 ? 's' : '') + '</strong>.</p>';
   if(c.partial > 0) warn += '<p class="exam-confirm-warn">' + c.partial + ' question' + (c.partial !== 1 ? 's are' : ' is') + ' only partly answered.</p>';
   if(!warn) warn = '<p>Every question has an answer.</p>';
+  if(typeof examIsAssessmentSession === 'function' && examIsAssessmentSession(s)) { examSignAndSubmit(s, warn); return; }
   var overlay = document.createElement('div');
   overlay.className = 'exam-confirm-overlay';
   overlay.id = 'examConfirmOverlay';
@@ -32507,7 +32728,7 @@ function submitExam(auto, opts) {
   var passMark = exam ? exam.passMark : s.passMark;
   var passed = needsReview ? false : score >= passMark; // cannot pass until fully graded
   var now = Date.now();
-  var deadline = s.deadline || (s.startTime + (parseInt(s.duration) || 90) * 60000);
+  var deadline = typeof examEffectiveDeadline === 'function' ? examEffectiveDeadline(s) : (s.deadline || (s.startTime + (parseInt(s.duration) || 90) * 60000));
 
   var result = {
     id: cestisGenId('RES-'),
@@ -32536,10 +32757,12 @@ function submitExam(auto, opts) {
   // (CESTISCore.exams.oneResultPerAttempt).
   if(s.attemptId && !_isExamPreviewMode) result.attemptId = s.attemptId;
   if(auto) result.autoSubmitted = true;
+  if(s.signature && typeof CESTISCore !== 'undefined' && CESTISCore.assessments) { var _sig = CESTISCore.assessments.cleanSignature(s.signature, { name: result.studentName, basis: s.attemptId }); if(_sig) result.signature = _sig; }
   // Submitted well after the window closed (an attempt resumed late): kept,
   // but marked so staff can decide.
   var win = exam ? CESTISCore.exams.windowOf(exam, examCentreOffset()) : null;
-  if(win && win.end != null && now > win.end + 120000) result.late = true;
+  var _winEnd = win ? (win.baseEnd != null ? win.baseEnd : win.end) : null;
+  if(_winEnd != null && now > _winEnd + (typeof examExtraMsFor === 'function' ? examExtraMsFor(s.examId, s.studentId) : 0) + 120000) result.late = true;
 
   // In preview mode, don't save results — just display them
   if(_isExamPreviewMode) {
@@ -32578,6 +32801,7 @@ function submitExam(auto, opts) {
   }
 
   examResults.push(result);
+  try { assessKeepCopy(s, result); } catch (e) {}
   // Kept aside until the cloud is seen to hold it, so the next trainee's (or a
   // staff member's) sign-out on this PC cannot delete it before it is uploaded.
   examOutboxAdd(result);
@@ -32781,6 +33005,11 @@ function showExamResult(result, exam, note) {
   html += examCrumbsHtml(exam ? exam.course : '', exam ? exam.title : 'Exam');
   html += '<h2 class="exam-attempt-title">' + escapeHtml(exam ? exam.title : 'Exam') + '</h2>';
   if(note) html += '<div class="exam-note" id="examResultNote" role="status"><span class="exam-note-text">' + escapeHtml(note) + '</span></div>';
+  // A prepared assessment: her own record as a PDF, made on this device.
+  if(currentRole === 'student' && exam && typeof CESTISCore !== 'undefined' && CESTISCore.assessments && CESTISCore.assessments.isAssessment(exam)) {
+    html += '<div class="exam-note" role="status"><span class="exam-note-text">' + (result.signature ? 'Signed by ' + escapeHtml(result.signature.name) + ' · Signature ID ' + escapeHtml(result.signature.id) + '. ' : '') +
+      'Your record of this assessment can be kept as a PDF.</span> <button type="button" class="btn btn-sm btn-primary" id="examMyRecordBtn" onclick="assessMyRecord(' + jsArg(exam.id) + ')">Download my record (PDF)</button></div>';
+  }
 
   // The summary table.
   var started = CESTISCore.exams.attemptStartMs(result), done = Date.parse(result.submittedAt || '');
@@ -33123,6 +33352,17 @@ function invigWindowText(b, exam) {
   var st = b.status === 'active' ? 'Open now — closes at ' + invigClock(w.end) : b.status === 'upcoming' ? 'Opens at ' + invigClock(w.start) : 'Closed';
   return span + ' · <strong>' + escapeHtml(st) + '</strong>';
 }
+/* Add time (prepared assessments; any test): the Administrator, and Admin
+   Staff with Online Exams ticked (CESTISCore.assessments.mayAddTime) — for one
+   trainee from her row, or for the whole sitting. */
+function invigMayAddTime() {
+  try { return !!(CESTISCore.assessments && CESTISCore.assessments.mayAddTime(currentRole, currentRole === 'adminstaff' ? asAccessForMe() : null)); } catch (e) { return false; }
+}
+function invigAddTime(studentId) {
+  var exam = invigState && invigState.exam;
+  if (!exam) return;
+  assessLoad(true).then(function() { CESTISAssessStaff.addTime(exam.id, studentId || ''); }, function() { showToast('This could not be opened just now. Try again.', 'error'); });
+}
 function invigRender() {
   invigState.lastDraw = Date.now();
   var main = document.getElementById('invigMain');
@@ -33144,8 +33384,13 @@ function invigRender() {
     var dh = b.dates.map(function(d) { return '<option value="' + escapeAttr(d) + '"' + (d === b.date ? ' selected' : '') + '>' + escapeHtml(invigDayText(d)) + '</option>'; }).join('');
     if (dSel.innerHTML !== dh) dSel.innerHTML = dh;
   }
+  var _allX = 0;
+  try { _allX = CESTISCore.exams.extraMinutesFor(exam, '__whole-sitting__'); } catch (x) { _allX = 0; }
   if (meta) meta.innerHTML = '<strong>' + escapeHtml(exam.course || '') + '</strong> · ' + escapeHtml(invigDayText(b.date)) + ' · ' + invigWindowText(b, exam) +
-    ' · ' + escapeHtml(String(exam.duration || '')) + ' minutes, ' + CESTISCore.exams.questionCount(exam) + ' questions';
+    ' · ' + escapeHtml(String(exam.duration || '')) + ' minutes, ' + CESTISCore.exams.questionCount(exam) + ' questions' +
+    (_allX ? ' · <span class="invig-extra">+' + escapeHtml(CESTISCore.assessments.minutesText(_allX)) + ' extra time for everyone</span>' : '');
+  var _xtb = document.getElementById('invigAddTimeBtn');
+  if (_xtb) _xtb.hidden = !(typeof invigMayAddTime === 'function' && invigMayAddTime());
   var liveN = b.rows.filter(function(r) { return r.live; }).length;
   var fh = '<span>Updates arrive by themselves — last checked <span id="invigChecked">just now</span>.</span>' +
     (liveN ? '<span class="invig-live">' + liveN + ' linked live</span>' : '') +
@@ -33204,6 +33449,11 @@ function invigRowHtml(r) {
   var answered = (r.status === 'in-progress' || r.status === 'submitted') && r.total
     ? '<span class="invig-num">' + r.answered + ' of ' + r.total + '</span><div class="invig-bar" aria-hidden="true"><span style="width:' + pct + '%"></span></div>' : '—';
   var left = r.status === 'in-progress' && r.deadline ? '<span class="invig-num" data-invig-left="' + r.deadline + '"></span>' : '—';
+  // Extra time given to her (or the whole sitting), and Add time.
+  if (r.extraMin) left = (left === '—' ? '' : left) + '<div class="invig-sub invig-extra">+' + escapeHtml(CESTISCore.assessments ? CESTISCore.assessments.minutesText(r.extraMin) : r.extraMin + ' min') + ' extra time</div>';
+  if ((r.status === 'in-progress' || r.status === 'not-started') && typeof invigMayAddTime === 'function' && invigMayAddTime()) {
+    left += '<div><button type="button" class="btn btn-sm btn-secondary invig-addtime" onclick="event.stopPropagation();invigAddTime(' + sid + ')" aria-label="Add time for ' + escapeAttr(r.name) + '">Add time</button></div>';
+  }
   var last = r.lastActivityAt && r.status !== 'not-started' && r.status !== 'absent'
     ? '<span data-invig-ago="' + r.lastActivityAt + '"></span>' +
       (r.asOf && r.status === 'in-progress' ? '<div class="invig-sub">updated <span data-invig-ago="' + r.asOf + '"></span></div>' : '')
@@ -33614,6 +33864,59 @@ function invigApplyAttendance() {
   closeModal('invigAttendModal');
   showToast('Added ' + done.length + ' mark' + (done.length === 1 ? '' : 's') + ' to the attendance for ' + invigDayText(dlg.date, true) + (locked ? ' · ' + locked + ' on a closed register were not changed' : ''), 'success');
   invigRenderRegister();
+}
+/* ---- Prepared assessments: the pages are in cestis-assessments.js (a
+   trainee's units, group practicals, "Sign and submit", her own record) and
+   cestis-assessments-staff.js (the Assessments page, Assessment Results, the
+   practical marking, adding time, filing the office copy), fetched from this
+   site the first time a page needs them — never on a trainee's first load. */
+function assessLoad(staff) {
+  var need = staff ? ['CESTISAssess', 'CESTISAssessStaff'] : ['CESTISAssess'];
+  return need.reduce(function(p, n) { return p.then(function() { return cestisNeedLib(n); }); }, Promise.resolve());
+}
+/* Every completed prepared assessment filed in the Assessment Results folder
+   by an office PC (the Administrator's or Admin Staff's), beside the save,
+   never waited for: the staff part is fetched only once there is an
+   assessment opened for an intake (CESTISAssessStaff.fileTick decides when). */
+var _assessFilingLoadAt = 0;
+function assessFilingTick() {
+  if (currentRole !== 'admin' && currentRole !== 'adminstaff') return;
+  if (!isCloudConnected || !googleAccessToken) return;
+  if (typeof cestisGateSession === 'function' && cestisGateSession()) return;
+  if (!Array.isArray(exams) || !exams.some(function(e) { return e && e.assessment && e.assessment.master === false; })) return;
+  if (window.CESTISAssessStaff) { try { CESTISAssessStaff.fileTick(); } catch (e) { console.warn('[Assessments]', e); } return; }
+  if (Date.now() - _assessFilingLoadAt < 5 * 60 * 1000) return;
+  _assessFilingLoadAt = Date.now();
+  assessLoad(true).then(function() { try { CESTISAssessStaff.fileTick(); } catch (e) {} }, function() {});
+}
+// Her own record of a prepared assessment, from the result screen.
+function assessMyRecord(examId) {
+  return assessLoad(false).then(function() { return CESTISAssess.myPdf(examId); }, function() { showToast('Your record could not be made just now. Check the connection and try again.', 'error'); });
+}
+function assessMount(feature, prefix) {
+  var staff = feature !== 'my-assessments';
+  return assessLoad(staff).then(function() {
+    return (staff ? CESTISAssessStaff : CESTISAssess).mount(feature, prefix);
+  }).catch(function(e) {
+    console.warn('[Assessments] could not open', feature, e);
+    document.querySelectorAll('[data-assess-page="' + feature + '"]').forEach(function(root) {
+      root.innerHTML = '<div class="card" role="alert">This page could not be opened just now. Check the connection, then open it again.</div>';
+    });
+  });
+}
+// Prepared assessments' records that arrived from another device, tab or the
+// Centre's copy: record by record, the newest edit winning, never adopted
+// wholesale and never shortened. Returns true when anything changed.
+function assessWorkMergeIncoming(incoming) {
+  if (!Array.isArray(incoming) || !window.CESTISCore) return false;
+  if (!Array.isArray(assessmentWork)) assessmentWork = [];
+  var out = CESTISCore.sync.mergeList(assessmentWork, incoming, syncKeyById, { tombs: syncTombsFor('assessmentWork') });
+  var changed = !!(out.added || out.updated || out.removed);
+  if (changed) {
+    try { saveCollection('voctrain_assessmentWork', assessmentWork); } catch (e) {}
+    try { if (window.CESTISAssess && typeof CESTISAssess.refresh === 'function') CESTISAssess.refresh('work'); } catch (e) {}
+  }
+  return changed;
 }
 // Registers that arrived from another device, tab or the Centre's copy:
 // register by register, notes and sign-offs entry by entry (never adopted
@@ -38089,6 +38392,7 @@ async function mergeFromCloud() {
     try { if (typeof examAttemptsMergeIncoming === 'function') examAttemptsMergeIncoming(backupData.data.examAttempts); } catch(e) {}
     // The sittings' registers: register by register, notes entry by entry.
     try { if (typeof invigRegistersMergeIncoming === 'function') invigRegistersMergeIncoming(backupData.data.examRegisters); } catch(e) {}
+    try { if (typeof assessWorkMergeIncoming === 'function') assessWorkMergeIncoming(backupData.data.assessmentWork); } catch(e) {}
 
     // Merge chat data from cloud backup
     if (backupData.data.chatRooms) {
@@ -39390,6 +39694,8 @@ async function savePerUserBackup() {
         examAttempts: (typeof examAttempts !== 'undefined' && Array.isArray(examAttempts)) ? examAttempts : [],
         // The sittings' registers are the staff's: a trainee's device sends none.
         examRegisters: currentRole === 'student' ? undefined : ((typeof examRegisters !== 'undefined' && Array.isArray(examRegisters)) ? examRegisters : []),
+        // A trainee's device sends only her own photos and sign-offs.
+        assessmentWork: (typeof assessmentWork !== 'undefined' && Array.isArray(assessmentWork)) ? (currentRole === 'student' ? assessmentWork.filter(function(r) { return r && (r.type === 'photo' || r.type === 'signoff') && currentStudent && r.studentId === currentStudent.id; }) : assessmentWork) : [],
         announcements: announcements,
         attendanceRecords: attendanceRecords,
         vcSessions: vcSessions,
@@ -40087,8 +40393,9 @@ async function mergeBackupData(backupData) {
       var _exBefore = {};
       exams.forEach(function(e){ if (e && e.id != null) _exBefore[e.id] = e.title; });
       var _exTombs = CESTISCore.exams.translateLegacyTombs(syncTombsFor('exams'), exams, backupData.data.exams);
+      // Extra time given at a sitting is kept grant by grant (RECORD_MAPS.exams).
       var _exOut = CESTISCore.sync.mergeList(exams, backupData.data.exams, CESTISCore.exams.syncKey,
-        { tombs: _exTombs, accept: function(c){ return !_de[c.id] && !(_det[c.title] && (c.id == null || c.id === '')); } });
+        CESTISCore.sync.mapRules('exams', { tombs: _exTombs, accept: function(c){ return !_de[c.id] && !(_det[c.title] && (c.id == null || c.id === '')); } }));
       if (_exOut.added || _exOut.updated || _exOut.removed) changed = true;
       // An exam deleted elsewhere: its results here are archived, as they are
       // on the device that deleted it, instead of lingering as orphans.
@@ -40157,6 +40464,7 @@ async function mergeBackupData(backupData) {
     // The invigilators' registers of each sitting (CESTISCore.invigilation):
     // register by register, a note or a sign-off entry by entry.
     if (typeof invigRegistersMergeIncoming === 'function' && invigRegistersMergeIncoming(backupData.data.examRegisters)) changed = true;
+    if (typeof assessWorkMergeIncoming === 'function' && assessWorkMergeIncoming(backupData.data.assessmentWork)) changed = true;
 
     // Merge chat rooms
     if (Array.isArray(backupData.data.chatRooms)) {
@@ -41046,6 +41354,8 @@ async function autoSaveToAllFolders() {
     try { if (typeof gateStaffTick === 'function') gateStaffTick(); } catch (e) { console.warn('[TraineeGate]', e); }
     // The week's dated backup (OPS-1): once a week, on its own, never waited for.
     try { if (typeof cestisWeeklyBackupTick === 'function') cestisWeeklyBackupTick(); } catch (e) { console.warn('[WeeklyBackup]', e); }
+    // Completed prepared assessments filed in the Assessment Results folder.
+    try { if (typeof assessFilingTick === 'function') assessFilingTick(); } catch (e) { console.warn('[Assessments]', e); }
     // While storage is noted as full: one small look at the storage figure
     // every 2 minutes; room again clears the note, and saving resumes.
     try {
@@ -41113,6 +41423,8 @@ async function autoSaveToAllFolders() {
         examAttempts: (typeof examAttempts !== 'undefined' && Array.isArray(examAttempts)) ? examAttempts : [],
         // The invigilators' registers (a trainee's device sends none).
         examRegisters: currentRole === 'student' ? undefined : ((typeof examRegisters !== 'undefined' && Array.isArray(examRegisters)) ? examRegisters : []),
+        // A trainee's device sends only her own photos and sign-offs.
+        assessmentWork: (typeof assessmentWork !== 'undefined' && Array.isArray(assessmentWork)) ? (currentRole === 'student' ? assessmentWork.filter(function(r) { return r && (r.type === 'photo' || r.type === 'signoff') && currentStudent && r.studentId === currentStudent.id; }) : assessmentWork) : [],
         chatRooms: lmsChatRooms,
         chatMessages: CESTISCore.chat.stripUploadedBytes(lmsChatMessages), // attachments Drive already holds travel as their link
         chatProfiles: lmsChatProfiles,
@@ -41388,7 +41700,7 @@ var GATE_CONFIG_FILE = 'CESTIS_GATE.json';
 var GATE_FOLDER_MIME = 'application/vnd.google-apps.folder';
 // Must equal GATE_VERSION in trainee-gate/Gate.gs (tests/gate-card-ready.test.js checks it):
 // a gate older than this shows "A newer version is available" on the Settings card.
-var GATE_EXPECTED_VERSION = 3;
+var GATE_EXPECTED_VERSION = 4;
 var GATE_LIMITS = {
   gapMs: 500,                 // at most 2 writes a second
   perTick: 120,               // and 120 in one turn
@@ -41412,6 +41724,8 @@ var GATE_STORE_KEYS = ['voctrain_users', 'voctrain_deletedUserIds', 'voctrain_st
   'voctrain_certDownloadApprovals', 'voctrain_support_messages', 'voctrain_chatRooms', 'voctrain_chatMessages',
   'voctrain_skillAreas', 'voctrain_instructorData', 'voctrain_transcriptProfiles', 'voctrain_studentProfiles',
   'voctrain_certTemplates',
+  // Prepared assessments: her photos, sign-offs, results and filed papers, and her group (CESTISCore.assessments).
+  'voctrain_assessmentWork',
   // Her fees at home (CESTISCore.gate.home.buildFees): read only, and only on a PC that holds the fee roll.
   'cestiSchoolFeeStudents', 'cestiSchoolFeePayments', 'cestiSchoolFeeDeletedPaymentIds'];
 // This page's own state for the gate (never stored: it is rebuilt after a reload).
@@ -43502,6 +43816,25 @@ function gateResultArrived(r) {
   var ex = (exams || []).find(function(x) { return x && x.id === r.examId; });
   showToast('Your result for ' + ((ex && ex.title) || 'your test') + ' is here: ' + r.score + '%.');
 }
+/* Her own record of a prepared assessment, made on her device (the owner:
+   "the moment the trainee submits, she can download her own PDF"): the
+   paper as she saw it (no answer keys), her answers, her signature and the
+   moment she submitted — kept on this device only ("Session" in the key: no
+   backup, sync or other device ever holds it), and the newest ten. */
+var ASSESS_COPY_PREFIX = 'cestisAssessSessionCopy__';
+function assessKeepCopy(s, result) {
+  if (!s || _isExamPreviewMode || !examIsAssessmentSession(s)) return;
+  var copy = { v: 1, attemptId: s.attemptId, examId: s.examId, studentId: s.studentId, studentName: s.studentName, title: s.title,
+    questions: s.questions, answers: s.answers, signature: s.signature || null, startTime: s.startTime, deadline: s.deadline,
+    submittedAt: new Date().toISOString(), resultId: result ? result.id : '' };
+  try {
+    CESTISStore.setItem(ASSESS_COPY_PREFIX + s.attemptId, JSON.stringify(copy));
+    var keys = [];
+    for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); if (k && k.indexOf(ASSESS_COPY_PREFIX) !== -1) keys.push(k); }
+    if (keys.length > 10) keys.map(function(k) { var v = null; try { v = JSON.parse(localStorage.getItem(k)); } catch (e) {} return { k: k, t: Date.parse(v && v.submittedAt || '') || 0 }; })
+      .sort(function(a, b) { return a.t - b.t; }).slice(0, keys.length - 10).forEach(function(x) { try { localStorage.removeItem(x.k); } catch (e) {} });
+  } catch (e) {}
+}
 function gateSubmitExam(s, auto, opts) {
   opts = opts || {};
   var X = CESTISCore.exams;
@@ -43513,6 +43846,7 @@ function gateSubmitExam(s, auto, opts) {
   _examLeft = null; _examOffline = null;
   try { examLivePulseDone(s, { submittedAt: new Date(examStampNow()).toISOString() }); } catch (e) {}
   var attempt = examAttemptRecord(s);
+  try { assessKeepCopy(s, null); } catch (e) {}
   var ids = (s.alsoIds && s.alsoIds.length ? s.alsoIds : [s.attemptId]);
   // Closed here, at once: the clock stops, and this device never offers it again.
   var retired = X.retireAttempt({ id: s.attemptId, examId: s.examId, studentId: s.studentId, startTime: s.startTime, deadline: s.deadline, activity: s.activity }, null, new Date().toISOString());
@@ -49727,7 +50061,8 @@ var asAccessPages = [
   { key:'video', label:'Video Conference', desc:'Join and manage video sessions' },
   { key:'resources', label:'Resource Manager', desc:'Access shared resources' },
   { key:'supportmessages', label:'Support Messages', desc:'Send and receive support messages' },
-  { key:'traineeaccounts', label:'Trainee Accounts', desc:'Add trainee accounts, and approve or reject trainees\' registrations (trainees only)' }
+  { key:'traineeaccounts', label:'Trainee Accounts', desc:'Add trainee accounts, and approve or reject trainees\' registrations (trainees only)' },
+  { key:'assessmentresults', label:'Assessment Results', desc:'View, print and download completed assessments and a group\'s photos (on for anyone with Online Exams or Certificates, unless you turn it off)' }
 ];
 
 function loadAdminStaffAccess() {
@@ -49781,7 +50116,8 @@ function renderAdminStaffAccessGrid() {
   var known = adminStaffAccessDefaults();
   asAccessDraft = who ? asAccessFor(who) : (function() {
     var d = {};
-    Object.keys(known).forEach(function(k) { d[k] = (k in adminStaffAccessSettings) ? !!adminStaffAccessSettings[k] : !!known[k]; });
+    Object.keys(known).forEach(function(k) { d[k] = (k in adminStaffAccessSettings && adminStaffAccessSettings[k] !== null) ? !!adminStaffAccessSettings[k] : !!known[k]; });
+    if (typeof AS_ACCESS_DERIVED !== 'undefined') Object.keys(AS_ACCESS_DERIVED).forEach(function(k) { if (adminStaffAccessSettings[k] == null) d[k] = AS_ACCESS_DERIVED[k](d); });
     return d;
   })();
   var note = document.getElementById('asAccessPersonNote');
@@ -49896,6 +50232,13 @@ function buildAdminStaffSidebar() {
   if(my.invigilation) {
     if(!hasAdditional) { html += '<div class="nav-section-label">Permitted Functions</div>'; hasAdditional = true; }
     html += '<div class="nav-item" data-page="as-invigilator" onclick="showPage(\'as-invigilator\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>Exam Invigilator</div>';
+  }
+  if(my.exams) {
+    html += '<div class="nav-item" data-page="assessments" onclick="showPage(\'assessments\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Assessments</div>';
+  }
+  if(my.assessmentresults) {
+    if(!hasAdditional) { html += '<div class="nav-section-label">Permitted Functions</div>'; hasAdditional = true; }
+    html += '<div class="nav-item" data-page="assessment-results" onclick="showPage(\'assessment-results\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><path d="M9 14l2 2 4-4"/></svg>Assessment Results</div>';
   }
 
   var hasMgmt = false;
@@ -50200,6 +50543,8 @@ function buildAdminStaffPages() {
   html += '<section class="page" id="page-a-resources"><div class="cestis-mount" data-feature="a-resources" data-prefix="admin"></div></section>';
   html += '<section class="page" id="page-exams"><div class="cestis-mount" data-feature="exams" data-prefix="admin"></div></section>';
   html += '<section class="page" id="page-as-invigilator">' + '<div class="cestis-mount" data-feature="invigilator" data-prefix="adminstaff"></div>' + '</section>';
+  html += '<section class="page" id="page-assessments"><div class="cestis-mount" data-feature="assessments" data-prefix="adminstaff"></div></section>';
+  html += '<section class="page" id="page-assessment-results"><div class="cestis-mount" data-feature="assessment-results" data-prefix="adminstaff"></div></section>';
   html += '<section class="page" id="page-attendance"><div class="cestis-mount" data-feature="attendance" data-prefix="admin"></div></section>';
   html += '<section class="page" id="page-announcements"><div class="cestis-mount" data-feature="announcements" data-prefix="admin"></div></section>';
   html += '<section class="page" id="page-calendar"><div class="cestis-mount" data-feature="calendar" data-prefix="admin"></div></section>';

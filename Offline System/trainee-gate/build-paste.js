@@ -59,6 +59,9 @@ const CHUNKS = [
   { name: 'Core.accountAccess', start: '  Core.accountAccess = (function () {', end: '  })();' },
   { name: 'Core.exams', start: '  Core.exams = (function () {', end: '  })();' },
   { name: 'Core.enrolment', start: '  Core.enrolment = (function () {', end: '  })();' },
+  // Prepared assessments (version 4): her signature kept in her name, her
+  // extra time, her group's practical records checked before they are kept.
+  { name: 'Core.assessments', start: '  Core.assessments = (function () {', end: '  })();' },
   { name: 'Core.gate', start: '  Core.gate = (function () {', end: '  })();' }
 ];
 

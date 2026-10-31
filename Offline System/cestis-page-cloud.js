@@ -1068,7 +1068,9 @@
       'cestisGateUnassigned', 'cestisGateQuarantine', 'cestisStudentIdMoves'
     ],
     // This module's own bookkeeping about what it has already synced.
-    excludePrefixes: ['cestis_pagecloud_stamps__', 'cestisThisPc_'],
+    // A trainee's own copy of a prepared assessment she submitted (her record
+    // made on her device) stays on her device.
+    excludePrefixes: ['cestis_pagecloud_stamps__', 'cestisThisPc_', 'cestisAssessSessionCopy__'],
     // What this file brings down belongs to the pages that own or read it:
     // whichever pull lands first writes a key, and the other then sees nothing
     // new — so the page must be told either way.

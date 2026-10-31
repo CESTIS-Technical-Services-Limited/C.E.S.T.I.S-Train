@@ -74,8 +74,20 @@ const DEFAULTS = vm.runInNewContext(statement('var AS_ACCESS_DEFAULTS = {', '};'
   assertEq(ng, def, '"use the default" is the default');
   assertEq(Object.keys(SA.forPerson(grid, DEFAULTS, 'x')).sort(), Object.keys(DEFAULTS).sort(), 'only the known sections are answered (not updatedAt, not people)');
   const old = Object.assign({}, DEFAULTS, { attendance: true, reports: true });
-  ['USR-a', 'USR-b'].forEach(id => assertEq(SA.forPerson(old, DEFAULTS, id), Object.assign({}, DEFAULTS, { attendance: true, reports: true }),
+  // A section with no fixed default (null: Assessment Results) is worked out —
+  // with nothing to work it out from, it is off.
+  const was = Object.assign({}, DEFAULTS, { attendance: true, reports: true });
+  Object.keys(was).forEach(k => { if (was[k] === null) was[k] = false; });
+  ['USR-a', 'USR-b'].forEach(id => assertEq(SA.forPerson(old, DEFAULTS, id), was,
     'a grid saved before ticks were kept per person gives everybody what it gave them before (' + id + ')'));
+  // Assessment Results follows Online Exams or Certificates until it is ticked or unticked.
+  const derive = { assessmentresults: o => !!(o.exams || o.certificates) };
+  assert(DEFAULTS.assessmentresults === null, 'Assessment Results has no fixed default');
+  assert(SA.forPerson(Object.assign({}, DEFAULTS, { exams: true }), DEFAULTS, 'x', derive).assessmentresults === true, 'on for somebody with Online Exams');
+  assert(SA.forPerson(Object.assign({}, DEFAULTS, { certificates: true }), DEFAULTS, 'x', derive).assessmentresults === true, 'on for somebody with Certificates');
+  assert(SA.forPerson(Object.assign({}, DEFAULTS), DEFAULTS, 'x', derive).assessmentresults === false, 'off for somebody with neither');
+  assert(SA.forPerson(Object.assign({}, DEFAULTS, { exams: true, assessmentresults: false }), DEFAULTS, 'x', derive).assessmentresults === false, 'the Administrator\'s untick stands');
+  assert(SA.forPerson(Object.assign({}, DEFAULTS, { people: { p: Object.assign({}, DEFAULTS, { assessmentresults: true }) } }), DEFAULTS, 'p', derive).assessmentresults === true, 'a person\'s own tick stands');
   assert(SA.ownTicks(grid, 'USR-sbrown') && !SA.ownTicks(grid, 'USR-ngordon') && !SA.ownTicks(grid, 'USR-x'), 'who has ticks of their own');
   const e = SA.entry({ attendance: true, junk: true }, DEFAULTS, '2026-10-30T12:00:00Z');
   assertEq(Object.keys(e).sort(), Object.keys(DEFAULTS).concat(['updatedAt']).sort(), 'an entry writes every section down, dated (nothing else)');
@@ -132,7 +144,7 @@ function page(role, grid, me) {
     tfaAccountRecord: () => null, tfaEnabled: () => false
   };
   vm.createContext(sb);
-  vm.runInContext(statement('var AS_ACCESS_DEFAULTS = {', '};') + '\nvar adminStaffAccessSettings = ' + JSON.stringify(Object.assign({}, DEFAULTS, grid || {})) + ';\n' +
+  vm.runInContext(statement('var AS_ACCESS_DEFAULTS = {', '};') + '\n' + statement('var AS_ACCESS_DERIVED = {', '};') + '\nvar adminStaffAccessSettings = ' + JSON.stringify(Object.assign({}, DEFAULTS, grid || {})) + ';\n' +
     statement('var AS_PAGE_PERMISSION = {', '};') + '\n' + statement('var AS_WORKING_PAGES = {', '};'), sb);
   ['adminStaffAccessDefaults', 'asAccessFor', 'asAccessForMe', 'applyAdminStaffAccess', 'pageAllowedForRole', 'staffSectionRefused',
     'trainingCentreEditAllowed', 'buildAdminStaffSidebar', 'passwordResetRefused', 'openResetPassword', 'confirmResetPasswordVerified', 'officeMay']
