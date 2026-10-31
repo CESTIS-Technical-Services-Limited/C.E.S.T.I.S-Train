@@ -39016,18 +39016,27 @@ async function cestisWeeklyBackupRun(label) {
       description: 'The Centre\'s weekly backup, week ' + label + '. Made by itself; the newest 12 are kept.' };
     var masterId = await findMasterSnapshotFile();
     if (masterId === 'LOOKUP_FAILED') return { made: false, why: 'lookup-failed' };
-    // A whole-Centre backup not written for more than a day is written
-    // first, by a PC that has read the Centre's records this session.
-    if (masterId && _mainMergedThisSession) {
+    // 1. Copied where it is kept (no upload) — only when it is known to be
+    //    up to date: written in the last day, or written again just now by a
+    //    PC that has read the Centre's records this session. One that is
+    //    older, and could not be written again, is never made the week's
+    //    backup: this PC's own is uploaded instead (2), or the week is tried
+    //    again later.
+    if (masterId) {
+      var fresh = false;
       try {
         var mm = await api.get(masterId, 'id,modifiedTime');
-        if (now - (Date.parse(mm.modifiedTime || '') || 0) > 24 * 3600 * 1000) await saveMasterSnapshot('weekly-backup', true);
+        fresh = now - (Date.parse(mm.modifiedTime || '') || 0) <= 24 * 3600 * 1000;
       } catch (e) { if (e && e.storageFull) throw e; }
-    }
-    // 1. Copied where it is kept: no upload.
-    if (masterId) {
-      try { made = await api.copy(masterId, meta); how = 'copy'; }
-      catch (e) { if (e && e.storageFull) throw e; made = null; console.warn('[WeeklyBackup] could not copy the whole-Centre backup (' + (e && e.message) + '); uploading this PC\'s instead.'); }
+      if (!fresh && _mainMergedThisSession) {
+        var rewrote = null;
+        try { rewrote = await saveMasterSnapshot('weekly-backup', true); } catch (e) { rewrote = null; }
+        fresh = !!(rewrote && rewrote.ok);
+      }
+      if (fresh) {
+        try { made = await api.copy(masterId, meta); how = 'copy'; }
+        catch (e) { if (e && e.storageFull) throw e; made = null; console.warn('[WeeklyBackup] could not copy the whole-Centre backup (' + (e && e.message) + '); uploading this PC\'s instead.'); }
+      } else console.warn('[WeeklyBackup] the whole-Centre backup is more than a day old and could not be written again; not copied.');
     }
     // 2. Otherwise the whole-Centre backup this PC builds — only from a PC
     //    that has read the Centre's records this session.

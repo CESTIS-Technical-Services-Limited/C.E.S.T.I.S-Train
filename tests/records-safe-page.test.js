@@ -94,7 +94,8 @@ for (const page of PAGES) {
     const api = fakeApi(o);
     const MASTER_FOLDER = 'MF';
     api.files.MF = { id: 'MF', name: 'Master Snapshot', parents: ['ROOT'], createdTime: '2025-01-01T00:00:00.000Z', mimeType: 'application/vnd.google-apps.folder' };
-    if (!o.noMaster) api.files.M = { id: 'M', name: 'cestis-master-snapshot.json', parents: ['MF'], createdTime: '2025-01-02T00:00:00.000Z', modifiedTime: new Date().toISOString(), content: '{"checksum":"x","store":{}}' };
+    if (!o.noMaster) api.files.M = { id: 'M', name: 'cestis-master-snapshot.json', parents: ['MF'], createdTime: '2025-01-02T00:00:00.000Z',
+      modifiedTime: new Date(Date.now() - (o.staleDays || 0) * 86400000).toISOString(), content: o.staleDays ? '{"checksum":"old","store":{}}' : '{"checksum":"x","store":{}}' };
     const saved = [];
     const ctx = {
       console: { log() {}, warn() {}, error() {} }, JSON, Object, Array, Date, Math, Promise, Error, String, Number, Set,
@@ -104,7 +105,13 @@ for (const page of PAGES) {
       _mainMergedThisSession: o.merged !== false, _lastAutoSaveResult: { uploaded: false },
       cestisBackupApi: () => api,
       findMasterSnapshotFile: async () => (o.lookupFailed ? 'LOOKUP_FAILED' : (api.files.M ? 'M' : null)),
-      saveMasterSnapshot: async () => { saved.push(1); return { ok: true }; },
+      // Writing the whole-Centre backup again: it fails, or brings it up to date.
+      saveMasterSnapshot: async () => {
+        saved.push(1);
+        if (o.rewriteFails) return { ok: false, reason: 'http-503' };
+        if (api.files.M) { api.files.M.modifiedTime = new Date().toISOString(); api.files.M.content = '{"checksum":"new","store":{}}'; }
+        return { ok: true };
+      },
       saveState: () => { saved.push('settings'); },
       cestisCollectStoreMap: () => ({ voctrain_students: JSON.stringify([{ id: 'S1', name: 'Tameka Richards' }]) }),
       cestisUnionMasterTombstones: () => {}, getCurrentCloudUser: () => ({ username: 'mthompson' }),
@@ -147,6 +154,20 @@ for (const page of PAGES) {
   x = world({ copyBroken: true, merged: false });
   r = await x.ctx.cestisWeeklyBackupRun(label);
   assert(!r.made && r.why === 'not-merged-yet' && x.api.calls.indexOf('upload') === -1, w + ': ...but never from a PC that has not read the Centre\'s records yet');
+  // A whole-Centre backup more than a day old.
+  x = world({ staleDays: 9 });
+  r = await x.ctx.cestisWeeklyBackupRun(label);
+  let wk = Object.values(x.api.files).find(f => f.name === B.fileName(label));
+  assert(r.made && r.how === 'copy' && x.saved.indexOf(1) !== -1 && wk && wk.content === '{"checksum":"new","store":{}}', w + ': one more than a day old is written again first, and the copy is of what was just written');
+  x = world({ staleDays: 9, rewriteFails: true });
+  r = await x.ctx.cestisWeeklyBackupRun(label);
+  wk = Object.values(x.api.files).find(f => f.name === B.fileName(label));
+  snap = null; try { snap = JSON.parse(wk.content); } catch (e) {}
+  assert(r.made && r.how === 'upload' && x.api.calls.indexOf('copy') === -1 && snap && snap.event === 'weekly-backup' && snap.checksum !== 'old', w + ': ...and when that write does not go through, the old one is not copied: this PC\'s own is uploaded (' + x.api.calls.join(',') + ')');
+  x = world({ staleDays: 9, merged: false });
+  r = await x.ctx.cestisWeeklyBackupRun(label);
+  assert(!r.made && r.why === 'not-merged-yet' && x.api.calls.indexOf('copy') === -1 && x.api.calls.indexOf('upload') === -1 && x.saved.indexOf(1) === -1, w + ': a PC that has not read the Centre\'s records yet neither copies the old one nor writes it');
+  assert(!JSON.parse(x.ls.cestisThisPc_weeklyBackups || '{}').doneWeek, w + ': ...and does not note the week as done, so it is tried again');
   x = world({ lookupFailed: true });
   r = await x.ctx.cestisWeeklyBackupRun(label);
   assert(!r.made && r.why === 'lookup-failed', w + ': the whole-Centre backup could not be looked for: nothing made, tried again later');
