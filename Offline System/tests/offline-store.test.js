@@ -124,6 +124,46 @@ const DATA = path.join(tmp, 'data');
   assert(JSON.parse(fs.readFileSync(path.join(DATA, '.history', 'H.json', kept[2]), 'utf8')).n === 4,
     'and the newest kept is the one just replaced, ready to copy back');
 
+  /* ---------- 3b. One dated copy a week, for 12 weeks (OPS-1) ---------- */
+  console.log('One dated copy of every file a week, kept for 12 weeks');
+  const zlib = require('zlib');
+  const W = path.join(DATA, 'W.json');
+  const DAY = 86400000, mon = new Date(2026, 9, 26, 9).getTime();   // Monday of week 44
+  assert(store.isoWeekLabel(mon) === '2026-W44' && store.isoWeekLabel(mon - DAY) === '2026-W43' && store.isoWeekLabel(new Date(2027, 0, 1, 12).getTime()) === '2026-W53',
+    'weeks are ISO weeks, Monday to Sunday');
+  await store.save({ file: W, dataDir: DATA, core: Core, incoming: pagefile([{ id: 'W1' }], T1), now: mon });
+  await store.weeklySettled(DATA, W);
+  assert(store.weeklyCopies(DATA, W).length === 0, 'a file saved for the first time has nothing to copy yet');
+  await store.save({ file: W, dataDir: DATA, core: Core, incoming: pagefile([{ id: 'W2' }], T2), now: mon + 3600000 });
+  await store.weeklySettled(DATA, W);
+  let wk = store.weeklyCopies(DATA, W);
+  assert(wk.join() === '2026-W44.json.gz', 'the first change of the week keeps a dated copy: ' + wk.join());
+  const firstCopy = JSON.parse(store.readWeekly(DATA, W, wk[0]));
+  assert(JSON.parse(firstCopy.data.voctrain_examResults).map(x => x.id).join() === 'W1', 'it is the file as it stood when the week\'s first change came in');
+  assert(zlib.gunzipSync(fs.readFileSync(path.join(store.weeklyDir(DATA, W), wk[0]))).toString('utf8') === JSON.stringify(firstCopy), 'compressed, and readable with any unzip tool');
+  await store.save({ file: W, dataDir: DATA, core: Core, incoming: pagefile([{ id: 'W3' }], '2026-10-01T11:00:00.000Z'), now: mon + 2 * DAY });
+  await store.weeklySettled(DATA, W);
+  assert(store.weeklyCopies(DATA, W).length === 1 && JSON.parse(store.readWeekly(DATA, W, '2026-W44.json.gz')).data.voctrain_examResults === firstCopy.data.voctrain_examResults,
+    'later changes the same week keep it as it was (one copy a week)');
+  for (let i = 1; i <= 14; i++) {
+    await store.save({ file: W, dataDir: DATA, core: Core, incoming: pagefile([{ id: 'X' + i }], new Date(Date.parse('2026-10-01T12:00:00.000Z') + i * 60000).toISOString()), now: mon + i * 7 * DAY });
+    await store.weeklySettled(DATA, W);
+  }
+  wk = store.weeklyCopies(DATA, W);
+  assert(wk.length === 12, 'the newest 12 weeks are kept: ' + wk.length);
+  assert(wk[0] === store.isoWeekLabel(mon + 3 * 7 * DAY) + '.json.gz' && wk[11] === store.isoWeekLabel(mon + 14 * 7 * DAY) + '.json.gz', 'older weeks are removed (' + wk[0] + ' … ' + wk[11] + ')');
+  fs.writeFileSync(path.join(store.weeklyDir(DATA, W), 'keep me.txt'), 'notes');
+  await store.save({ file: W, dataDir: DATA, core: Core, incoming: pagefile([{ id: 'Y' }], '2026-10-02T12:00:00.000Z'), now: mon + 15 * 7 * DAY });
+  await store.weeklySettled(DATA, W);
+  assert(fs.existsSync(path.join(store.weeklyDir(DATA, W), 'keep me.txt')), 'only weekly copies are ever removed from the folder');
+  assert(store.weeklyCopies(DATA, W).length === 12 && JSON.parse(fs.readFileSync(W, 'utf8')).data.voctrain_examResults.indexOf('"W1"') !== -1,
+    'and the records file itself still holds everything (the copies are extra)');
+  assert(fs.readdirSync(path.dirname(store.weeklyDir(DATA, W))).every(f => !/\.tmp$/.test(f)), 'no temporary file is left behind');
+  assert(store.WEEKLY_KEEP === 12, '12 weeks by default');
+  const server2 = fs.readFileSync(path.join(ROOT, 'cestis-offline-server.js'), 'utf8');
+  assert(/\.weekly/.test(server2) && /WEEKLY_KEEP/.test(server2), 'the server says so when it starts');
+  assert(/ONE COPY A WEEK, FOR 12 WEEKS/.test(fs.readFileSync(path.join(ROOT, 'READ ME FIRST.txt'), 'utf8')), 'and READ ME FIRST says how to use one');
+
   /* ---------- 4. Token ---------- */
   console.log('The access token survives a restart');
   const CERT = path.join(tmp, 'cert');

@@ -1,8 +1,16 @@
 # CESTIS Training LMS + MegaData
 
+> **Running the Centre day to day — backups, the weekly health check, the monthly USB copy, the
+> yearly chores, and what to do when something goes wrong:**
+> [`docs/RUNNING-THE-CENTRE.md`](docs/RUNNING-THE-CENTRE.md). Start there.
+
 The Centre's static-page LMS (GitHub Pages, consumer-Gmail Drive — decision D1: strictly
-zero-cost infrastructure) plus **MegaData**, the single canonical append-only data layer that
-replaces per-page storage silos. Full background: `MEGADATA_SPEC.md` (the client brief),
+zero-cost infrastructure) plus **MegaData**, a canonical append-only data layer designed to
+replace per-page storage silos. **MegaData is built but not in use:** no broker is deployed, so
+every page runs in its *legacy* mode, where records are kept on each device and synced to the
+Centre's Drive (and, on the Centre's own network, to the Offline System's server).
+
+Full MegaData background: `MEGADATA_SPEC.md` (the client brief),
 `docs/SECTION-0-VERDICT.md` (the signed feasibility verdict), `docs/DECISIONS.md` (D1–D11),
 `docs/02-MEGADATA-ARCHITECTURE.md` (the design), `docs/04-BOOTSTRAP-AND-CUTOVER.md` (the
 migration), `docs/03-VERIFICATION.md` (gate-by-gate proof with actual outputs).
@@ -45,7 +53,7 @@ npm run build:offline          # stamp the ?v= tags (npm run stamp), then regene
 npm run test:browser           # real Chromium over the real pages (zero uncaught errors)
 npm run test:browser:flows     # a whole training day, live class to certificate, through the real screens
 npm run test:browser:upgrade   # a Centre's data written by the previous version, opened by this one
-#   ...and test:browser:offline / :auth / :cert / :vc / :ui / :security / :transcripts / :fee
+#   ...and the other test:browser:* suites (36 in all; see package.json) — run them one at a time
 node megadata/bootstrap-cli.js --src tests/fixtures    # migration dry-run over the real (anonymised) backup
 ```
 
@@ -55,7 +63,13 @@ past a failure and names every suite that failed). GitHub runs `npm test`, the s
 Offline System and version-tag checks and three quick browser suites on every pull request and
 every change to `main` (`.github/workflows/checks.yml`).
 
-## Setting the system up (operator checklist)
+## Setting up MegaData (operator checklist) — NOT IN USE
+
+> **Not in use.** This checklist is for the MegaData broker, which the Centre has not deployed and
+> does not need today. Do not follow it to run the Centre: see
+> [`docs/RUNNING-THE-CENTRE.md`](docs/RUNNING-THE-CENTRE.md) and, for trainee sign-in from home,
+> [`trainee-gate/SETUP.md`](trainee-gate/SETUP.md). It is kept as the record of how MegaData would
+> be switched on.
 
 1. **Deploy the broker** — follow `megadata/broker-appsscript/README-DEPLOY.md` in the school's
    Google account: paste `Code.gs`, set Script Properties `HMAC_SECRET` (a long random string —

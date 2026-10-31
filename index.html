@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <script src="cestis-config.js?v=284ebb2a"></script>
-<script src="cestis-core.js?v=a38ff14d"></script>
+<script src="cestis-core.js?v=5121ca9b"></script>
 <script src="cestis-form-modal.js?v=74020c38" defer></script>
 <!-- Inert until a page registers: the CMC Board registers as a READ-ONLY reader
      so the operating pages' books reach its dashboards without anyone syncing. -->
-<script src="cestis-page-cloud.js?v=6e14079c"></script>
+<script src="cestis-page-cloud.js?v=50679424"></script>
 <script src="cestis-gate-client.js?v=e98c2d11" defer></script>
 <!-- The staff and board modules: Staff Appraisals, the CMC Board's portal and
      the certificate designs' seed (about 255 KB, 61 KB on the wire). A trainee's
@@ -2536,7 +2536,17 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
    never the only sign. Drawn from the theme tokens, so it reads in Dark and
    in Light. */
 .sync-chip-wrap { position:relative; display:none; }
-.sync-chip-wrap.on { display:block; }
+.sync-chip-wrap.on { display:flex; align-items:center; gap:6px; }
+/* Reconnect: the sync sign-in could not renew itself (OPS-11). */
+.sync-reconnect { min-height:36px; padding:6px 12px; border-radius:20px; cursor:pointer; font:700 12px 'DM Sans',sans-serif; white-space:nowrap;
+  background:var(--accent-fill); color:var(--on-accent); border:1px solid var(--accent); }
+.sync-reconnect:hover { filter:brightness(1.08); }
+.sync-reconnect:disabled { opacity:.7; cursor:progress; }
+.sync-reconnect[hidden] { display:none; }
+@media (max-width:600px) {
+  .sync-reconnect { min-height:34px; padding:6px 9px; }
+  body.sync-renew .topbar-title { display:block; white-space:nowrap; text-overflow:ellipsis; overflow-wrap:normal; }
+}
 .sync-chip {
   display:flex; align-items:center; gap:7px; min-height:36px; padding:6px 12px; border-radius:20px; cursor:pointer;
   font-size:12px; font-weight:600; font-family:'DM Sans',sans-serif; white-space:nowrap;
@@ -2568,6 +2578,43 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 .sync-chip-panel-advice { margin:8px 0 0 16px; padding:0; }
 .sync-chip-panel-advice li { margin-top:4px; }
 .sync-chip-panel-advice:empty { display:none; }
+/* The Administrator's last weekly backup and storage (cestisRenderBackupLine). */
+.sync-chip-panel-backup { margin-top:10px; padding-top:8px; border-top:1px solid var(--border-light); }
+.sync-chip-panel-backup[hidden], .sync-chip-panel-backup [hidden] { display:none; }
+.sync-chip-backup-line { color:var(--text-primary); font-weight:600; padding-left:14px; position:relative; margin-top:4px; }
+.sync-chip-backup-line::before { content:''; position:absolute; left:0; top:.45em; width:8px; height:8px; border-radius:50%; background:var(--text-muted); }
+.sync-chip-backup-line.tone-ok::before { background:var(--green); }
+.sync-chip-backup-line.tone-warn::before { background:var(--accent); }
+.sync-chip-backup-line.tone-bad::before { background:var(--red); }
+.sync-chip-backup-prompt { margin-top:4px; padding:7px 9px; border-radius:var(--radius-sm); background:var(--accent-dim); color:var(--text-primary); font-size:12.5px; }
+/* The System health card (the Administrator's dashboard): one line per
+   concern, green / amber / red — and its word, so colour is never the only sign. */
+.sys-health-mount:empty { display:none; }
+.sys-health { margin-bottom:20px; }
+.sys-health-lines { list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:10px 18px; }
+.sys-health-line { display:flex; gap:10px; padding:10px 0; border-bottom:1px solid var(--border); min-width:0; }
+.sys-health-dot { flex:0 0 12px; width:12px; height:12px; border-radius:50%; margin-top:4px; background:var(--text-muted); }
+.sys-health-line.tone-ok .sys-health-dot { background:var(--green); }
+.sys-health-line.tone-warn .sys-health-dot { background:var(--accent); }
+.sys-health-line.tone-bad .sys-health-dot { background:var(--red); }
+.sys-health-body { min-width:0; flex:1; }
+.sys-health-head { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.sys-health-title { font-weight:700; color:var(--text-primary); font-size:14px; }
+.sys-health-pill { display:inline-block; padding:2px 9px; border-radius:20px; font-size:12px; font-weight:700; white-space:nowrap; border:1px solid currentColor; }
+.sys-health-pill.tone-ok { color:var(--green); }
+.sys-health-pill.tone-warn { color:var(--accent); }
+.sys-health-pill.tone-bad { color:var(--red-text); background:var(--red-dim); }
+.sys-health-text { font-size:13px; color:var(--text-primary); margin-top:3px; overflow-wrap:anywhere; }
+.sys-health-todo { font-size:12.5px; color:var(--text-secondary); margin-top:3px; }
+.sys-health-todo-k { font-weight:600; }
+.sys-health-items { list-style:none; margin:6px 0 0; padding:0; font-size:12.5px; color:var(--text-secondary); }
+.sys-health-items li { padding:2px 0 2px 12px; position:relative; overflow-wrap:anywhere; }
+.sys-health-items li::before { content:''; position:absolute; left:0; top:.6em; width:6px; height:6px; border-radius:50%; background:var(--green); }
+.sys-health-items li.tone-warn::before { background:var(--accent); }
+.sys-health-items li.tone-warn { color:var(--text-primary); font-weight:600; }
+.sys-health-act { margin-top:6px; display:flex; gap:8px; flex-wrap:wrap; }
+.sys-health-act .btn { min-height:36px; }
+@media (max-width:600px) { .sys-health-lines { grid-template-columns:1fr; } }
 /* Staff only: the sync actions, in the same panel (a trainee's or board
    member's device is not signed in for syncing). */
 .sync-panel-actions { display:none; margin:12px -16px -14px; padding:6px 0; border-top:1px solid var(--border-light); }
@@ -5191,6 +5238,13 @@ html.gate-ns .tam-gate-only { display:flex; }
 .gate-facts { margin-top:16px; display:grid; gap:6px; font-size:13px; color:var(--text-secondary); }
 .gate-note { font-size:13px; color:var(--text-secondary); margin:6px 0; }
 .gate-waiting { margin:4px 0 0 18px; padding:0; font-size:13px; color:var(--text-secondary); }
+/* The setup sheet's live checks, as buttons (gateLiveCheck). */
+.gate-checks { margin-top:18px; padding-top:14px; border-top:1px solid var(--border); }
+.gate-check-results { list-style:none; margin:10px 0 0; padding:0; display:grid; gap:6px; }
+.gate-check-result { font-size:13px; padding:8px 12px; border-radius:var(--radius-sm); border:1px solid var(--border); background:var(--w-02); color:var(--text-primary); line-height:1.5; overflow-wrap:anywhere; }
+.gate-check-result.gate-tone-ok { border-color:var(--green); background:var(--green-dim); }
+.gate-check-result.gate-tone-warn { border-color:var(--accent); background:var(--accent-dim); }
+.gate-check-result.gate-tone-bad { border-color:var(--red); background:var(--red-dim); }
 @media(max-width:768px) {
   .gate-card .btn { min-height:44px; }
   .gate-card .form-control { min-height:44px; font-size:16px; }
@@ -5787,11 +5841,19 @@ html.gate-ns .tam-gate-only { display:flex; }
         <button type="button" class="sync-chip tone-warn" id="syncChip" onclick="toggleSyncChipPanel(event)" aria-expanded="false" aria-controls="syncChipPanel" aria-haspopup="dialog">
           <span class="sync-chip-icon" id="syncChipIcon" aria-hidden="true"></span><span class="sync-chip-label" id="syncChipLabel">Checking…</span>
         </button>
+        <!-- The sync sign-in could not be renewed by itself: renew it from this press (OPS-11). -->
+        <button type="button" class="sync-reconnect" id="syncReconnectBtn" hidden onclick="cestisReconnectFromClick()" aria-label="Reconnect: renew syncing on this computer">Reconnect</button>
         <div class="sync-chip-panel" id="syncChipPanel" role="dialog" aria-labelledby="syncChipPanelTitle" hidden>
           <div class="sync-chip-panel-title" id="syncChipPanelTitle"></div>
           <div class="sync-chip-panel-detail" id="syncChipPanelDetail"></div>
           <div class="sync-chip-panel-last" id="syncChipPanelLast"></div>
           <ul class="sync-chip-panel-advice" id="syncChipPanelAdvice"></ul>
+          <!-- The Administrator's: when the last weekly backup was made, and the storage (cestisRenderBackupLine). -->
+          <div class="sync-chip-panel-backup" id="syncChipBackup" hidden>
+            <div class="sync-chip-backup-line" id="syncChipBackupLine"></div>
+            <div class="sync-chip-backup-prompt" id="syncChipBackupPrompt" hidden></div>
+            <div class="sync-chip-backup-line" id="syncChipStorageLine" hidden></div>
+          </div>
           <div class="sync-panel-actions" id="syncPanelActions">
             <div id="cloudNotConnected">
               <button type="button" class="cloud-sync-btn sync-panel-connect" onclick="closeSyncChipPanel(); connectToGoogleDrive()"><span aria-hidden="true">🔄</span><span>Turn On Sync</span></button>
@@ -5806,6 +5868,7 @@ html.gate-ns .tam-gate-only { display:flex; }
                   <button type="button" class="cloud-dropdown-item" onclick="closeSyncChipPanel(); mergeFromCloud()"><span aria-hidden="true">🔀</span><span>Merge Latest Changes</span></button>
                   <button type="button" class="cloud-dropdown-item" onclick="closeSyncChipPanel(); browseBackupFiles()"><span aria-hidden="true">📁</span><span>Browse All Backups</span></button>
                   <button type="button" class="cloud-dropdown-item" onclick="closeSyncChipPanel(); restoreFromMasterBackup()"><span aria-hidden="true">🛟</span><span>Restore from Master Backup</span></button>
+                  <button type="button" class="cloud-dropdown-item" id="weeklyRestoreItem" hidden onclick="closeSyncChipPanel(); restoreFromWeeklyBackup()"><span aria-hidden="true">🗓️</span><span>Restore from a Weekly Backup</span></button>
                   <button type="button" class="cloud-dropdown-item" onclick="closeSyncChipPanel(); syncAllUserLoginFoldersToDrive()"><span aria-hidden="true">👤</span><span>Build User Login Folders</span></button>
                   <div class="cloud-dropdown-divider"></div>
                   <div class="last-sync-info" id="lastSyncInfo">Last sync: Never</div>
@@ -8109,6 +8172,13 @@ function cestisDialogClosed(overlay) {
 // page — so it is an administrator's action only.
 function exportDataBackup() {
   if(currentRole !== 'admin' || !currentLoggedInUser) { showToast('Only a signed-in administrator can export a backup.', 'warning'); return; }
+  // When a copy was last exported by hand (the System health card says so
+  // after 30 days). Kept in the Centre's settings, so every administrator's
+  // computer knows — noted first, so the file carries exactly what is kept.
+  try {
+    systemSettings.lastExport = { at: new Date().toISOString(), by: currentLoggedInUser.username || currentLoggedInUser.name || 'admin' };
+    saveState();
+  } catch (e) {}
   var backup = {
     version: '2.0',
     exportedAt: new Date().toISOString(),
@@ -8178,6 +8248,7 @@ function exportDataBackup() {
   a.download = 'CESTIS_Backup_' + localDateStr() + '.json';
   a.click();
   URL.revokeObjectURL(url);
+  try { if (typeof renderSystemHealthCard === 'function') renderSystemHealthCard(); } catch (e) {}
   showToast('Backup exported successfully!');
 }
 
@@ -15797,6 +15868,7 @@ function buildAdminPages() {
     <div class="card"><div class="card-header"><h3>Student Progress Pipeline</h3><button class="btn btn-secondary btn-sm" onclick="showPage('students')">View All \u2192</button></div>
       <div class="pipeline"><div class="pipeline-stage s-test"><span class="count" id="pTest">0</span>Testing</div><div class="pipeline-stage s-interview"><span class="count" id="pInterview">0</span>Interview</div><div class="pipeline-stage s-training"><span class="count" id="pTraining">0</span>In Training</div><div class="pipeline-stage s-certified"><span class="count" id="pCertified">0</span>Certified</div><div class="pipeline-stage s-collected"><span class="count" id="pCollected">0</span>Collected</div><div class="pipeline-stage s-nyc"><span class="count" id="pNyc">0</span>Not Yet Competent</div><div class="pipeline-stage s-incomplete"><span class="count" id="pIncomplete">0</span>Incomplete</div></div>
     </div>
+    <div id="systemHealthCard" class="sys-health-mount"></div>
     <div class="grid-2col">
       <div class="card"><div class="card-header"><h3>System Alerts</h3></div>
         <div class="alert-item alert-danger alert-link" role="button" tabindex="0" id="dashLowAttendanceAlert" onclick="showPage('needs-attention')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showPage('needs-attention');}" title="See who, with their last attendance and phone"><div class="alert-icon">\u26A0\uFE0F</div><div class="alert-body"><div class="alert-msg">${lowAttendance} student${lowAttendance!==1?'s':''} below 70% attendance</div><div class="alert-time">Needs attention — see who &rarr;</div></div></div>
@@ -16403,6 +16475,7 @@ function buildAdminPages() {
   renderGaugeChart();
   renderAttendanceHeatmap();
   renderGenderDist();
+  try { renderSystemHealthCard(); } catch (e) { console.warn('[SystemHealth]', e); }
   renderAttendancePage();
   renderAnnouncements();
   renderCalendar();
@@ -37064,6 +37137,7 @@ function handleCloudAuthExpired() {
 }
 function declareCloudAuthExpired() {
   var wasConnected = isCloudConnected || !!googleAccessToken;
+  if (wasConnected) { try { cestisRenewNeeded(true); } catch (e) {} }
   if (typeof stopAutoSave === 'function') stopAutoSave();
   googleAccessToken = null;
   isCloudConnected = false;
@@ -37144,13 +37218,19 @@ function ensureSilentRefreshClient() {
         _lastSilentRefreshOkAt = Date.now();
         console.log('[Auth] Google token refreshed silently — backup continues.');
         resumeCloudSyncIfLoggedIn();
+        try { cestisRenewSettled(true); } catch (e) {}
+      } else {
+        try { cestisRenewSettled(false); } catch (e) {}
       }
     },
     error_callback: function(err) {
       _silentRefreshInFlight = false;
       console.warn('[Auth] Silent token refresh needs interaction:', err && err.type);
-      // Don't nag here — handleCloudAuthExpired()'s banner is the fallback once
-      // the token actually expires.
+      // The browser blocked its window, or it needs a person: a small
+      // Reconnect button beside the sync control renews it from a press
+      // (OPS-11). handleCloudAuthExpired()'s banner is still the fallback
+      // once the token actually expires.
+      try { cestisRenewSettled(false); } catch (e) {}
     }
   });
   return _silentRefreshClient;
@@ -37163,10 +37243,13 @@ function attemptSilentTokenRefresh() {
   try {
     _silentRefreshInFlight = true;
     _lastSilentRefreshAt = Date.now();
+    clearTimeout(_renewWatch);
+    _renewWatch = setTimeout(function() { if (_silentRefreshInFlight && !_renewFromClick) cestisRenewSettled(false); }, 30000);
     client.requestAccessToken({ prompt: '' }); // '' = no consent UI when already granted
   } catch (e) {
     _silentRefreshInFlight = false;
     console.warn('[Auth] Silent refresh call failed:', e && e.message);
+    try { cestisRenewNeeded(true); } catch (e2) {}
   }
 }
 
@@ -38668,8 +38751,21 @@ async function reconcileWithMasterSnapshot() {
   } catch (e) { console.warn('[MasterSnapshot] reconcile failed:', e); return false; }
 }
 
+// What this computer last saw of the whole-Centre backup (the System health card).
+function cestisNoteMasterSeen(snapshot) {
+  try {
+    if (!snapshot || !snapshot.savedAt || !snapshot.counts) return;
+    var prev = cestisThisPcRead('cestisThisPc_master', null);
+    if (prev && (Date.parse(prev.savedAt) || 0) > (Date.parse(snapshot.savedAt) || 0)) return;
+    var total = 0;
+    Object.keys(snapshot.counts).forEach(function (k) { total += (snapshot.counts[k] || 0); });
+    cestisThisPcWrite('cestisThisPc_master', { savedAt: snapshot.savedAt, savedBy: snapshot.savedBy || '',
+      students: snapshot.counts.voctrain_students != null ? snapshot.counts.voctrain_students : null, records: total, seenAt: new Date().toISOString() });
+  } catch (e) {}
+}
 // Update the header indicator that shows when/who/how-much for the master file.
 function updateMasterBackupInfo(snapshot) {
+  try { if (snapshot && snapshot.counts) cestisNoteMasterSeen(snapshot); } catch (e) {}
   var el = document.getElementById('masterBackupInfo');
   if (!el) return;
   if (!snapshot || !snapshot.counts) { el.textContent = 'Master backup: --'; el.removeAttribute('title'); return; }
@@ -38697,21 +38793,10 @@ async function restoreFromMasterBackup() {
     var snapshot = await fetchMasterSnapshot();
     if (!snapshot || !snapshot.store) { showToast('No master backup found yet.', 'warning'); return; }
     var ver = CESTISCore.verifySnapshot(snapshot);
-    var local = cestisCollectStoreMap();
-    var report = CESTISCore.dataLossReport(snapshot, local);
-    var res = CESTISCore.reconcileSnapshot(snapshot, local);
+    // The same add-only merge the weekly restore uses (cestisApplySnapshotRestore).
+    var applied = cestisApplySnapshotRestore(snapshot);
+    var report = applied.report, res = applied.res;
     if (res.changed) {
-      Object.keys(res.store).forEach(function (k) {
-        if (res.store[k] !== local[k]) { try { CESTISStore.setItem(k, res.store[k]); } catch (e) {} }
-      });
-      try { loadState(); } catch (e) {}
-      // loadState() never reads the accounts; without this the reconciled
-      // list sat in the store while the stale one in memory was saved back
-      // over it on the next write — and uploaded.
-      try { loadUserAccounts(); } catch (e) {}
-      try { cestisStabilizeStudentIds(); } catch (e) {}
-      try { refreshStudentDependentViews(); refreshContentDependentViews(); } catch (e) {}
-      _lastMasterSnapshotHash = null; // re-save so the master reflects the merged state
       var settings = res.restoredKeys ? res.restoredKeys.length : 0;
       showToast('Restored ' + report.totalMissing + ' record(s)' + (settings ? ' + ' + settings + ' setting(s)' : '') + ' from master backup.', 'success');
     } else {
@@ -38723,6 +38808,524 @@ async function restoreFromMasterBackup() {
     showToast('Restore failed — see console for details.', 'warning');
   }
 }
+
+/* ===================== KEEPING THE RECORDS SAFE FOR YEARS =====================
+   Owner approved (group F, "Keep the records safe for years"); the
+   operations audit's OPS-1, OPS-2, OPS-4, OPS-10 and EF-6. The rules are
+   CESTISCore.backups (tested in tests/records-safe-core.test.js); this is
+   the page's side:
+
+     - WEEKLY BACKUPS. Once per ISO week the first administrator or office
+       PC that saves online makes a dated copy of the whole-Centre backup
+       (the master snapshot) in a "Backups" folder beside the backup folders:
+       copied where it is kept (no upload), or — if that cannot be done —
+       the snapshot this PC builds, uploaded. Several PCs in one week make
+       one: each looks for this week's file first, and a second made in the
+       same moment goes to the trash (the oldest stays). The newest 12 are
+       kept; older ones go to the trash, and only files this system made
+       (the name AND the mark set when it was made). Nothing is ever deleted.
+     - "Last backup: <date> (N days ago)" in the Administrator's sync panel,
+       with a gentle prompt from 7 days.
+     - RESTORE FROM A WEEKLY BACKUP: add-only, exactly the master backup's
+       restore (CESTISCore.reconcileSnapshot), with a preview of what it
+       would add before anything is written.
+     - STORAGE: the Centre's account's storage, used and free, for the
+       Administrator, with a warning from 80%; a save refused because it is
+       full says so to everybody ("Storage is full — tell the
+       administrator") instead of the general "Sync needs attention", and
+       the work stays on the computer, as it always has.
+     - EACH STAFF COMPUTER'S LAST SAVE, carried with the backup.
+     - THE SYSTEM HEALTH CARD on the Administrator's dashboard.
+   Every word on screen says what happened and what to do, never where the
+   records are kept (tools/scan-ui-wording.js). */
+
+// ---- This computer's own notes ('cestisThisPc_*': never backed up or
+// shared — CESTISCore.isSnapshotableKey, cestis-page-cloud.js). Kept in this
+// browser's own copy, not through the store: a write through the store is a
+// change to the Centre's records for the 5-second save.
+function cestisThisPcRead(k, fallback) {
+  var raw = null;
+  try { raw = localStorage.getItem(k); } catch (e) { raw = null; }
+  if (raw == null) { try { raw = CESTISStore.getItem(k); } catch (e) { raw = null; } }
+  if (raw == null) return fallback;
+  try { var v = JSON.parse(raw); return v == null ? fallback : v; } catch (e) { return fallback; }
+}
+function cestisThisPcWrite(k, v) {
+  var text = JSON.stringify(v);
+  try { localStorage.setItem(k, text); return true; } catch (e) {}
+  try { if (CESTISStore.uncounted) CESTISStore.uncounted[k] = 1; CESTISStore.setItem(k, text); return true; } catch (e2) { return false; }
+}
+// This computer's own id among the Centre's staff computers.
+function cestisThisPcId() {
+  var id = cestisThisPcRead('cestisThisPc_id', '');
+  if (!id || typeof id !== 'string') {
+    id = 'pc-' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+    cestisThisPcWrite('cestisThisPc_id', id);
+  }
+  return id;
+}
+
+// ---- The few calls the backups make. A refusal because the account is
+// full is noted (cestisNoteStorageFull); nothing here ever deletes a file.
+function cestisBackupApi() {
+  var BASE = 'https://www.googleapis.com/drive/v3', UP = 'https://www.googleapis.com/upload/drive/v3/files';
+  var FIELDS = 'id,name,parents,createdTime,modifiedTime,appProperties,trashed,size,mimeType';
+  var call = async function(url, init) {
+    init = init || {};
+    init.headers = Object.assign({ 'Authorization': 'Bearer ' + googleAccessToken }, init.headers || {});
+    var r = await fetch(url, init);
+    if (!r.ok) {
+      var body = null;
+      try { body = await r.json(); } catch (e) { body = null; }
+      var err = new Error('HTTP ' + r.status);
+      err.status = r.status;
+      if (r.status === 403 && CESTISCore.backups.quotaExceeded(body)) { err.storageFull = true; try { cestisNoteStorageFull('backup'); } catch (e) {} }
+      throw err;
+    }
+    return r;
+  };
+  return {
+    list: async function(q, orderBy) {
+      var out = [], token = '', pages = 0;
+      do {
+        var url = BASE + '/files?q=' + encodeURIComponent(q) + '&fields=' + encodeURIComponent('nextPageToken,files(' + FIELDS + ')') +
+          '&pageSize=200' + (orderBy ? '&orderBy=' + encodeURIComponent(orderBy) : '') + (token ? '&pageToken=' + encodeURIComponent(token) : '');
+        var d = await (await call(url)).json();
+        (d.files || []).forEach(function(f) { out.push(f); });
+        token = d.nextPageToken || '';
+      } while (token && ++pages < 20);
+      return out;
+    },
+    get: async function(id, fields) { return (await call(BASE + '/files/' + encodeURIComponent(id) + '?fields=' + encodeURIComponent(fields || FIELDS))).json(); },
+    media: async function(id) { return (await call(BASE + '/files/' + encodeURIComponent(id) + '?alt=media', { cache: 'no-store' })).text(); },
+    // A copy made where the file is kept: nothing is uploaded.
+    copy: async function(id, meta) {
+      return (await call(BASE + '/files/' + encodeURIComponent(id) + '/copy?fields=' + encodeURIComponent(FIELDS),
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(meta) })).json();
+    },
+    folder: async function(meta) {
+      return (await call(BASE + '/files?fields=' + encodeURIComponent(FIELDS),
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(meta) })).json();
+    },
+    upload: async function(meta, text) {
+      var b = 'cestisbackup' + Math.random().toString(36).slice(2);
+      var body = '--' + b + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' + JSON.stringify(meta || {}) +
+        '\r\n--' + b + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' + text + '\r\n--' + b + '--';
+      return (await call(UP + '?uploadType=multipart&fields=' + encodeURIComponent(FIELDS),
+        { method: 'POST', headers: { 'Content-Type': 'multipart/related; boundary=' + b }, body: body })).json();
+    },
+    // To the trash — never deleted for good.
+    trash: async function(id) {
+      return (await call(BASE + '/files/' + encodeURIComponent(id) + '?fields=id,trashed',
+        { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ trashed: true }) })).json();
+    },
+    about: async function() { return (await call(BASE + '/about?fields=storageQuota', { cache: 'no-store' })).json(); }
+  };
+}
+function cestisOlderFile(a, b) {
+  var ta = Date.parse(a.createdTime || '') || 0, tb = Date.parse(b.createdTime || '') || 0;
+  return ta !== tb ? ta < tb : String(a.id) < String(b.id);
+}
+
+/* The "Backups" folder, beside the backup folders (the whole-Centre
+   backup's folder's own parent). Its id is remembered in the Centre's
+   settings (the Administrator's PC publishes it) and on this computer.
+   create false: only look. Two PCs making it at once: the oldest is used. */
+async function cestisBackupsFolder(api, create) {
+  var B = CESTISCore.backups, FOLDER_MIME = 'application/vnd.google-apps.folder';
+  var remember = function(id) {
+    cestisThisPcWrite('cestisThisPc_backupsFolder', id);
+    if (currentRole === 'admin' && systemSettings && systemSettings.backupsFolderId !== id) {
+      systemSettings.backupsFolderId = id;
+      try { saveState(); } catch (e) {}
+    }
+    return id;
+  };
+  var known = (systemSettings && systemSettings.backupsFolderId) || cestisThisPcRead('cestisThisPc_backupsFolder', '');
+  if (known) {
+    try { var kf = await api.get(known, 'id,trashed'); if (kf && kf.id && !kf.trashed) return remember(kf.id); }
+    catch (e) { if (e.status !== 404) throw e; }   // gone: looked for again below
+  }
+  var parent = MASTER_SNAPSHOT_CONFIG.FOLDER_ID;
+  try { var mf = await api.get(MASTER_SNAPSHOT_CONFIG.FOLDER_ID, 'id,parents'); if (mf && Array.isArray(mf.parents) && mf.parents[0]) parent = mf.parents[0]; }
+  catch (e) { if (e.status !== 404) throw e; }
+  // Only a folder this system made (its mark): a "Backups" folder of the Centre's own is left alone.
+  var q = "name = '" + B.FOLDER.name + "' and mimeType = '" + FOLDER_MIME + "' and '" + parent + "' in parents and trashed = false" +
+    " and appProperties has { key='" + B.FOLDER.markKey + "' and value='" + B.FOLDER.markValue + "' }";
+  var found = (await api.list(q)).sort(function(a, b) { return cestisOlderFile(a, b) ? -1 : cestisOlderFile(b, a) ? 1 : 0; });
+  if (found.length) return remember(found[0].id);
+  if (!create) return null;
+  var app = {}; app[B.FOLDER.markKey] = B.FOLDER.markValue;
+  await api.folder({ name: B.FOLDER.name, mimeType: FOLDER_MIME, parents: [parent], appProperties: app,
+    description: 'The Centre\'s weekly backups (the newest 12 are kept).' });
+  found = (await api.list(q)).sort(function(a, b) { return cestisOlderFile(a, b) ? -1 : cestisOlderFile(b, a) ? 1 : 0; });
+  return found.length ? remember(found[0].id) : null;
+}
+// The whole-Centre backup, as this PC would write it (saveMasterSnapshot's own steps).
+function cestisBuildMasterSnapshot(eventName) {
+  if (!window.CESTISCore || typeof CESTISCore.buildSnapshot !== 'function') return null;
+  var map = cestisCollectStoreMap();
+  try { cestisUnionMasterTombstones(map); } catch (e) {}
+  var cloudUser = (typeof getCurrentCloudUser === 'function' && getCurrentCloudUser()) || {};
+  return CESTISCore.buildSnapshot(map, { event: eventName || 'weekly-backup', savedBy: cloudUser.username || currentRole || 'unknown', savedByRole: currentRole || 'unknown' });
+}
+/* What this PC knows of the weekly backups (cestisThisPc_weeklyBackups):
+   { doneWeek, checkedAt, last: CESTISCore.backups.newest(), count, folderId }. */
+function cestisWeeklyNote() { var n = cestisThisPcRead('cestisThisPc_weeklyBackups', null); return n && typeof n === 'object' ? n : {}; }
+function cestisWeeklyNoteFrom(files, folderId, doneWeek) {
+  var B = CESTISCore.backups, prev = cestisWeeklyNote();
+  var note = { doneWeek: doneWeek || prev.doneWeek || '', checkedAt: new Date().toISOString(), last: B.newest(files) || prev.last || null,
+    count: (files || []).filter(B.isOurs).length, folderId: folderId || prev.folderId || '' };
+  cestisThisPcWrite('cestisThisPc_weeklyBackups', note);
+  try { refreshSyncChip(); } catch (e) {}
+  try { renderSystemHealthCard(); } catch (e) {}
+  return note;
+}
+
+/* Once per ISO week, beside the 5-second save: the first administrator or
+   office PC that saves online makes the week's backup. It costs nothing
+   until it is due: a PC that has made (or seen) this week's backup does not
+   ask again until next week; a try that did not finish is tried again after
+   10 minutes. Never waits on, or stops, the save itself. */
+var _weeklyRun = { busy: false, triedAt: 0, last: null };
+var WEEKLY_RETRY_MS = 10 * 60 * 1000;
+function cestisWeeklyBackupTick() {
+  if (currentRole !== 'admin' && currentRole !== 'adminstaff') return;
+  if (!isCloudConnected || !googleAccessToken || _weeklyRun.busy) return;
+  if (typeof cestisGateSession === 'function' && cestisGateSession()) return;
+  var label = CESTISCore.backups.isoWeek(CESTISCore.sync.now()).label;
+  if (cestisWeeklyNote().doneWeek === label) return;
+  if (Date.now() - _weeklyRun.triedAt < WEEKLY_RETRY_MS) return;
+  _weeklyRun.busy = true;
+  _weeklyRun.triedAt = Date.now();
+  cestisWeeklyBackupRun(label).then(function(r) { _weeklyRun.last = r; }, function(e) {
+    _weeklyRun.last = { error: String(e && e.message || e) };
+    console.warn('[WeeklyBackup] not made this time (tried again in 10 minutes):', e && e.message);
+  }).then(function() { _weeklyRun.busy = false; });
+}
+async function cestisWeeklyBackupRun(label) {
+  var B = CESTISCore.backups, api = cestisBackupApi(), now = CESTISCore.sync.now();
+  var folderId = await cestisBackupsFolder(api, true);
+  if (!folderId) return { made: false, why: 'no-folder' };
+  var q = "'" + folderId + "' in parents and trashed = false";
+  var files = await api.list(q, 'createdTime');
+  var made = null, how = '';
+  if (!B.weekDone(files, label)) {
+    var mark = {}; mark[B.MARK.key] = B.MARK.value; mark.cestisWeek = label;
+    var meta = { name: B.fileName(label), parents: [folderId], appProperties: mark,
+      description: 'The Centre\'s weekly backup, week ' + label + '. Made by itself; the newest 12 are kept.' };
+    var masterId = await findMasterSnapshotFile();
+    if (masterId === 'LOOKUP_FAILED') return { made: false, why: 'lookup-failed' };
+    // 1. Copied where it is kept (no upload) — only when it is known to be
+    //    up to date: written in the last day, or written again just now by a
+    //    PC that has read the Centre's records this session. One that is
+    //    older, and could not be written again, is never made the week's
+    //    backup: this PC's own is uploaded instead (2), or the week is tried
+    //    again later.
+    if (masterId) {
+      var fresh = false;
+      try {
+        var mm = await api.get(masterId, 'id,modifiedTime');
+        fresh = now - (Date.parse(mm.modifiedTime || '') || 0) <= 24 * 3600 * 1000;
+      } catch (e) { if (e && e.storageFull) throw e; }
+      if (!fresh && _mainMergedThisSession) {
+        var rewrote = null;
+        try { rewrote = await saveMasterSnapshot('weekly-backup', true); } catch (e) { rewrote = null; }
+        fresh = !!(rewrote && rewrote.ok);
+      }
+      if (fresh) {
+        try { made = await api.copy(masterId, meta); how = 'copy'; }
+        catch (e) { if (e && e.storageFull) throw e; made = null; console.warn('[WeeklyBackup] could not copy the whole-Centre backup (' + (e && e.message) + '); uploading this PC\'s instead.'); }
+      } else console.warn('[WeeklyBackup] the whole-Centre backup is more than a day old and could not be written again; not copied.');
+    }
+    // 2. Otherwise the whole-Centre backup this PC builds — only from a PC
+    //    that has read the Centre's records this session.
+    if (!made) {
+      if (!_mainMergedThisSession && !(_lastAutoSaveResult && _lastAutoSaveResult.uploaded)) return { made: false, why: 'not-merged-yet' };
+      var snap = cestisBuildMasterSnapshot('weekly-backup');
+      if (!snap || !snap.store) return { made: false, why: 'no-snapshot' };
+      made = await api.upload(Object.assign({ mimeType: 'application/json' }, meta), JSON.stringify(snap));
+      how = 'upload';
+    }
+    console.log('[WeeklyBackup] week ' + label + ' made (' + how + ').');
+    files = await api.list(q, 'createdTime');
+  }
+  // The tidy-up: one per week (the oldest), the newest 12 weeks — and only
+  // this system's own files. To the trash, never deleted.
+  var plan = B.planPrune(files, now), binned = {};
+  for (var i = 0; i < plan.trash.length; i++) {
+    try { await api.trash(plan.trash[i].id); binned[plan.trash[i].id] = 1; }
+    catch (e) { console.warn('[WeeklyBackup] could not move an old weekly backup to the trash:', e && e.message); }
+  }
+  var left = files.filter(function(f) { return !binned[f.id]; });
+  cestisWeeklyNoteFrom(left, folderId, label);
+  return { made: !!made, how: how, trashed: Object.keys(binned).length, week: label };
+}
+// The weekly backups, listed (the restore, the Administrator's panel).
+async function cestisWeeklyBackupsList() {
+  var B = CESTISCore.backups, api = cestisBackupApi();
+  var folderId = await cestisBackupsFolder(api, false);
+  var files = folderId ? await api.list("'" + folderId + "' in parents and trashed = false", 'createdTime') : [];
+  cestisWeeklyNoteFrom(files, folderId, B.weekDone(files, B.isoWeek(CESTISCore.sync.now()).label) ? B.isoWeek(CESTISCore.sync.now()).label : '');
+  // One per week (the oldest), newest week first.
+  var byWeek = {};
+  files.filter(B.isOurs).forEach(function(f) {
+    var l = B.parseName(f.name).label;
+    if (!byWeek[l] || cestisOlderFile(f, byWeek[l])) byWeek[l] = f;
+  });
+  return Object.keys(byWeek).sort().reverse().map(function(l) { return { week: l, file: byWeek[l] }; });
+}
+
+/* ---- Restoring ---- */
+/* Merge a backup into this computer: add-only (CESTISCore.reconcileSnapshot
+   — records this computer no longer has come back; newer work here is never
+   overwritten; records deleted on purpose stay deleted). The master
+   backup's restore and the weekly restore both come here. */
+function cestisApplySnapshotRestore(snapshot) {
+  var local = cestisCollectStoreMap();
+  var report = CESTISCore.dataLossReport(snapshot, local);
+  var res = CESTISCore.reconcileSnapshot(snapshot, local);
+  if (res.changed) {
+    Object.keys(res.store).forEach(function(k) {
+      if (res.store[k] !== local[k]) { try { CESTISStore.setItem(k, res.store[k]); } catch (e) {} }
+    });
+    try { loadState(); } catch (e) {}
+    // loadState() never reads the accounts; without this the reconciled
+    // list sat in the store while the stale one in memory was saved back
+    // over it on the next write — and uploaded.
+    try { loadUserAccounts(); } catch (e) {}
+    try { cestisStabilizeStudentIds(); } catch (e) {}
+    try { refreshStudentDependentViews(); refreshContentDependentViews(); } catch (e) {}
+    _lastMasterSnapshotHash = null; // re-save so the master reflects the merged state
+  }
+  return { report: report, res: res };
+}
+async function restoreFromWeeklyBackup() {
+  try { if (typeof closeCloudMenu === 'function') closeCloudMenu(); } catch (e) {}
+  if (currentRole !== 'admin') { showToast('Only the Administrator can restore from a weekly backup.', 'warning'); return; }
+  if (!isCloudConnected || !googleAccessToken) { showToast('Turn on sync first.', 'warning'); return; }
+  if (!window.CESTISForm || !window.CESTISCore || typeof CESTISCore.reconcileSnapshot !== 'function') { showToast('Please reload the page and try again.', 'warning'); return; }
+  var B = CESTISCore.backups, list;
+  try { list = await cestisWeeklyBackupsList(); }
+  catch (e) { showToast('The weekly backups could not be read just now. Try again in a minute.', 'warning'); return; }
+  if (!list.length) { showToast('There is no weekly backup yet. One is made by itself each week.', 'info'); return; }
+  var pick = await CESTISForm.ask({
+    title: 'Restore from a weekly backup',
+    intro: 'Pick a week. Nothing is changed until you have seen what it would add.',
+    fields: [{ name: 'id', label: 'Weekly backup', type: 'select', required: true, value: list[0].file.id,
+      options: list.map(function(x) { var p = B.parseName(x.file.name); return { value: x.file.id, label: 'Week ' + p.week + ', ' + p.year + ' — made ' + B.day(x.file.createdTime) }; }) }],
+    submitLabel: 'Show what it would add'
+  });
+  if (!pick || !pick.id) return;
+  var chosen = list.filter(function(x) { return x.file.id === pick.id; })[0];
+  showToast('Reading the weekly backup…');
+  var snap = null;
+  try { snap = JSON.parse(await cestisBackupApi().media(pick.id)); } catch (e) { snap = null; }
+  if (!snap || !snap.store || typeof snap.store !== 'object') { showToast('That backup could not be read. Try another week.', 'warning'); return; }
+  var preview = cestisWeeklyRestorePreview(snap, chosen);
+  if (!preview.pv.changed) {
+    await CESTISForm.ask({ title: preview.title, intro: preview.intro, fields: [], submitLabel: 'OK', cancelLabel: 'Close' });
+    return;
+  }
+  var go = await CESTISForm.ask({ title: preview.title, intro: preview.intro, fields: [],
+    submitLabel: preview.pv.total ? 'Add ' + preview.pv.total + ' record' + (preview.pv.total === 1 ? '' : 's') : 'Fill in what is empty', cancelLabel: 'Cancel' });
+  if (!go) return;
+  try {
+    var out = cestisApplySnapshotRestore(snap);
+    var n = CESTISCore.backups.restorePreview(out.res);
+    showToast(out.res.changed ? 'Added ' + n.total + ' record' + (n.total === 1 ? '' : 's') + ' from the week ' + preview.week + ' backup. Nothing else was changed.' :
+      'Already up to date — nothing to add.', 'success');
+  } catch (e) {
+    console.warn('[WeeklyBackup] restore failed:', e);
+    showToast('The restore could not be finished. Nothing was removed; try again.', 'warning');
+  }
+}
+/* What a weekly backup would add, before anything is written (a dry run of
+   the same add-only merge). { title, intro, pv, week } */
+function cestisWeeklyRestorePreview(snap, chosen) {
+  var B = CESTISCore.backups;
+  var res = CESTISCore.reconcileSnapshot(snap, cestisCollectStoreMap());   // nothing is written
+  var pv = B.restorePreview(res);
+  var p = chosen ? B.parseName(chosen.file.name) : null;
+  var week = p ? String(p.week) : '';
+  var counts = snap.counts || {}, total = 0;
+  Object.keys(counts).forEach(function(k) { total += Number(counts[k]) || 0; });
+  var lines = [];
+  lines.push('Saved ' + B.dayTime(snap.savedAt || (chosen && chosen.file.createdTime)) + (snap.savedBy ? ' by ' + snap.savedBy : '') + '. It holds ' +
+    (counts.voctrain_students != null ? Number(counts.voctrain_students).toLocaleString('en-US') + ' trainees and ' : '') + total.toLocaleString('en-US') + ' records.');
+  lines.push('');
+  if (pv.total) {
+    lines.push('Restoring adds back ' + pv.total.toLocaleString('en-US') + ' record' + (pv.total === 1 ? '' : 's') + ' this computer no longer has:');
+    pv.lines.forEach(function(l) { lines.push('• ' + l); });
+  } else if (pv.changed) {
+    lines.push('No records are missing here.');
+  } else {
+    lines.push('This computer already has everything in this backup. Nothing to add.');
+  }
+  if (pv.settings) lines.push('It also fills in ' + pv.settings + ' list' + (pv.settings === 1 ? '' : 's') + ' that ' + (pv.settings === 1 ? 'is' : 'are') + ' empty or shorter here (such as deletions it knew of).');
+  if (pv.changed) {
+    lines.push('');
+    lines.push('Nothing here is changed or removed: newer work stays as it is, and records deleted on purpose stay deleted.');
+  }
+  if (!CESTISCore.verifySnapshot(snap).ok) lines.push('Note: this backup\'s check figure does not match, so it is read with care and only adds what is missing.');
+  return { title: 'Restore from week ' + week + '?', intro: lines.join('\n'), pv: pv, week: week };
+}
+
+/* ---- Storage (OPS-2, EF-6) ---- */
+var _storageFull = null;              // { at, where } while saves are refused for want of room
+var STORAGE_FULL_RETRY_MS = 2 * 60 * 1000;
+var _storageAskedAt = 0;
+function cestisStorageIsFull() { return !!_storageFull; }
+function cestisNoteStorageFull(where) {
+  var first = !_storageFull;
+  _storageFull = { at: Date.now(), where: where || '' };
+  if (first) {
+    console.warn('[Storage] The Centre\'s account is full: work is kept on this computer until there is room.');
+    try { refreshSyncChip(); } catch (e) {}
+    try { renderSystemHealthCard(); } catch (e) {}
+  }
+}
+function cestisNoteStorageOk() {
+  if (!_storageFull) return;
+  _storageFull = null;
+  try { refreshSyncChip(); } catch (e) {}
+  try { renderSystemHealthCard(); } catch (e) {}
+}
+// The account's storage, used and free: asked at most every 6 hours (or now).
+async function cestisStorageRefresh(force) {
+  if (!isCloudConnected || !googleAccessToken || _syncChipLan) return null;
+  if (!force && _storageAskedAt && Date.now() - _storageAskedAt < 6 * 3600 * 1000) return null;
+  _storageAskedAt = Date.now();
+  try {
+    var j = await cestisBackupApi().about();
+    var q = (j && j.storageQuota) || {};
+    var note = { limit: q.limit || null, usage: q.usage != null ? q.usage : null, usageInDrive: q.usageInDrive || null,
+      usageInDriveTrash: q.usageInDriveTrash || null, at: new Date().toISOString() };
+    cestisThisPcWrite('cestisThisPc_storage', note);
+    // Room again (the trash emptied, recordings cleared): the note goes, and the next save goes now.
+    if (_storageFull && Number(q.limit) > 0 && Number(q.usage) < Number(q.limit) * 0.99) cestisNoteStorageOk();
+    try { renderSystemHealthCard(); } catch (e) {}
+    try { refreshSyncChip(); } catch (e) {}
+    return note;
+  } catch (e) { return null; }
+}
+async function cestisStorageCheckNow() {
+  var n = await cestisStorageRefresh(true);
+  if (!n) showToast(isCloudConnected ? 'The storage figure could not be read just now. Try again in a minute.' : 'Turn on sync on this computer to see the storage.', 'warning');
+}
+
+/* ---- Each staff computer's last save (OPS-10) ----
+   'voctrain_deviceSaves' { deviceId: { by, name, role, label, at } }, carried
+   with the backup; this computer's own entry is dated when a change it
+   made has gone up. Not a change to anybody's records: written without
+   starting a save, and left out of the save's "has anything changed?". */
+function cestisDeviceSavesRead() {
+  var m = safeJsonParse(CESTISStore.getItem('voctrain_deviceSaves'), {});
+  return m && typeof m === 'object' && !Array.isArray(m) ? m : {};
+}
+function cestisDeviceStamp(map) {
+  var cu = (typeof getCurrentCloudUser === 'function' && getCurrentCloudUser()) || {};
+  return CESTISCore.backups.stampDevice(map, cestisThisPcId(), {
+    by: cu.username || '', name: (currentLoggedInUser && currentLoggedInUser.name) || cu.username || '', role: currentRole || '',
+    label: CESTISCore.backups.deviceLabel(navigator.userAgent) }, CESTISCore.sync.now());
+}
+function cestisMergeDeviceSaves(theirs) {
+  if (!theirs || typeof theirs !== 'object' || Array.isArray(theirs)) return false;
+  var r = CESTISCore.backups.mergeDevices(cestisDeviceSavesRead(), theirs);
+  if (!r.changed) return false;
+  cestisBookkeeping(function() { try { CESTISStore.setItem('voctrain_deviceSaves', JSON.stringify(r.map)); } catch (e) {} });
+  return true;
+}
+
+/* ---- The Administrator's "Last backup" line, in the sync panel ---- */
+function cestisRenderBackupLine() {
+  var box = document.getElementById('syncChipBackup');
+  var item = document.getElementById('weeklyRestoreItem');
+  var admin = currentRole === 'admin' && !(typeof cestisGateSession === 'function' && cestisGateSession());
+  if (item) item.hidden = !admin;
+  if (!box) return;
+  if (!admin) { box.hidden = true; return; }
+  var B = CESTISCore.backups, now = Date.now();
+  var line = document.getElementById('syncChipBackupLine'), prompt = document.getElementById('syncChipBackupPrompt'), sl = document.getElementById('syncChipStorageLine');
+  if (_syncChipLan) {
+    line.textContent = 'Weekly backup: a dated copy is kept each week, for 12 weeks.';
+    line.className = 'sync-chip-backup-line tone-ok';
+    prompt.hidden = true; sl.hidden = true;
+  } else {
+    var note = cestisWeeklyNote();
+    var s = B.lastStatus(note.last, now, !!note.checkedAt);
+    line.textContent = s.text;
+    line.className = 'sync-chip-backup-line tone-' + s.tone;
+    prompt.textContent = s.prompt || '';
+    prompt.hidden = !s.prompt;
+    var st = B.storage(cestisThisPcRead('cestisThisPc_storage', null), cestisStorageIsFull());
+    sl.hidden = !(st.known || cestisStorageIsFull());
+    sl.textContent = st.text + (st.advice && st.tone !== 'ok' ? ' ' + st.advice : '');
+    sl.className = 'sync-chip-backup-line tone-' + st.tone;
+  }
+  box.hidden = false;
+}
+
+/* ---- The System health card (OPS-4, OPS-10): the Administrator's dashboard ---- */
+function systemHealthInputs() {
+  var now = Date.now(), note = cestisWeeklyNote();
+  var tg = (systemSettings && systemSettings.traineeGate) || {};
+  var st = gatePublishedState(gateDevRead('cestisGatePublished', null));
+  var gs = gateStatusText(tg, st.health, _gateRun);
+  var q = gateDevRead('cestisGatePublishQueue', []);
+  var waiting = Array.isArray(q) ? q.filter(function(op) { return op && op.op !== 'dup'; }).length : 0;
+  var ex = systemSettings && systemSettings.lastExport;
+  return {
+    now: now, lan: !!_syncChipLan,
+    weekly: { last: note.last || null, checked: !!note.checkedAt },
+    master: cestisThisPcRead('cestisThisPc_master', null),
+    gate: { setUp: !!tg.url, enabled: tg.enabled === true, statusTone: gs.tone, statusText: gs.text, waiting: waiting,
+      waitingSince: Date.parse(st.waitingSince || '') || 0, syncedAt: Date.parse(st.syncedAt || '') || 0,
+      judged: !!(_gateRun.builtAt && _gateRun.remoteAt) },
+    storage: cestisThisPcRead('cestisThisPc_storage', null), storageFull: cestisStorageIsFull(),
+    devices: CESTISCore.backups.devices(cestisDeviceSavesRead(), now),
+    lastExport: ex && ex.at ? (Date.parse(ex.at) || null) : null
+  };
+}
+var _sysHealthTimer = null;
+var SYS_HEALTH_WORDS = { ok: 'Good', warn: 'Check', bad: 'Act now' };
+function renderSystemHealthCard() {
+  var mount = document.getElementById('systemHealthCard');
+  if (currentRole !== 'admin' || !window.CESTISCore || !CESTISCore.backups) { if (mount) mount.innerHTML = ''; return null; }
+  var h = CESTISCore.backups.health(systemHealthInputs());
+  try { systemHealthBell(h); } catch (e) {}
+  if (!_sysHealthTimer) _sysHealthTimer = setInterval(function() { try { if (currentRole === 'admin') { renderSystemHealthCard(); cestisStorageRefresh(false); } } catch (e) {} }, 60000);
+  if (!mount) return h;
+  try { cestisStorageRefresh(false); } catch (e) {}
+  var W = SYS_HEALTH_WORDS;
+  var act = {
+    weekly: _syncChipLan ? '' : '<button type="button" class="btn btn-secondary btn-sm" onclick="restoreFromWeeklyBackup()">Restore from a weekly backup</button>',
+    storage: '<button type="button" class="btn btn-secondary btn-sm" onclick="cestisStorageCheckNow()">Check again</button>',
+    export: '<button type="button" class="btn btn-secondary btn-sm" onclick="exportDataBackup()">Export a copy now</button>'
+  };
+  mount.innerHTML = '<div class="card sys-health" data-tone="' + h.tone + '">' +
+    '<div class="card-header"><h3>System health</h3><span class="sys-health-pill tone-' + h.tone + '">' + W[h.tone] + '</span></div>' +
+    '<ul class="sys-health-lines">' + h.lines.map(function(l) {
+      var items = (l.items && l.items.length) ? '<ul class="sys-health-items">' + l.items.map(function(it) {
+        return '<li class="tone-' + it.tone + '">' + escapeHtml(it.text) + '</li>'; }).join('') + '</ul>' : '';
+      return '<li class="sys-health-line tone-' + l.tone + '" data-key="' + l.key + '">' +
+        '<span class="sys-health-dot" aria-hidden="true"></span>' +
+        '<div class="sys-health-body"><div class="sys-health-head"><span class="sys-health-title">' + escapeHtml(l.title) + '</span>' +
+        '<span class="sys-health-pill tone-' + l.tone + '">' + W[l.tone] + '</span></div>' +
+        '<div class="sys-health-text">' + escapeHtml(l.text) + '</div>' +
+        '<div class="sys-health-todo"><span class="sys-health-todo-k">What to do:</span> ' + escapeHtml(l.todo) + '</div>' + items +
+        (act[l.key] ? '<div class="sys-health-act">' + act[l.key] + '</div>' : '') + '</div></li>';
+    }).join('') + '</ul></div>';
+  return h;
+}
+/* The bell, at most once a day: trainee sign-in needs attention, or the
+   oldest update for trainees is more than a day old (OPS-4). */
+function systemHealthBell(h) {
+  if (!h || !h.bellGate || currentRole !== 'admin') return;
+  var d = new Date(), day = d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+  addNotification('Trainee sign-in: ' + h.bellGate + ' (See System health on the dashboard.)', 'warning', '⚠️', ['admin'], 'NOTIF-syshealth-gate-' + day);
+}
+
 
 // ---- Per-User Backup Helpers ----
 function getPerUserBackupFileName() {
@@ -39368,6 +39971,9 @@ async function mergeBackupData(backupData) {
     // others late or never, and their next upload brought the record back.
     // Unioned, never replaced: a list of deletions only grows.
     try { if (mergeIncomingTombstoneLists(backupData.data)) changed = true; } catch (e) {}
+    // Each staff computer's last save, newest per computer (OPS-10): noted,
+    // not a change to anybody's records.
+    try { if (typeof cestisMergeDeviceSaves === 'function') cestisMergeDeviceSaves(backupData.data.deviceSaves); } catch (e) {}
 
 
     // Legacy demo data IDs and titles to exclude from merges
@@ -40161,9 +40767,13 @@ async function silentSaveToFolder(folderId, folderLabel, blob) {
       const errData = await response.json().catch(() => ({}));
       var upErr = new Error(errData.error?.message || 'Upload failed');
       upErr.status = response.status;
+      // Refused because the Centre's account is full (OPS-2), not a rate limit.
+      try { upErr.storageFull = response.status === 403 && CESTISCore.backups.quotaExceeded(errData); } catch (e) {}
       throw upErr;
     }
 
+    // The Main copy went up: there is room.
+    if (folderId === GOOGLE_DRIVE_CONFIG.FOLDER_ID && typeof cestisNoteStorageOk === 'function') cestisNoteStorageOk();
     return true;
   } catch (err) {
     console.warn('[AutoSave] Error saving to ' + folderLabel + ':', err.message);
@@ -40174,6 +40784,11 @@ async function silentSaveToFolder(folderId, folderLabel, blob) {
     // raise "Google Session Expired" while the header still said Connected.
     if (err.status === 401 || (err.message && (err.message.includes('invalid_token') || err.message.includes('Invalid Credentials')))) {
       handleCloudAuthExpired();
+    } else if (err.status === 403 && err.storageFull) {
+      // Every user is told "Storage is full — tell the administrator"; the
+      // work stays on this computer and is sent once there is room.
+      console.warn('[AutoSave] ' + folderLabel + ': refused — the Centre\'s storage is full. Work is kept on this computer.');
+      if (typeof cestisNoteStorageFull === 'function') cestisNoteStorageFull('save');
     } else if (err.status === 403) {
       console.warn('[AutoSave] ' + folderLabel + ': Drive refused the write (permission or rate limit) — this folder is skipped this cycle, the connection stays.');
     }
@@ -40429,6 +41044,16 @@ async function autoSaveToAllFolders() {
     // request — until an administrator has set it up and turned it on. It can
     // never stop this save: whatever it does, the save carries on.
     try { if (typeof gateStaffTick === 'function') gateStaffTick(); } catch (e) { console.warn('[TraineeGate]', e); }
+    // The week's dated backup (OPS-1): once a week, on its own, never waited for.
+    try { if (typeof cestisWeeklyBackupTick === 'function') cestisWeeklyBackupTick(); } catch (e) { console.warn('[WeeklyBackup]', e); }
+    // While storage is noted as full: one small look at the storage figure
+    // every 2 minutes; room again clears the note, and saving resumes.
+    try {
+      if (typeof _storageFull !== 'undefined' && _storageFull && Date.now() - (_storageFull.probeAt || _storageFull.at || 0) >= STORAGE_FULL_RETRY_MS) {
+        _storageFull.probeAt = Date.now();
+        cestisStorageRefresh(true);
+      }
+    } catch (e) {}
 
     // Nothing written since our last completed save: the local copy and the
     // cloud copy are both already what we would produce. Skip the serialise,
@@ -40442,6 +41067,16 @@ async function autoSaveToAllFolders() {
       _lastAutoSaveResult = { uploaded: true, reason: 'nothing-new' };
       cestisBookkeeping(cestisMarkUploaded);
       return; // finally{} clears _isAutoSaving
+    }
+    // The Centre's account is full (OPS-2): every upload is refused, and
+    // sending the whole backup every 5 seconds only to be refused costs the
+    // line dearly. It is tried again every 2 minutes, at sign-out, and as
+    // soon as the storage figure shows room; the work stays on this
+    // computer meanwhile, its "not yet uploaded" note with it.
+    if (typeof _storageFull !== 'undefined' && _storageFull && Date.now() - (_storageFull.at || 0) < STORAGE_FULL_RETRY_MS &&
+        !(typeof _copiesFlushRequested !== 'undefined' && _copiesFlushRequested)) {
+      _lastAutoSaveResult = { uploaded: false, reason: 'storage-full' };
+      return;
     }
 
     const cloudUser = getCurrentCloudUser();
@@ -40505,7 +41140,9 @@ async function autoSaveToAllFolders() {
         deletedStudentAt: safeJsonParse(CESTISStore.getItem('voctrain_deletedStudentAt'), {}),
         deletedCentreIds: safeJsonParse(CESTISStore.getItem('voctrain_deletedCentreIds'), []),
         deletedUserIds: safeJsonParse(CESTISStore.getItem('voctrain_deletedUserIds'), []),
-        chatFollowLog: lmsChatFollowLog
+        chatFollowLog: lmsChatFollowLog,
+        // Each staff computer's last save (the System health card, OPS-10).
+        deviceSaves: (typeof cestisDeviceSavesRead === 'function') ? cestisDeviceSavesRead() : undefined
       }
     };
     // Admin-managed data: only include if admin OR if non-empty (never upload empty to overwrite real data)
@@ -40558,7 +41195,12 @@ async function autoSaveToAllFolders() {
     // successful save. Hash only backupData.data — not the timestamp/savedBy,
     // which change on every call — so an idle app stops re-uploading identical
     // data to all Drive folders (the main cause of slow, constant syncing).
+    // (Each computer's last-save note is left out of the comparison: it is
+    // dated only when a real change goes up, below.)
+    var _devSavesIn = backupData.data.deviceSaves;
+    delete backupData.data.deviceSaves;
     const _dataStr = JSON.stringify(backupData.data, stripSecretFields);
+    if (_devSavesIn !== undefined) backupData.data.deviceSaves = _devSavesIn;
     const _curHash = cestisHashString(_dataStr);
     // The first save this session (after a sign-in, or the dashboard opened
     // afresh): if the Main copy, as read by this tick's pull, still has the
@@ -40597,6 +41239,9 @@ async function autoSaveToAllFolders() {
       return; // unchanged — nothing to push; finally{} clears _isAutoSaving
     }
 
+    // A real change goes up: this staff computer's last save is dated in it.
+    var _myDeviceSaves = null;
+    try { if (SYNC_STAFF_ROLES[currentRole] && typeof cestisDeviceStamp === 'function') { _myDeviceSaves = cestisDeviceStamp(backupData.data.deviceSaves); backupData.data.deviceSaves = _myDeviceSaves; } } catch (e) { _myDeviceSaves = null; }
     const jsonContent = JSON.stringify(backupData, stripSecretFields);
     const blob = new Blob([jsonContent], { type: 'application/json' });
     // The results this upload carries (noted now, as serialised): once the
@@ -40667,6 +41312,7 @@ async function autoSaveToAllFolders() {
       // This device's own note of what the Main copy now holds (never
       // uploaded, not a change to save): the data's hash, its length and the
       // bytes' checksum. Only when the Main copy itself took this payload.
+      if (_mainOk && _myDeviceSaves) { try { cestisMergeDeviceSaves(_myDeviceSaves); } catch (e) {} }
       if (_mainOk && _upMd5) {
         cestisBookkeeping(function() {
           try { CESTISStore.setItem('cestisLastUploadHash', JSON.stringify({ h: _curHash, n: _dataStr.length, md5: _upMd5, ts: backupData.timestamp, by: backupData.savedBy, role: backupData.savedByRole })); } catch (e) {}
@@ -41163,13 +41809,16 @@ async function gatePublishRun(env) {
   R.decisions = plan.decisions;
   env.queue.length = 0;
   plan.ops.forEach(function(op) { env.queue.push(op); });
+  // Since when an update for trainees has been waiting to go (the System
+  // health card's "oldest unsent", OPS-4).
+  if (env.queue.length) { if (!st.waitingSince) st.waitingSince = new Date(now).toISOString(); } else delete st.waitingSince;
   env.persist();
   var res = { wrote: 0, left: env.queue.length, stopped: false, built: due, listed: listed };
   if (env.queue.length) {
     var r2 = await gateRunQueue(env);
     res.wrote = r2.wrote; res.left = r2.left; res.stopped = r2.stopped;
   }
-  if (!env.queue.length) st.syncedAt = new Date(env.now()).toISOString();
+  if (!env.queue.length) { st.syncedAt = new Date(env.now()).toISOString(); delete st.waitingSince; }
   env.persist();
   return res;
 }
@@ -41340,7 +41989,12 @@ function gateDriveApi(tokenFn) {
     init = init || {};
     init.headers = Object.assign({ 'Authorization': 'Bearer ' + tokenFn() }, init.headers || {});
     var r = await fetch(url, init);
-    if (!r.ok) { var err = new Error('HTTP ' + r.status); err.status = r.status; throw err; }
+    if (!r.ok) {
+      var err = new Error('HTTP ' + r.status); err.status = r.status;
+      // The Centre's account is full (OPS-2): said the same way as a save.
+      if (r.status === 403) { try { if (CESTISCore.backups.quotaExceeded(await r.clone().json())) { err.storageFull = true; if (typeof cestisNoteStorageFull === 'function') cestisNoteStorageFull('gate'); } } catch (e) {} }
+      throw err;
+    }
     return r;
   };
   var multipart = function(meta, text) {
@@ -41922,6 +42576,160 @@ function gateCardRefresh() {
           (u.items ? ' (' + escapeHtml(u.items) + ' item' + (u.items === 1 ? '' : 's') + ')' : '') + '</li>';
       }).join('') + '</ul>' : '';
   }
+}
+/* ---- The setup sheet's live checks, as buttons on the card (OPS-4) ----
+   trainee-gate/SETUP.md §3 used to have the administrator open the
+   browser's console (F12) and paste code for four of its checks. Each is
+   now a button here, using the gate's own answers (health, diag.echo,
+   diag.tokeninfo — trainee-gate/Gate.gs, unchanged) and its check page.
+   Nothing here touches anybody's records. */
+var GATE_LIVE_NAMES = { reach: 'Live check 2', large: 'Live check 3', email: 'Live check 4', search: 'Live check 5', page: 'Live checks 5–7' };
+function gateLiveSay(kind, tone, text) {
+  var list = document.getElementById('gateCheckResults');
+  if (!list) return;
+  var li = document.getElementById('gateCheck-' + kind);
+  if (!li) { li = document.createElement('li'); li.id = 'gateCheck-' + kind; list.appendChild(li); }
+  li.className = 'gate-check-result gate-tone-' + tone;
+  li.textContent = (tone === 'ok' ? '✓ ' : tone === 'bad' ? '✗ ' : '• ') + GATE_LIVE_NAMES[kind] + ': ' + text;
+}
+function gateLiveUrl() {
+  var tg = (systemSettings && systemSettings.traineeGate) || {};
+  var input = document.getElementById('gateAddress');
+  var typed = input ? String(input.value || '').trim() : '';
+  return /^https:\/\/\S+$/i.test(typed) ? typed : (tg.url || '');
+}
+function gateLiveBusy(kind, on) {
+  var b = document.getElementById({ reach: 'gateCheckReach', large: 'gateCheckLarge', email: 'gateCheckEmail', search: 'gateCheckSearch' }[kind] || '');
+  if (!b) return;
+  if (on) { b.dataset.label = b.textContent; b.textContent = 'Checking…'; b.disabled = true; }
+  else { b.textContent = b.dataset.label || b.textContent; b.disabled = false; }
+}
+async function gateLivePost(url, body) {
+  // A text body: the browser asks no permission first (setup sheet, live check 2).
+  var r = await fetch(url, { method: 'POST', body: body, credentials: 'omit', redirect: 'follow', cache: 'no-store' });
+  return r.json();
+}
+async function gateLiveCheck(kind) {
+  if (!gateAdminOnly()) return;
+  var url = gateLiveUrl();
+  if (!url) { showToast('Paste the address from the setup sheet and press Check first.', 'warning'); return; }
+  if (kind === 'page') {
+    var w = window.open(url + (url.indexOf('?') === -1 ? '?' : '&') + 'op=selfcheck', '_blank', 'noopener');
+    gateLiveSay('page', 'info', 'the check page opened in a new tab. Each line should start with ✓; a • line means look again in a few minutes.' + (w === null ? ' (If no tab opened, allow pop-ups for this page and press again.)' : ''));
+    return;
+  }
+  if (kind === 'email') { gateLiveEmail(url); return; }   // from this press: its sign-in window is allowed
+  gateLiveBusy(kind, true);
+  try {
+    if (kind === 'reach') {
+      var j = null;
+      try { j = await gateLivePost(url, JSON.stringify({ op: 'health' })); } catch (e) { j = null; }
+      if (j && j.service === 'cestis-trainee-gate') gateLiveSay('reach', 'ok', 'this page can reach trainee sign-in — version ' + (j.version || '?') + '.');
+      else gateLiveSay('reach', 'bad', 'this page could not reach it. In the setup sheet, check that “Who has access” says Anyone and that the address ends in /exec. Until this works, nothing changes for anybody.');
+    } else if (kind === 'large') {
+      var best = 0, busy = false;
+      var sizes = [7, 4, 2];
+      for (var i = 0; i < sizes.length && !best; i++) {
+        var body = JSON.stringify({ op: 'diag.echo', pad: 'x'.repeat(sizes[i] * 1024 * 1024) });
+        var a = null;
+        try { a = await gateLivePost(url, body); } catch (e) { a = null; }
+        if (a && a.error === 'busy') { busy = true; break; }
+        if (a && a.chars === body.length) best = sizes[i];
+      }
+      if (busy) gateLiveSay('large', 'info', 'too many checks in a minute. Wait a minute and press again.');
+      else if (best === 7) gateLiveSay('large', 'ok', 'a 7 MB request arrived whole, so a 5 MB file can be sent.');
+      else if (best) gateLiveSay('large', 'warn', 'the largest that arrived whole was ' + best + ' MB. Tell the maintainer; until then, ask trainees to keep files small.');
+      else gateLiveSay('large', 'bad', 'even 2 MB did not arrive whole. Tell the maintainer; until then, ask trainees to keep files small.');
+    } else if (kind === 'search') {
+      if (!isCloudConnected || !googleAccessToken) { gateLiveSay('search', 'bad', 'turn on sync on this computer first, then press again.'); return; }
+      var found = false;
+      try {
+        var r = await fetch('https://www.googleapis.com/drive/v3/files?fields=files(id,name)&q=' + encodeURIComponent("name contains 'CESTISSMOKE' and trashed = false"),
+          { headers: { 'Authorization': 'Bearer ' + googleAccessToken }, cache: 'no-store' });
+        if (r.ok) { var d = await r.json(); found = (d.files || []).some(function(f) { return f && f.name === 'CESTISSMOKE.name-check.json'; }); }
+        else { gateLiveSay('search', 'bad', 'the search could not be made just now. Press again in a minute.'); return; }
+      } catch (e) { gateLiveSay('search', 'bad', 'the search could not be made just now. Press again in a minute.'); return; }
+      if (found) gateLiveSay('search', 'ok', 'files are found by the start of their name (the test file was found).');
+      else gateLiveSay('search', 'warn', 'not found yet. Open the full check page once (it makes the test file), then press again in a few minutes. Still not found after 30 minutes: tell the maintainer.');
+    }
+  } finally { gateLiveBusy(kind, false); }
+}
+// Live check 4: a sign-in with any email account, then the gate says which fields it was given (never the address).
+function gateLiveEmail(url) {
+  if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) {
+    gateLiveSay('email', 'bad', 'the email sign-in window is not available on this computer just now. Reload the page and press again.');
+    return;
+  }
+  gateLiveSay('email', 'info', 'choose any email account in the window that opens (yours is fine).');
+  var client = google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_DRIVE_CONFIG.CLIENT_ID,
+    scope: 'https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile',
+    callback: function(t) {
+      if (!t || t.error || !t.access_token) { gateLiveSay('email', 'bad', 'the sign-in did not finish. Press again.'); return; }
+      gateLivePost(url, JSON.stringify({ op: 'diag.tokeninfo', accessToken: t.access_token })).then(function(j) {
+        var fields = (j && Array.isArray(j.fields)) ? j.fields : [];
+        if (j && j.error === 'busy') gateLiveSay('email', 'info', 'too many checks in a minute. Wait a minute and press again.');
+        else if (!j || j.ok === false) gateLiveSay('email', 'bad', 'the sign-in could not be checked. Press again; if it fails again, tell the maintainer.');
+        else if (fields.indexOf('aud') === -1) gateLiveSay('email', 'bad', 'the sign-in check gave no “aud” field. Tell the maintainer: email sign-in and registration from home stay off; password sign-in works.');
+        else if (j.audIsOurs && j.emailVerified && j.hasEmailScope) gateLiveSay('email', 'ok', 'email sign-in is accepted, and checked as this site’s own.');
+        else if (!j.audIsOurs) gateLiveSay('email', 'bad', 'the sign-in names another site. Add the dashboard’s sign-in client in the program’s Script properties, as the setup sheet’s live check 4 shows.');
+        else gateLiveSay('email', 'warn', 'the email account is not confirmed, or the email permission was not given. Press again and allow it.');
+      }, function() { gateLiveSay('email', 'bad', 'trainee sign-in did not answer. Press “This page can reach it” first.'); });
+    },
+    error_callback: function() { gateLiveSay('email', 'bad', 'the sign-in window was closed or blocked. Press again and choose any email account.'); }
+  });
+  try { client.requestAccessToken(); } catch (e) { gateLiveSay('email', 'bad', 'the sign-in window could not open. Press again.'); }
+}
+
+/* ---- Renewing the sync sign-in from a click (OPS-11) ----
+   The sync sign-in lasts about an hour. It is renewed silently from a timer
+   and when the page comes back into view, never from a click, and a browser
+   may block the small window that renewal needs. When that happens (or the
+   sign-in has run out), a small "Reconnect" button appears beside the sync
+   control; pressing it renews from that press, which the browser allows.
+   Work goes on being saved on this computer in between, and goes up once
+   the sign-in is renewed. How signing in itself works is unchanged. */
+var _renewNeeded = false, _renewFromClick = false, _renewWatch = null;
+function cestisRenewNeeded(on) {
+  _renewNeeded = !!on;
+  try { refreshSyncChip(); } catch (e) {}
+}
+function cestisReconnectFromClick() {
+  // A sign-in that is still good: simply put back to work (no window at all).
+  try {
+    var savedToken = CESTISStore.getItem('schoolDashboardGoogleAccessToken');
+    var savedExpiry = CESTISStore.getItem('schoolDashboardGoogleTokenExpiry');
+    if (!_renewNeeded && savedToken && savedExpiry && new Date(savedExpiry) > new Date(Date.now() + 5 * 60000)) { reconnectCloudSync(); return; }
+  } catch (e) {}
+  var client = (typeof ensureSilentRefreshClient === 'function') ? ensureSilentRefreshClient() : null;
+  if (!client) { reconnectCloudSync(); return; }
+  _renewFromClick = true;
+  _silentRefreshInFlight = true;
+  _lastSilentRefreshAt = Date.now();
+  var btn = document.getElementById('syncReconnectBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Reconnecting…'; }
+  clearTimeout(_renewWatch);
+  _renewWatch = setTimeout(function() { cestisRenewSettled(false); }, 60000);
+  try { client.requestAccessToken({ prompt: '' }); }   // from this press: the browser lets its window open
+  catch (e) { cestisRenewSettled(false); reconnectCloudSync(); }
+}
+// The renewal ended (ok: a new sign-in arrived).
+function cestisRenewSettled(ok) {
+  clearTimeout(_renewWatch);
+  var fromClick = _renewFromClick;
+  _renewFromClick = false;
+  _silentRefreshInFlight = false;
+  var btn = document.getElementById('syncReconnectBtn');
+  if (btn) { btn.disabled = false; btn.textContent = 'Reconnect'; }
+  if (ok) {
+    _renewNeeded = false;
+    try { updateCloudUI(true); } catch (e) {}
+    if (fromClick) { try { showToast('Reconnected — your work is syncing again.', 'success'); } catch (e) {} }
+  } else {
+    _renewNeeded = true;
+    if (fromClick) { try { showToast('Could not reconnect. Press Reconnect to try again, or ask the office. Your work is kept on this computer.', 'warning'); } catch (e) {} }
+  }
+  try { refreshSyncChip(); } catch (e) {}
 }
 function gateCardOpen() {
   var addr = document.getElementById('gateAddress');
@@ -43298,6 +44106,14 @@ function syncChipInputs() {
   // member's is not, and that is normal for them — their own unsent work (an
   // exam result still in the outbox) is all the control speaks of.
   inp.staff = !!SYNC_STAFF_ROLES[currentRole];
+  // The sync sign-in could not renew itself: one press on Reconnect does it.
+  // (Also once the sign-in has gone on a computer that was syncing before — after a reload, say.)
+  var _syncedBefore = false;
+  try { _syncedBefore = !!(CESTISStore.getItem('schoolDashboardLastSyncTime') || CESTISStore.getItem('schoolDashboardCloudFileId')); } catch(e) {}
+  inp.canRenew = inp.staff && !_syncChipLan && (typeof _renewNeeded !== 'undefined') && (_renewNeeded || (!inp.connected && _syncedBefore));
+  // A save refused because the Centre's storage is full (OPS-2).
+  inp.storageFull = typeof cestisStorageIsFull === 'function' && cestisStorageIsFull();
+  inp.isAdmin = currentRole === 'admin';
   inp.signinExpired = !inp.connected && !!exp && exp <= now;
   inp.canConnect = inp.staff && !_syncChipLan;
   if (!inp.staff) {
@@ -43350,6 +44166,11 @@ function refreshSyncChip() {
   document.getElementById('syncChipPanelLast').textContent = h.lastSaved;
   var adv = document.getElementById('syncChipPanelAdvice');
   adv.innerHTML = h.advice.map(function(a){ return '<li>' + escapeHtml(a) + '</li>'; }).join('');
+  try { if (typeof cestisRenderBackupLine === 'function') cestisRenderBackupLine(); } catch (e) {}
+  var rb = document.getElementById('syncReconnectBtn');
+  if (rb) rb.hidden = !(inp.canRenew || (inp.staff && inp.signinExpired && !_syncChipLan));
+  // (On a phone the page's name gives way to it — shortened, never broken mid-word.)
+  document.body.classList.toggle('sync-renew', !!(rb && !rb.hidden));
   wrap.classList.add('on');
 }
 function toggleSyncChipPanel(e) {

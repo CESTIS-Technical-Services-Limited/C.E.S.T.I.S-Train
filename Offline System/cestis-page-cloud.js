@@ -96,8 +96,15 @@
 
   function api(url, opts) {
     return root.fetch(url, opts).then(function (r) {
-      if (!r.ok) throw new Error('http-' + r.status);
-      return r;
+      if (r.ok) return r;
+      // A refusal because the Centre's account is full (not a rate limit):
+      // the chip says "Storage is full — tell the administrator" (OPS-2).
+      return r.text().then(function (t) { return t; }, function () { return ''; }).then(function (t) {
+        var e = new Error('http-' + r.status);
+        var B = root.CESTISCore && root.CESTISCore.backups;
+        try { if (r.status === 403 && B && B.quotaExceeded(t)) e.storageFull = true; } catch (x) {}
+        throw e;
+      });
     });
   }
 
@@ -478,6 +485,7 @@
         var blob = new Blob([body], { type: 'application/json' });
         var done = function (ok) {
           if (ok) {
+            self.state.storageFull = false;
             self.lastPush = body;
             self.state.lastPush = payload.savedAt;
             self.state.keys = payload.keyCount;
@@ -500,7 +508,7 @@
           .then(function (r) { return r.json(); })
           .then(function (d) { self.fileId = d.id || self.fileId; return done(true); });
       });
-    }).catch(function (e) { self.state.error = (e && e.message) || 'push-failed'; return false; });
+    }).catch(function (e) { self.state.error = (e && e.message) || 'push-failed'; self.state.storageFull = !!(e && e.storageFull); return false; });
   };
 
   Page.prototype.schedulePush = function () {
@@ -643,6 +651,8 @@
   function deviceOnly(k) {
     // A trainee gate session's own records ('g1::…') stay in that session's namespace.
     if (/^g[0-9]{1,3}::/.test(k)) return true;
+    // This computer's own notes (the weekly backups it has seen, its id: CESTISCore.backups).
+    if (k.indexOf('cestisThisPc_') === 0) return true;
     return /^voctrain_session(Expiry|Role|UserId|StudentId|SeenAt)$/.test(k) || k === 'voctrain_examInProgress' ||
            k.indexOf('cestisExamSession__') === 0 || k === 'cestisExamOutbox' ||
            k.indexOf('voctrain_user_') === 0 ||
@@ -1058,7 +1068,7 @@
       'cestisGateUnassigned', 'cestisGateQuarantine', 'cestisStudentIdMoves'
     ],
     // This module's own bookkeeping about what it has already synced.
-    excludePrefixes: ['cestis_pagecloud_stamps__'],
+    excludePrefixes: ['cestis_pagecloud_stamps__', 'cestisThisPc_'],
     // What this file brings down belongs to the pages that own or read it:
     // whichever pull lands first writes a key, and the other then sees nothing
     // new — so the page must be told either way.
@@ -1188,7 +1198,7 @@
           connected: p.state.connected, backend: p.state.backend || (lan.on ? 'offline-server' : 'google-drive'),
           keys: p.state.keys, sharedKeys: p.state.shared,
           reads: (p.spec.reads || []).length,
-          lastPull: p.state.lastPull, lastPush: p.state.lastPush, error: p.state.error };
+          lastPull: p.state.lastPull, lastPush: p.state.lastPush, error: p.state.error, storageFull: !!p.state.storageFull };
       });
     },
 

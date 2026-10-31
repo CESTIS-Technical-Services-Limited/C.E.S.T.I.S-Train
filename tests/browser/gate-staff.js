@@ -153,7 +153,9 @@ function fakeGate(drive, opts) {
     console.log('    contrast, ' + where + ': ' + res.map(([sel, r]) => sel.replace(/^#gate/, '').split(' ').pop() + ' ' + (r === null ? 'n/a' : r.toFixed(2))).join(', '));
   }
   const files = (drive, parent) => Object.values(drive.files).filter(f => f.parents.indexOf(parent) !== -1);
-  const GATE_SHAPED = /CESTIS_GATE|CESTISINBOX|appProperties|cestis-trainee|from-centre|cestisGate/;
+  // (The weekly backups — records-safe — mark their own files with appProperties
+  // too, once a week on an office PC: only the gate's own mark, cestisGate, counts.)
+  const GATE_SHAPED = /CESTIS_GATE|CESTISINBOX|cestis-trainee|from-centre|cestisGate/;
 
   const PLAN = [];
   function section(title, fn) { PLAN.push({ title, fn }); }

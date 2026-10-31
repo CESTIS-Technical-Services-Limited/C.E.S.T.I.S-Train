@@ -60,7 +60,7 @@
     var skew = clockSkew();
     var connected = !!tok && (!exp || exp > now);
     var online = root.navigator ? root.navigator.onLine !== false : true;
-    var pendingSince = null, edited = false, failures = 0, last = 0, trouble = false;
+    var pendingSince = null, edited = false, failures = 0, last = 0, trouble = false, full = false;
     pages.forEach(function (p) {
       if (!p || !p.spec || p.spec.readOnly) return;
       var st = p.state || {};
@@ -75,6 +75,8 @@
       else if (!memo || memo.msg !== st.error) memo = errSeen[p.spec.file] = { msg: st.error, push: st.lastPush || '' };
       if (st.error && (st.backend === 'offline-server' || (st.lastPush || '') === memo.push)) {
         failures++;
+        // Refused because the Centre's storage is full (cestis-page-cloud.js).
+        if (st.storageFull) full = true;
         if (st.backend === 'offline-server') trouble = true;
       }
       // Edits made on this page since it was opened (page-cloud stamps every
@@ -97,7 +99,8 @@
     return { now: now, online: online, lan: lanOn, lanTrouble: trouble, connected: connected, tokenExpiresAt: exp || null,
       signinExpired: !connected && !!tok && !!exp && exp <= now, canConnect: !lanOn && hasConnect,
       pending: (cannotUpload && edited) || (!lanOn && connected && failures > 0),
-      pendingSince: cannotUpload && edited ? pendingSince : null, failures: failures, lastSavedAt: last || null };
+      pendingSince: cannotUpload && edited ? pendingSince : null, failures: failures, lastSavedAt: last || null,
+      storageFull: !lanOn && connected && full, isAdmin: false };
   }
 
   var CSS = '.cestis-sync-chip-wrap{position:relative;display:inline-block;vertical-align:middle;font-family:"DM Sans",system-ui,sans-serif}' +

@@ -29,6 +29,10 @@
    4. The access token changed every time the server restarted, and every page
       already open then failed every save, silently, until someone reloaded
       it. The token is now kept in cert/lan-token and survives restarts.
+   5. On a busy day the last HISTORY_KEEP versions cover only hours, so a bad
+      change found a week later had no good copy left (the operations audit,
+      OPS-1). One dated copy of every file per week is now kept too, for the
+      last WEEKLY_KEEP (12) weeks, in data/.weekly/<file>/<year>-W<week>.json.gz.
    ============================================================================ */
 'use strict';
 
@@ -212,6 +216,82 @@ function keepHistory(dataDir, file, keep) {
 // Wait for the background compression of a file's history (tests, shutdown).
 function historySettled(dataDir, file) { return compressQueue.get(historyDir(dataDir, file)) || Promise.resolve(); }
 
+/* ------------------------------------------------------------ weekly copies
+   Besides the last HISTORY_KEEP versions — which a busy day can use up in
+   hours — one dated copy of every file per ISO week (Monday to Sunday, by
+   this computer's calendar), kept for WEEKLY_KEEP weeks:
+     data/.weekly/<file>/<year>-W<week>.json.gz
+   It is the file as it stood when that week's first change came in (the
+   version the change replaced), compressed (about a tenth of the size), read
+   back and checked before it takes its name. Made after the save has
+   answered, off the request. Older weeks are removed — only files named like
+   a weekly copy, in that file's own weekly folder; a week later than this
+   computer's own (a clock set wrong for a while) is kept and not counted.
+   To use one: READ ME FIRST, section 3. */
+const WEEKLY_KEEP = 12;
+const WEEKLY_RE = /^(\d{4})-W(\d{2})\.json(\.gz)?$/;
+function isoWeekLabel(ms) {
+  const d = new Date(ms);
+  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const day = t.getUTCDay() || 7;
+  t.setUTCDate(t.getUTCDate() + 4 - day);
+  const y = t.getUTCFullYear();
+  const wk = Math.ceil(((t.getTime() - Date.UTC(y, 0, 1)) / 86400000 + 1) / 7);
+  return y + '-W' + (wk < 10 ? '0' : '') + wk;
+}
+function weeklyDir(dataDir, file) { return path.join(dataDir, '.weekly', path.basename(file)); }
+// One file's weekly copies, oldest first.
+function weeklyCopies(dataDir, file) {
+  try { return fs.readdirSync(weeklyDir(dataDir, file)).filter(f => WEEKLY_RE.test(f)).sort(); } catch (e) { return []; }
+}
+// One weekly copy's text, plain or compressed.
+function readWeekly(dataDir, file, name) {
+  const buf = fs.readFileSync(path.join(weeklyDir(dataDir, file), name));
+  return (/\.gz$/.test(name) ? zlib.gunzipSync(buf) : buf).toString('utf8');
+}
+const weeklyQueue = new Map();
+/* Keep `buf` as this week's copy of `file`, unless this week has one.
+   Resolves the copy's path, or null when none was made. */
+function keepWeekly(dataDir, file, buf, now, keep) {
+  const dir = weeklyDir(dataDir, file);
+  const label = isoWeekLabel(typeof now === 'number' ? now : Date.now());
+  const limit = keep > 0 ? keep : WEEKLY_KEEP;
+  const job = () => new Promise(resolve => {
+    if (weeklyCopies(dataDir, file).some(f => f.indexOf(label + '.json') === 0)) return resolve(null);
+    try { fs.mkdirSync(dir, { recursive: true }); } catch (e) { return resolve(null); }
+    zlib.gzip(buf, { level: 6 }, (zerr, gz) => {
+      if (zerr) return resolve(null);
+      const dst = path.join(dir, label + '.json.gz');
+      const tmp = path.join(path.dirname(dir), '.' + path.basename(dir) + '.' + process.pid + '.' + crypto.randomBytes(4).toString('hex') + '.weekly.tmp');
+      fs.writeFile(tmp, gz, werr => {
+        if (werr) { fs.unlink(tmp, () => resolve(null)); return; }
+        fs.readFile(tmp, (e1, back) => {
+          if (e1) { fs.unlink(tmp, () => resolve(null)); return; }
+          zlib.gunzip(back, (e2, out) => {
+            if (e2 || !out.equals(buf)) { fs.unlink(tmp, () => resolve(null)); return; }
+            try { fs.renameSync(tmp, dst); }
+            catch (e3) { try { fs.unlinkSync(tmp); } catch (e4) {} return resolve(null); }
+            // The newest `limit` weeks up to this one stay; older ones go.
+            const labels = Array.from(new Set(weeklyCopies(dataDir, file).map(f => f.replace(/\.json(\.gz)?$/, '')))).sort();
+            const counted = labels.filter(l => l <= label);
+            counted.slice(0, Math.max(0, counted.length - limit)).forEach(l => {
+              [l + '.json', l + '.json.gz'].forEach(f => { try { fs.unlinkSync(path.join(dir, f)); } catch (e) {} });
+            });
+            resolve(dst);
+          });
+        });
+      });
+    });
+  });
+  const prev = weeklyQueue.get(dir) || Promise.resolve();
+  const p = prev.then(job, job);
+  weeklyQueue.set(dir, p);
+  p.then(() => { if (weeklyQueue.get(dir) === p) weeklyQueue.delete(dir); });
+  return p;
+}
+// Wait for a file's weekly copy to be written (tests, shutdown).
+function weeklySettled(dataDir, file) { return weeklyQueue.get(weeklyDir(dataDir, file)) || Promise.resolve(); }
+
 /* ------------------------------------------------------------------ merge */
 function isPagePayload(p) {
   return !!p && typeof p === 'object' && !Array.isArray(p) && !!p.data && typeof p.data === 'object' && !Array.isArray(p.data);
@@ -286,10 +366,13 @@ function save(opts) {
       return { bytes: Buffer.byteLength(text), etag: etagOf(Buffer.from(text)), changedByServer, history: null, basedOn, resultSig };
     }
     const history = storedText == null ? null : keepHistory(dataDir, file, opts.keep);
+    // This week's dated copy (the version this change replaces), if the week has none.
+    if (storedText != null) keepWeekly(dataDir, file, Buffer.from(storedText, 'utf8'), opts.now, opts.weeklyKeep);
     writeDurable(file, text);
     return { bytes: Buffer.byteLength(text), etag: etagOf(Buffer.from(text)), changedByServer, history, basedOn, resultSig };
   });
 }
 
 module.exports = { nodeTooOld, MIN_NODE_MAJOR, loadOrCreateToken, rotateToken, etagOf, serialise, writeDurable,
-  keepHistory, historyDir, historyVersions, readHistory, historySettled, mergeIncoming, save, HISTORY_KEEP, HISTORY_PLAIN };
+  keepHistory, historyDir, historyVersions, readHistory, historySettled, mergeIncoming, save, HISTORY_KEEP, HISTORY_PLAIN,
+  keepWeekly, weeklyDir, weeklyCopies, readWeekly, weeklySettled, isoWeekLabel, WEEKLY_KEEP };
