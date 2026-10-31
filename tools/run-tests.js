@@ -84,7 +84,7 @@ const SUITES = [
   'tests/requests-run-themselves.test.js', 'tests/student-progress-bulk.test.js', 'tests/new-trainee-form.test.js', 'tests/sign-in-slips.test.js',
   'tests/academic-year-options.test.js', 'tests/version-tags.test.js', 'tests/centre-config.test.js',
   'tests/megadata-dormant.test.js', 'tests/payroll-rates.test.js', 'tests/light-pages.test.js', 'tests/staff-modules-offline.test.js', 'tests/records-safe-core.test.js', 'tests/records-safe-page.test.js',
-  'tests/assessments-core.test.js'
+  'tests/assessments-core.test.js', 'tests/assessments-bank.test.js', 'tests/assessment-pdf.test.js'
 ];
 
 /* tests/*.test.js files that are not in SUITES. They run too (see above). */

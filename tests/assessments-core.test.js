@@ -324,7 +324,7 @@ console.log('Where each record is filed, and its name');
   assert(A.groupFileName({ groupName: 'Group B', unitCode: 'MEMFAB0042C', kind: 'practical1' }) === 'Group B — MEMFAB0042C Practical 1.pdf', 'the group\'s paper');
   assert(A.photoFileName(0, 'Set up', 'image/jpeg') === '01 Set up.jpg' && A.photoFileName(10, 'a/b', 'image/png') === '11 a-b.png', '"01 Set up.jpg"');
   assert(A.zipName({ groupName: 'Group B', unitCode: 'MEMFAB0042C', kind: 'practical1' }) === 'Group B — MEMFAB0042C Practical 1 — photos.zip', 'the ZIP named after the group and unit');
-  assert(A.safeName('a\\b/c:d*e?"f<g>h|i\u0001') === 'a-b-c-d-e--f-g-h-i' && A.safeName('') === 'Untitled' && A.safeName('x'.repeat(300)).length === 120, 'names a folder can carry');
+  assert(A.safeName('a\\b/c:d*e?"f<g>h|i\u0001') === 'a-b-c-d-e--f-g-h-i' && A.safeName('') === 'Untitled' && A.safeName('x'.repeat(300)).length === 120 && A.safeName('word '.repeat(40), 30) === 'word word word word word word', 'names a folder can carry, long ones cut at a whole word');
   const d1 = A.docNumber('ATT-1', '2026-10-30T15:42:00.000Z');
   assert(/^AR-2026-[0-9A-Z]{6}$/.test(d1) && d1 === A.docNumber('ATT-1', '2026-10-30T00:00:00.000Z') && d1 !== A.docNumber('ATT-2', '2026-10-30T00:00:00.000Z'), 'a document number, the same on every device (' + d1 + ')');
   const work = [A.filedRecord({ key: 'res:R1', status: 'provisional', fileId: 'F1', hash: 'h1', at: '2026-10-30T16:00:00.000Z' }), A.filedRecord({ key: 'res:R2', status: 'final', fileId: 'F2', hash: 'h2', at: '2026-10-30T16:00:00.000Z' })];

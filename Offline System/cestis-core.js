@@ -16889,7 +16889,12 @@
     function safeName(s, max) {
       var out = str(s).replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/[\\/:*?"<>|]/g, '-').replace(/\s+/g, ' ').trim().replace(/^\.+/, '');
       max = max || 120;
-      return (out.length > max ? out.slice(0, max).trim() : out) || 'Untitled';
+      if (out.length > max) {
+        // Cut at the last whole word that fits (a word cut in half reads as a mistake).
+        var cut = out.slice(0, max + 1), sp = cut.lastIndexOf(' ');
+        out = (sp > max * 0.6 ? cut.slice(0, sp) : out.slice(0, max)).replace(/[\s,;:—–-]+$/, '').trim();
+      }
+      return out || 'Untitled';
     }
     function unitFolder(o) {
       var c = trim(o.unitCode), t = trim(o.unitTitle);
