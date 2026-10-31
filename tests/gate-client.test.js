@@ -182,6 +182,23 @@ Gate.configure({ outboxBackend: backend, store: null, client: 'test' });
     assert(W.voctrain_systemSettings.institutionName === 'CESTIS' && W.voctrain_systemSettings.cestisTheme === 'dark' && W.voctrain_systemSettings.traineeGate.url === GATE_URL &&
       W.voctrain_systemSettings.centreUtcOffset === '-05:00', 'settings: the Centre\'s name, time zone and the gate\'s address; this device\'s own kept');
     assert(plan.base.voctrain_submissions['SUB-1'] === G.hashOf(sub('SUB-1')), 'the watcher\'s base is what was just applied');
+
+    // A pull landing while her work is still being written (a group's photos
+    // finishing one after another): a record this device has never sealed —
+    // in no answer of the gate's, not in the outbox, not in the base — is
+    // kept, and left out of the new base so the watcher seals and sends it.
+    const photo = { id: 'AP-NEW', type: 'photo', studentId: 'STU-A', groupId: 'AG-1', examId: 'EX-P', caption: 'Root pass', addedAt: t(MIN), updatedAt: t(MIN) };
+    const known = { voctrain_submissions: { 'SUB-2': 'h1-x', 'SUB-4': 'h1-y' }, voctrain_assessmentWork: { 'AP-SENT': 'h1-z' } };
+    const local2 = Object.assign({}, local, { voctrain_assessmentWork: [photo, { id: 'AP-SENT', type: 'photo', studentId: 'STU-A', updatedAt: t(0) }] });
+    const slice2 = J(slice); slice2.data.voctrain_assessmentWork = [];
+    const plan2 = P.planApply(slice2, local2, { me, nowMs: NOW, base: known, pending: { voctrain_submissions: { 'SUB-1': true } } });
+    const w2 = plan2.writes;
+    assert(w2.voctrain_assessmentWork.map(r => r.id).join() === 'AP-NEW', 'a photo record written a moment ago is kept; one sent and since gone from the gate is not');
+    assert(w2.voctrain_submissions.find(s => s.id === 'SUB-3'), 'a new submission never sealed is kept too (no longer only while it is in the outbox)');
+    assert(!w2.voctrain_submissions.find(s => s.id === 'SUB-4'), 'still: one sent long ago and no longer the Centre\'s is not kept');
+    assert(!plan2.base.voctrain_assessmentWork['AP-NEW'] && !plan2.base.voctrain_submissions['SUB-3'], 'and they are left out of the new base, so they are sealed and sent');
+    const d2 = P.diff('voctrain_assessmentWork', w2.voctrain_assessmentWork, plan2.base.voctrain_assessmentWork, me);
+    assert(d2.items.length === 1 && d2.items[0].rec.id === 'AP-NEW', 'the watcher then sends it');
   }
 
   console.log('The watcher: only the trainee\'s own changes, as items');

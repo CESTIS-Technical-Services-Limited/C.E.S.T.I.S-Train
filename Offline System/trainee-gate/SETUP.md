@@ -53,7 +53,7 @@ What you need:
      that the office has approved her (at most 100 emails a day in all; backup codes always work).
 7. Copy the **Web app URL** (it ends in `/exec`) and click **Done**.
 8. Back in the dashboard card, paste it into **Address** and press **Check**. The first check makes
-   the program create its folders, its secret and `CESTIS_GATE.json`. Expect **"Ready — version 3"**
+   the program create its folders, its secret and `CESTIS_GATE.json`. Expect **"Ready — version 4"**
    and the number of trainee accounts.
    - The card's **Open the full check page** button (under *Checks after setup*) opens a page of ✓
      lines: *Secret made*, *Folders present*, *Accounts list found (N trainee accounts …)*.
@@ -70,17 +70,20 @@ Now run the **live checks** (section 3) once.
 
 ## 2. Upgrading to a new version (the address stays the same)
 
-> **Version 3 (October 2026) is the version to set up.** If the program has never been set up,
-> just follow section 1: nothing needs pasting twice. Version 3 adds, for trainees at home: **their
-> fees and receipts**, **changing their own password**, **downloading their certificate** once its
-> download is approved, **photos and files sent in parts** on a weak signal, and **an email when the
-> office approves a registration from home** (section 7). Version 2 added registration from home
-> and names each trainee's folder with their name and student ID.
+> **Version 4 (November 2026) is the version to set up.** If the program has never been set up,
+> just follow section 1: nothing needs pasting twice. Version 4 adds the **prepared assessments**
+> for trainees at home (section 8): **extra time** the office adds reaches her clock while she sits
+> a test, her **signature** goes with her submission, and a **group practical**'s photos, hand-in and
+> each member's signature. Version 3 added their fees and receipts, changing their own password,
+> downloading their certificate, photos and files sent in parts, and an email when the office
+> approves a registration from home (section 7). Version 2 added registration from home and names
+> each trainee's folder with their name and student ID.
 >
 > If an older version is running, the dashboard card says *"A newer version is available"* and
-> trainees can still sign in as before; until it is pasted, My Fees says the fees are not available
-> yet, Change Password and the certificate download at home answer that it is not available yet, and
-> nobody is emailed on approval. Follow the five steps below; the address does not change.
+> trainees can still sign in as before; until it is pasted, extra time reaches a trainee at home only
+> when her records are next sent to her, and a group practical's photos and sign-offs cannot be sent
+> from home (her phone keeps them until the new version is pasted). Follow the five steps below; the
+> address does not change.
 
 1. Copy the program again (step 1 above).
 2. Open **https://script.google.com** (signed in as the Centre) → click **CESTIS Trainee Gate**.
@@ -130,8 +133,8 @@ below.
 ### Live check 2 — the dashboard's site may call the program (CORS, plain-text POST)
 
 - **Do:** press **This page can reach it**.
-- **Expect:** *✓ Live check 2: this page can reach trainee sign-in — version 3.* (Behind it, the
-  program answers `{ok: true, service: "cestis-trainee-gate", version: 3, …}`. The button sends a
+- **Expect:** *✓ Live check 2: this page can reach trainee sign-in — version 4.* (Behind it, the
+  program answers `{ok: true, service: "cestis-trainee-gate", version: 4, …}`. The button sends a
   text body, `text/plain`, so the browser asks no permission first.)
 - **If it says ✗:** check that step 5 said **Who has access: Anyone**, and
   that the address ends in `/exec` (not `/dev`). Fix with **Deploy → Manage deployments → ✏ → Who
@@ -294,3 +297,24 @@ creates the account there.
 
 Limits, so nobody can fill the Centre's Drive: five tries an hour for one address; 60
 registrations an hour and 200 in six hours for everybody.
+
+## 8. Prepared assessments from home (version 4)
+
+Nothing to set up beyond pasting version 4 (section 2). What it does, so you know what to expect:
+
+- **Tests.** A trainee sits Theory 1 or Theory 2 at home exactly as any other test. Before she
+  submits she **signs**: her full name shown in a handwritten style, and *"I confirm this is my own
+  work"* ticked. The signature goes with her answers; the program marks the test and keeps her
+  result, with the signature, in her folder as before.
+- **Extra time.** When the Administrator (or Admin Staff with *Online Exams*) adds time for her, or
+  for the whole sitting, her phone asks the program every minute while she sits the test, and her
+  clock moves within a minute or two. The office PC must be signed in for the new time to reach the
+  program (it sends the test's details again by itself).
+- **Group practicals.** She sees her group's names (first name and initial — never another
+  trainee's ID or result), the photos to take and the group's photos. Each photo is made smaller on
+  her phone and sent in parts into **her own folder's `files/`**, like her coursework; the office
+  copies the group's photos into the **Assessment Results** folder when it files the group's paper.
+  One member hands in for the whole group and signs then; the others sign the next time they open
+  it. Each trainee may send about 50 files a day (the same allowance as coursework).
+- **On the Centre's own network** (the Offline System) the program answers the extra time and the
+  signatures, but photos need the internet: the instructor adds them from an office computer.

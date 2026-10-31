@@ -206,7 +206,7 @@ const hasKey = v => JSON.stringify(v).indexOf('"correctAnswer"') !== -1;
 function sSetup(src) {
   section('The pasted file runs in a simulated Apps Script runtime; its first request makes the secret, the folders and CESTIS_GATE.json');
   const env = gateWorld(src, { publish: false }), w = env.w, h = env.health;
-  assertEq([h.ok, h.service, h.version, h.protocol, h.accepting], [true, 'cestis-trainee-gate', 3, [1], true], 'health answers who it is (version 3: home study — fees, password, certificate, parts, approval email)');
+  assertEq([h.ok, h.service, h.version, h.protocol, h.accepting], [true, 'cestis-trainee-gate', 4, [1], true], 'health answers who it is (version 4: prepared assessments — extra time, signatures, group practicals)');
   const led = w.drive.json(env.ledger.id);
   assertEq(h.ready, { secret: true, folders: true, ledger: true, ledgerUpdated: iso(w.clock.now), trainees: expectedTrainees(led) },
     'ready: secret, folders, the accounts list and its trainee accounts');
@@ -222,7 +222,7 @@ function sSetup(src) {
   assert(/^[0-9a-f]{64}$/.test(env.secret()), 'a 64-hex secret is made and kept in Script Properties');
   assert(JSON.stringify(h).indexOf(env.secret()) === -1 && w.drive.read(env.cfgFile().id).indexOf(env.secret()) === -1, 'and never shown or written to a file');
   const state = w.drive.json(w.drive.child(sub('_gate').id, 'gate-state.json', 'file').id);
-  assertEq([state.format, state.gateVersion, state.ledgerFileId, state.upgrades.map(u => u.version)], ['cestis-gate-state', 3, env.ledger.id, [3]], 'gate-state.json records the version and the list used');
+  assertEq([state.format, state.gateVersion, state.ledgerFileId, state.upgrades.map(u => u.version)], ['cestis-gate-state', 4, env.ledger.id, [4]], 'gate-state.json records the version and the list used');
   assertEq(w.props.store.LEDGER_FOUND_ID, env.ledger.id, 'of two accounts lists, the one beside the main backup is used');
   assert(/2 copies/.test(w.props.store.LEDGER_NOTE), 'and the check page can say so');
 
@@ -819,12 +819,12 @@ function sPaste() {
   const coreText = fs.readFileSync(path.join(__dirname, '..', 'cestis-core.js'), 'utf8');
   const al = paste.allowlistCore(coreText);
   assert(al.chunks.every(c => coreText.indexOf(c.text) !== -1), 'every allowlisted part is a verbatim run of cestis-core.js');
-  assertEq(al.chunks.map(c => c.name.split(' ')[0]), ['the', 'Core.naturalKey', 'Core.stableStudentId', 'Core.programmeIdentity', 'Core.accountLoginScore', 'Core.accountAccess', 'Core.exams', 'Core.enrolment', 'Core.gate'],
-    'the parts: the helpers, the student ID (naturalKey, stableStudentId, programmeIdentity, enrolment), accountLoginScore, accountAccess, exams, gate');
+  assertEq(al.chunks.map(c => c.name.split(' ')[0]), ['the', 'Core.naturalKey', 'Core.stableStudentId', 'Core.programmeIdentity', 'Core.accountLoginScore', 'Core.accountAccess', 'Core.exams', 'Core.enrolment', 'Core.assessments', 'Core.gate'],
+    'the parts: the helpers, the student ID (naturalKey, stableStudentId, programmeIdentity, enrolment), accountLoginScore, accountAccess, exams, assessments (version 4), gate');
   const gs = fs.readFileSync(path.join(__dirname, '..', 'trainee-gate', 'Gate.gs'), 'utf8');
   const used = new Set();
   for (const m of gs.matchAll(/\b(?:G\.core|CESTISCore)\.([A-Za-z_$][\w$]*)/g)) used.add(m[1]);
-  const carried = new Set(['hashString', 'normName', 'normCourse', 'naturalKey', 'stableStudentId', 'programmeIdentity', 'accountLoginScore', 'accountAccess', 'exams', 'enrolment', 'gate']);
+  const carried = new Set(['hashString', 'normName', 'normCourse', 'naturalKey', 'stableStudentId', 'programmeIdentity', 'accountLoginScore', 'accountAccess', 'exams', 'enrolment', 'assessments', 'gate']);
   assertEq([...used].filter(u => !carried.has(u)), [], 'Gate.gs uses only modules the allowlist paste carries');
   const sizes = { allowlist: Buffer.byteLength(paste.build('allowlist')), full: Buffer.byteLength(paste.build('full')) };
   console.log('  paste size: allowlist ' + sizes.allowlist + ' bytes, full ' + sizes.full + ' bytes; left out: ' + al.missing.join(', '));
@@ -961,6 +961,80 @@ function sRegister(src) {
 }
 
 /* ---------- Version 3: home study (the owner's group C) ---------- */
+/* ===================================================== prepared assessments */
+function sAssessments(src) {
+  section('Version 4 — prepared assessments: her extra time, her signature, her group practical\'s photos and sign-off');
+  const AS = Core.assessments;
+  const C = centre(), T = C.trainees[13], U = C.trainees[25], V = C.trainees[22], N = C.trainees[19];
+  const ex = C.store.voctrain_exams.filter(e => e.id === examOf(T))[0];
+  ex.extraTime = [{ id: 'XT-T', studentId: T.stu.id, minutes: 20, reason: 'Power cut at home', byId: 'U1', byName: 'Office Person', byRole: 'admin', at: iso(NOW - 60 * MIN) }];
+  const day = d => Core.exams.centreParts(NOW + d * DAY, '-05:00').date;
+  C.store.voctrain_exams.push({ id: 'EX-PRAC', title: 'Practical 1', course: T.stu.course, date: day(-1), time: '08:00', closeDate: day(3), closeTime: '16:00', status: 'upcoming',
+    questions: 0, questionData: [], duration: 0, assessment: { v: 1, kind: 'practical1', master: false, from: 'EX-PM', programme: T.stu.course, unitCode: 'U-01', unitTitle: 'A unit', intake: 'Sep 2026' },
+    practical: { title: 'Weld a tee', brief: 'As a group, weld a tee joint.', photos: ['Set up', 'Root pass'], checklist: ['One', 'Two', 'Three'], safety: ['PPE'] }, updatedAt: iso(NOW - DAY) });
+  C.store.voctrain_assessmentWork = [AS.makeGroup({ id: 'AG-1', examId: 'EX-PRAC', name: 'Group B', members: [T.stu.id, U.stu.id, V.stu.id], at: iso(NOW - DAY) })];
+  const env = gateWorld(src, { C }), w = env.w;
+  const s = signIn(env, T.acct.username, T.pw), sU = signIn(env, U.acct.username, U.pw), sN = signIn(env, N.acct.username, N.pw);
+  assert(s.token && sU.token && sN.token, '(three trainees signed in)');
+
+  const xt = w.post({ op: 'exam.time', token: s.token, examId: examOf(T) });
+  assertEq([xt.ok, xt.minutes, xt.grants.map(g => g.scope + ':' + g.minutes + ':' + g.byRole)], [true, 20, ['you:20:admin']], 'exam.time: her 20 minutes, said as the Administrator\'s');
+  assert(JSON.stringify(xt).indexOf('Office Person') === -1, 'no staff name');
+  assertEq(w.post({ op: 'exam.time', token: sU.token, examId: examOf(U) }).minutes, 0, 'another trainee is never given hers');
+  assertEq(w.post({ op: 'exam.time', token: s.token, examId: 'EX1' }).error, 'unknown-exam', 'not for another programme\'s test');
+
+  const gv = sliceOf(env, T.acct.id).data.voctrain_assessmentGroups;
+  const gj = JSON.stringify(gv);
+  assertEq([gv.length, gv[0].name, gv[0].members.length, gv[0].members.filter(m => m.me).length], [1, 'Group B', 3, 1], 'her slice: her group of three, herself marked');
+  assert([U.stu.id, V.stu.id, U.stu.name, V.stu.name, U.acct.id].every(x => gj.indexOf(x) === -1), 'the others by first name and initial only — never an ID or a full name');
+  assertEq(sliceOf(env, N.acct.id).data.voctrain_assessmentGroups.length, 0, 'somebody not in the group is given no group');
+
+  const jpg = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(3000, 7), Buffer.from([0xff, 0xd9])]);
+  const up = w.post({ op: 'upload.part', token: s.token, uploadId: 'UP-PRAC-1', index: 0, total: 1, size: jpg.length, name: 'Set-up.jpg', mime: 'image/jpeg',
+    purpose: 'practical', refId: 'AG-1', base64: jpg.toString('base64') });
+  assertEq([up.ok, up.done, up.size], [true, true, jpg.length], 'a group practical\'s photo is sent (purpose practical)');
+  const filesFolder = w.drive.child(folderOf(env, T.acct.id).id, 'files', 'folder');
+  assertEq(w.drive.get(up.fileId).parent, filesFolder.id, 'into her OWN folder\'s files/, as every upload');
+  assertEq(w.post({ op: 'upload', token: s.token, name: 'x.jpg', mime: 'image/jpeg', base64: jpg.toString('base64'), purpose: 'nonsense', refId: 'AG-1' }).error, 'bad-request', 'an unknown purpose is refused');
+
+  const at = iso(w.clock.now);
+  const P1 = AS.photoIdPrefix(T.stu.id) + '1';
+  const photo = AS.photoRecord({ id: P1, examId: 'EX-PRAC', groupId: 'AG-1', studentId: T.stu.id, accountId: T.acct.id, caption: 'Set up', at, files: [{ id: up.fileId, driveFileId: up.fileId, name: up.name }] });
+  const sig = AS.makeSignature({ name: T.stu.name, at, basis: 'AG-1|' + T.stu.id });
+  const off = AS.signoffRecord({ groupId: 'AG-1', examId: 'EX-PRAC', studentId: T.stu.id, accountId: T.acct.id, name: T.stu.name, signature: sig, handIn: true, at });
+  const rc = deliver(env, [item(env, s, 'rec', { key: 'voctrain_assessmentWork', rec: photo }), item(env, s, 'rec', { key: 'voctrain_assessmentWork', rec: off })]).receipts;
+  assertEq(rc.map(r => r.ok), [true, true], 'her photo and her sign-off (she hands in for the group) are taken');
+  const bad = deliver(env, [
+    item(env, s, 'rec', { key: 'voctrain_assessmentWork', rec: Object.assign({}, photo, { id: AS.photoIdPrefix(T.stu.id) + '2', studentId: U.stu.id }) }),
+    item(env, s, 'rec', { key: 'voctrain_assessmentWork', rec: { id: 'APR-X', type: 'result', examId: 'EX-PRAC', groupId: 'AG-1', studentId: T.stu.id, outcome: 'competent', updatedAt: at } }),
+    item(env, s, 'rec', { key: 'voctrain_assessmentWork', rec: Object.assign({}, photo, { id: AS.photoIdPrefix(T.stu.id) + '3', driveFiles: [{ id: 'FILE-NOT-HERS', driveFileId: 'FILE-NOT-HERS' }] }) }),
+    item(env, sN, 'rec', { key: 'voctrain_assessmentWork', rec: Object.assign({}, photo, { id: AS.photoIdPrefix(N.stu.id) + '4', studentId: N.stu.id, accountId: N.acct.id, driveFiles: [] }) }),
+    // A photo may not borrow another record's id: the group's, a result's, a sign-off's, a filing note's, or another member's photo's.
+    item(env, s, 'rec', { key: 'voctrain_assessmentWork', rec: Object.assign({}, photo, { id: 'AG-1', driveFiles: [] }) }),
+    item(env, s, 'rec', { key: 'voctrain_assessmentWork', rec: Object.assign({}, photo, { id: 'APR-EX-PRAC-' + T.stu.id, driveFiles: [] }) }),
+    item(env, s, 'rec', { key: 'voctrain_assessmentWork', rec: Object.assign({}, photo, { id: 'AS-AG-1-' + U.stu.id, driveFiles: [] }) }),
+    item(env, s, 'rec', { key: 'voctrain_assessmentWork', rec: Object.assign({}, photo, { id: 'grp:AG-1', driveFiles: [] }) }),
+    item(env, s, 'rec', { key: 'voctrain_assessmentWork', rec: Object.assign({}, photo, { id: AS.photoIdPrefix(U.stu.id) + 'theirs', driveFiles: [] }) })
+  ]).receipts;
+  assertEq(bad.map(r => r.ok + ':' + r.reason), ['false:not-yours', 'false:not-yours', 'false:not-own-file', 'false:not-your-group', 'false:malformed', 'false:malformed', 'false:malformed', 'false:malformed', 'false:malformed'],
+    'refused: a photo in another member\'s name, a result (the assessor\'s), a file that is not hers, a group she is not in, and a photo under the group\'s, a result\'s, a sign-off\'s, a filing note\'s or another member\'s photo id');
+  const lane = w.drive.json(w.drive.child(folderOf(env, T.acct.id).id, 'CESTISINBOX.L-' + s.sid + '.json', 'file').id);
+  assertEq(lane.records.voctrain_assessmentWork.map(r => r.type).sort(), ['photo', 'signoff'], 'kept in her lane');
+  const col = G.collect([{ fileId: 'LANE-T', version: '1', modifiedTime: at, folderAcct: T.acct.id, json: lane }],
+    { accounts: C.store.voctrain_users, students: C.store.voctrain_students, deletedUserIds: [] });
+  assertEq(col.payload.data.assessmentWork.map(r => r.id).sort(), [P1, 'AS-AG-1-' + T.stu.id].sort(), 'the office collects them under assessmentWork');
+
+  const paper = w.post({ op: 'paper', token: s.token, examId: examOf(T) }).paper;
+  const att = attemptOf(env, paper, T, 'ATT-SIGNED', { signature: AS.makeSignature({ name: 'Somebody Else', at, basis: 'ATT-SIGNED' }) });
+  const sub = deliver(env, [item(env, s, 'submit', { attempt: att })]).receipts[0];
+  assertEq([sub.ok, sub.result.signature && sub.result.signature.name, sub.result.signature && sub.result.signature.id],
+    [true, T.stu.name, AS.signatureId('ATT-SIGNED', T.stu.name, at)], 'Sign and submit: her signature in her result, in her own name');
+  w.clock.now = NOW + 45 * MIN;                       // past the close (+2 min), inside her 20 minutes
+  const att2 = attemptOf(env, paper, U, 'ATT-U');
+  const lateU = deliver(env, [item(env, sU, 'submit', { attempt: att2 })]).receipts[0];
+  assertEq(lateU.result.late, true, 'another trainee at that moment: late');
+}
+
 function sHome(src) {
   const env = gateWorld(src), { w, C } = env;
   const T1 = C.trainees[1], T3 = C.trainees[3], T10 = C.trainees[10], T13 = C.trainees[13];
@@ -1117,7 +1191,7 @@ function sHome(src) {
 
 function runAll(src) {
   TRANSCRIPT = []; itemSeq = 0;
-  sSetup(src); sPassword(src); sEmail(src); sTwoStep(src); sLockout(src); sPull(src); sFolders(src); sDeliver(src); sExams(src); sUploads(src); sMisc(src); sRegister(src); sHome(src);
+  sSetup(src); sPassword(src); sEmail(src); sTwoStep(src); sLockout(src); sPull(src); sFolders(src); sDeliver(src); sExams(src); sUploads(src); sMisc(src); sRegister(src); sHome(src); sAssessments(src);
   return TRANSCRIPT;
 }
 

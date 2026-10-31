@@ -117,6 +117,15 @@ C.store.cestiSchoolFeePayments = [
   { id: 'PAY-K3', studentId: T(1).stu.id, studentName: T(1).stu.name, amount: 999, date: '2026-10-21', method: 'Cash', receiptNumber: 'R-0145', createdAt: iso(NOW - 12 * DAY) },
   { id: 'PAY-O1', studentId: T(3).stu.id, studentName: T(3).stu.name, amount: 55000, date: '2026-09-02', method: 'Cheque', receiptNumber: 'R-0099', createdAt: iso(NOW - 60 * DAY) }];
 C.store.cestiSchoolFeeDeletedPaymentIds = ['PAY-K3'];        // taken back by the office
+// Version 4 (prepared assessments): extra time on his open tests — the whole
+// sitting's and his own — and another trainee's, which he is never told.
+C.store.voctrain_exams.forEach(e => {
+  if (!/^EX[1-3]$/.test(String(e.id))) return;
+  e.extraTime = [
+    { id: 'XT-ALL-' + e.id, studentId: '', minutes: 10, reason: 'Late start for everyone', byId: 'U-OFF', byName: 'Office Person', byRole: 'admin', at: iso(NOW - 40 * MIN) },
+    { id: 'XT-K-' + e.id, studentId: T(1).stu.id, minutes: 15, reason: 'Power cut at home', byId: 'U-OFF', byName: 'Office Person', byRole: 'adminstaff', at: iso(NOW - 35 * MIN) },
+    { id: 'XT-O-' + e.id, studentId: T(3).stu.id, minutes: 30, reason: 'Another trainee', byId: 'U-OFF', byName: 'Office Person', byRole: 'admin', at: iso(NOW - 35 * MIN) }];
+});
 const FEE_TRAINEES = C.trainees.map(t => ({ acct: t.acct.id, stu: t.stu.id, student: t.stu }));
 
 /* ---------------------------------------------------------- online */
@@ -223,6 +232,8 @@ const KEYS = ['correctAnswer', 'pairs', 'distractors', 'tolerance'];
     same('health: the same fields (the Centre also says whether its staff-only switch is on)', keys(h1, ['mail']), keys(h2, ['staffOnly']));
     assert(h1.features.indexOf('fees') !== -1 && h1.features.indexOf('password') !== -1 && h2.features.indexOf('fees') !== -1 && h2.features.indexOf('password') !== -1,
       'version 3: both answer for her fees and her password');
+    assert(h1.version === 4 && h2.version === 4 && h1.features.indexOf('exam.time') !== -1 && h2.features.indexOf('exam.time') !== -1,
+      'version 4: both answer for her extra time');
     same('health: who it is, and whether it answers', h1, h2, h => [h.ok, h.service, h.version, h.protocol, h.accepting, h.ready.secret, h.ready.trainees]);
     same('an unknown request', ...(await both({ op: 'frobnicate' })));
     same('an old client', ...(await both({ op: 'health', v: 0 })));
@@ -296,6 +307,19 @@ const KEYS = ['correctAnswer', 'pairs', 'distractors', 'tolerance'];
     same('room.get with the hash it has', await online({ op: 'room.get', token: S1.token, roomId: room, have: g1.h }),
       await centre({ op: 'room.get', token: S2.token, roomId: room, have: g2.h }));
     same('a room he is not in', await online({ op: 'room.get', token: S1.token, roomId: C.dmPeer }), await centre({ op: 'room.get', token: S2.token, roomId: C.dmPeer }));
+
+    console.log('Version 4 (prepared assessments): his extra time, never another trainee\'s');
+    {
+      const [x1, x2] = await Promise.all([online({ op: 'exam.time', token: S1.token, examId: exam }), centre({ op: 'exam.time', token: S2.token, examId: exam })]);
+      same('exam.time: the same answer from both', x1, x2, x => [x.ok, keys(x), x.minutes, x.grants]);
+      assertEq([x1.minutes, x1.grants.map(g => g.scope + ':' + g.minutes + ':' + g.byRole).sort()], [25, ['all:10:admin', 'you:15:adminstaff']], 'his 15 minutes and the sitting\'s 10');
+      assert(JSON.stringify(x1).indexOf(T(3).stu.id) === -1 && JSON.stringify(x1).indexOf('Another trainee') === -1 && JSON.stringify(x1).indexOf('Office Person') === -1,
+        'nobody else\'s grant, and no staff names');
+      same('exam.time for another programme\'s test', await online({ op: 'exam.time', token: S1.token, examId: 'EX9' }), await centre({ op: 'exam.time', token: S2.token, examId: 'EX9' }));
+      same('exam.time with no token', await online({ op: 'exam.time', examId: exam }), await centre({ op: 'exam.time', examId: exam }));
+      const sliceEx = p1.slice.data.voctrain_exams.find(e => e.id === exam);
+      assert(sliceEx && sliceEx.extraTime.length === 2 && JSON.stringify(p1.slice).indexOf('XT-O-') === -1, 'his slice carries his and the sitting\'s grants only');
+    }
 
     console.log('Delivering');
     const ss = [S1, S2];

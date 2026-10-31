@@ -183,7 +183,7 @@ function clientIn(opts) {
   w.drive.put(main.id, 'CESTIS_LMS_BACKUP.json', { version: '1.0', data: {} });
   w.load(fs.readFileSync(path.join(ROOT, 'trainee-gate', 'PASTE-GATE.gs'), 'utf8'));
   const h = w.get({ op: 'health' });
-  eq([h.ok, h.version], [true, 3], 'the gate (version 3: registration from home, and home study) is set up');
+  eq([h.ok, h.version], [true, 4], 'the gate (version 3: registration from home, and home study; version 4: prepared assessments) is set up');
   const cfg = w.drive.json(w.drive.child(main.id, 'CESTIS_GATE.json', 'file').id);
   w.drive.put(cfg.registrationsId, 'catalogue.json', Core.gate.reg.buildCatalogue([C.PROGRAMMES[0].name, C.PROGRAMMES[1].name], Date.now()));
   w.tokeninfo['ya29.shantelle'] = { aud: CLIENT_ID, azp: CLIENT_ID, email: 'shantelle.barrett@mail.test', email_verified: 'true', expires_in: '3599',

@@ -78,6 +78,11 @@
                                 (her certificate's background, once it is issued and its download approved)
      upload.part                {token, uploadId, index, total, size, name, mime, purpose, refId, base64}
                                 → {received} | {fileId, size, name, done:true}  (a file sent in parts)
+                                purpose: 'submission' | 'chat' | 'practical' (a group practical's photo,
+                                refId = her group; version 4) — kept in HER folder's files/, as every upload
+     exam.time                  {token, examId} → {minutes, grants:[{minutes, at, byRole, reason, scope}]}
+                                (version 4: her extra time on a test she may sit — hers and the whole
+                                 sitting's, never another trainee's — read from the exam's key file)
      catalogue                  {} → {programmes:[name]}           (no sign-in: what a new trainee may register for)
      register.start             {accessToken} → {state:'new', email, programmes} | {state:'submitted', email, programme, submittedAt}
      register.submit            {accessToken, name, programme, phone?, password:'pbkdf2$…', gender, dob, trn?, address,
@@ -99,7 +104,10 @@
 // 3: home study — her fees (fees), her password changed at home (password.start, password.change),
 //    her certificate's background (cert.template), files sent in parts (upload.part), and an email
 //    to a trainee who registered from home once the office approves her (sent from health).
-var GATE_VERSION = 3;
+// 4: prepared assessments — her extra time while she sits a test (exam.time), her signature with
+//    her submission, her group practical's photos (upload / upload.part, purpose 'practical') and
+//    her sign-off and hand-in; her group's names in her slice (the rules: Core.assessments).
+var GATE_VERSION = 4;
 var GATE_PROTOCOL = [1];
 var GATE_SERVICE = 'cestis-trainee-gate';
 // The dashboard's own sign-in client (index.html GOOGLE_DRIVE_CONFIG.CLIENT_ID) — public by nature.
@@ -164,7 +172,7 @@ var GATE_OPS = {
   'pull': gatePull, 'paper': gatePaper, 'attempt.get': gateAttemptGet, 'review': gateReview, 'room.get': gateRoomGet,
   'upload': gateUpload, 'file.get': gateFileGet, 'signOut': gateSignOut, 'deliver': gateDeliver,
   'fees': gateFees, 'password.start': gatePasswordStart, 'password.change': gatePasswordChange,
-  'cert.template': gateCertTemplate, 'upload.part': gateUploadPart,
+  'cert.template': gateCertTemplate, 'upload.part': gateUploadPart, 'exam.time': gateExamTime,
   'catalogue': gateCatalogue, 'register.start': gateRegisterStart, 'register.submit': gateRegisterSubmit,
   'diag.echo': gateDiagEcho, 'diag.tokeninfo': gateDiagTokenInfo
 };
@@ -1100,6 +1108,22 @@ function gateSafeName(name) {
   if (n.length > 80) { var dot = n.lastIndexOf('.'); n = dot > 0 && n.length - dot <= 6 ? n.slice(0, 80 - (n.length - dot)) + n.slice(dot) : n.slice(0, 80); }
   return n.replace(/^\.+/, '') || 'file';
 }
+// What an upload is for: her assignment, a chat picture, or (version 4) a
+// photo for her group's practical. Every one goes into HER OWN folder.
+function gateUploadPurpose(p) { return p === 'chat' ? 'chat' : p === 'submission' ? 'submission' : p === 'practical' ? 'practical' : null; }
+/* exam.time (version 4): her extra time on a test she may sit — hers and the
+   whole sitting's (Core.assessments.grantsForTrainee) — from the exam's key
+   file, which staff devices publish again when time is added. Her phone asks
+   every minute while she sits the test, so her clock moves within a minute
+   or two. */
+function gateExamTime(G, req) {
+  var s = gateSession(G, req), examId = gateSafeId(req.examId);
+  if (!examId || !gateAccessHas(s.slice, 'papers', examId)) return { ok: false, error: 'unknown-exam' };
+  var key = gateKeyFile(G, examId);
+  var grants = key && key.exam && G.core.assessments ? G.core.assessments.grantsForTrainee(key.exam, s.me.stu) : [];
+  var mins = grants.reduce(function (n, g) { return n + (Number(g.minutes) || 0); }, 0);
+  return { ok: true, examId: examId, minutes: mins, grants: grants, serverTime: gateIso(G.now) };
+}
 function gateUpload(G, req) {
   var s = gateSession(G, req);
   var name = gateSafeName(req.name), ext = (/\.([A-Za-z0-9]{1,5})$/.exec(name) || [])[1];
@@ -1109,7 +1133,7 @@ function gateUpload(G, req) {
   if (!kinds) return { ok: false, error: 'type-not-allowed' };
   if (!mime || mime === 'application/octet-stream') mime = kinds[0];
   if (kinds.indexOf(mime) === -1) return { ok: false, error: 'type-not-allowed' };
-  var purpose = req.purpose === 'chat' ? 'chat' : req.purpose === 'submission' ? 'submission' : null;
+  var purpose = gateUploadPurpose(req.purpose);
   if (!purpose) gateFail('bad-request');
   var b64 = gateStr(req.base64).replace(/^data:[^,]*,/, '').replace(/\s+/g, '');
   if (!b64 || /[^A-Za-z0-9+\/=_-]/.test(b64)) gateFail('bad-request');
@@ -1318,7 +1342,7 @@ function gateUploadPart(G, req) {
   if (!kinds) return { ok: false, error: 'type-not-allowed' };
   if (!mime || mime === 'application/octet-stream') mime = kinds[0];
   if (kinds.indexOf(mime) === -1) return { ok: false, error: 'type-not-allowed' };
-  var purpose = req.purpose === 'chat' ? 'chat' : req.purpose === 'submission' ? 'submission' : null;
+  var purpose = gateUploadPurpose(req.purpose);
   if (!purpose) gateFail('bad-request');
   var ref = gateSafeId(req.refId, 64) || 'x', fileName = ref + '-' + name, doneKey = 'upd:' + s.me.acct + ':' + uid;
   var files = gateFilesFolder(G, s.folder, true);
@@ -1478,7 +1502,7 @@ function gateDeliverSession(G, acct, sid, items, suffix) {
     var it = items[j], a = it.kind === 'submit' ? it.attempt : (it.kind === 'rec' && it.key === 'voctrain_examAttempts' ? it.rec : null);
     var exam = a && gateSafeId(a.examId);
     if (exam && !papers[exam] && gateAccessHas(slice, 'papers', exam)) { var p = gatePaperFile(G, exam); if (p) papers[exam] = p; }
-    if (it.kind === 'rec' && (it.key === 'voctrain_submissions' || it.key === 'voctrain_chatMessages')) needFiles = true;
+    if (it.kind === 'rec' && (it.key === 'voctrain_submissions' || it.key === 'voctrain_chatMessages' || it.key === 'voctrain_assessmentWork')) needFiles = true;
   });
   var opts = { papers: papers };
   if (needFiles) opts.ownUploads = gateOwnUploads(G, { me: me, folder: place.folder }).ids;
@@ -1612,7 +1636,7 @@ function gateHealth(G) {
     catch (e) { ready.ledger = false; }
   }
   var out = { ok: true, service: GATE_SERVICE, version: GATE_VERSION, protocol: GATE_PROTOCOL.slice(), time: gateIso(G.now),
-    ready: ready, accepting: !gateIsOff(G), features: ['fees', 'password', 'cert.template', 'upload.part', 'approval-mail'] };
+    ready: ready, accepting: !gateIsOff(G), features: ['fees', 'password', 'cert.template', 'upload.part', 'approval-mail', 'exam.time', 'practical'] };
   // The office's dashboard asks for this just after it approves a registration from home.
   if (ready.ledger) { try { out.mail = gateMailSend(G); } catch (e) { gateLog('approval mail', e); } }
   return out;

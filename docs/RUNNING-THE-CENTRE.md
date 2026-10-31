@@ -35,6 +35,9 @@ never say where things are kept; this page does, so that you know.
   - **Exported copy** — when a copy was last exported by hand.
 - All green: nothing to do. Amber or red: do what the line says. The bell (🔔) also tells you, at
   most once a day, if trainee sign-in needs attention.
+- Open **Assessment Results** and set *Result* to *Awaiting marking*. Ask the instructor to mark
+  anything still waiting (an essay, a short answer, a group practical). Each record is filed in the
+  Assessment Results folder by itself; when it is marked, the marked copy replaces it.
 
 ## Every month
 

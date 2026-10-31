@@ -184,6 +184,10 @@ saw screenshots.
 9. **Light and Dark mode** are chosen per device. Nothing to set up; Dark is the default.
 10. **Trainees taking tests** can continue on another Centre PC. Tell invigilators: a trainee
     whose PC fails should sign in at another PC and press *Continue your attempt*.
+11. **Prepared assessments.** Paste the trainee gate's version 4 (`trainee-gate/SETUP.md`,
+    section 8). Then have an instructor check the sample Welding unit on the *Assessments* page
+    and mark each test Ready before opening it for an intake. Use *Export units* on the
+    Qualification Plan page to send the owner's list of units for more banks.
 
 ---
 
@@ -356,6 +360,60 @@ instructor and 6 trainees on phone settings, every connection's bytes read from 
   - Only staff devices change an exam's status, using the Centre's time zone.
   - Exams are identified by id, so two exams with one title no longer merge.
 - **Deleting an exam** archives its results instead of destroying them.
+
+### Prepared assessments (owner's plan, 31 October 2026)
+- **Four for every unit.** The new *Assessments* page lists each programme's units from the
+  Qualification Plan with Theory 1 (45 multiple choice, 2 h 30 min), Theory 2 (10 essays and
+  15 short answers, 3 h 35 min), Practical 1 and Practical 2 (group tasks). Each is named after
+  the programme and the unit.
+- **Prepared, then checked.** A unit with a prepared bank (`assessments/`, see its README) is
+  prepared with one press. Every prepared test starts as **To check**; an instructor (or the
+  Administrator) reads it, corrects it with *Check & edit*, and marks it **Ready**. Only then can
+  it be *Opened for an intake* — a copy with that intake's dates. Nothing reaches a trainee
+  before that. One sample unit is written in full: Welding & Fabrication, MEMFAB0042C (MMAW).
+- **Extra time.** The Administrator, and Admin Staff with *Online Exams*, can add time for one
+  trainee or the whole sitting, before or during it, from the invigilator page. Who, how much and
+  why are kept; the trainee's clock moves within a minute or two, at home too; her printed record
+  says "Extra time: 15 min, added by the Administrator".
+- **Sign and submit.** A trainee adopts her signature (her full name in a handwritten script —
+  the Great Vibes font, SIL Open Font License, kept in `vendor/fonts/`) and confirms the work is
+  her own. The record shows it with "Electronically signed by … · date · Signature ID".
+- **Group practicals.** Groups of 4 or 5 (split automatically from the register, then changed as
+  needed). Any member adds photos from her phone at home (made smaller and sent in parts); the
+  group hands in once; every member signs her own line ("Not yet signed" until she does). The
+  assessor records a result for each member with the checklist and a comment (*Mark…*).
+- **The printed record.** Each completed assessment is an A4 PDF: the crest and the Centre's
+  name, a document number, the trainee and the unit, times and extra time, where it was sat, the
+  result (or *Provisional — awaiting marking*), every question with her answer, the marks and
+  comments, her signature, blank signature lines for the Administrator, the Invigilator (Assessor)
+  and the Programme Coordinator, and page numbers. A trainee downloads her own copy the moment she
+  submits.
+- **The Assessment Results folder.** An office PC files every completed assessment there by
+  itself: Programme / Intake / Unit / Theory 1 … / "Full Name (STU-id) — Unit Theory 1.pdf"; a
+  practical in its group's folder with the group's paper and its photos. Her own copy goes to her
+  own folder for home, where she can download it. When marking finishes, the final paper replaces
+  the provisional one in the same file — every earlier version is kept with it. The folder is made
+  the first time it is needed; nothing in it is ever deleted.
+- **The Assessment Results page** (the Administrator; Admin Staff with the new *Assessment
+  Results* tick, on by default for anyone with *Online Exams* or *Certificates*): filters, counts,
+  View PDF and Download, several papers as one PDF to print, and a group's photos at full size
+  (one, or all as a ZIP).
+- **Export units** on the Qualification Plan page saves every unit as a CSV (programme, unit
+  code, unit title), for the owner to send so more banks can be written.
+- **The trainee gate is version 4.** Paste the new `trainee-gate/PASTE-GATE.gs` (SETUP.md,
+  section 8). Until it is pasted, home sitting of the prepared assessments and practical photos
+  from home wait; everything else works as before.
+- **The owner's decisions (31 October 2026, on the screenshots and sample papers).**
+  1. **Pass mark 65%** for every prepared theory test (`CESTISCore.assessments.KINDS`); a bank
+     file cannot change it. A practical has no percentage: each member is Competent or Not yet
+     competent.
+  2. **Photos come from phones.** On the Centre's own network a trainee cannot send photos; the
+     group sends them over mobile data or from home.
+  3. **A trainee's own copy** marks her answers right or wrong but never shows the right answer
+     to one she got wrong, so the tests can be used again for the next intake. The office copy
+     shows every right answer.
+  4. **The gate (version 4)** is pasted again by the owner after this goes live.
+  The printed footer names the programme, intake, unit and assessment — not a folder path.
 
 ### Grades, transcripts and Student Progress
 - **Renames and moves.** Renaming a trainee or moving them to another programme carries every
