@@ -838,7 +838,7 @@ function create(opts) {
     // staffOnly (this server only): whether its records are kept for staff
     // devices (cestis-offline-server.js) — then a trainee's device signs in here.
     return { ok: true, service: SERVICE, version: GATE_VERSION, protocol: PROTOCOL.slice(), time: iso(t), ready: r,
-      accepting: !!G && selfOk && !killed(), features: ['fees', 'password'], staffOnly: !!staffOnly() };
+      accepting: !!G && selfOk && !killed(), features: ['fees', 'password', 'exam.time'], staffOnly: !!staffOnly() };
   }
   // The administrator's page: ✓ / ✗ lines, counts only — no names, no ids.
   function selfcheckPage(t) {

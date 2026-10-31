@@ -1502,7 +1502,7 @@ function gateDeliverSession(G, acct, sid, items, suffix) {
     var it = items[j], a = it.kind === 'submit' ? it.attempt : (it.kind === 'rec' && it.key === 'voctrain_examAttempts' ? it.rec : null);
     var exam = a && gateSafeId(a.examId);
     if (exam && !papers[exam] && gateAccessHas(slice, 'papers', exam)) { var p = gatePaperFile(G, exam); if (p) papers[exam] = p; }
-    if (it.kind === 'rec' && (it.key === 'voctrain_submissions' || it.key === 'voctrain_chatMessages')) needFiles = true;
+    if (it.kind === 'rec' && (it.key === 'voctrain_submissions' || it.key === 'voctrain_chatMessages' || it.key === 'voctrain_assessmentWork')) needFiles = true;
   });
   var opts = { papers: papers };
   if (needFiles) opts.ownUploads = gateOwnUploads(G, { me: me, folder: place.folder }).ids;
@@ -1636,7 +1636,7 @@ function gateHealth(G) {
     catch (e) { ready.ledger = false; }
   }
   var out = { ok: true, service: GATE_SERVICE, version: GATE_VERSION, protocol: GATE_PROTOCOL.slice(), time: gateIso(G.now),
-    ready: ready, accepting: !gateIsOff(G), features: ['fees', 'password', 'cert.template', 'upload.part', 'approval-mail'] };
+    ready: ready, accepting: !gateIsOff(G), features: ['fees', 'password', 'cert.template', 'upload.part', 'approval-mail', 'exam.time', 'practical'] };
   // The office's dashboard asks for this just after it approves a registration from home.
   if (ready.ledger) { try { out.mail = gateMailSend(G); } catch (e) { gateLog('approval mail', e); } }
   return out;
