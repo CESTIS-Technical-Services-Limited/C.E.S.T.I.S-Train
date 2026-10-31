@@ -186,7 +186,12 @@
     });
     return out;
   }
-  function mergeOwnList(sliceList, overlays, localList, pending) {
+  /* known: what this device has already sealed or been given for this key
+     (its base, record id -> hash). A record of hers that is in none of the
+     gate's answers, not waiting in the outbox, and that this device has never
+     sealed either, was written a moment ago (a photo finishing while a pull
+     was on its way): it is kept, and sent next — never dropped. */
+  function mergeOwnList(sliceList, overlays, localList, pending, known) {
     pending = pending || {};
     var byId = {}, order = [];
     var put = function (rec, src) {
@@ -204,6 +209,7 @@
     (Array.isArray(localList) ? localList : []).forEach(function (r) {
       if (!isObj(r) || r.id == null) return;
       if (byId[str(r.id)] || pending[str(r.id)]) put(r, 'local');
+      else if (isObj(known) && !Object.prototype.hasOwnProperty.call(known, str(r.id))) { byId[str(r.id)] = { rec: r, src: 'unsent' }; order.push(str(r.id)); }
     });
     return order.map(function (id) { return copy(byId[id].rec); });
   }
@@ -269,14 +275,27 @@
     var data = (slice && isObj(slice.data)) ? slice.data : {};
     var overlay = ctx.overlay || {};
     var pending = ctx.pending || {};
-    var writes = {};
+    var writes = {}, fresh = {};
     Object.keys(data).forEach(function (k) {
       if (k === 'voctrain_examResults') writes[k] = mergeResults(data[k], overlay.results, local[k]);
       else if (k === 'voctrain_examAttempts') {
         var retired = ((overlay.results) || []).map(function (f) { return f && f.retired; }).filter(isObj);
         writes[k] = mergeAttempts(data[k], overlayLists(overlay, k), retired, local[k], ctx.nowMs);
       }
-      else if (OWN_LISTS[k]) writes[k] = mergeOwnList(data[k], overlayLists(overlay, k), local[k], pending[k]);
+      else if (OWN_LISTS[k]) {
+        var kn = ctx.base ? ctx.base[k] : null, ov = overlayLists(overlay, k);
+        writes[k] = mergeOwnList(data[k], ov, local[k], pending[k], kn);
+        // Kept because never sealed: left out of the new base below, so the
+        // watcher seals and sends it.
+        if (isObj(kn)) {
+          var seen = {}, pk = pending[k] || {};
+          (Array.isArray(data[k]) ? data[k] : []).forEach(function (r) { if (isObj(r) && r.id != null) seen[str(r.id)] = 1; });
+          ov.forEach(function (l) { l.forEach(function (r) { if (isObj(r) && r.id != null) seen[str(r.id)] = 1; }); });
+          (Array.isArray(local[k]) ? local[k] : []).forEach(function (r) {
+            if (isObj(r) && r.id != null && !seen[str(r.id)] && !pk[str(r.id)] && !Object.prototype.hasOwnProperty.call(kn, str(r.id))) (fresh[k] = fresh[k] || []).push(str(r.id));
+          });
+        }
+      }
       else if (OWN_MAPS[k]) {
         var maps = ((overlay.lanes) || []).map(function (l) { return l && isObj(l.records) ? l.records[k] : null; }).filter(isObj);
         writes[k] = mergeOwnMap(data[k], maps, local[k], pending[k], ctx.me);
@@ -293,7 +312,9 @@
       try { G.applyOps(store, ops.filter(function (o) { return o && (o.kind === 'read' || o.kind === 'clearNotif') && o.key !== 'voctrain_chatMessages'; }), { acct: ctx.me.acct }); } catch (e) {}
     }
     if (slice && isObj(slice.settings)) writes.voctrain_systemSettings = mergeSettings(local.voctrain_systemSettings, slice.settings);
-    return { writes: writes, base: baseFor(writes, ctx.me) };
+    var base = baseFor(writes, ctx.me);
+    Object.keys(fresh).forEach(function (k) { fresh[k].forEach(function (id) { if (base[k]) delete base[k][id]; }); });
+    return { writes: writes, base: base };
   }
   // A room's own file into the namespace's messages: the room's messages,
   // with this trainee's own still waiting to be sent kept.
@@ -917,7 +938,8 @@
       }
       var local = {};
       Object.keys(slice.data || {}).concat(['voctrain_systemSettings', 'voctrain_chatMessages']).forEach(function (k) { local[k] = parse(s.getItem(k), null); });
-      var plan = planApply(slice, local, { me: me, pending: pending, pendingOps: pendingOps, overlay: res.overlay || {}, nowMs: gateNow(sess) });
+      var known = parse(s.getItem(BASE_KEY), {});
+      var plan = planApply(slice, local, { me: me, pending: pending, pendingOps: pendingOps, overlay: res.overlay || {}, nowMs: gateNow(sess), base: known });
       Object.keys(plan.writes).forEach(function (k) { try { s.setItem(k, JSON.stringify(plan.writes[k])); } catch (e) {} });
       var b = parse(s.getItem(BASE_KEY), {});
       Object.keys(plan.base).forEach(function (k) { b[k] = plan.base[k]; });

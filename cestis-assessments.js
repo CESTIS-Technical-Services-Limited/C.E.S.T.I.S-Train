@@ -140,6 +140,8 @@
     '.assess-shot-cap{padding:6px 8px;line-height:1.35}',
     '.assess-shot-cap small{color:var(--text-muted);display:block}',
     '.assess-todo{margin:4px 0 10px 18px;padding:0;font-size:13.5px;line-height:1.7}',
+    '.assess-task{background:var(--w-03);border:1px solid var(--border-light);border-radius:var(--radius-sm);padding:10px 12px;font-size:13.5px}',
+    '.assess-task summary{cursor:pointer;line-height:1.45}',
     '.assess-todo li.is-done{color:var(--green)}',
     '.assess-big{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0}',
     '.assess-photo-view{display:flex;flex-direction:column;gap:12px}',
@@ -545,13 +547,14 @@
     var waiting = (groupView.waiting || []).filter(function (u) { return u.state !== 'done'; });
     var can = photosCanBeSent();
     var open = st === 'open' && !g.handedInAt;
-    var html = (p.title ? '<h4 style="margin:0 0 6px">' + esc(p.title) + '</h4>' : '') + '<p style="white-space:pre-wrap;line-height:1.55;margin:0 0 10px">' + esc(p.brief) + '</p>' +
-      (p.time ? '<p class="assess-sub">Time: ' + esc(p.time) + '</p>' : '') +
+    var html = '<details class="assess-task"' + (groupView.taskOpen ? ' open' : '') + '><summary><strong>The task:</strong> ' + esc(p.title || 'Practical') + (p.time ? ' · ' + esc(p.time) : '') + '</summary>' +
+      '<p style="white-space:pre-wrap;line-height:1.55;margin:8px 0 6px">' + esc(p.brief) + '</p>' +
+      (list(p.materials).length ? '<p class="assess-sub">Materials: ' + esc(list(p.materials).join('; ')) + '</p>' : '') + '</details>' +
       '<h4 style="margin:14px 0 4px">Your group</h4><div class="assess-members">' + g.members.map(function (m) {
         return '<span class="assess-member"><span class="assess-ava' + (m.me ? ' is-me' : '') + '" aria-hidden="true">' + esc(m.i) + '</span>' + esc(m.n) + (m.me ? ' (you)' : '') + (m.signed ? ' ✓' : '') + '</span>';
       }).join('') + '</div>' +
       '<h4 style="margin:14px 0 4px">Photos to take</h4><ul class="assess-todo">' + list(p.photos).map(function (x) { var dn = !!taken[A.normTitle(x)]; return '<li' + (dn ? ' class="is-done"' : '') + '>' + (dn ? '✓ ' : '') + esc(x) + '</li>'; }).join('') + '</ul>' +
-      '<h4 style="margin:14px 0 4px">The group\'s photos (' + g.photos.length + ')</h4>' +
+      '<h4 style="margin:14px 0 4px" data-g="photos">The group\'s photos (' + g.photos.length + ')</h4>' +
       (g.photos.length ? '<div class="assess-shots">' + g.photos.map(function (ph) {
         var img = ph.mine && th[ph.id] ? '<img src="' + esc(th[ph.id]) + '" alt="' + esc(ph.caption) + '">' : '<span aria-hidden="true">📷</span>';
         return '<div class="assess-shot"><div class="assess-shot-img">' + img + '</div><div class="assess-shot-cap">' + esc(ph.caption || 'Photo') + '<small>' + esc(ph.by) + ' · ' + esc(whenText(ph.at)) + (ph.late ? ' · after the hand-in' : '') + '</small>' +

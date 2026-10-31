@@ -247,8 +247,10 @@ function seed({ MORE, PASSHASH }) {
   }
   // The office's publishing turn has sent everything it has.
   async function published() {
-    await op.evaluate(() => { try { GATE_LIMITS.gapMs = 0; _gateRun.builtAt = 0; _gateRun.buildNow = true; } catch (e) {} });
-    await op.waitForFunction(() => { try { const s = JSON.parse(localStorage.getItem('cestisGatePublished') || '{}'); return !!s.syncedAt && !_gateRun.publishing && JSON.parse(localStorage.getItem('cestisGatePublishQueue') || '[]').length === 0; } catch (e) { return false; } }, null, { timeout: 180000, polling: 500 });
+    const t0 = await op.evaluate(() => { try { GATE_LIMITS.gapMs = 0; _gateRun.builtAt = 0; _gateRun.buildNow = true; } catch (e) {} return new Date().toISOString(); });
+    // A publishing turn that began after this call, finished with nothing left to write.
+    await op.evaluate(() => { try { return gatePublishSoon(); } catch (e) { return null; } });
+    await op.waitForFunction(t0 => { try { const s = JSON.parse(localStorage.getItem('cestisGatePublished') || '{}'); return !!s.syncedAt && s.syncedAt >= t0 && !_gateRun.publishing && JSON.parse(localStorage.getItem('cestisGatePublishQueue') || '[]').length === 0; } catch (e) { return false; } }, t0, { timeout: 180000, polling: 500 });
   }
   async function collect() {
     await op.evaluate(() => { _gateRun.collectAt = 0; GATE_LIMITS.collectMs = 1000; return gateCollectTick({ refetch: true }); });
@@ -349,6 +351,108 @@ function seed({ MORE, PASSHASH }) {
     ok(/^%PDF/.test(pdf.slice(0, 5).toString()) && d.suggestedFilename() === T.tameka.name + ' (' + T.tameka.sid + ') - MEMFAB0042C Theory 1.pdf', 'her record downloads at once: ' + d.suggestedFilename());
     ok(pdf.indexOf('GreatVibes') !== -1, 'with her signature in the script font embedded');
     if (SHOTS) fs.copyFileSync(file, path.join(SHOTS, 'trainee-own-theory1.pdf'));
+  });
+
+  // A phone camera's picture (made in a page: 2400 x 1800, a few hundred KB), labelled.
+  async function picture(label, hue) {
+    const b64 = await op.evaluate(([label, hue]) => {
+      const c = document.createElement('canvas'); c.width = 2400; c.height = 1800;
+      const g = c.getContext('2d');
+      const grd = g.createLinearGradient(0, 0, 2400, 1800); grd.addColorStop(0, 'hsl(' + hue + ',35%,30%)'); grd.addColorStop(1, 'hsl(' + ((hue + 60) % 360) + ',30%,55%)');
+      g.fillStyle = grd; g.fillRect(0, 0, 2400, 1800);
+      for (let i = 0; i < 400; i++) { g.fillStyle = 'rgba(255,255,255,' + (Math.random() * 0.15) + ')'; g.fillRect(Math.random() * 2400, Math.random() * 1800, 40 + Math.random() * 200, 4 + Math.random() * 20); }
+      g.fillStyle = '#fff'; g.font = 'bold 150px sans-serif'; g.textAlign = 'center'; g.fillText(label, 1200, 950);
+      g.font = '60px sans-serif'; g.fillText('Sample photo — made-up', 1200, 1080);
+      return c.toDataURL('image/jpeg', 0.92).split(',')[1];
+    }, [label, hue]);
+    return { name: label.replace(/[^A-Za-z0-9]+/g, '-') + '.jpg', mimeType: 'image/jpeg', buffer: Buffer.from(b64, 'base64') };
+  }
+  const pracId = kind => op.evaluate(k => (exams.find(e => CESTISCore.assessments.isAssessment(e) && !CESTISCore.assessments.isMaster(e) && e.assessment.kind === k) || {}).id, kind);
+  async function openPractical(page, kind) {
+    await go(page, 's-assessments');
+    await page.waitForFunction(() => window.CESTISAssess && document.querySelector('#page-s-assessments .assess-kind'), null, { timeout: 20000 });
+    const id = await pracId(kind);
+    await clickIn(page, '#page-s-assessments [data-act="group"][data-id="' + id + '"]');
+    await page.waitForSelector('.assess-dlg [data-g="body"] .assess-members', { timeout: 10000 });
+    return id;
+  }
+  async function sendPhotos(page, labels, hue) {
+    const files = [];
+    for (let i = 0; i < labels.length; i++) files.push(await picture(labels[i], hue + i * 25));
+    await page.setInputFiles('.assess-dlg input[data-gf="files"]', files);
+    await page.waitForSelector('.assess-dlg [data-gact="send"]', { timeout: 20000 });
+    const had = await page.evaluate(() => JSON.parse(CESTISStore.getItem('voctrain_assessmentWork') || '[]').filter(r => r.type === 'photo').length);
+    await page.click('.assess-dlg [data-gact="send"]');
+    // Every part in (her photo records written once each file is in), then her records sent.
+    ok(await until(() => page.evaluate(n => JSON.parse(CESTISStore.getItem('voctrain_assessmentWork') || '[]').filter(r => r.type === 'photo' && (r.driveFiles || []).length).length >= n, had + labels.length), 120000, 1000),
+      labels.length + ' photos sent in parts, each named in her records');
+    await until(() => page.evaluate(() => CESTISGate.uploads(CESTISGate.session().acct).then(l => l.length === 0)), 90000, 1000);
+    await until(() => page.evaluate(() => CESTISGate.deliverNow().then(() => CESTISGate.status()).then(s => s.waiting === 0)), 60000, 1000);
+  }
+  let np = null;
+  await section('practical', 'Group practical at home: photos from two members, hand in once, every member signs', async () => {
+    await gateOn();
+    if (!tp) { tp = await phone('tameka'); await traineeIn(tp, T.tameka); }
+    const p1 = await openPractical(tp, 'practical1');
+    const g1 = await txt(tp, '.assess-dlg');
+    ok(/Group B/.test(g1) && /Tameka Richards \(you\)/.test(g1) && /Nadine B\./.test(g1) && /Photos to take/.test(g1), 'her group: herself by name, the others as "Nadine B." (' + g1.slice(0, 160) + ')');
+    ok(!/Nadine Bailey|STU-/.test(g1), 'never another member\'s full name or ID on her phone');
+    const shotsBefore = await tp.evaluate(() => (CESTISGate.session() || {}).acct);
+    void shotsBefore;
+    await sendPhotos(tp, ['Station set up', 'Plates tacked square', 'Root pass', 'Finished weld top'], 20);
+    const sentT = await tp.evaluate(id => CESTISAssess.Trainee.groupFor(id).photos.filter(p => p.mine).length, p1);
+    ok(sentT === 4, 'four photos from Tameka, made smaller and sent in parts (' + sentT + ')');
+    const sizes = Object.values(drive.files).filter(f => /files$/.test((drive.files[f.parents && f.parents[0]] || {}).name || '') && /\.jpg$/i.test(f.name)).map(f => f.size || (f.content ? f.content.length : 0));
+    ok(sizes.length >= 4 && sizes.every(n => n > 20000 && n < 700 * 1024), 'each kept in her own folder, a few hundred KB at most (' + sizes.join(', ') + ')');
+    // Nadine adds three from her phone.
+    np = await phone('nadine');
+    await traineeIn(np, T.nadine);
+    await openPractical(np, 'practical1');
+    await sendPhotos(np, ['Finished weld end', 'Fillet gauge check', 'Area cleaned'], 200);
+    const nOut = await np.evaluate(() => CESTISGate.outbox().then(l => l.map(e => e.state + ':' + (e.reason || '') + ':' + (e.body && e.body.key || e.kind || ''))));
+    const nWork = await np.evaluate(() => JSON.parse(CESTISStore.getItem('voctrain_assessmentWork') || '[]').map(r => r.type + ':' + r.studentId + ':' + (r.driveFiles || []).length));
+    if (process.env.ASSESS_DEBUG) console.log('    nadine outbox', JSON.stringify(nOut), 'work', JSON.stringify(nWork));
+    // The office takes them in, and sends each member the group as it stands.
+    await collect();
+    const work = await op.evaluate(id => assessmentWork.filter(r => r.examId === id && r.type === 'photo').length, p1);
+    ok(work === 7, 'the office has the group\'s seven photos (' + work + ')');
+    await published();
+    await tp.evaluate(() => CESTISGate.pull().then(r => CESTISGate.applyPull(r)));
+    await tp.waitForTimeout(800);
+    await tp.evaluate(() => document.querySelectorAll('.assess-dlg-back').forEach(d => d.remove()));
+    await openPractical(tp, 'practical1');
+    const g2 = await tp.evaluate(id => { const g = CESTISAssess.Trainee.groupFor(id); return { n: g.photos.length, by: g.photos.map(p => p.by) }; }, p1);
+    ok(g2.n === 7 && g2.by.filter(b => b === 'Nadine B.').length === 3, 'her phone shows the group\'s seven photos, three "by Nadine B." (' + JSON.stringify(g2) + ')');
+    await shot(tp, '07-group-practical-many-photos', { focus: '.assess-dlg [data-g="photos"]' });
+    // Tameka hands in for the group, and signs.
+    await tp.click('.assess-dlg [data-gact="handin"]');
+    await tp.waitForSelector('.assess-dlg [data-f="consent"]', { timeout: 5000 });
+    await tp.check('.assess-dlg [data-f="consent"]');
+    await tp.click('.assess-dlg [data-dlg="sign"]');
+    await tp.waitForTimeout(800);
+    await until(() => tp.evaluate(() => CESTISGate.deliverNow().then(() => CESTISGate.status()).then(s => s.waiting === 0)), 60000, 1000);
+    const ht = await tp.evaluate(id => CESTISAssess.Trainee.groupFor(id), p1);
+    ok(ht.handedInAt && ht.handedInBy === 'You' && ht.mySignature && ht.mySignature.name === T.tameka.name, 'handed in once for the group, signed by her (' + JSON.stringify({ at: ht.handedInAt, by: ht.handedInBy }) + ')');
+    await collect();
+    const st = await op.evaluate(id => { const g = CESTISCore.assessments.groupsOf(assessmentWork, id).find(x => x.name === 'Group B'); const s = CESTISCore.assessments.groupState(g, assessmentWork); return { handed: !!s.handedIn, signed: Object.keys(s.signed).length, unsigned: s.unsigned.length }; }, p1);
+    ok(st.handed && st.signed === 1 && st.unsigned === 3, 'the office: handed in, one signature, three to come (' + JSON.stringify(st) + ')');
+    await published();
+    // Nadine opens it: she is asked to sign for her part.
+    await np.evaluate(() => CESTISGate.pull().then(r => CESTISGate.applyPull(r)));
+    await np.waitForTimeout(800);
+    await np.evaluate(() => document.querySelectorAll('.assess-dlg-back').forEach(d => d.remove()));
+    await go(np, 's-assessments');
+    const row = await txt(np, '#page-s-assessments');
+    ok(/Sign for your part/.test(row) && /Handed in/.test(row), 'Nadine\'s page: Handed in — "Sign for your part"');
+    await clickIn(np, '#page-s-assessments [data-act="group"][data-id="' + p1 + '"]');
+    await np.waitForSelector('.assess-dlg [data-f="consent"]', { timeout: 8000 });
+    await np.check('.assess-dlg [data-f="consent"]');
+    await np.click('.assess-dlg [data-dlg="sign"]');
+    await np.waitForTimeout(600);
+    await until(() => np.evaluate(() => CESTISGate.deliverNow().then(() => CESTISGate.status()).then(s => s.waiting === 0)), 60000, 1000);
+    await collect();
+    const st2 = await op.evaluate(id => { const g = CESTISCore.assessments.groupsOf(assessmentWork, id).find(x => x.name === 'Group B'); const s = CESTISCore.assessments.groupState(g, assessmentWork); return { by: s.handedIn && s.handedIn.by, signed: Object.keys(s.signed).length }; }, p1);
+    ok(st2.signed === 2 && st2.by === T.tameka.sid, 'the first hand-in stands; Nadine\'s signature joins it (' + JSON.stringify(st2) + ')');
   });
 
   console.log('\n' + passed + ' passed, ' + failed + ' failed');
