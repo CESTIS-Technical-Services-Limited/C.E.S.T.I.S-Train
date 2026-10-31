@@ -1773,3 +1773,50 @@ with the signal dropping, her fees, her password changed — against the real pa
 `tests/gate-appsscript-vm.test.js` §home, `tests/gate-contract.test.js` (fees and password on both gates),
 `tests/gate-publisher.test.js` (fees files: who writes, who waits), and in browsers
 `tests/browser/home-study.js` (`npm run test:browser:home-study`).
+
+## 19. Prepared assessments (version 4, as built)
+
+The owner's plan of 31 October 2026 (`Core.assessments` in `cestis-core.js`; the pages are
+`cestis-assessments.js` and `cestis-assessments-staff.js`). **The gate is version 4** (`GATE_VERSION`,
+and `GATE_EXPECTED_VERSION` in `index.html`). A version 3 gate keeps working for everything else:
+`exam.time` answers `unknown-op` there (her clock then shows the extra time the office published in
+her paper, at her next pull) and a practical photo is refused as a purpose it does not know (her phone
+keeps it and says so).
+
+### 19.1 What her slice carries
+
+- Her assessment records of `voctrain_assessmentWork` (her photos, her sign-off, her practical result,
+  the office's filed record of HER paper reduced to `{id, type, key, examId, studentId, groupId, status,
+  docNo, traineeFile, filedAt, updatedAt}` — never the office's folder or file ids).
+- `voctrain_assessmentGroups`: each group she is in as `Core.assessments.traineeView` gives it — the
+  others as "Tameka R." with their initials and whether they have signed, the photos by caption and who
+  added them, the hand-in. Never another member's student ID, full name, result or comment.
+- An exam's `assessment` (kind, programme, unit, intake), a practical's brief, and the extra time that
+  is hers or the whole sitting's (`grantsForTrainee`) — never another trainee's. An essay's model
+  answer and marking points stay in the key file (`KEY_FIELDS`), as every right answer does.
+- `access.files` adds the group's photo files and her filed copy, so `file.get` serves them to her.
+
+### 19.2 What she may send
+
+- `upload.part` with purpose `practical`: her photo, into HER OWN `files/` folder (the limits of §5.4).
+- Records of `voctrain_assessmentWork` of type `photo` or `signoff` only, with her own `studentId`, for a
+  group her slice says she is in (`not-your-group`), naming only files she uploaded (`not-own-file`),
+  at most 16 KB each; a sign-off's id must be `AS-<groupId>-<her studentId>`. Her signature is kept in
+  her own name as the records give it (`cleanSignature`).
+- Her attempt's `signature` ("Sign and submit"); `markAttempt` puts it in her result, again in her own
+  name. Her extra time counts towards her deadline and "late"; nobody else's does.
+
+### 19.3 `exam.time`
+
+`{op: 'exam.time', token, examId}` → `{ok, examId, minutes, grants, serverTime}` for an exam on her
+slice: her extra time and the whole sitting's, from the exam's key file (staff devices publish it again
+when time is added). Her phone asks every minute while she sits the test. The Offline System gate
+answers it from the exam itself.
+
+### 19.4 Tests
+
+`tests/assessments-core.test.js`, `tests/assessment-pdf.test.js`, `tests/assessments-bank.test.js`,
+`tests/gate-appsscript-vm.test.js` (§assessments, against the real paste), `tests/gate-contract.test.js`
+(`exam.time` and the version 4 features on both gates), `tests/gate-client.test.js` (a record written
+while a pull is on its way is kept and sent), and in browsers `tests/browser/assessments.js`
+(`npm run test:browser:assessments`).

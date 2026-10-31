@@ -34,6 +34,7 @@
 'use strict';
 const fs = require('fs');
 const os = require('os');
+const { execFileSync } = require('child_process');
 const path = require('path');
 const { chromium } = require('playwright-core');
 const { FakeDrive } = require('./fake-drive');
@@ -170,7 +171,8 @@ function seed({ MORE, PASSHASH }) {
     await op.fill('.assess-dlg [data-f="time"]', '3 hours 30 minutes');
     await op.click('.assess-dlg [data-dlg="save"]');
     await op.waitForFunction(() => !document.querySelector('.assess-dlg [data-f="checklist"]'), null, { timeout: 5000 }).catch(async () => console.log('    (dialog still open: ' + await txt(op, '.assess-dlg .assess-err') + ')'));
-    ok(await op.evaluate(id => exams.find(e => e.id === id).practical.time === '3 hours 30 minutes', p1), 'Check & edit: a practical\'s brief corrected and saved');
+    const pt = await op.evaluate(id => { const e = exams.find(x => x.id === id); return { time: e.practical.time, filled: (document.querySelector('.assess-dlg [data-f="time"]') || {}).value, dlgs: document.querySelectorAll('.assess-dlg').length }; }, p1);
+    ok(pt.time === '3 hours 30 minutes', 'Check & edit: a practical\'s brief corrected and saved (' + JSON.stringify(pt) + ')');
     // Theory 1's Check & edit opens the test builder on it.
     const t1id = await op.evaluate(() => exams.find(e => CESTISCore.assessments.isMaster(e) && e.assessment.kind === 'theory1').id);
     await op.click('#page-assessments [data-act="edit"][data-id="' + t1id + '"]');
@@ -208,7 +210,7 @@ function seed({ MORE, PASSHASH }) {
         document.querySelector('.assess-dlg [data-f="closeDate"]').value = c.date;
         document.querySelector('.assess-dlg [data-f="closeTime"]').value = c.time;
       }, kind);
-      if (kind === 'theory1') await shot(op, '02-open-for-an-intake', { only: 'desktop' });
+      if (kind === 'theory1') await shot(op, '02-open-for-an-intake');
       await op.click('.assess-dlg [data-dlg="open"]');
       await op.waitForTimeout(500);
       if (kind.indexOf('practical') === 0) {
@@ -216,7 +218,7 @@ function seed({ MORE, PASSHASH }) {
         await op.waitForSelector('.assess-dlg [data-dlg="auto"]', { timeout: 5000 });
         await op.click('.assess-dlg [data-dlg="auto"]');
         await op.waitForTimeout(300);
-        if (kind === 'practical1') await shot(op, '03-groups', { only: 'desktop' });
+        if (kind === 'practical1') await shot(op, '03-groups');
         await op.click('.assess-dlg [data-dlg="save"]');
         await op.waitForTimeout(400);
       }
@@ -232,6 +234,24 @@ function seed({ MORE, PASSHASH }) {
     const listed = await op.evaluate(() => exams.filter(e => (e.status === 'upcoming' || e.status === 'active') && !examIsPracticalTask(e)).map(e => e.assessment ? e.assessment.kind : 'other'));
     ok(listed.filter(k => k === 'theory1' || k === 'theory2').length === 2 && listed.indexOf('practical1') === -1, 'the Online Exams list shows the two theory tests, never a practical');
     await shot(op, '01b-assessments-opened');
+  });
+
+  await section('export', 'Export units on the Qualification Plan page (a CSV)', async () => {
+    await go(op, 'qual-plan');
+    const fh = await op.waitForSelector('#qualPlanFrame', { timeout: 20000 });
+    const frame = await fh.contentFrame();
+    await frame.waitForSelector('#qpExportUnits', { state: 'visible', timeout: 30000 });
+    await shot(op, '13-export-units');
+    const dl = op.waitForEvent('download', { timeout: 20000 });
+    await frame.click('#qpExportUnits');
+    const d = await dl;
+    const file = path.join(os.tmpdir(), 'units-' + Date.now() + '.csv');
+    await d.saveAs(file);
+    const csv = fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, '');
+    const lines = csv.trim().split('\r\n');
+    ok(/^Units-\d{4}-\d\d-\d\d\.csv$/.test(d.suggestedFilename()) && lines[0] === '"Programme","Qualification","Qualification code","Level","Unit code","Unit title","Core/Elective"', 'Export units: ' + d.suggestedFilename() + ', programme, unit code and unit title');
+    ok(lines.length > 100 && lines.some(l => /"MEMFAB0042C","Perform weld in the flat/.test(l)), 'every programme\'s units, the Welding unit among them (' + lines.length + ' lines)');
+    if (SHOTS) fs.copyFileSync(file, path.join(SHOTS, 'units-export-sample.csv'));
   });
 
   /* ------------------------------------------- the gate, and phones at home */
@@ -287,7 +307,7 @@ function seed({ MORE, PASSHASH }) {
     const mine = await txt(tp, '#page-s-assessments .assess');
     ok(/My Assessments/.test(mine) && /MEMFAB0042C/.test(mine) && /Theory 1/.test(mine) && /Open now/.test(mine) && /45 questions/.test(mine), 'My Assessments: her unit, Theory 1 open now, 45 questions (' + mine.slice(0, 200) + ')');
     ok(/Group (A|B)/.test(mine), 'and her practical group');
-    await shot(tp, '04-trainee-unit-page', { only: 'phone' });
+    await shot(tp, '04-trainee-unit-page');
     const t1 = await theoryId('theory1');
     await clickIn(tp, '#page-s-assessments [data-act="start"][data-id="' + t1 + '"]');
     await tp.waitForFunction(() => !!currentExamSession && document.getElementById('studentExamTakingView').style.display !== 'none', null, { timeout: 30000 });
@@ -304,7 +324,7 @@ function seed({ MORE, PASSHASH }) {
     await op.evaluate(sid => invigAddTime(sid), T.tameka.sid);
     await op.waitForSelector('.assess-dlg [data-f="why"]', { timeout: 10000 });
     await op.fill('.assess-dlg [data-f="why"]', 'Power cut at home');
-    await shot(op, '09-add-time-dialog', { only: 'desktop' });
+    await shot(op, '09-add-time-dialog');
     await op.click('.assess-dlg [data-dlg="add"]');
     await op.waitForTimeout(500);
     const grant = await op.evaluate(id => (exams.find(e => e.id === id).extraTime || [])[0], t1);
@@ -322,7 +342,7 @@ function seed({ MORE, PASSHASH }) {
     await op.waitForTimeout(1500);
     const board = await txt(op, '#invigBoard');
     ok(/\+15 min extra time/.test(board), 'the invigilator page shows her extra time (' + board.slice(0, 160) + ')');
-    await shot(op, '10-invigilator-extra-time', { only: 'desktop' });
+    await shot(op, '10-invigilator-extra-time');
     // Sign and submit.
     await tp.evaluate(() => examShowSummary());
     await tp.waitForTimeout(400);
@@ -453,6 +473,232 @@ function seed({ MORE, PASSHASH }) {
     await collect();
     const st2 = await op.evaluate(id => { const g = CESTISCore.assessments.groupsOf(assessmentWork, id).find(x => x.name === 'Group B'); const s = CESTISCore.assessments.groupState(g, assessmentWork); return { by: s.handedIn && s.handedIn.by, signed: Object.keys(s.signed).length }; }, p1);
     ok(st2.signed === 2 && st2.by === T.tameka.sid, 'the first hand-in stands; Nadine\'s signature joins it (' + JSON.stringify(st2) + ')');
+  });
+
+  /* ------------------------------------------------ the office (stage 5) */
+  const FOLDER = 'application/vnd.google-apps.folder';
+  const tmpFile = (buf, ext) => { const f = path.join(os.tmpdir(), 'assess-' + Date.now() + '-' + Math.random().toString(36).slice(2) + ext); fs.writeFileSync(f, buf); return f; };
+  const pdfText = buf => { try { return execFileSync('pdftotext', ['-layout', tmpFile(buf, '.pdf'), '-'], { encoding: 'utf8' }); } catch (e) { return ''; } };
+  const pdfPages = buf => { try { return Number((/Pages:\s+(\d+)/.exec(execFileSync('pdfinfo', [tmpFile(buf, '.pdf')], { encoding: 'utf8' })) || [])[1]) || 0; } catch (e) { return 0; } };
+  const live = () => Object.values(drive.files).filter(f => !f.trashed);
+  const kids = (pid, name) => live().filter(f => f.parents.indexOf(pid) !== -1 && (!name || f.name === name));
+  // The office files what is due (its own turn beside the save may be at it too).
+  const fileNow = () => until(async () => {
+    const r = await op.evaluate(() => CESTISAssessStaff.fileDue({ max: 20 }).catch(e => ({ err: String(e && e.message || e) })));
+    if (r && r.err) return r;
+    return r && r.ran && !r.left && !r.failed ? r : false;
+  }, 180000, 1000);
+  const unitFolder = () => {
+    const root = live().find(f => f.appProperties && f.appProperties.cestisAssessResults === '1');
+    const prog = root && kids(root.id, W)[0], intake = prog && kids(prog.id)[0];
+    return { root, prog, intake, unit: intake && kids(intake.id).find(f => /^MEMFAB0042C — /.test(f.name)) };
+  };
+  const published2 = () => op.evaluate(() => JSON.parse(localStorage.getItem('cestisGatePublished') || '{}'));
+  const groupB = async () => op.evaluate(id => { const g = CESTISCore.assessments.groupsOf(assessmentWork, id).find(x => x.name === 'Group B'); return g ? { id: g.id, members: g.members.slice() } : null; }, await pracId('practical1'));
+
+  await section('office', 'The office copy: filed in the Assessment Results folder; a practical marked member by member, filed again', async () => {
+    await collect();
+    const r = await fileNow();
+    ok(r && !r.err, 'the office PC files what is due (' + JSON.stringify(r) + ')');
+    const U = unitFolder();
+    const sett = await op.evaluate(() => systemSettings.assessmentResultsFolderId);
+    ok(U.root && U.root.name === 'Assessment Results' && U.root.mimeType === FOLDER && sett === U.root.id, 'the "Assessment Results" folder, made the first time it was needed; its id kept in the Centre\'s settings');
+    ok(U.prog && U.intake && U.unit && /Sep|Oct|Aug|Jul|Jun|May/.test(U.intake.name), 'Assessment Results / ' + (U.prog && U.prog.name) + ' / ' + (U.intake && U.intake.name) + ' / ' + (U.unit && U.unit.name));
+    const t1f = U.unit && kids(U.unit.id, 'Theory 1')[0];
+    const paperName = T.tameka.name + ' (' + T.tameka.sid + ') — MEMFAB0042C Theory 1.pdf';
+    const paper = t1f && kids(t1f.id, paperName)[0];
+    ok(paper && paper._bytes && /^%PDF/.test(paper._bytes.slice(0, 5).toString()) && paper.mimeType === 'application/pdf', '… / Theory 1 / ' + paperName);
+    const text = paper ? pdfText(paper._bytes) : '';
+    ok(/Assessment record/.test(text) && /Theory Assessment 1/.test(text) && /Extra time\s+15 min, added by the Administrator/.test(text), 'her paper: the record, the unit, "Extra time: 15 min, added by the Administrator"');
+    ok(/Electronically signed by Tameka Richards/.test(text) && /Signature ID/.test(text) && /(COMPETENT|NOT YET COMPETENT)/.test(text) && !/PROVISIONAL/.test(text), 'her signature line and the result (marked: not provisional)');
+    ok(/From home, invigilated online/.test(text) && /Programme Coordinator/.test(text) && /Page 1 of \d+/.test(text), 'where it was sat, the staff signature lines, the page numbers');
+    if (SHOTS && paper) fs.writeFileSync(path.join(SHOTS, 'office-copy-theory1.pdf'), paper._bytes);
+    // Her own copy, in her own folder of the trainee gate.
+    const pub = await published2();
+    const herF = pub.folders && pub.folders[T.tameka.id];
+    const hers = herF && kids(herF.id, paperName)[0];
+    ok(hers && /^%PDF/.test(hers._bytes.slice(0, 5).toString()), 'and her own copy in her own folder (for her to download from home)');
+    const filed = await op.evaluate(() => assessmentWork.filter(x => x.type === 'filed').map(x => ({ key: x.key, status: x.status, fileId: x.fileId, tf: Object.keys(x.traineeFiles || {}).length, pf: Object.keys(x.photoFiles || {}).length })));
+    const ft = filed.find(f => /^res:/.test(f.key));
+    ok(ft && ft.fileId === paper.id && ft.status === 'final' && ft.tf === 1, 'the record of where it is filed (' + JSON.stringify(ft) + ')');
+    // Group B's practical, handed in: its folder, its paper (provisional), its photos.
+    const p1f = U.unit && kids(U.unit.id, 'Practical 1')[0], gb = p1f && kids(p1f.id, 'Group B')[0];
+    const gpdf = gb && kids(gb.id, 'Group B — MEMFAB0042C Practical 1.pdf')[0];
+    const photos = gb ? kids(gb.id).filter(f => /\.jpg$/.test(f.name)).map(f => f.name).sort() : [];
+    if (!gpdf) console.log('    (Group B holds: ' + (gb ? kids(gb.id).map(f => f.name + ' [' + f.mimeType + ']').join(' | ') : 'no folder') + ')');
+    ok(gpdf && photos.length === 7 && photos.every((n, i) => n.indexOf(String(i + 1).padStart(2, '0') + ' ') === 0), '… / Practical 1 / Group B: the group\'s paper and its 7 photos, numbered with their captions (' + photos.join(', ') + ')');
+    ok(gb && kids(gb.id).filter(f => /\.jpg$/.test(f.name)).every(f => f._bytes && f._bytes.length > 20000), 'the photos copied whole (no upload)');
+    const gtext = gpdf ? pdfText(gpdf._bytes) : '', gpages = gpdf ? pdfPages(gpdf._bytes) : 0;
+    ok(/PROVISIONAL/.test(gtext) && /Awaiting marking/.test(gtext) && /Not yet signed/.test(gtext) && /Electronically signed by Tameka Richards/.test(gtext), 'provisional until marked; "Not yet signed" for those who have not; Tameka\'s and Nadine\'s signatures');
+    ok(gpages >= 5 && /Photos 1–2 of 7|Photos 1-2 of 7/.test(gtext) && /Added by Nadine Bailey/.test(gtext), 'the photos two to a page, with who added each (' + gpages + ' pages)');
+    if (SHOTS && gpdf) fs.writeFileSync(path.join(SHOTS, 'office-copy-group-practical-provisional.pdf'), gpdf._bytes);
+    const nadF = pub.folders && pub.folders[T.nadine.id];
+    const ncopy = nadF && kids(nadF.id, T.nadine.name + ' (' + T.nadine.sid + ') — MEMFAB0042C Practical 1.pdf')[0];
+    const ntext = ncopy ? pdfText(ncopy._bytes) : '';
+    ok(ncopy && /Tameka R\./.test(ntext) && !/Tameka Richards/.test(ntext) && /Nadine Bailey/.test(ntext), 'Nadine\'s own copy in her folder: the others as "Tameka R.", never their full names');
+    const fg = filed.find(f => /^grp:/.test(f.key));
+    ok(fg && fg.fileId === gpdf.id && fg.pf === 7 && fg.status === 'provisional', 'the group\'s filed record: its paper and its 7 photos (' + JSON.stringify(fg) + ')');
+
+    // Marking: the Assessment Results page, Group B, a result for each member.
+    const G = await groupB();
+    await go(op, 'assessment-results');
+    await op.waitForFunction(() => document.querySelector('#page-assessment-results .assess-table'), null, { timeout: 20000 });
+    await op.click('#page-assessment-results [data-ra="mark"][data-k="grp:' + G.id + '"]');
+    await op.waitForSelector('.assess-dlg [data-o]', { timeout: 10000 });
+    await op.waitForTimeout(1500);   // the photos' small copies
+    const names = await op.evaluate(() => Array.from(document.querySelectorAll('.assess-dlg [data-o]')).map(s => s.getAttribute('data-o')));
+    ok(names.length === G.members.length, 'a result to record for each of the ' + G.members.length + ' members');
+    const last = names[names.length - 1];
+    await op.evaluate(([last]) => {
+      document.querySelectorAll('.assess-dlg [data-o]').forEach(s => { s.value = s.getAttribute('data-o') === last ? 'nyc' : 'competent'; });
+      document.querySelectorAll('.assess-dlg [data-c]').forEach(c => { c.checked = c.getAttribute('data-s') !== last || Number(c.getAttribute('data-c')) < 2; });
+      document.querySelectorAll('.assess-dlg [data-k]').forEach(t => { t.value = t.getAttribute('data-k') === last ? 'Root pass not fused at the ends; practise the restart.' : 'Neat, square set-up and a steady bead.'; });
+    }, [last]);
+    await shot(op, '08-practical-marking');
+    await shot(op, '08b-practical-marking-each-member', { focus: '.assess-dlg .assess-check-grid' });
+    await op.click('.assess-dlg [data-dlg="save"]');
+    await op.waitForTimeout(600);
+    const res = await op.evaluate(id => assessmentWork.filter(x => x.type === 'result' && x.groupId === id).map(x => x.studentId + ':' + x.outcome + ':' + x.checklist.filter(c => c.met).length), G.id);
+    ok(res.length === G.members.length && res.filter(x => /:competent:/.test(x)).length === G.members.length - 1 && res.some(x => x.indexOf(last + ':nyc:') === 0), 'a result for each member, with the checklist and a comment (' + res.join(', ') + ')');
+    await op.evaluate(() => document.querySelectorAll('.assess-dlg-back').forEach(d => d.remove()));
+    await fileNow();
+    const g2 = drive.files[gpdf.id];
+    const gtext2 = pdfText(g2._bytes);
+    ok(g2 && !g2.trashed && (g2.revisions || []).length >= 1 && g2.revisions[0].keepForever === true, 'marked: the final paper replaces the provisional one in the same file, the earlier version kept (' + (g2.revisions || []).length + ' kept)');
+    ok(!/PROVISIONAL/.test(gtext2) && /Competent/.test(gtext2) && /Not yet competent: Root pass not fused/.test(gtext2), 'the final paper: a result for each member, and the comment');
+    if (SHOTS) fs.writeFileSync(path.join(SHOTS, 'office-copy-group-practical-marked.pdf'), g2._bytes);
+    const fg2 = await op.evaluate(() => assessmentWork.filter(x => x.type === 'filed' && /^grp:/.test(x.key)).map(x => x.status + ':' + x.fileId)[0]);
+    ok(fg2 === 'final:' + gpdf.id, 'filed as final, in the same file (' + fg2 + ')');
+  });
+
+  await section('theory2', 'Theory 2 at home: matching short answers marked, the rest wait; filed Provisional; marked, the final replaces it; her office copy at home', async () => {
+    await gateOn();
+    if (!tp) { tp = await phone('tameka'); await traineeIn(tp, T.tameka); }
+    const t2 = await theoryId('theory2');
+    const key = await op.evaluate(id => { const e = exams.find(x => x.id === id), m = {}; e.questionData.forEach(q => { if (q.type === 'shortanswer') m[q.id] = CESTISCore.exams.acceptedAnswers(q.correctAnswer)[0]; }); return m; }, t2);
+    await tp.evaluate(() => document.querySelectorAll('.assess-dlg-back').forEach(d => d.remove()));
+    await go(tp, 's-assessments');
+    await tp.waitForFunction(id => !!document.querySelector('#page-s-assessments [data-act="start"][data-id="' + id + '"]'), t2, { timeout: 20000 });
+    await clickIn(tp, '#page-s-assessments [data-act="start"][data-id="' + t2 + '"]');
+    await tp.waitForFunction(() => !!currentExamSession && document.getElementById('studentExamTakingView').style.display !== 'none', null, { timeout: 30000 });
+    await tp.evaluate(key => {
+      const s = currentExamSession; let n = 0;
+      s.questions.forEach((q, i) => {
+        if (q.type === 'shortanswer') { n++; s.answers[i] = n <= 10 ? key[q.id] : 'not sure'; s.answeredAt[i] = Date.now(); }
+        else if (q.type === 'essay') { s.answers[i] = 'Check the machine and the earth clamp, set the current for the electrode, wear the helmet and gloves, clean the plate, then strike the arc and keep a steady travel speed.'; s.answeredAt[i] = Date.now(); }
+      });
+      autoSaveExamProgress();
+    }, key);
+    await tp.evaluate(() => examShowSummary());
+    await tp.waitForTimeout(400);
+    await tp.click('#examSubmitAllBtn');
+    await tp.waitForSelector('#examSignName', { timeout: 5000 });
+    await tp.check('#examSignConsent');
+    await tp.click('#examConfirmGo');
+    const result = await until(() => tp.evaluate(id => { const r = examResults.find(x => x && x.examId === id); return r ? { id: r.id, pending: r.pendingCount, prov: !!r.needsReview, sig: !!r.signature } : null; }, t2), 40000, 800);
+    ok(result && result.prov && result.pending === 15 && result.sig, 'Theory 2: 10 short answers matched and marked; 5 others and the 10 essays wait (' + JSON.stringify(result) + ')');
+    await collect();
+    await fileNow();
+    const U = unitFolder(), t2f = U.unit && kids(U.unit.id, 'Theory 2')[0];
+    const name = T.tameka.name + ' (' + T.tameka.sid + ') — MEMFAB0042C Theory 2.pdf';
+    const paper = t2f && kids(t2f.id, name)[0];
+    const text = paper ? pdfText(paper._bytes) : '';
+    ok(paper && /PROVISIONAL/.test(text) && /awaiting marking/i.test(text), 'filed at once as Provisional: … / Theory 2 / ' + name);
+    if (SHOTS && paper) fs.writeFileSync(path.join(SHOTS, 'office-copy-theory2-provisional.pdf'), paper._bytes);
+    const firstId = paper && paper.id;
+    // Marked at the office (the marking panel, with the model answers).
+    await go(op, 'exams');
+    const rid = await op.evaluate(id => (examResults.find(r => r.examId === id) || {}).id, t2);
+    await op.evaluate(id => openGradingPanel(id), rid);
+    await op.waitForSelector('#gradingPanel', { timeout: 5000 });
+    const guide = await txt(op, '#gradingPanel');
+    ok(/Model answer/i.test(guide) && /Marking points/i.test(guide), 'the marking panel shows each essay\'s model answer and marking points');
+    await op.evaluate(() => {
+      const r = examResults.find(x => x.id === gradingResultId);
+      r.answers.forEach((a, i) => { if (a.needsManualGrade && !a.graded) { setGradePoints(i, Math.ceil((Number(a.points) || 0) * 0.8)); const f = document.getElementById('gradeFeedback-' + i); if (f && a.type === 'essay') f.value = 'Good order of steps; say why the earth clamp matters.'; } });
+      submitGrading();
+    });
+    await op.waitForTimeout(600);
+    await fileNow();
+    const p2 = drive.files[firstId];
+    const text2 = p2 ? pdfText(p2._bytes) : '';
+    ok(p2 && (p2.revisions || []).length >= 1 && p2.revisions[0].keepForever && !/PROVISIONAL/.test(text2) && /(COMPETENT|NOT YET COMPETENT)/.test(text2), 'marked: the final paper replaces the provisional one in the same file; the earlier version kept');
+    ok(/Good order of steps/.test(text2) && /the Administrator/.test(text2), 'with the marker\'s comments');
+    if (SHOTS && p2) fs.writeFileSync(path.join(SHOTS, 'office-copy-theory2-marked.pdf'), p2._bytes);
+    // At home: the office copy, from her own folder.
+    await published();
+    await tp.evaluate(() => CESTISGate.pull().then(r => CESTISGate.applyPull(r)));
+    await tp.waitForTimeout(800);
+    await go(tp, 's-assessments');
+    await tp.waitForFunction(id => !!document.querySelector('#page-s-assessments [data-act="officepdf"][data-id="' + id + '"]'), t2, { timeout: 20000 }).catch(() => {});
+    const dl = tp.waitForEvent('download', { timeout: 30000 });
+    ok(await clickIn(tp, '#page-s-assessments [data-act="officepdf"][data-id="' + t2 + '"]'), 'My Assessments at home: "The office copy (PDF)"');
+    const d = await dl.catch(() => null);
+    const f = d ? path.join(os.tmpdir(), 'office-' + Date.now() + '.pdf') : '';
+    if (d) await d.saveAs(f);
+    const buf = f ? fs.readFileSync(f) : Buffer.alloc(0);
+    ok(d && /^%PDF/.test(buf.slice(0, 5).toString()) && /Theory Assessment 2/.test(pdfText(buf)) && !/PROVISIONAL/.test(pdfText(buf)), 'she downloads the marked office copy at home (' + (d && d.suggestedFilename()) + ')');
+  });
+
+  await section('results', 'The Assessment Results page: filters, counts, View PDF, one PDF of several, a group\'s photos and their ZIP', async () => {
+    await go(op, 'assessment-results');
+    await op.waitForFunction(() => document.querySelectorAll('#page-assessment-results .assess-table tbody tr').length >= 3, null, { timeout: 20000 });
+    const head = await txt(op, '#page-assessment-results');
+    ok(/3 completed/.test(head) && /Assessment Results folder/.test(head), 'the page: every completed assessment, and that each is filed in the Assessment Results folder');
+    ok(!/\b(Drive|Google|cloud)\b/i.test(head), 'never says where anything is kept');
+    await op.selectOption('#page-assessment-results [data-rf="kind"]', 'practical1');
+    await op.waitForTimeout(300);
+    const n1 = await op.evaluate(() => document.querySelectorAll('#page-assessment-results .assess-table tbody tr').length);
+    await op.selectOption('#page-assessment-results [data-rf="kind"]', '');
+    await op.selectOption('#page-assessment-results [data-rf="status"]', 'provisional');
+    await op.waitForTimeout(300);
+    const n2 = await op.evaluate(() => document.querySelectorAll('#page-assessment-results .assess-table tbody tr').length);
+    await op.selectOption('#page-assessment-results [data-rf="status"]', '');
+    await op.waitForTimeout(300);
+    ok(n1 === 1 && n2 === 0, 'filters: by assessment (Practical 1: one group), by result (none awaiting marking now)');
+    await op.click('#page-assessment-results [data-ra="all"]');
+    await op.waitForTimeout(300);
+    await shot(op, '11-assessment-results-page');
+    const dl = op.waitForEvent('download', { timeout: 120000 });
+    await op.click('#page-assessment-results [data-ra="combine"]');
+    const d = await dl;
+    const f = path.join(os.tmpdir(), 'combined-' + Date.now() + '.pdf');
+    await d.saveAs(f);
+    const buf = fs.readFileSync(f), ct = pdfText(buf);
+    ok(/^Assessment records \d{4}-\d\d-\d\d \(3\)\.pdf$/.test(d.suggestedFilename()) && pdfPages(buf) >= 9 && /Theory Assessment 1/.test(ct) && /Theory Assessment 2/.test(ct) && /Practical Assessment 1/.test(ct), 'Download selected as one PDF: three papers in one, ready to print (' + d.suggestedFilename() + ', ' + pdfPages(buf) + ' pages)');
+    if (SHOTS) fs.copyFileSync(f, path.join(SHOTS, 'combined-print-3-papers.pdf'));
+    // View PDF: a new tab (or saved where the browser keeps it from opening one).
+    const t1key = await op.evaluate(() => (document.querySelector('#page-assessment-results [data-ra="view"]') || {}).getAttribute('data-k'));
+    const popup = op.context().waitForEvent('page', { timeout: 30000 }).catch(() => null), dl2 = op.waitForEvent('download', { timeout: 30000 }).catch(() => null);
+    await op.click('#page-assessment-results [data-ra="view"][data-k="' + t1key + '"]');
+    const got = await Promise.race([popup, dl2]);
+    ok(!!got, 'View PDF opens the record');
+    if (got && got.close) await got.close().catch(() => {});
+    // The group's photos, full size; one, or all as a ZIP.
+    const G = await groupB();
+    await op.click('#page-assessment-results [data-ra="photos"][data-k="grp:' + G.id + '"]');
+    await op.waitForSelector('.assess-dlg [data-g="photos"] .assess-shot', { timeout: 10000 });
+    await until(() => op.evaluate(() => document.querySelectorAll('.assess-dlg [data-g="photos"] img').length === 7), 30000, 500);
+    await shot(op, '12-photos-view');
+    await op.click('.assess-dlg [data-g="photos"] [data-photo]');
+    await op.waitForSelector('.assess-photo-view img', { timeout: 15000 });
+    const full = await op.evaluate(() => { const i = document.querySelectorAll('.assess-photo-view img'); const im = i[i.length - 1]; return im ? new Promise(r => { if (im.complete) r(im.naturalWidth); else im.onload = () => r(im.naturalWidth); }) : 0; });
+    ok(full >= 1000, 'a photo at full size (' + full + ' px wide)');
+    const dl3 = op.waitForEvent('download', { timeout: 20000 });
+    await op.evaluate(() => { const b = Array.from(document.querySelectorAll('.assess-dlg [data-dlg="dl"]')).pop(); b.click(); });
+    const d3 = await dl3;
+    ok(/^01 .+\.jpg$/.test(d3.suggestedFilename()), 'Download this photo: ' + d3.suggestedFilename());
+    await op.evaluate(() => { const b = Array.from(document.querySelectorAll('.assess-dlg [data-dlg="close2"]')).pop(); b.click(); });
+    const dl4 = op.waitForEvent('download', { timeout: 60000 });
+    await op.click('.assess-dlg [data-dlg="zip"]');
+    const d4 = await dl4;
+    const zf = path.join(os.tmpdir(), 'photos-' + Date.now() + '.zip');
+    await d4.saveAs(zf);
+    let listing = '';
+    try { listing = execFileSync('unzip', ['-l', zf], { encoding: 'utf8' }); } catch (e) { listing = ''; }
+    const entries = (listing.match(/\d\d [^\n]+\.jpg/g) || []);
+    ok(d4.suggestedFilename() === 'Group B - MEMFAB0042C Practical 1 - photos.zip' && entries.length === 7 && /\b01 [^\n]+\.jpg/.test(listing) && /\b07 [^\n]+\.jpg/.test(listing), 'all the photos as a ZIP named after the group and the unit (' + d4.suggestedFilename() + ', ' + entries.length + ' photos)');
+    await op.evaluate(() => document.querySelectorAll('.assess-dlg-back').forEach(d => d.remove()));
   });
 
   console.log('\n' + passed + ' passed, ' + failed + ' failed');

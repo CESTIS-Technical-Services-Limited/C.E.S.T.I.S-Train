@@ -76,6 +76,8 @@
     '.assess-tools{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}',
     '.assess-tools label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;color:var(--text-secondary)}',
     '.assess-tools .form-control{min-width:150px}',
+    '.assess-filters{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}',
+    '.assess-filters .form-control{min-width:0;width:100%}',
     '.assess-counts{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 14px}',
     '.assess-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;background:var(--w-06);color:var(--text-primary);border:1px solid var(--border-light)}',
     '.assess-chip.is-check{background:var(--accent-dim);color:var(--accent)}',
@@ -135,6 +137,8 @@
     '.assess-ava.is-me{background:var(--accent-dim);color:var(--accent)}',
     '.assess-shots{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin:8px 0 12px}',
     '.assess-shot{border:1px solid var(--border-light);border-radius:var(--radius-sm);overflow:hidden;background:var(--w-03);font-size:12px}',
+    'button.assess-shot{display:flex;flex-direction:column;justify-content:flex-start;align-items:stretch;width:100%;padding:0;font:inherit;color:var(--text-primary);text-align:left;cursor:pointer}',
+    'button.assess-shot:focus-visible{outline:2px solid var(--accent);outline-offset:2px}',
     '.assess-shot-img{aspect-ratio:4/3;background:var(--w-06);display:flex;align-items:center;justify-content:center;color:var(--text-muted);overflow:hidden}',
     '.assess-shot-img img{width:100%;height:100%;object-fit:cover;display:block}',
     '.assess-shot-cap{padding:6px 8px;line-height:1.35}',
@@ -153,7 +157,7 @@
     '.assess-extra{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--accent);background:var(--accent-dim);padding:3px 9px;border-radius:14px}',
     '@media (max-width:600px){.assess-kinds{grid-template-columns:1fr}.assess-dlg .assess-row2{grid-template-columns:1fr}.assess-sig-name{font-size:36px}',
     '.assess-table thead{display:none}.assess-table tr{display:block;border-bottom:1px solid var(--border-light);padding:8px 0}.assess-table td{display:block;border:0;padding:3px 4px}',
-    '.assess-dlg-back{padding:8px}.assess-tools .form-control{min-width:0;width:100%}.assess-tools label{flex:1 1 140px}}'
+    '.assess-dlg-back{padding:8px}.assess-tools .form-control{min-width:0;width:100%}.assess-tools label{flex:1 1 140px}.assess-filters{grid-template-columns:1fr 1fr}}'
   ].join('\n');
   function styles() {
     if (document.getElementById('cestis-assess-css')) return;
@@ -203,7 +207,14 @@
     document.addEventListener('keydown', onKey, true);
     document.body.appendChild(back);
     openDlgs.push(d);
-    setTimeout(function () { var f = back.querySelector('input:not([type=hidden]),select,textarea,.btn-primary') || back.querySelector('[data-dlg]'); try { f.focus(); } catch (e) {} }, 30);
+    // The first field takes the focus — unless a field in it already has it
+    // (a quick tap is never moved into another box).
+    setTimeout(function () {
+      var a = document.activeElement;
+      if (a && a !== back && back.contains(a)) return;
+      var f = back.querySelector('input:not([type=hidden]),select,textarea,.btn-primary') || back.querySelector('[data-dlg]');
+      try { f.focus(); } catch (e) {}
+    }, 30);
     return d;
   }
   function confirmDlg(title, text, okLabel) {

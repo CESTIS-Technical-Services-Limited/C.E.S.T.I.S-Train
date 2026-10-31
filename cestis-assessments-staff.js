@@ -912,11 +912,11 @@
     var c = A.resultCounts(rows), filed = filedByKey(), off = S.offset();
     var uniq = function (f) { var s = {}; every.forEach(function (r) { var v = f(r); if (v && v[0]) s[v[0]] = v[1]; }); return Object.keys(s).sort().map(function (k) { return [k, s[k]]; }); };
     var progs = uniq(function (r) { return [r.programme, r.programme]; }), intakes = uniq(function (r) { return [r.intake, r.intake]; }),
-      units = uniq(function (r) { return [r.unitCode || r.unitTitle, A.unitLabel({ code: r.unitCode, title: r.unitTitle })]; });
+      units = uniq(function (r) { var t = str(r.unitTitle); return [r.unitCode || r.unitTitle, (r.unitCode ? r.unitCode + ' — ' : '') + (t.length > 48 ? t.slice(0, 46).replace(/\s+\S*$/, '') + '…' : t)]; });
     var keys = {}; rows.forEach(function (r) { keys[r.key] = 1; });
     Object.keys(rview.sel).forEach(function (k) { if (!keys[k]) delete rview.sel[k]; });
     var nSel = Object.keys(rview.sel).length;
-    var tools = '<div class="assess-tools">' +
+    var tools = '<div class="assess-tools assess-filters">' +
       '<label>Programme<select class="form-control" data-rf="prog"><option value="">All</option>' + progs.map(function (p) { return opt(p[0], p[1], rview.prog); }).join('') + '</select></label>' +
       '<label>Intake<select class="form-control" data-rf="intake"><option value="">All</option>' + intakes.map(function (p) { return opt(p[0], p[1], rview.intake); }).join('') + '</select></label>' +
       '<label>Unit<select class="form-control" data-rf="unit"><option value="">All</option>' + units.map(function (p) { return opt(p[0], p[1], rview.unit); }).join('') + '</select></label>' +
