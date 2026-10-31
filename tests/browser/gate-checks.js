@@ -5,7 +5,7 @@
    trainee-gate/SETUP.md §3 had the administrator press F12 and paste code
    for four checks. Each is a button now, using the gate's own answers. Here
    the gate is the REAL trainee-gate/PASTE-GATE.gs (tests/browser/fake-gate.js,
-   version 3, unchanged) over the same in-memory shared files as the PC:
+   version 4, unchanged) over the same in-memory shared files as the PC:
      1. "This page can reach it" — the plain-text POST (live check 2);
      2. "A large file arrives whole" — 7 MB echoed (live check 3);
      3. "Email sign-in is accepted" — a sign-in from the press, then the

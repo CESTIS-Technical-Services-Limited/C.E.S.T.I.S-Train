@@ -624,6 +624,7 @@ function seed({ MORE, PASSHASH }) {
     const text2 = p2 ? pdfText(p2._bytes) : '';
     ok(p2 && (p2.revisions || []).length >= 1 && p2.revisions[0].keepForever && !/PROVISIONAL/.test(text2) && /(COMPETENT|NOT YET COMPETENT)/.test(text2), 'marked: the final paper replaces the provisional one in the same file; the earlier version kept');
     ok(/Good order of steps/.test(text2) && /the Administrator/.test(text2), 'with the marker\'s comments');
+    ok(/Sat\s+From home, invigilated online/.test(text2), 'still "From home, invigilated online" once marked at the office');
     if (SHOTS && p2) fs.writeFileSync(path.join(SHOTS, 'office-copy-theory2-marked.pdf'), p2._bytes);
     // At home: the office copy, from her own folder.
     await published();

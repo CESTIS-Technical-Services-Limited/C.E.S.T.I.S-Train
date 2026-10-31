@@ -797,7 +797,7 @@
       if (!p.fileId || thumbUrls[p.fileId]) return;
       photoBytes(p).then(function (b) {
         thumbUrls[p.fileId] = URL.createObjectURL(new Blob([b.buf], { type: b.type }));
-        box.querySelectorAll('[data-thumb="' + p.fileId + '"]').forEach(function (el) { el.innerHTML = '<img alt="" src="' + thumbUrls[p.fileId] + '">'; });
+        box.querySelectorAll('[data-thumb="' + (W.CSS && W.CSS.escape ? W.CSS.escape(p.fileId) : p.fileId) + '"]').forEach(function (el) { el.innerHTML = '<img alt="" src="' + thumbUrls[p.fileId] + '">'; });
       }, function () {});
     });
   }

@@ -17244,7 +17244,9 @@
         var unit = { programme: a.programme || e.course, intake: a.intake || e.course, unitCode: a.unitCode, unitTitle: a.unitTitle, kind: a.kind };
         var path = folderPath(unit);
         var base = { exam: e, questions: e.questionData, student: { id: sid, name: name }, signature: r.signature || null,
-          sat: { where: r.markedBy === 'gate' ? 'home' : 'centre', invigilated: typeof a.invigilated === 'boolean' ? a.invigilated : undefined },
+          // From home: marked by the gate — and still so once a person has
+          // marked the rest (markedBy is then the marker; receivedAt stays).
+          sat: { where: r.markedBy === 'gate' || !!r.receivedAt ? 'home' : 'centre', invigilated: typeof a.invigilated === 'boolean' ? a.invigilated : undefined },
           centreName: o.centreName, offset: off, madeAt: now, path: path, basis: r.attemptId || r.id };
         var model = theoryModel(Object.assign({}, base, { result: r }));
         var show = !!reveal(e), r2 = r;

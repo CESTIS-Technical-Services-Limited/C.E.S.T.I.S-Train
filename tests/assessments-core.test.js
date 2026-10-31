@@ -470,7 +470,8 @@ console.log('What the office files (the papers, their copies, filed again when t
   const ans2 = t2.questionData.map(q => q.type === 'shortanswer' ? 'something else' : q.type === 'essay' ? 'My essay' : null);
   const m2 = X.mark(X.publicQuestions(t2.questionData), ans2, t2.questionData);
   const r2 = { id: 'RES-F2', attemptId: 'ATT-F2', examId: 'EX-F2', studentId: 'STU-b', answers: m2.gradedResults, score: 0, totalPoints: m2.totalPoints, earnedPoints: m2.earnedPoints,
-    passed: false, needsReview: true, reviewComplete: false, pendingCount: m2.manualCount, startedAt: '2026-10-30T14:00:00.000Z', submittedAt: '2026-10-30T17:30:00.000Z' };
+    passed: false, needsReview: true, reviewComplete: false, pendingCount: m2.manualCount, startedAt: '2026-10-30T14:00:00.000Z', submittedAt: '2026-10-30T17:30:00.000Z',
+    markedBy: 'gate', receivedAt: '2026-10-30T17:30:00.000Z' };
   const group = A.makeGroup({ id: 'AG-F', examId: 'EX-F3', name: 'Group A', members: ['STU-a', 'STU-b', 'STU-c', 'STU-d'], at: '2026-10-30T10:00:00.000Z' });
   const work = [group];
   for (let i = 0; i < 3; i++) work.push(A.photoRecord({ id: 'PH-F' + i, examId: 'EX-F3', groupId: 'AG-F', studentId: i ? 'STU-b' : 'STU-d', caption: ['Set up', 'Root pass', 'Cap'][i], at: '2026-10-31T1' + i + ':00:00.000Z', files: [{ id: 'DF' + i, driveFileId: 'DF' + i, type: 'image/jpeg', size: 1000 }], w: 1200, h: 900 }));
@@ -507,6 +508,7 @@ console.log('What the office files (the papers, their copies, filed again when t
   items = A.paperItems(base);
   due = A.filingDue(items, filed);
   assert(due.length === 1 && due[0].key === 'res:RES-F2' && due[0].reason === 'marked' && due[0].filed.fileId === 'F-res:RES-F2', 'marked: the provisional paper is due again, into the same file (' + due.map(d => d.key + ':' + d.reason).join() + ')');
+  assert(r2.markedBy === 'Ian Barrett' && /^From home/.test(due[0].model.rows.find(r => r[0] === 'Sat')[1]), 'sat from home: still said so once a person has marked it');
   // A photo late, a member's result: the group's paper is due again.
   work.push(A.practicalResult({ examId: 'EX-F3', groupId: 'AG-F', studentId: 'STU-a', outcome: 'competent', checklist: [], comment: '', by: { name: 'Ian Barrett' }, at: '2026-10-31T19:00:00.000Z' }).rec);
   items = A.paperItems(base);

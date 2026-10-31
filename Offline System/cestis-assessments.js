@@ -137,7 +137,7 @@
     '.assess-ava.is-me{background:var(--accent-dim);color:var(--accent)}',
     '.assess-shots{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin:8px 0 12px}',
     '.assess-shot{border:1px solid var(--border-light);border-radius:var(--radius-sm);overflow:hidden;background:var(--w-03);font-size:12px}',
-    'button.assess-shot{display:flex;flex-direction:column;justify-content:flex-start;align-items:stretch;width:100%;padding:0;font:inherit;color:var(--text-primary);text-align:left;cursor:pointer}',
+    'button.assess-shot{display:flex;flex-direction:column;justify-content:flex-start;align-items:stretch;width:100%;padding:0;font-family:inherit;font-size:12px;color:var(--text-primary);text-align:left;cursor:pointer}',
     'button.assess-shot:focus-visible{outline:2px solid var(--accent);outline-offset:2px}',
     '.assess-shot-img{aspect-ratio:4/3;background:var(--w-06);display:flex;align-items:center;justify-content:center;color:var(--text-muted);overflow:hidden}',
     '.assess-shot-img img{width:100%;height:100%;object-fit:cover;display:block}',
