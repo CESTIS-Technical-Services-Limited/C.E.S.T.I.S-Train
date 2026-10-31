@@ -67,7 +67,8 @@ function textOf(doc) {
     assert((text.match(/^Name$/gm) || []).length === 3 && (text.match(/^Signature$/gm) || []).length === 3 && (text.match(/^Date$/gm) || []).length === 3, 'Name, Signature and Date left blank in each block');
     assert(text.indexOf('Marcia Thompson') === -1 && text.indexOf('Ian Barrett') === -1, 'no staff names printed in the blocks ("leave line blank, for all names")');
     assert(text.indexOf('Page 1 of ' + n) !== -1 && text.indexOf('Page ' + n + ' of ' + n) !== -1, 'page numbers');
-    assert(text.indexOf('Assessment Results / Welding & Fabrication / Sep 2026 – Jun 2027 / MEMFAB0042C') !== -1, 'the footer names where it is filed');
+    assert(flat.indexOf('Welding & Fabrication · Sep 2026 – Jun 2027 · MEMFAB0042C') !== -1, 'the footer names the programme, intake, unit and assessment');
+    assert(text.indexOf('Assessment Results /') === -1, '...not a folder path');
     assert(text.indexOf('PROVISIONAL') === -1, 'a marked paper is not provisional');
     const bytes = new Uint8Array(P.render(s.model, deps({ compress: true })).output('arraybuffer'));
     assert(bytes.length < 260 * 1024, 'small enough to keep and send (' + Math.round(bytes.length / 1024) + ' KB)');
@@ -92,6 +93,7 @@ function textOf(doc) {
     const m = A.theoryModel({ exam: s.exam, result: s.result, questions: s.exam.questionData, student: S.PEOPLE[0], revealAnswers: false, centreName: S.CENTRE, offset: S.OFF });
     const { text } = textOf(P.render(m, deps()));
     assert(text.indexOf('The right answers are not shown on this copy') !== -1 && text.indexOf('correct answer') === -1, 'no right answers on her copy, and it says why');
+    assert(text.indexOf('answer given · correct') !== -1, '...yet an answer of hers that scored is marked right, as its marks say');
   }
 
   console.log('A marked group Practical with 7 photos, two to a page');
@@ -107,7 +109,7 @@ function textOf(doc) {
     ['Kemar Johnson', 'Tameka Richards', 'Damion Lewis', 'Nadine Bailey'].forEach(nm => assert(text.indexOf(nm) !== -1, 'member ' + nm));
     assert(text.indexOf('Not yet competent: Root pass not shown') !== -1 && (text.match(/^Competent$/gm) || []).length === 3, 'a result for each member');
     assert(text.indexOf('What the assessor checked') !== -1 && text.indexOf('Performance criteria') !== -1, 'what the assessor checked');
-    assert(text.indexOf('Suggestion is correct') !== -1, 'the assessor\'s comment');
+    assert(text.indexOf('Steady arc and equal legs') !== -1, 'the assessor\'s comment');
     assert(text.indexOf('Not yet signed') !== -1 && (text.match(/Electronically signed by/g) || []).length === 3, 'three members signed, one "Not yet signed"');
     ['Administrator', 'Assessor', 'Programme Coordinator'].forEach(r => assert(text.indexOf(r) !== -1, 'a block for the ' + r));
     const photoPages = Math.ceil(7 / 2);
@@ -129,7 +131,7 @@ function textOf(doc) {
     const m = A.practicalModel({ exam: s.exam, group: s.group, work: s.work, students: s.students, centreName: S.CENTRE, offset: S.OFF, memberOnly: S.PEOPLE[3].id });
     const { text } = textOf(P.render(m, deps({ photos: {} })));
     assert(text.indexOf('NOT YET COMPETENT') !== -1 && text.indexOf('Root pass not shown') !== -1, 'her result and comment');
-    assert(text.indexOf('Suggestion is correct') === -1 && (text.match(/Electronically signed by/g) || []).length === 0, 'nobody else\'s comment or signature');
+    assert(text.indexOf('Steady arc and equal legs') === -1 && text.indexOf('Clean, even beads') === -1 && (text.match(/Electronically signed by/g) || []).length === 0, 'nobody else\'s comment or signature');
   }
 
   console.log('Several papers as one PDF, for printing');

@@ -98,8 +98,8 @@ function practical() {
   const checks = exam.practical.checklist;
   const res = (k, outcome, notMet, comment) => A.practicalResult({ examId: exam.id, groupId: group.id, studentId: PEOPLE[k].id, outcome,
     checklist: checks.map((t, i) => ({ text: t, met: notMet.indexOf(i) === -1 })), comment, by: { id: 'INS-1', name: 'Ian Barrett', role: 'instructor' }, at: '2026-10-30T15:00:00.000Z' }).rec;
-  work.push(res(0, 'competent', [], 'Suggestion is correct. Steady arc and equal legs.'), res(1, 'competent', [7], 'Good welding; leave the area tidy next time.'),
-    res(2, 'competent', [], 'Suggestion is correct.'), res(3, 'nyc', [4, 6], 'Root pass not shown; undercut on the vertical plate. Repeat the root pass with a shorter arc.'));
+  work.push(res(0, 'competent', [], 'Steady arc and equal legs.'), res(1, 'competent', [7], 'Good welding; leave the area tidy next time.'),
+    res(2, 'competent', [], 'Clean, even beads throughout.'), res(3, 'nyc', [4, 6], 'Root pass not shown; undercut on the vertical plate. Repeat the root pass with a shorter arc.'));
   const students = {};
   PEOPLE.forEach(p => { students[p.id] = p; });
   const path_ = A.folderPath({ programme: 'Welding & Fabrication', intake: INTAKE, unitCode: UNIT.code, unitTitle: UNIT.title, kind: 'practical1', groupName: 'Group B' });

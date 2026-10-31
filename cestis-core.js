@@ -16935,6 +16935,11 @@
       return p;
     }
     function unitShort(o) { return trim(o.unitCode) || trim(o.unitTitle); }
+    /* The footer's line: programme · intake · unit · assessment — what the
+       paper is, not a folder path (a printed paper never says where it is kept). */
+    function footerPlace(path) {
+      return list(path).filter(function (x, i) { return !(i === 0 && x === ROOT_FOLDER); }).map(trim).filter(Boolean).join(' · ');
+    }
     /* "<Full Name> (<STU-id>) — <Unit> <Assessment>.pdf" */
     function paperFileName(o) {
       o = o || {};
@@ -17079,7 +17084,12 @@
           out.options = list(q.options).map(function (t, i) {
             var g = Array.isArray(given) ? given.indexOf(i) !== -1 : given === i;
             var c = reveal && key != null && (Array.isArray(key) ? key.indexOf(i) !== -1 : key === i);
-            return { letter: String.fromCharCode(97 + i), text: trim(t), given: g, correct: !!c };
+            // Her own copy (no answer key): only what her marks already say —
+            // an answer that scored is right; a single-choice answer that did
+            // not is wrong; anything else stays plain.
+            if (!reveal && g && out.outcome === 'correct') c = true;
+            var wrong = g && !c && (reveal || (q.type === 'mcq' && out.outcome === 'incorrect'));
+            return { letter: String.fromCharCode(97 + i), text: trim(t), given: g, correct: !!c, wrong: !!wrong };
           });
           if (given === null || given === undefined || (Array.isArray(given) && !given.length)) out.answer = 'No answer given';
         } else {
@@ -17103,7 +17113,7 @@
           trainee: sig ? { name: trim(sig.name), line: signedLine(sig, off) } : { name: '', line: '', unsigned: r && r.autoSubmitted ? 'Not signed — submitted automatically when the time ran out.' : 'Not signed.' },
           staff: ['Administrator', 'Invigilator', 'Programme Coordinator']
         },
-        footer: { made: 'Made ' + when(o.madeAt || Date.now(), off), filed: list(o.path).join(' / ') }
+        footer: { made: 'Made ' + when(o.madeAt || Date.now(), off), filed: footerPlace(o.path) }
       };
     }
     /* o: { exam (the practical), group, work, students {id: {id, name}},
@@ -17153,7 +17163,7 @@
         provisional: status === 'provisional', brief: str(p.brief).trim(), safety: list(p.safety),
         photos: st.photos.map(function (ph) { return { id: str(ph.id), caption: trim(ph.caption) || 'Photo', by: nameOf(str(ph.studentId)), at: when(ph.addedAt, off), late: st.late.indexOf(ph.id) !== -1 }; }),
         signatures: { staff: ['Administrator', 'Assessor', 'Programme Coordinator'] },
-        footer: { made: 'Made ' + when(o.madeAt || Date.now(), off), filed: list(o.path).join(' / ') }
+        footer: { made: 'Made ' + when(o.madeAt || Date.now(), off), filed: footerPlace(o.path) }
       };
     }
     /* A model's content hash: a paper is filed again when this changes. */

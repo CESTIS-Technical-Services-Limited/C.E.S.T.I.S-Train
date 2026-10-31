@@ -8,7 +8,7 @@
    box, every question with her answer, the right answer and the marks, the
    marker's comments, the signature blocks (names left blank, to complete by
    hand), her electronic signature in a handwritten style, page numbers and a
-   footer saying where it is filed. A group practical: every member's result,
+   footer naming the programme, intake, unit and assessment. A group practical: every member's result,
    what the assessor checked, and the photos two to a page, each about half a
    page, with its caption, who added it and when.
 
@@ -277,6 +277,9 @@
     if (q.options) {
       var olh = w.lineH(9);
       q.options.forEach(function (o) {
+        // Ticked green when right, crossed red when known to be wrong; an
+        // answer that cannot be called either way (her own copy) stays plain.
+        var wrong = o.wrong !== undefined ? !!o.wrong : (o.given && !o.correct);
         var tag = o.given && o.correct ? 'answer given · correct' : o.given ? 'answer given' : o.correct ? 'correct answer' : '';
         var tw = tag ? 34 : 0;
         w.font(o.given ? 'bold' : 'normal', 9);
@@ -287,14 +290,13 @@
         d.setDrawColor(MUTED[0], MUTED[1], MUTED[2]); d.setLineWidth(0.25);
         d.circle(PAGE.m + 4, yy + olh * 0.5, 1.15, o.given ? 'FD' : 'S');
         if (o.given) { d.setFillColor(INK[0], INK[1], INK[2]); d.circle(PAGE.m + 4, yy + olh * 0.5, 1.15, 'F'); }
-        w.font(o.given ? 'bold' : 'normal', 9); w.color(o.correct ? GREEN : o.given ? RED : INK);
-        if (!o.correct && !o.given) w.color(INK);
+        w.font(o.given ? 'bold' : 'normal', 9); w.color(o.correct ? GREEN : wrong ? RED : INK);
         ls.forEach(function (l, i) { d.text(l, PAGE.m + 8, yy + olh * 0.78 + i * olh); });
         if (tag) {
-          w.font('bold', 7.8); w.color(o.correct ? GREEN : RED);
+          w.font('bold', 7.8); w.color(o.correct ? GREEN : wrong ? RED : MUTED);
           d.text(pdfText(tag), PAGE.m + w.width, yy + olh * 0.78, { align: 'right' });
           if (o.correct) tick(d, PAGE.m + w.width - d.getTextWidth(pdfText(tag)) - 5, yy + olh * 0.78, 3, GREEN);
-          else cross(d, PAGE.m + w.width - d.getTextWidth(pdfText(tag)) - 4.5, yy + olh * 0.78, 2.6, RED);
+          else if (wrong) cross(d, PAGE.m + w.width - d.getTextWidth(pdfText(tag)) - 4.5, yy + olh * 0.78, 2.6, RED);
         }
         w.y = yy + ls.length * olh + 0.4;
       });
