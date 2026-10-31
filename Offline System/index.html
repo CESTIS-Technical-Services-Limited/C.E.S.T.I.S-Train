@@ -7,8 +7,8 @@
 <script src="cestis-form-modal.js?v=74020c38" defer></script>
 <!-- Inert until a page registers: the CMC Board registers as a READ-ONLY reader
      so the operating pages' books reach its dashboards without anyone syncing. -->
-<script src="cestis-page-cloud.js?v=50679424"></script>
-<script src="cestis-gate-client.js?v=e98c2d11" defer></script>
+<script src="cestis-page-cloud.js?v=5bb7972d"></script>
+<script src="cestis-gate-client.js?v=aac5e7e3" defer></script>
 <!-- The staff and board modules: Staff Appraisals, the CMC Board's portal and
      the certificate designs' seed (about 255 KB, 61 KB on the wire). A trainee's
      phone never runs them, so they are not downloaded on a trainee's sign-in link
@@ -340,7 +340,7 @@
     // group's photos — all from this site, the first time they are needed.
     // A trainee's phone fetches only CESTISAssess (and the PDF parts when she
     // downloads her record); the staff part never reaches it.
-    CESTISAssess: { local: 'cestis-assessments.js?v=35344bbf', cdn: [] },
+    CESTISAssess: { local: 'cestis-assessments.js?v=a8eec07f', cdn: [] },
     CESTISAssessStaff: { local: 'cestis-assessments-staff.js?v=d6a08a2a', cdn: [] },
     CESTISAssessPdf: { local: 'cestis-assessment-pdf.js?v=90c0b23b', cdn: [] },
     PDFLib: { local: 'vendor/pdf-lib-1.17.1.min.js', cdn: [] },
@@ -3206,6 +3206,19 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 .exam-confirm p { font-size:14px; color:var(--text-secondary); margin-bottom:10px; line-height:1.5; }
 .exam-confirm .exam-confirm-warn { color:var(--accent); }
 .exam-confirm-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:18px; flex-wrap:wrap; }
+/* Extra time on her clock, and "Sign and submit" (prepared assessments). The
+   signature font is this site's own (vendor/fonts, SIL OFL), fetched only
+   when the dialog shows her name. */
+@font-face { font-family:"CESTIS Signature"; src:url("vendor/fonts/GreatVibes-Regular-latin.ttf") format("truetype"); font-display:swap; }
+.enp-extra { display:block; margin-top:4px; font-size:12px; font-weight:600; color:var(--accent); }
+.exam-sign { max-width:540px; }
+.exam-sign-box { border:1px dashed var(--border-light); border-radius:var(--radius); padding:14px 16px 10px; background:var(--w-02); margin:6px 0 12px; }
+.exam-sign-label { font-size:12px; font-weight:600; color:var(--text-secondary); text-transform:uppercase; letter-spacing:.5px; }
+.exam-sign-name { font-family:"CESTIS Signature","Brush Script MT","Segoe Script",cursive; font-size:44px; line-height:1.2; color:var(--info-text); border-bottom:1.5px solid var(--text-secondary); padding:2px 4px; min-height:56px; overflow-wrap:anywhere; }
+.exam-sign-under { font-size:12px; color:var(--text-muted); margin-top:6px; }
+.exam-sign-consent { display:flex; gap:10px; align-items:flex-start; font-size:14px; color:var(--text-primary); cursor:pointer; margin:4px 0; }
+.exam-sign-consent input { width:20px; height:20px; margin-top:1px; flex:none; }
+@media (max-width:600px) { .exam-sign-name { font-size:36px; } }
 /* The review page (showExamResult): summary table, coloured boxes, marks */
 .exam-review-summary { width:100%; max-width:780px; border-collapse:collapse; margin:0 0 16px; background:var(--bg-card); border:1px solid var(--border-light); }
 .exam-review-summary th { width:160px; text-align:right; padding:8px 16px; background:var(--surface-2); color:var(--text-secondary); font-size:13px; font-weight:600; border-bottom:1px solid var(--border); vertical-align:top; }
@@ -31238,7 +31251,9 @@ function examAttemptRecord(s) {
     questions: s.questions, answers: s.answers, flagged: s.flagged, answeredAt: s.answeredAt, flaggedAt: s.flaggedAt,
     startTime: s.startTime, deadline: s.deadline, perPage: s.perPage || 0, page: s.page || 0, current: s.current || 0,
     posAt: s.posAt || 0, allowFlag: s.allowFlag !== false, status: 'open', updatedAt: at, savedAt: at,
-    activity: s.activity || undefined
+    activity: s.activity || undefined,
+    // "Sign and submit" (a prepared assessment): her adopted signature.
+    signature: s.signature || undefined
   };
 }
 // Put attempt records into the shared list: read from the store first (another
@@ -31941,15 +31956,59 @@ function examStartFresh(e, me, fromGate) {
   startExamTimer();
 }
 
+/* ---- Extra time (prepared assessments: the owner, "the Administrator should
+   be able to add time if needed") ----
+   An attempt's own deadline never moves; her clock is that deadline plus the
+   grants on the exam for her and for the whole sitting
+   (CESTISCore.exams.extraMs). At the Centre the exam record brings them; from
+   home her phone asks the gate every minute while she sits the test
+   (CESTISGate.examTime) and keeps the larger — time is only ever added. */
+var _examGateExtra = {};
+function examExtraMsFor(examId, studentId) {
+  var e = examFind(examId), local = 0;
+  try { local = e ? CESTISCore.exams.extraMs(e, studentId) : 0; } catch (x) { local = 0; }
+  var g = _examGateExtra[String(examId)];
+  return Math.max(local, g && g.ms ? g.ms : 0);
+}
+function examEffectiveDeadline(s) {
+  var base = s.deadline || (s.startTime + (parseInt(s.duration) || 90) * 60000);
+  return _isExamPreviewMode ? base : base + examExtraMsFor(s.examId, s.studentId);
+}
+// "Extra time: 15 min, added by the Administrator" — as the record prints it.
+function examExtraLine(examId, studentId) {
+  var ms = examExtraMsFor(examId, studentId);
+  if (!ms || !window.CESTISCore || !CESTISCore.assessments) return '';
+  var e = examFind(examId), roles = {};
+  try { CESTISCore.exams.extraGrantsFor(e, studentId).forEach(function(g) { roles[g.byRole || ''] = 1; }); } catch (x) {}
+  var g = _examGateExtra[String(examId)];
+  if (g && Array.isArray(g.grants)) g.grants.forEach(function(x) { roles[x.byRole || ''] = 1; });
+  var who = Object.keys(roles).filter(Boolean).map(CESTISCore.assessments.roleLabel);
+  return 'Extra time: ' + CESTISCore.assessments.minutesText(Math.round(ms / 60000)) + (who.length ? ', added by ' + who.join(' and ') : '');
+}
+function examGateExtraPoll(s) {
+  if (!s || _isExamPreviewMode || !(typeof cestisGateSession === 'function' && cestisGateSession()) || !window.CESTISGate || typeof CESTISGate.examTime !== 'function') return;
+  if (s._xtAsking || (s._xtAt && Date.now() - s._xtAt < 60000)) return;
+  s._xtAsking = true; s._xtAt = Date.now();
+  CESTISGate.examTime(s.examId).then(function(res) {
+    s._xtAsking = false;
+    if (!res || res.ok !== true) return;
+    var was = _examGateExtra[String(s.examId)];
+    var ms = Math.max(0, Number(res.minutes) || 0) * 60000;
+    if (!was || ms >= (was.ms || 0)) _examGateExtra[String(s.examId)] = { ms: ms, grants: Array.isArray(res.grants) ? res.grants : [] };
+    try { updateExamTimerDisplay(); } catch (e) {}
+  }, function() { s._xtAsking = false; });
+}
+
 function startExamTimer() {
   if(examTimerInterval) clearInterval(examTimerInterval);
   var lastSave = Date.now();
   examTimerInterval = setInterval(function() {
     var s = currentExamSession;
     if(!s) { clearInterval(examTimerInterval); examTimerInterval = null; return; }
-    // Remaining time is read off the fixed deadline, so a tab the browser
-    // throttled, a reload or a resume all show the same clock.
-    var deadline = s.deadline || (s.startTime + (parseInt(s.duration) || 90) * 60000);
+    // Remaining time is read off the fixed deadline (and her extra time), so a
+    // tab the browser throttled, a reload or a resume all show the same clock.
+    if (typeof examGateExtraPoll === 'function') examGateExtraPoll(s);
+    var deadline = typeof examEffectiveDeadline === 'function' ? examEffectiveDeadline(s) : (s.deadline || (s.startTime + (parseInt(s.duration) || 90) * 60000));
     s.timeRemaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
     updateExamTimerDisplay();
     // Saved every 15 seconds by the clock (an `elapsed % 30` test was skipped
@@ -31978,6 +32037,10 @@ function updateExamTimerDisplay() {
   if(!el || !currentExamSession) return;
   var s = currentExamSession, t = s.timeRemaining;
   el.textContent = examClock(t);
+  // Her extra time, said under the clock.
+  var xl = typeof examExtraLine === 'function' ? examExtraLine(s.examId, s.studentId) : '', xe = document.getElementById('examTimerExtra');
+  if (xl && !xe) { var tb = document.getElementById('examTimerBox'); if (tb) { xe = document.createElement('span'); xe.className = 'enp-extra'; xe.id = 'examTimerExtra'; tb.appendChild(xe); } }
+  if (xe && xe.textContent !== xl) xe.textContent = xl;
   var el2 = document.getElementById('examTimerValue2');   // the Summary page's own line
   if(el2) { el2.textContent = examClock(t); el2.className = 'timer-value' + (t <= 60 ? ' danger' : t <= 300 ? ' warning' : ''); }
   // The last five minutes are shown in the warning colour (the last one in
@@ -32044,7 +32107,8 @@ function examNavPanelHtml(s, onPage) {
   // On a phone the panel is a strip: this button opens and closes the boxes.
   html += '<button type="button" class="enp-toggle" id="examNavToggle" aria-controls="examNavBody" aria-expanded="' + (s._navOpen ? 'true' : 'false') + '" onclick="examToggleNavStrip()">'
     + '<span>Questions</span> <span class="enp-toggle-count" id="examNavToggleCount">' + counts.answered + '/' + counts.total + '</span> <span class="enp-chev" aria-hidden="true">&#9662;</span></button>';
-  html += '<div class="enp-timer" id="examTimerBox" role="timer" aria-label="Time left">Time left <strong class="timer-value" id="examTimerValue">' + examClock(s.timeRemaining) + '</strong></div>';
+  var _xl = typeof examExtraLine === 'function' ? examExtraLine(s.examId, s.studentId) : '';
+  html += '<div class="enp-timer" id="examTimerBox" role="timer" aria-label="Time left">Time left <strong class="timer-value" id="examTimerValue">' + examClock(s.timeRemaining) + '</strong>' + (_xl ? '<span class="enp-extra" id="examTimerExtra">' + escapeHtml(_xl) + '</span>' : '') + '</div>';
   html += '<div class="exam-sr-only" id="examTimerAnnounce" aria-live="assertive"></div>';
   html += '<div class="enp-body" id="examNavBody">';
   html += '<div class="enp-boxes" role="group" aria-label="Questions">';
@@ -32330,7 +32394,8 @@ function examSummaryHtml(s) {
   html += '<div class="exam-summary-actions">';
   html += '<button type="button" class="btn btn-secondary" onclick="examReturnToAttempt()">Return to attempt</button>';
   html += '<div class="exam-summary-time">Time left <strong class="timer-value" id="examTimerValue2">' + examClock(s.timeRemaining) + '</strong></div>';
-  if(s.deadline) html += '<p class="exam-summary-due">This attempt must be submitted by ' + escapeHtml(examCentreDateTime(s.deadline)) + '. When the time runs out, your answers are submitted automatically.</p>';
+  var _due = typeof examEffectiveDeadline === 'function' ? examEffectiveDeadline(s) : s.deadline, _dueX = typeof examExtraLine === 'function' ? examExtraLine(s.examId, s.studentId) : '';
+  if(s.deadline) html += '<p class="exam-summary-due">This attempt must be submitted by ' + escapeHtml(examCentreDateTime(_due)) + (_dueX ? ' (' + escapeHtml(_dueX) + ')' : '') + '. When the time runs out, your answers are submitted automatically.</p>';
   if(c.unanswered) html += '<p class="exam-summary-warn">' + c.unanswered + ' of ' + c.total + ' question' + (c.total !== 1 ? 's are' : ' is') + ' not answered yet.</p>';
   html += '<button type="button" class="btn btn-primary exam-submit-all" id="examSubmitAllBtn" onclick="examConfirmSubmit()">Submit all and finish</button>';
   html += '</div></div></div></div>';
@@ -32340,6 +32405,49 @@ function examSummaryHtml(s) {
 // "Submit all and finish" asks first, on the page (a dialog that can be
 // read, tabbed through and cancelled with Escape), saying how many
 // questions are still unanswered.
+/* A prepared assessment (CESTISCore.assessments) is signed before it is
+   submitted — the owner: "the trainee signs before submitting", her name in
+   a handwritten style "like it was signed by them", as DocuSign does. */
+function examIsAssessmentSession(s) {
+  if (!s || _isExamPreviewMode || !window.CESTISCore || !CESTISCore.assessments) return false;
+  return CESTISCore.assessments.isAssessment(examFind(s.examId));
+}
+function examSignAndSubmit(s, warn) {
+  var name = String(s.studentName || (currentStudent && currentStudent.name) || '').replace(/\s+/g, ' ').trim();
+  var overlay = document.createElement('div');
+  overlay.className = 'exam-confirm-overlay';
+  overlay.id = 'examConfirmOverlay';
+  overlay.innerHTML = '<div class="exam-confirm exam-sign" role="dialog" aria-modal="true" aria-labelledby="examConfirmTitle" aria-describedby="examConfirmBody">'
+    + '<h3 id="examConfirmTitle">Sign and submit</h3>'
+    + '<div id="examConfirmBody">' + warn + '<p>Once you submit, you will no longer be able to change your answers.</p>'
+    + '<div class="exam-sign-label">Adopt your signature</div>'
+    + '<div class="exam-sign-box"><div class="exam-sign-name" id="examSignName" aria-label="Your signature: ' + escapeHtml(name) + '">' + escapeHtml(name) + '</div>'
+    + '<div class="exam-sign-under">' + escapeHtml(name) + ' · ' + escapeHtml(examCentreDateTime(Date.now())) + '</div></div>'
+    + '<label class="exam-sign-consent"><input type="checkbox" id="examSignConsent"> <span>I confirm this is my own work.</span></label></div>'
+    + '<div class="exam-confirm-actions"><button type="button" class="btn btn-secondary" id="examConfirmCancel" onclick="examCloseConfirm(true)">Cancel</button>'
+    + '<button type="button" class="btn btn-primary" id="examConfirmGo" disabled onclick="examSignedSubmit()">Sign and submit</button></div></div>';
+  overlay.onkeydown = function(ev) {
+    if(ev.key === 'Escape') { ev.preventDefault(); examCloseConfirm(true); return; }
+    if(ev.key === 'Tab') {
+      var f = Array.prototype.filter.call(overlay.querySelectorAll('input,button'), function(x) { return !x.disabled; });
+      var i = f.indexOf(document.activeElement);
+      if(ev.shiftKey && i <= 0) { ev.preventDefault(); f[f.length - 1].focus(); }
+      else if(!ev.shiftKey && i === f.length - 1) { ev.preventDefault(); f[0].focus(); }
+    }
+  };
+  document.body.appendChild(overlay);
+  var box = document.getElementById('examSignConsent');
+  if(box) box.onchange = function() { document.getElementById('examConfirmGo').disabled = !box.checked; };
+  if(box && box.focus) box.focus();
+}
+function examSignedSubmit() {
+  var s = currentExamSession, box = document.getElementById('examSignConsent');
+  if(!s || !box || !box.checked) return;
+  var sig = CESTISCore.assessments.makeSignature({ name: s.studentName || (currentStudent && currentStudent.name), at: new Date(examStampNow()).toISOString(), basis: s.attemptId });
+  if(sig) s.signature = sig;
+  examSubmitConfirmed();
+}
+
 function examConfirmSubmit() {
   var s = currentExamSession;
   if(!s) return;
@@ -32350,6 +32458,7 @@ function examConfirmSubmit() {
   if(none > 0) warn += '<p class="exam-confirm-warn">You have <strong>' + none + ' unanswered question' + (none !== 1 ? 's' : '') + '</strong>.</p>';
   if(c.partial > 0) warn += '<p class="exam-confirm-warn">' + c.partial + ' question' + (c.partial !== 1 ? 's are' : ' is') + ' only partly answered.</p>';
   if(!warn) warn = '<p>Every question has an answer.</p>';
+  if(typeof examIsAssessmentSession === 'function' && examIsAssessmentSession(s)) { examSignAndSubmit(s, warn); return; }
   var overlay = document.createElement('div');
   overlay.className = 'exam-confirm-overlay';
   overlay.id = 'examConfirmOverlay';
@@ -32601,7 +32710,7 @@ function submitExam(auto, opts) {
   var passMark = exam ? exam.passMark : s.passMark;
   var passed = needsReview ? false : score >= passMark; // cannot pass until fully graded
   var now = Date.now();
-  var deadline = s.deadline || (s.startTime + (parseInt(s.duration) || 90) * 60000);
+  var deadline = typeof examEffectiveDeadline === 'function' ? examEffectiveDeadline(s) : (s.deadline || (s.startTime + (parseInt(s.duration) || 90) * 60000));
 
   var result = {
     id: cestisGenId('RES-'),
@@ -32630,10 +32739,12 @@ function submitExam(auto, opts) {
   // (CESTISCore.exams.oneResultPerAttempt).
   if(s.attemptId && !_isExamPreviewMode) result.attemptId = s.attemptId;
   if(auto) result.autoSubmitted = true;
+  if(s.signature && typeof CESTISCore !== 'undefined' && CESTISCore.assessments) { var _sig = CESTISCore.assessments.cleanSignature(s.signature, { name: result.studentName, basis: s.attemptId }); if(_sig) result.signature = _sig; }
   // Submitted well after the window closed (an attempt resumed late): kept,
   // but marked so staff can decide.
   var win = exam ? CESTISCore.exams.windowOf(exam, examCentreOffset()) : null;
-  if(win && win.end != null && now > win.end + 120000) result.late = true;
+  var _winEnd = win ? (win.baseEnd != null ? win.baseEnd : win.end) : null;
+  if(_winEnd != null && now > _winEnd + (typeof examExtraMsFor === 'function' ? examExtraMsFor(s.examId, s.studentId) : 0) + 120000) result.late = true;
 
   // In preview mode, don't save results — just display them
   if(_isExamPreviewMode) {
@@ -32672,6 +32783,7 @@ function submitExam(auto, opts) {
   }
 
   examResults.push(result);
+  try { assessKeepCopy(s, result); } catch (e) {}
   // Kept aside until the cloud is seen to hold it, so the next trainee's (or a
   // staff member's) sign-out on this PC cannot delete it before it is uploaded.
   examOutboxAdd(result);
@@ -32875,6 +32987,11 @@ function showExamResult(result, exam, note) {
   html += examCrumbsHtml(exam ? exam.course : '', exam ? exam.title : 'Exam');
   html += '<h2 class="exam-attempt-title">' + escapeHtml(exam ? exam.title : 'Exam') + '</h2>';
   if(note) html += '<div class="exam-note" id="examResultNote" role="status"><span class="exam-note-text">' + escapeHtml(note) + '</span></div>';
+  // A prepared assessment: her own record as a PDF, made on this device.
+  if(currentRole === 'student' && exam && typeof CESTISCore !== 'undefined' && CESTISCore.assessments && CESTISCore.assessments.isAssessment(exam)) {
+    html += '<div class="exam-note" role="status"><span class="exam-note-text">' + (result.signature ? 'Signed by ' + escapeHtml(result.signature.name) + ' · Signature ID ' + escapeHtml(result.signature.id) + '. ' : '') +
+      'Your record of this assessment can be kept as a PDF.</span> <button type="button" class="btn btn-sm btn-primary" id="examMyRecordBtn" onclick="assessMyRecord(' + jsArg(exam.id) + ')">Download my record (PDF)</button></div>';
+  }
 
   // The summary table.
   var started = CESTISCore.exams.attemptStartMs(result), done = Date.parse(result.submittedAt || '');
@@ -33717,6 +33834,10 @@ function invigApplyAttendance() {
 function assessLoad(staff) {
   var need = staff ? ['CESTISAssess', 'CESTISAssessStaff'] : ['CESTISAssess'];
   return need.reduce(function(p, n) { return p.then(function() { return cestisNeedLib(n); }); }, Promise.resolve());
+}
+// Her own record of a prepared assessment, from the result screen.
+function assessMyRecord(examId) {
+  return assessLoad(false).then(function() { return CESTISAssess.myPdf(examId); }, function() { showToast('Your record could not be made just now. Check the connection and try again.', 'error'); });
 }
 function assessMount(feature, prefix) {
   var staff = feature !== 'my-assessments';
@@ -41514,7 +41635,7 @@ var GATE_CONFIG_FILE = 'CESTIS_GATE.json';
 var GATE_FOLDER_MIME = 'application/vnd.google-apps.folder';
 // Must equal GATE_VERSION in trainee-gate/Gate.gs (tests/gate-card-ready.test.js checks it):
 // a gate older than this shows "A newer version is available" on the Settings card.
-var GATE_EXPECTED_VERSION = 3;
+var GATE_EXPECTED_VERSION = 4;
 var GATE_LIMITS = {
   gapMs: 500,                 // at most 2 writes a second
   perTick: 120,               // and 120 in one turn
@@ -43630,6 +43751,25 @@ function gateResultArrived(r) {
   var ex = (exams || []).find(function(x) { return x && x.id === r.examId; });
   showToast('Your result for ' + ((ex && ex.title) || 'your test') + ' is here: ' + r.score + '%.');
 }
+/* Her own record of a prepared assessment, made on her device (the owner:
+   "the moment the trainee submits, she can download her own PDF"): the
+   paper as she saw it (no answer keys), her answers, her signature and the
+   moment she submitted — kept on this device only ("Session" in the key: no
+   backup, sync or other device ever holds it), and the newest ten. */
+var ASSESS_COPY_PREFIX = 'cestisAssessSessionCopy__';
+function assessKeepCopy(s, result) {
+  if (!s || _isExamPreviewMode || !examIsAssessmentSession(s)) return;
+  var copy = { v: 1, attemptId: s.attemptId, examId: s.examId, studentId: s.studentId, studentName: s.studentName, title: s.title,
+    questions: s.questions, answers: s.answers, signature: s.signature || null, startTime: s.startTime, deadline: s.deadline,
+    submittedAt: new Date().toISOString(), resultId: result ? result.id : '' };
+  try {
+    CESTISStore.setItem(ASSESS_COPY_PREFIX + s.attemptId, JSON.stringify(copy));
+    var keys = [];
+    for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); if (k && k.indexOf(ASSESS_COPY_PREFIX) !== -1) keys.push(k); }
+    if (keys.length > 10) keys.map(function(k) { var v = null; try { v = JSON.parse(localStorage.getItem(k)); } catch (e) {} return { k: k, t: Date.parse(v && v.submittedAt || '') || 0 }; })
+      .sort(function(a, b) { return a.t - b.t; }).slice(0, keys.length - 10).forEach(function(x) { try { localStorage.removeItem(x.k); } catch (e) {} });
+  } catch (e) {}
+}
 function gateSubmitExam(s, auto, opts) {
   opts = opts || {};
   var X = CESTISCore.exams;
@@ -43641,6 +43781,7 @@ function gateSubmitExam(s, auto, opts) {
   _examLeft = null; _examOffline = null;
   try { examLivePulseDone(s, { submittedAt: new Date(examStampNow()).toISOString() }); } catch (e) {}
   var attempt = examAttemptRecord(s);
+  try { assessKeepCopy(s, null); } catch (e) {}
   var ids = (s.alsoIds && s.alsoIds.length ? s.alsoIds : [s.attemptId]);
   // Closed here, at once: the clock stops, and this device never offers it again.
   var retired = X.retireAttempt({ id: s.attemptId, examId: s.examId, studentId: s.studentId, startTime: s.startTime, deadline: s.deadline, activity: s.activity }, null, new Date().toISOString());

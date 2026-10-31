@@ -71,10 +71,11 @@
   var CALL_TIMEOUT_MS = 20000, UPLOAD_TIMEOUT_MS = 90000;
   var LANE_LOCK = 'cestis-gate-lane';
   // What a trainee writes (DESIGN.md §5.2): kept in the namespace by these keys.
-  var OWN_LISTS = { voctrain_examAttempts: 1, voctrain_submissions: 1, voctrain_certTranscriptRequests: 1, voctrain_support_messages: 1 };
+  // voctrain_assessmentWork: her group practical's photos and her sign-off (version 4).
+  var OWN_LISTS = { voctrain_examAttempts: 1, voctrain_submissions: 1, voctrain_certTranscriptRequests: 1, voctrain_support_messages: 1, voctrain_assessmentWork: 1 };
   var OWN_MAPS = { voctrain_studentProfiles: 1 };
   var WATCHED = ['voctrain_examAttempts', 'voctrain_submissions', 'voctrain_certTranscriptRequests', 'voctrain_support_messages',
-    'voctrain_studentProfiles', 'voctrain_chatMessages', 'voctrain_announcements', 'voctrain_notifications'];
+    'voctrain_studentProfiles', 'voctrain_chatMessages', 'voctrain_announcements', 'voctrain_notifications', 'voctrain_assessmentWork'];
   var BASE_KEY = 'cestisGateBase';        // in the namespace: what has already been sealed or came from the gate
   var SESSION_KEYS = { token: 'cestisGateToken', key: 'cestisGateSessionKey', mode: 'cestisGateMode' };
 
@@ -339,6 +340,8 @@
       if (!isObj(r) || r.id == null || r.id === '') return;
       if (key === 'voctrain_examAttempts') { if (str(r.studentId) === stu && Core.exams.attemptIsOpen(r)) out.push({ recId: str(r.id), rec: r }); return; }
       if (key === 'voctrain_submissions' || key === 'voctrain_certTranscriptRequests') { if (str(r.studentId) === stu) out.push({ recId: str(r.id), rec: r }); return; }
+      // Her own photos and sign-off only (results and filed papers are the office's).
+      if (key === 'voctrain_assessmentWork') { if (str(r.studentId) === stu && (r.type === 'photo' || r.type === 'signoff')) out.push({ recId: str(r.id), rec: r }); return; }
       if (key === 'voctrain_support_messages') {
         if ((r.accountId == null || str(r.accountId) === acct) && (r.studentId == null || str(r.studentId) === stu)) out.push({ recId: str(r.id), rec: r });
       }
@@ -938,7 +941,7 @@
     o = o || {};
     var sess = session();
     if (sess && sess.base && sess.base.kind === 'lan') return Promise.resolve({ ok: false, error: 'not-available' });
-    return signed('upload', { name: str(o.name), mime: str(o.mime), base64: str(o.base64), purpose: o.purpose === 'chat' ? 'chat' : 'submission', refId: str(o.refId) }, { timeout: UPLOAD_TIMEOUT_MS });
+    return signed('upload', { name: str(o.name), mime: str(o.mime), base64: str(o.base64), purpose: uploadPurpose(o.purpose), refId: str(o.refId) }, { timeout: UPLOAD_TIMEOUT_MS });
   }
   function fileGet(fileId) {
     var sess = session();
@@ -994,6 +997,16 @@
         .map(function (e) { var n = copy(e); n.state = 'revoked'; return ob.put(n); }));
     }).then(function () { return reseal(session(), str(res.sessionKey)); }).then(function () { changed(); kick(); return true; }, function () { return true; });
   }
+  // What a file is for: her assignment (the default), a chat picture, or a
+  // photo for her group's practical (version 4).
+  function uploadPurpose(p) { return p === 'chat' ? 'chat' : p === 'practical' ? 'practical' : 'submission'; }
+  /* Her extra time on a test she is sitting (version 4): hers and the whole
+     sitting's, as the gate reads it from the exam. An older gate answers
+     unknown-op; the Centre's own server answers from the exam itself. */
+  function examTime(examId) {
+    if (!session()) return Promise.resolve({ ok: false, error: 'no-session' });
+    return signed('exam.time', { examId: str(examId) }, { timeout: CALL_TIMEOUT_MS });
+  }
   // Her certificate's background (T4): only once it is issued and its download approved.
   function certTemplate(key, page) {
     var sess = session();
@@ -1025,7 +1038,7 @@
     var sess = session(), us = uploadStore();
     if (!sess || !us) return Promise.reject(new Error('no session'));
     var entry = { id: 'UQ-' + Date.now().toString(36) + '-' + randomId(8), a: sess.acct, base: sess.base && sess.base.url, refId: str(o.refId),
-      purpose: o.purpose === 'chat' ? 'chat' : 'submission', state: 'wait', tries: 0, nextAt: 0, createdAt: new Date().toISOString(),
+      purpose: uploadPurpose(o.purpose), state: 'wait', tries: 0, nextAt: 0, createdAt: new Date().toISOString(),
       files: (o.files || []).map(function (f, i) {
         var data = str(f.base64 || f.dataUrl).replace(/^data:[^,]*,/, '');
         return { name: str(f.name), mime: str(f.mime || f.type), type: str(f.type || f.mime), size: b64Size(data), origName: str(f.origName || f.name), data: data,
@@ -1376,7 +1389,7 @@
     pull: pull, applyPull: function (res) { applying = true; return applyPull(res).then(function (r) { applying = false; return r; }, function (e) { applying = false; throw e; }); },
     paper: paper, storedPaper: storedPaper, attempt: attempt, review: review, roomGet: roomGet, applyRoom: applyRoom,
     upload: upload, fileGet: fileGet, signOut: signOut,
-    fees: fees, storedFees: storedFees, changePassword: changePassword, certTemplate: certTemplate,
+    fees: fees, storedFees: storedFees, changePassword: changePassword, certTemplate: certTemplate, examTime: examTime,
     uploadQueue: uploadQueue, uploads: uploads, uploadPump: uploadPump, uploadDrop: uploadDrop, onUpload: onUpload, PART_BYTES: PART_BYTES,
     queue: queue, deliver: deliver, deliverNow: deliverNow, kick: kick, capture: capture, status: status,
     pending: function (acct) { return getOutbox().pendingFor(acct); },

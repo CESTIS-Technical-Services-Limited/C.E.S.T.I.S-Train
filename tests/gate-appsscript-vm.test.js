@@ -206,7 +206,7 @@ const hasKey = v => JSON.stringify(v).indexOf('"correctAnswer"') !== -1;
 function sSetup(src) {
   section('The pasted file runs in a simulated Apps Script runtime; its first request makes the secret, the folders and CESTIS_GATE.json');
   const env = gateWorld(src, { publish: false }), w = env.w, h = env.health;
-  assertEq([h.ok, h.service, h.version, h.protocol, h.accepting], [true, 'cestis-trainee-gate', 3, [1], true], 'health answers who it is (version 3: home study — fees, password, certificate, parts, approval email)');
+  assertEq([h.ok, h.service, h.version, h.protocol, h.accepting], [true, 'cestis-trainee-gate', 4, [1], true], 'health answers who it is (version 4: prepared assessments — extra time, signatures, group practicals)');
   const led = w.drive.json(env.ledger.id);
   assertEq(h.ready, { secret: true, folders: true, ledger: true, ledgerUpdated: iso(w.clock.now), trainees: expectedTrainees(led) },
     'ready: secret, folders, the accounts list and its trainee accounts');
@@ -222,7 +222,7 @@ function sSetup(src) {
   assert(/^[0-9a-f]{64}$/.test(env.secret()), 'a 64-hex secret is made and kept in Script Properties');
   assert(JSON.stringify(h).indexOf(env.secret()) === -1 && w.drive.read(env.cfgFile().id).indexOf(env.secret()) === -1, 'and never shown or written to a file');
   const state = w.drive.json(w.drive.child(sub('_gate').id, 'gate-state.json', 'file').id);
-  assertEq([state.format, state.gateVersion, state.ledgerFileId, state.upgrades.map(u => u.version)], ['cestis-gate-state', 3, env.ledger.id, [3]], 'gate-state.json records the version and the list used');
+  assertEq([state.format, state.gateVersion, state.ledgerFileId, state.upgrades.map(u => u.version)], ['cestis-gate-state', 4, env.ledger.id, [4]], 'gate-state.json records the version and the list used');
   assertEq(w.props.store.LEDGER_FOUND_ID, env.ledger.id, 'of two accounts lists, the one beside the main backup is used');
   assert(/2 copies/.test(w.props.store.LEDGER_NOTE), 'and the check page can say so');
 

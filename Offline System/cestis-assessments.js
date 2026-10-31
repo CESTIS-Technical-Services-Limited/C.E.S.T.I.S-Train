@@ -261,14 +261,453 @@
   }
   function register(feature, render) { mounted[feature] = { render: render }; }
 
-  /* ---- A trainee's own assessments (filled in below) ------------------ */
+  /* ---- A trainee's own assessments --------------------------------- */
   var Trainee = {};
+
+  /* ==================================================================
+     A TRAINEE'S OWN ASSESSMENTS
+     ================================================================== */
+  var COPY_PREFIX = 'cestisAssessSessionCopy__';   // her device only (never backed up or synced)
+  function store() { return W.CESTISStore; }
+  function readJson(k, d) { try { var v = JSON.parse(store().getItem(k) || 'null'); return v == null ? d : v; } catch (e) { return d; } }
+  function me() { return W.currentStudent || null; }
+  function sameCourse(a, b) {
+    if (!a || !b) return false;
+    if (a === b) return true;
+    try { return typeof W.instructorCourseMatch === 'function' && W.instructorCourseMatch(a, b); } catch (e) { return false; }
+  }
+  /* What is kept of the assessment records here, newest copy of each (what
+     this page holds and what the gate or a sync wrote since). */
+  function allWork() {
+    var mem = work(), stored = readJson('voctrain_assessmentWork', []);
+    var by = {};
+    [stored, mem].forEach(function (l) { list(l).forEach(function (r) {
+      if (!r || !r.id) return;
+      var was = by[r.id];
+      if (!was || (Date.parse(r.updatedAt || '') || 0) >= (Date.parse(was.updatedAt || '') || 0)) by[r.id] = r;
+    }); });
+    return Object.keys(by).map(function (k) { return by[k]; });
+  }
+  /* Her records written: merged with what is stored (never written over
+     with less), then saved like any of her records — from home the watcher
+     seals and sends them. */
+  function saveMine(recs) {
+    var merged = allWork(), at = {};
+    merged.forEach(function (r, i) { at[r.id] = i; });
+    (Array.isArray(recs) ? recs : [recs]).forEach(function (r) { if (!r || !r.id) return; if (at[r.id] == null) { at[r.id] = merged.length; merged.push(r); } else merged[at[r.id]] = r; });
+    W.assessmentWork = merged;
+    try { W.saveCollection('voctrain_assessmentWork', merged); } catch (e) { try { store().setItem('voctrain_assessmentWork', JSON.stringify(merged)); } catch (x) {} }
+    try { if (!gateSession()) W.saveState(); } catch (e) {}
+    try { if (gateSession() && W.CESTISGate && W.CESTISGate.capture) W.CESTISGate.capture(); } catch (e) {}
+  }
+  function myExams() {
+    var s = me();
+    if (!s) return [];
+    return exams().filter(function (e) { return A.isAssessment(e) && !A.isMaster(e) && e.status !== 'draft' && e.status !== 'cancelled' && sameCourse(e.course, s.course); });
+  }
+  /* Her groups: the gate's view of them at home; worked out from the
+     records at the Centre (the same rule, Core.assessments.traineeView). */
+  function myGroups() {
+    var s = me();
+    if (!s) return [];
+    if (gateSession()) return list(readJson('voctrain_assessmentGroups', []));
+    var w = allWork(), nm = names(), out = [];
+    w.forEach(function (g) {
+      if (!g || g.type !== 'group' || g.withdrawn || list(g.members).map(str).indexOf(str(s.id)) === -1) return;
+      var v = A.traineeView(g, w, s.id, nm);
+      if (v) out.push(v);
+    });
+    return out;
+  }
+  function groupFor(examId) { return myGroups().filter(function (g) { return str(g.examId) === str(examId); })[0] || null; }
+  function resultFor(examId) {
+    var s = me();
+    return list(W.examResults).filter(function (r) { return r && !r.archived && str(r.examId) === str(examId) && s && str(r.studentId) === str(s.id); })
+      .sort(function (a, b) { return (Date.parse(a.submittedAt || '') || 0) - (Date.parse(b.submittedAt || '') || 0); })[0] || null;
+  }
+  function copyFor(examId) {
+    var s = me(), best = null;
+    try {
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (!k || k.indexOf(COPY_PREFIX) === -1 || k.indexOf(COPY_PREFIX + 'thumbs') !== -1) continue;
+        var v = JSON.parse(localStorage.getItem(k) || 'null');
+        if (v && str(v.examId) === str(examId) && s && str(v.studentId) === str(s.id) && (!best || v.submittedAt > best.submittedAt)) best = v;
+      }
+    } catch (e) {}
+    return best;
+  }
+  function whenText(ms) { return A.when(ms, offset()); }
+  function clockText(ms) {
+    try { var p = X.centreParts(ms, offset()); var t = p.time.split(':').map(Number); return (t[0] % 12 || 12) + ':' + String(t[1]).padStart(2, '0') + (t[0] >= 12 ? ' pm' : ' am'); } catch (e) { return ''; }
+  }
+  function statusNow(e) { try { return W.examStatusNow(e); } catch (x) { return X.statusAt(e, now(), offset()); } }
+  function theoryRow(e) {
+    var s = me(), r = resultFor(e.id), K = A.KINDS[e.assessment.kind], st = statusNow(e);
+    var w = X.windowOf(e, offset());
+    var line = '', acts = '', chip = '';
+    var cur = null;
+    try { cur = typeof W.examCurrentAttempt === 'function' ? W.examCurrentAttempt(s.id, e.id) : null; } catch (x) { cur = null; }
+    var sentLater = !r && copyFor(e.id);
+    if (r) {
+      var prov = X.isProvisional(r);
+      chip = prov ? '<span class="assess-chip is-check">Awaiting marking</span>' : (r.passed ? '<span class="assess-chip is-ready">Competent</span>' : '<span class="assess-chip is-fail">Not yet competent</span>');
+      line = 'Submitted ' + esc(whenText(r.submittedAt)) + (prov ? ' · marks so far ' + esc(r.score) + '%' : ' · ' + esc(r.score) + '%');
+      acts = '<button type="button" class="btn btn-secondary" data-act="mypdf" data-id="' + esc(e.id) + '">Download my record (PDF)</button>';
+    } else if (sentLater) {
+      chip = '<span class="assess-chip is-check">Submitted</span>';
+      line = 'Submitted ' + esc(whenText(sentLater.submittedAt)) + '. Your result follows once it reaches the office.';
+      acts = '<button type="button" class="btn btn-secondary" data-act="mypdf" data-id="' + esc(e.id) + '">Download my record (PDF)</button>';
+    } else if (cur && cur.attempt) {
+      chip = '<span class="assess-chip is-open">In progress</span>';
+      line = 'Your answers are saved.';
+      acts = '<button type="button" class="btn btn-primary" data-act="start" data-id="' + esc(e.id) + '">Continue your attempt</button>';
+    } else if (st === 'active') {
+      chip = '<span class="assess-chip is-ready">Open now</span>';
+      line = esc(X.questionCount(e)) + ' questions · ' + esc(A.minutesText(e.duration)) + (w && w.end ? ' · until ' + esc(clockText(w.baseEnd != null ? w.baseEnd : w.end)) : '');
+      acts = '<button type="button" class="btn btn-primary" data-act="start" data-id="' + esc(e.id) + '">Start test</button>';
+    } else if (st === 'upcoming') {
+      chip = '<span class="assess-chip is-none">Opens ' + esc(w ? whenText(w.start) : '') + '</span>';
+      line = esc(X.questionCount(e)) + ' questions · ' + esc(A.minutesText(e.duration));
+    } else {
+      chip = '<span class="assess-chip is-none">Closed</span>';
+      line = 'Not sat.';
+    }
+    return '<div class="assess-kind"><div class="assess-kind-top"><span class="assess-kind-name">' + esc(K.label) + '</span>' + chip + '</div>' +
+      '<div class="assess-kind-meta">' + line + '</div>' + (acts ? '<div class="assess-acts">' + acts + '</div>' : '') + '</div>';
+  }
+  function practicalRow(e) {
+    var K = A.KINDS[e.assessment.kind], g = groupFor(e.id), st = A.practicalStatus(e, now(), offset());
+    var p = e.practical || {};
+    var chip, line, acts = '';
+    if (!g) { chip = '<span class="assess-chip is-none">' + (st === 'upcoming' ? 'Not open yet' : 'No group yet') + '</span>'; line = 'Your instructor puts you in a group of 4 or 5.'; }
+    else {
+      var mineRes = allWork().filter(function (r) { return r.type === 'result' && str(r.examId) === str(e.id) && me() && str(r.studentId) === str(me().id); })[0];
+      chip = mineRes ? (mineRes.outcome === 'competent' ? '<span class="assess-chip is-ready">Competent</span>' : '<span class="assess-chip is-fail">Not yet competent</span>')
+        : g.handedInAt ? '<span class="assess-chip is-open">Handed in</span>' : st === 'open' ? '<span class="assess-chip is-ready">Open now</span>' : st === 'upcoming' ? '<span class="assess-chip is-none">Opens ' + esc(whenText(X.windowOf({ date: e.date, time: e.time, duration: 1 }, offset()).start)) + '</span>' : '<span class="assess-chip is-none">Closed</span>';
+      line = esc(g.name) + ' · ' + g.photos.length + ' of ' + list(p.photos).length + ' photos' + (p.title ? '<br>' + esc(p.title) : '');
+      acts = '<button type="button" class="btn ' + (g.handedInAt && g.mySignature ? 'btn-secondary' : 'btn-primary') + '" data-act="group" data-id="' + esc(e.id) + '">' + (g.handedInAt && !g.mySignature ? 'Sign for your part' : 'Open group task') + '</button>';
+    }
+    return '<div class="assess-kind"><div class="assess-kind-top"><span class="assess-kind-name">' + esc(K.label) + '</span>' + chip + '</div>' +
+      '<div class="assess-kind-meta">' + line + '</div>' + (acts ? '<div class="assess-acts">' + acts + '</div>' : '') + '</div>';
+  }
+  Trainee.render = function (root) {
+    root = root || rootFor('my-assessments');
+    if (!root) return;
+    styles();
+    var s = me();
+    if (!s) { root.innerHTML = '<div class="card assess-empty">Sign in to see your assessments.</div>'; return; }
+    var units = {}, order = [];
+    myExams().forEach(function (e) {
+      var a = e.assessment, k = (A.normCode(a.unitCode) || A.normTitle(a.unitTitle));
+      if (!units[k]) { units[k] = { code: a.unitCode, title: a.unitTitle, kinds: {} }; order.push(k); }
+      var have = units[k].kinds[a.kind];
+      if (!have || (Date.parse(e.createdAt || '') || 0) > (Date.parse(have.createdAt || '') || 0)) units[k].kinds[a.kind] = e;
+    });
+    order.sort(function (a, b) { return units[a].code < units[b].code ? -1 : 1; });
+    var body = order.map(function (k) {
+      var u = units[k];
+      return '<div class="card"><div class="assess-unit-title">' + (u.code ? '<span class="assess-code">' + esc(u.code) + '</span>' : '') + esc(u.title) + '</div><div class="assess-kinds">' +
+        A.ORDER.map(function (kind) {
+          var e = u.kinds[kind];
+          if (!e) return '<div class="assess-kind"><div class="assess-kind-top"><span class="assess-kind-name">' + esc(A.KINDS[kind].label) + '</span><span class="assess-chip is-none">Not open yet</span></div></div>';
+          return A.isPractical(e) ? practicalRow(e) : theoryRow(e);
+        }).join('') + '</div></div>';
+    }).join('');
+    root.innerHTML = '<div class="assess-head"><div><h2>My Assessments</h2><p class="assess-sub">Each unit\'s Theory 1, Theory 2, Practical 1 and Practical 2. Your answers are saved as you go, and a test carries on if you are cut off.</p></div></div>' +
+      (body || '<div class="card assess-empty">No assessments are open for your programme yet.</div>');
+  };
+
+  /* ---- Her record as a PDF, made on her device -------------------------- */
+  function myPdf(examId) {
+    var e = examById(examId), s = me();
+    if (!e || !s) return;
+    var r = resultFor(examId), copy = copyFor(examId);
+    var questions = copy && Array.isArray(copy.questions) ? copy.questions : null;
+    if (!questions && gateSession() && W.CESTISGate && W.CESTISGate.storedPaper) { try { var pp = W.CESTISGate.storedPaper(examId); if (pp && pp.questions) questions = pp.questions; } catch (x) {} }
+    if (!questions) questions = X.publicQuestions(e.questionData);
+    var reveal = false;
+    try { reveal = gateSession() ? false : X.canRevealAnswers(e, now(), offset()); } catch (x) { reveal = false; }
+    var result = r;
+    if (r && !reveal) {
+      // Her own copy before the right answers are released: none on it.
+      result = JSON.parse(JSON.stringify(r));
+      list(result.answers).forEach(function (a) { if (a) delete a.correctAnswer; });
+    }
+    var path = A.folderPath({ programme: e.assessment.programme, intake: e.assessment.intake || e.course, unitCode: e.assessment.unitCode, unitTitle: e.assessment.unitTitle, kind: e.assessment.kind });
+    var model = A.theoryModel({ exam: reveal ? e : Object.assign({}, e, { questionData: questions }), result: result, questions: questions, answers: copy ? copy.answers : null,
+      startedAt: copy ? copy.startTime : null, finishedAt: copy ? copy.submittedAt : null, student: { id: s.id, name: s.name },
+      signature: (r && r.signature) || (copy && copy.signature) || null, sat: { where: gateSession() ? 'home' : 'centre' }, centreName: centreName(), offset: offset(),
+      madeAt: now(), revealAnswers: reveal, path: path, basis: (r && r.attemptId) || (copy && copy.attemptId) || (r && r.id) || '' });
+    var name = A.paperFileName({ name: s.name, studentId: s.id, unitCode: e.assessment.unitCode, unitTitle: e.assessment.unitTitle, kind: e.assessment.kind });
+    toast('Making your record…', 'info');
+    return renderPdf(model).then(function (bytes) { download(bytes, name); toast('Your record is saved to this device: ' + name); return bytes; },
+      function () { toast('Your record could not be made just now. Check the connection and try again.', 'error'); });
+  }
+  Trainee.myPdf = myPdf;
+
+  /* ---- Signing (her name in a handwritten style) ------------------------ */
+  function signDialog(o) {
+    return new Promise(function (resolve) {
+      var name = str(o.name).replace(/\s+/g, ' ').trim(), done = false;
+      dialog({ title: o.title || 'Sign', body: (o.intro ? '<p style="margin:0 0 10px;line-height:1.5">' + esc(o.intro) + '</p>' : '') +
+        '<div style="font-size:12px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.5px">Adopt your signature</div>' +
+        '<div class="assess-sig-box"><div class="assess-sig-name" aria-label="Your signature: ' + esc(name) + '">' + esc(name) + '</div>' +
+        '<div class="assess-sig-under">' + esc(name) + ' · ' + esc(whenText(now())) + '</div></div>' +
+        '<label class="assess-consent"><input type="checkbox" data-f="consent"> <span>' + esc(o.consent || 'I confirm this is my own work.') + '</span></label>',
+        actions: [{ id: 'cancel', label: 'Cancel', close: true }, { id: 'sign', label: o.button || 'Sign', kind: 'primary', disabled: true }],
+        onAction: function (id, d) {
+          if (id !== 'sign') return;
+          if (!d.q('[data-f="consent"]').checked) return;
+          done = true; d.close();
+          resolve(A.makeSignature({ name: name, at: nowIso(), basis: o.basis }));
+        },
+        onClose: function () { if (!done) resolve(null); } });
+      var last = openDlgs[openDlgs.length - 1];
+      var box = last && last.q('[data-f="consent"]');
+      if (box) box.onchange = function () { var b = last.q('[data-dlg="sign"]'); if (b) b.disabled = !box.checked; };
+    });
+  }
+  Trainee.signDialog = signDialog;
+
+  /* ---- The group practical --------------------------------------------- */
+  var THUMBS = COPY_PREFIX + 'thumbs__';
+  function thumbs(groupId) { return readJson(THUMBS + groupId, {}) || {}; }
+  function keepThumb(groupId, photoId, dataUrl) {
+    var t = thumbs(groupId);
+    t[photoId] = dataUrl;
+    var ids = Object.keys(t);
+    if (ids.length > 60) ids.slice(0, ids.length - 60).forEach(function (k) { delete t[k]; });
+    try { store().setItem(THUMBS + groupId, JSON.stringify(t)); } catch (e) {}
+  }
+  function smallThumb(file) {
+    return new Promise(function (resolve) {
+      try {
+        var url = URL.createObjectURL(file), img = new Image();
+        img.onload = function () {
+          var k = Math.min(1, 240 / Math.max(img.naturalWidth, img.naturalHeight)), c = document.createElement('canvas');
+          c.width = Math.max(1, Math.round(img.naturalWidth * k)); c.height = Math.max(1, Math.round(img.naturalHeight * k));
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          URL.revokeObjectURL(url);
+          resolve({ thumb: c.toDataURL('image/jpeg', 0.6), w: img.naturalWidth, h: img.naturalHeight });
+        };
+        img.onerror = function () { URL.revokeObjectURL(url); resolve({ thumb: '', w: 0, h: 0 }); };
+        img.src = url;
+      } catch (e) { resolve({ thumb: '', w: 0, h: 0 }); }
+    });
+  }
+  function readDataUrl(file) {
+    return new Promise(function (resolve, reject) { var fr = new FileReader(); fr.onload = function () { resolve(fr.result); }; fr.onerror = reject; fr.readAsDataURL(file); });
+  }
+  function photosCanBeSent() {
+    if (!gateSession()) return { ok: false, why: 'Photos are added from your own phone at home. At the Centre, your instructor can add them for the group.' };
+    var sess = W.CESTISGate && W.CESTISGate.session ? W.CESTISGate.session() : null;
+    if (!sess || (sess.base && sess.base.kind === 'lan')) return { ok: false, why: 'Photos cannot be sent from the Centre\'s own network. Add them from your phone at home, or ask your instructor.' };
+    return { ok: true };
+  }
+  var groupView = { examId: null };
+  function openGroup(examId) {
+    var e = examById(examId), g = groupFor(examId), s = me();
+    if (!e || !g || !s) { toast('You are not in a group for this practical yet. Your instructor makes the groups.', 'warning'); return; }
+    groupView.examId = examId;
+    var d = dialog({ title: A.KINDS[e.assessment.kind].label + ' · ' + g.name, wide: true, body: '<div data-g="body"></div>', onClose: function () { groupView.examId = null; Trainee.render(); } });
+    groupView.dlg = d;
+    drawGroup();
+    d.el.addEventListener('click', function (ev) {
+      var b = ev.target.closest('[data-gact]');
+      if (!b) return;
+      var a = b.getAttribute('data-gact');
+      if (a === 'add') pickPhotos();
+      else if (a === 'send') sendPicked();
+      else if (a === 'handin') handIn(false);
+      else if (a === 'sign') handIn(true);
+      else if (a === 'view') viewPhoto(b.getAttribute('data-file'), b.getAttribute('data-cap'));
+      else if (a === 'drop') dropPicked(Number(b.getAttribute('data-i')));
+    });
+    d.el.addEventListener('change', function (ev) {
+      var t = ev.target;
+      if (t.getAttribute('data-gf') === 'files') addPicked(t.files);
+      if (t.getAttribute('data-cap-i') != null) groupView.picked[Number(t.getAttribute('data-cap-i'))].caption = t.value;
+    });
+  }
+  Trainee.openGroup = openGroup;
+  function drawGroup() {
+    var d = groupView.dlg;
+    if (!d || !d.el.parentNode) return;
+    var e = examById(groupView.examId), g = groupFor(groupView.examId), s = me();
+    if (!e || !g) return;
+    var p = e.practical || {}, st = A.practicalStatus(e, now(), offset()), th = thumbs(g.id);
+    var taken = {};
+    g.photos.forEach(function (ph) { taken[A.normTitle(ph.caption)] = 1; });
+    var waiting = (groupView.waiting || []).filter(function (u) { return u.state !== 'done'; });
+    var can = photosCanBeSent();
+    var open = st === 'open' && !g.handedInAt;
+    var html = (p.title ? '<h4 style="margin:0 0 6px">' + esc(p.title) + '</h4>' : '') + '<p style="white-space:pre-wrap;line-height:1.55;margin:0 0 10px">' + esc(p.brief) + '</p>' +
+      (p.time ? '<p class="assess-sub">Time: ' + esc(p.time) + '</p>' : '') +
+      '<h4 style="margin:14px 0 4px">Your group</h4><div class="assess-members">' + g.members.map(function (m) {
+        return '<span class="assess-member"><span class="assess-ava' + (m.me ? ' is-me' : '') + '" aria-hidden="true">' + esc(m.i) + '</span>' + esc(m.n) + (m.me ? ' (you)' : '') + (m.signed ? ' ✓' : '') + '</span>';
+      }).join('') + '</div>' +
+      '<h4 style="margin:14px 0 4px">Photos to take</h4><ul class="assess-todo">' + list(p.photos).map(function (x) { var dn = !!taken[A.normTitle(x)]; return '<li' + (dn ? ' class="is-done"' : '') + '>' + (dn ? '✓ ' : '') + esc(x) + '</li>'; }).join('') + '</ul>' +
+      '<h4 style="margin:14px 0 4px">The group\'s photos (' + g.photos.length + ')</h4>' +
+      (g.photos.length ? '<div class="assess-shots">' + g.photos.map(function (ph) {
+        var img = ph.mine && th[ph.id] ? '<img src="' + esc(th[ph.id]) + '" alt="' + esc(ph.caption) + '">' : '<span aria-hidden="true">📷</span>';
+        return '<div class="assess-shot"><div class="assess-shot-img">' + img + '</div><div class="assess-shot-cap">' + esc(ph.caption || 'Photo') + '<small>' + esc(ph.by) + ' · ' + esc(whenText(ph.at)) + (ph.late ? ' · after the hand-in' : '') + '</small>' +
+          (ph.fileId && !ph.mine && can.ok ? '<button type="button" class="btn btn-secondary" style="margin-top:4px;padding:3px 8px;font-size:12px" data-gact="view" data-file="' + esc(ph.fileId) + '" data-cap="' + esc(ph.caption) + '">View</button>' : '') + '</div></div>';
+      }).join('') + '</div>' : '<p class="assess-empty">No photos yet.</p>') +
+      (waiting.length ? '<div class="assess-note" role="status">' + waiting.length + ' photo' + (waiting.length === 1 ? ' is' : 's are') + ' being sent. They are kept on your phone and finish sending by themselves, even if the signal drops.</div>' : '');
+    if (open) {
+      var picked = groupView.picked || [];
+      html += '<div class="assess-big">' + (can.ok ? '<label class="btn btn-secondary" style="cursor:pointer">＋ Add photos<input type="file" accept="image/*" multiple data-gf="files" hidden></label>' : '') +
+        '</div>' + (can.ok ? '<p class="assess-sub">Anyone in the group can add as many photos as needed. Each one is made smaller on your phone and sent by itself, even if the signal drops.</p>' : '<p class="assess-sub">' + esc(can.why) + '</p>');
+      if (picked.length) {
+        var opts = list(p.photos).concat(['Other']);
+        html += '<div class="card" style="margin-top:10px"><strong>Ready to send (' + picked.length + ')</strong>' + picked.map(function (pk, i) {
+          return '<div style="display:flex;gap:10px;align-items:center;margin-top:8px"><img src="' + esc(pk.thumb) + '" alt="" style="width:64px;height:48px;object-fit:cover;border-radius:6px">' +
+            '<select class="form-control" data-cap-i="' + i + '" aria-label="What this photo shows">' + opts.map(function (o) { return '<option' + (o === pk.caption ? ' selected' : '') + '>' + esc(o) + '</option>'; }).join('') + '</select>' +
+            '<button type="button" class="btn btn-secondary" data-gact="drop" data-i="' + i + '" aria-label="Remove">✕</button></div>';
+        }).join('') + '<div class="assess-big"><button type="button" class="btn btn-primary" data-gact="send">Send ' + picked.length + ' photo' + (picked.length === 1 ? '' : 's') + '</button></div></div>';
+      }
+      html += '<div class="assess-big"><button type="button" class="btn btn-primary" data-gact="handin"' + (g.photos.length ? '' : ' disabled') + '>Hand in for ' + esc(g.name) + '</button></div>' +
+        '<p class="assess-sub">Handed in once for all ' + g.total + '. Each member\'s record shows it. You sign when you hand in; the others sign the next time they open it.</p>';
+    } else if (g.handedInAt) {
+      html += '<div class="assess-note">Handed in by ' + esc(g.handedInBy) + ', ' + esc(whenText(g.handedInAt)) + '. ' + g.signedCount + ' of ' + g.total + ' have signed.</div>';
+      if (!g.mySignature) html += '<div class="assess-big"><button type="button" class="btn btn-primary" data-gact="sign">Sign for your part</button></div>';
+      else html += '<p class="assess-sub">You signed on ' + esc(whenText(g.mySignature.at)) + '. Your assessor records a result for each member.</p>';
+    } else {
+      html += '<div class="assess-note">' + (st === 'upcoming' ? 'This practical is not open yet.' : 'This practical has closed.') + '</div>';
+    }
+    if (p.safety && p.safety.length) html += '<h4 style="margin:14px 0 4px">Safety</h4><ul class="assess-todo">' + p.safety.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>';
+    d.q('[data-g="body"]').innerHTML = html;
+  }
+  function addPicked(files) {
+    var e = examById(groupView.examId), p = (e && e.practical) || {};
+    var have = (groupView.picked || []).length;
+    var g = groupFor(groupView.examId), taken = {};
+    if (g) g.photos.forEach(function (ph) { taken[A.normTitle(ph.caption)] = 1; });
+    var next = list(p.photos).filter(function (x) { return !taken[A.normTitle(x)]; });
+    var arr = Array.prototype.slice.call(files || []);
+    groupView.picked = groupView.picked || [];
+    Promise.all(arr.map(function (f) { return (typeof W.homeShrinkImage === 'function' ? W.homeShrinkImage(f) : Promise.resolve(f)).then(function (small) { return smallThumb(small).then(function (t) { return { file: small, thumb: t.thumb, w: t.w, h: t.h }; }); }); }))
+      .then(function (made) {
+        made.forEach(function (m, i) { m.caption = next[have + i] || 'Other'; groupView.picked.push(m); });
+        drawGroup();
+      });
+  }
+  function dropPicked(i) { (groupView.picked || []).splice(i, 1); drawGroup(); }
+  function sendPicked() {
+    var g = groupFor(groupView.examId), s = me(), e = examById(groupView.examId);
+    var picked = (groupView.picked || []).slice();
+    if (!g || !s || !e || !picked.length) return;
+    var sess = W.CESTISGate.session();
+    groupView.picked = [];
+    groupView.waiting = groupView.waiting || [];
+    Promise.all(picked.map(function (pk) {
+      var id = gen('AP-');
+      var rec = A.photoRecord({ id: id, examId: e.id, groupId: g.id, studentId: s.id, accountId: sess && sess.acct, caption: pk.caption, at: nowIso(), files: [], w: pk.w, h: pk.h });
+      if (pk.thumb) keepThumb(g.id, id, pk.thumb);
+      return readDataUrl(pk.file).then(function (dataUrl) {
+        return W.CESTISGate.uploadQueue({ refId: g.id, purpose: 'practical', files: [{ name: (A.safeName(pk.caption || 'photo', 60) + '.jpg').replace(/\s+/g, '-'), type: pk.file.type || 'image/jpeg', dataUrl: dataUrl }],
+          then: { key: 'voctrain_assessmentWork', rec: rec } });
+      }).then(function (view) { groupView.waiting.push({ id: view.id, state: 'wait' }); });
+    })).then(function () {
+      drawGroup();
+      toast('Sending your photos. They finish by themselves, even if the signal drops.');
+      try { W.CESTISGate.uploadPump(); } catch (x) {}
+    }, function () { toast('Your photos could not be kept on this phone. Please try again.', 'error'); });
+  }
+  function viewPhoto(fileId, caption) {
+    if (!W.CESTISGate || !W.CESTISGate.fileGet) return;
+    var d = dialog({ title: caption || 'Photo', wide: true, body: '<div class="assess-photo-view"><p class="assess-sub">Opening…</p></div>' });
+    W.CESTISGate.fileGet(fileId).then(function (res) {
+      if (!res || res.ok !== true || !res.base64) { d.q('.assess-photo-view').innerHTML = '<p class="assess-sub">This photo cannot be opened just now.</p>'; return; }
+      d.q('.assess-photo-view').innerHTML = '<img alt="' + esc(caption) + '" src="data:' + esc(res.mime || 'image/jpeg') + ';base64,' + esc(res.base64) + '">';
+    });
+  }
+  /* Hand in for the group (once, for everyone), or sign for her part after. */
+  function handIn(onlySign) {
+    var g = groupFor(groupView.examId), s = me(), e = examById(groupView.examId);
+    if (!g || !s || !e) return;
+    if (!onlySign && g.handedInAt) { toast('Your group has already handed in.', 'info'); drawGroup(); return; }
+    signDialog({ name: s.name, basis: g.id + '|' + s.id, title: onlySign ? 'Sign for your part' : 'Hand in for ' + g.name,
+      intro: onlySign ? 'Your group handed in. Sign to say you took part.' : 'This hands in the group\'s work, with its ' + g.photos.length + ' photos, once for everyone. It cannot be changed afterwards.',
+      consent: onlySign ? 'I confirm I took part in this work.' : 'I confirm this is our group\'s own work and that I took part.', button: onlySign ? 'Sign' : 'Sign and hand in' })
+      .then(function (sig) {
+        if (!sig) return;
+        var sess = gateSession() && W.CESTISGate ? W.CESTISGate.session() : null;
+        var acct = sess ? sess.acct : (W.currentLoggedInUser && W.currentLoggedInUser.id);
+        var rec = A.signoffRecord({ groupId: g.id, examId: e.id, studentId: s.id, accountId: acct, name: s.name, signature: sig, handIn: !onlySign, at: sig.at });
+        if (!rec) return;
+        saveMine(rec);
+        toast(onlySign ? 'Signed. Thank you.' : 'Handed in for ' + g.name + '. Each member\'s record shows it.');
+        if (!gateSession()) { drawGroup(); return; }
+        // From home: her phone shows it at once; the others see it once the office has it.
+        setTimeout(drawGroup, 50);
+      });
+  }
+  // Her groups at home come from the gate; what she sent shows at once.
+  var _gateGroupsHook = false;
+  function hookUploads() {
+    if (_gateGroupsHook || !W.CESTISGate || typeof W.CESTISGate.onUpload !== 'function') return;
+    _gateGroupsHook = true;
+    W.CESTISGate.onUpload(function (ev) {
+      if (!ev || !ev.entry) return;
+      if (ev.type === 'filed' && ev.key === 'voctrain_assessmentWork' && ev.rec) saveMine(ev.rec);
+      if (ev.type === 'done' || ev.type === 'refused' || ev.type === 'waiting') {
+        (groupView.waiting || []).forEach(function (u) { if (u.id === ev.entry.id) u.state = ev.type === 'done' ? 'done' : 'wait'; });
+        if (ev.type === 'refused') toast('A photo could not be sent: ' + str(ev.error), 'warning');
+      }
+      drawGroup();
+    });
+  }
+  /* A group's view at home also includes what she has sent but the office
+     has not taken in yet (her own photos and sign-off). */
+  var _myGroups = myGroups;
+  myGroups = function () {
+    var gs = _myGroups(), s = me();
+    if (!gateSession() || !s) return gs;
+    var mine = allWork().filter(function (r) { return r && str(r.studentId) === str(s.id) && (r.type === 'photo' || r.type === 'signoff') && !r.withdrawn; });
+    return gs.map(function (g) {
+      var v = JSON.parse(JSON.stringify(g));
+      mine.forEach(function (r) {
+        if (str(r.groupId) !== str(v.id)) return;
+        if (r.type === 'photo' && !v.photos.some(function (p) { return p.id === r.id; })) {
+          var f = list(r.driveFiles)[0];
+          v.photos.push({ id: r.id, caption: r.caption, by: 'You', at: r.addedAt, mine: true, fileId: f ? f.id : '', late: false });
+        }
+        if (r.type === 'signoff') {
+          if (!v.mySignature) { v.mySignature = r.signature; v.signedCount++; }
+          v.members.forEach(function (m) { if (m.me) m.signed = true; });
+          if (r.handIn && !v.handedInAt) { v.handedInAt = r.handInAt || r.updatedAt; v.handedInBy = 'You'; }
+        }
+      });
+      v.photos.sort(function (a, b) { return (Date.parse(a.at || '') || 0) - (Date.parse(b.at || '') || 0); });
+      return v;
+    });
+  };
+
+  function bindMine(root) {
+    if (root._assessBound) return;
+    root._assessBound = true;
+    root.addEventListener('click', function (ev) {
+      var b = ev.target.closest('[data-act]');
+      if (!b || !root.contains(b)) return;
+      var act = b.getAttribute('data-act'), id = b.getAttribute('data-id');
+      if (act === 'start') { try { W.showPage('s-exams'); } catch (x) {} setTimeout(function () { try { W.startStudentExam(id); } catch (x) {} }, 120); }
+      else if (act === 'mypdf') myPdf(id);
+      else if (act === 'group') { var g = groupFor(id); openGroup(id); if (g && g.handedInAt && !g.mySignature) setTimeout(function () { handIn(true); }, 200); }
+    });
+  }
+  Trainee.bind = bindMine;
+  Trainee.hookUploads = hookUploads;
+  Trainee.groupFor = function (id) { return groupFor(id); };
 
   function mount(feature, prefix) {
     styles();
     var root = rootFor(feature);
     if (!root) return;
     if (feature === 'my-assessments') {
+      Trainee.bind(root);
+      Trainee.hookUploads();
       register(feature, Trainee.render);
       Trainee.render(root);
     }
@@ -281,6 +720,7 @@
     centreName: centreName, exams: exams, examById: examById, work: work, studentById: studentById, names: names,
     gateSession: gateSession, saveWork: saveWork, saveExams: saveExams, styles: styles, dialog: dialog, confirm: confirmDlg,
     download: download, view: view, pdfKit: pdfKit, renderPdf: renderPdf, blobOf: blobOf,
+    signDialog: function (o) { return Trainee.signDialog(o); }, myPdf: function (id) { return Trainee.myPdf(id); },
     Trainee: Trainee
   };
 })();

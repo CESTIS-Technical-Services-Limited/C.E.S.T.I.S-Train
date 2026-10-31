@@ -64,6 +64,8 @@
      password.start {token}     → {nonce, algo, iter, salt}
      password.change {token, nonce, proof, password} → SESSION (a new one; the change is written into
                                   her account in the records file at once, as a spent backup code is)
+     exam.time {token, examId}  → {minutes, grants:[{minutes, at, byRole, reason, scope}]}   (version 4: her
+                                  extra time — hers and the whole sitting's — from the exam itself)
      auth.email, auth.2fa.send, upload, upload.part, file.get, cert.template → {ok:false, error:'not-available'}
      catalogue, register.start, register.submit → {ok:false, error:'not-available'}
        (registration from home needs the trainee's own email account, signed
@@ -80,7 +82,10 @@ const nodeCrypto = require('crypto');
 // 2 with the online gate: registration from home (answered 'not-available' here).
 // 3 with the online gate: home study — her fees, her password changed (both answered here);
 //   her certificate's background, files in parts, approval emails (online only).
-const GATE_VERSION = 3;
+// 4 with the online gate: prepared assessments — her extra time (exam.time, answered here from
+//   the exam itself), her signature and her group practical's sign-off (Core.gate rules, as
+//   online); a practical's photos need the internet (upload: not here).
+const GATE_VERSION = 4;
 const FEES_FILE = 'CESTIS_School_Fees.json';
 const PROTOCOL = [1];
 const SERVICE = 'cestis-trainee-gate';
@@ -462,6 +467,16 @@ function create(opts) {
       return { ok: false, error: 'not-open', status: key ? Core.exams.statusAt(key.exam, t, key.centreUtcOffset) : 'upcoming', serverTime: iso(t) };
     }
     return { ok: true, paper: G.buildPaper(exam, t), centreUtcOffset: key.centreUtcOffset, serverTime: iso(t) };
+  }
+
+  // exam.time (version 4): her extra time on a test she may sit — hers and the
+  // whole sitting's, never another trainee's (Core.assessments.grantsForTrainee).
+  function examTime(req, t) {
+    const s = session(req, t), examId = safeId(req.examId);
+    if (!examId || !accessHas(s.slice, 'papers', examId)) return { ok: false, error: 'unknown-exam' };
+    const exam = s.c.exam(examId);
+    const grants = exam && Core.assessments ? Core.assessments.grantsForTrainee(exam, s.me.stu) : [];
+    return { ok: true, examId, minutes: grants.reduce((n, g) => n + (Number(g.minutes) || 0), 0), grants, serverTime: iso(t) };
   }
 
   // attempt.get: the attempt in progress (one, however many devices), a result, or nothing.
@@ -855,7 +870,7 @@ function create(opts) {
     'auth.start': authStart, 'auth.password': authPassword, 'auth.2fa': authTwoStep,
     'pull': pull, 'paper': paper, 'attempt.get': attemptGet, 'review': review, 'room.get': roomGet,
     'signOut': signOutOp, 'deliver': deliver,
-    'fees': fees, 'password.start': passwordStart, 'password.change': passwordChange,
+    'fees': fees, 'password.start': passwordStart, 'password.change': passwordChange, 'exam.time': examTime,
     // A certificate's background and files in parts need the internet: not here (her certificate is collected at the Centre).
     'cert.template': () => ({ ok: false, error: 'not-available' }), 'upload.part': () => ({ ok: false, error: 'not-available' }),
     // Need the internet or Google Drive: not on the Centre's own network.
