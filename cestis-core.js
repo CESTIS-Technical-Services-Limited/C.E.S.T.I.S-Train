@@ -13980,6 +13980,8 @@
         // belongs to that day's register.
         if (multiDay && startedAt && dateOf(startedAt, off) !== date) { row.status = 'other-day'; row.otherDate = dateOf(startedAt, off); }
         row.statusLabel = row.status === 'other-day' ? 'Sat on ' + row.otherDate : STATUS_LABEL[row.status];
+        // Extra time given to her or to the whole sitting, in minutes.
+        row.extraMin = X.extraMinutesFor ? X.extraMinutesFor(exam, s.id) : 0;
         if (st === 'in-progress') {
           if (att && !pNewer) {
             var pages = X.pagesOf(att.questions, att.perPage);
@@ -13995,6 +13997,8 @@
             row.answered = Number(p.answered) || 0; row.total = Number(p.total) || 0;
             row.deadline = Number(p.deadline) || (att && Number(att.deadline)) || 0;
           }
+          // Her extra time (Core.exams.extraGrantsFor) moves her deadline on.
+          if (row.deadline && row.extraMin) row.deadline += row.extraMin * 60000;
           row.timeLeftMs = row.deadline ? Math.max(0, row.deadline - now) : 0;
           row.timeUp = !!(row.deadline && now >= row.deadline);
         } else if (res) {

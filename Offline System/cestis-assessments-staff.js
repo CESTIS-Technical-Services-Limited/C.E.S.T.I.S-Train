@@ -396,6 +396,49 @@
     load(); draw(d);
   }
 
+  /* ---- Add time (the owner: "the Administrator should be able to add time
+     if needed") — for one trainee or the whole sitting, before it starts or
+     while it is sat. Who, how much and why are kept on the exam
+     (Core.exams.extraGrantsFor); nothing is ever taken back. ------------ */
+  function mayAddTime() { var m = me(); return A.mayAddTime(m.role, m.role === 'adminstaff' ? asTicks() : null); }
+  function addTime(examId, studentId) {
+    var e = S.examById(examId);
+    if (!e) return;
+    if (!mayAddTime()) { S.toast('Only the Administrator, and Admin Staff with Online Exams, can add time.', 'warning'); return; }
+    var roll = rosterFor(e);
+    list(W.examAttempts).forEach(function (a) { if (a && str(a.examId) === str(e.id) && !roll.some(function (p) { return p.id === str(a.studentId); })) { var st = S.studentById(a.studentId); roll.push({ id: str(a.studentId), name: st ? st.name : str(a.studentName || a.studentId) }); } });
+    roll.sort(function (a, b) { return a.name < b.name ? -1 : 1; });
+    var nm = {}; roll.forEach(function (p) { nm[p.id] = p.name; });
+    var given = X.extraGrantsFor ? list(e.extraTime) : [];
+    var past = given.length ? '<div class="assess-note" style="margin-top:10px"><strong>Already added</strong><br>' + given.map(function (g) {
+      return esc(A.minutesText(g.minutes)) + ' for ' + esc(g.studentId ? (nm[g.studentId] || g.studentId) : 'the whole sitting') + ' — ' + esc(g.reason) + ' — by ' + esc(g.byName) + ' (' + esc(A.roleLabel(g.byRole).replace(/^the /, '')) + '), ' + esc(A.when(g.at, S.offset()));
+    }).join('<br>') + '</div>' : '';
+    S.dialog({ title: 'Add time', body: '<p class="assess-sub" style="margin-bottom:12px">' + esc(e.title) + '</p><div class="assess-err" hidden></div>' +
+      '<label class="assess-field">For<select class="form-control" data-f="who"><option value="">The whole sitting (everyone)</option>' +
+        roll.map(function (p) { return '<option value="' + esc(p.id) + '"' + (p.id === str(studentId) ? ' selected' : '') + '>' + esc(p.name) + '</option>'; }).join('') + '</select></label>' +
+      '<label class="assess-field">Minutes to add<input type="number" class="form-control" data-f="min" min="1" max="' + A.GRANT_MAX_MIN + '" step="1" value="15" inputmode="numeric"></label>' +
+      '<div class="assess-acts" style="margin:-4px 0 12px">' + [5, 10, 15, 30].map(function (n) { return '<button type="button" class="btn btn-secondary" data-min="' + n + '">' + n + ' min</button>'; }).join('') + '</div>' +
+      '<label class="assess-field">Why<input type="text" class="form-control" data-f="why" maxlength="200" placeholder="For example: power cut at home"></label>' +
+      '<p class="assess-sub">The trainee\'s clock shows the new time within a minute or two, at home too. Her printed record says "Extra time: … added by ' + esc(A.roleLabel(me().role)) + '".</p>' + past,
+      actions: [{ id: 'cancel', label: 'Cancel', close: true }, { id: 'add', label: 'Add time', kind: 'primary' }],
+      onAction: function (act, dl, ev) {
+        if (act !== 'add') return;
+        var m = me();
+        var g = A.makeGrant({ id: S.gen('XT-'), studentId: dl.q('[data-f="who"]').value, minutes: Number(dl.q('[data-f="min"]').value), reason: dl.q('[data-f="why"]').value,
+          byId: m.id, byName: m.name, byRole: m.role, at: S.nowIso() });
+        if (g.error) return dl.error(g.error === 'minutes' ? 'Minutes: a whole number from 1 to ' + A.GRANT_MAX_MIN + '.' : g.error === 'reason' ? 'Say why the time is added (plain words).' : 'Sign in again to add time.');
+        A.addGrant(e, g.grant);
+        S.saveExams();
+        try { if (typeof W.gatePublishSoon === 'function') W.gatePublishSoon(); } catch (x) {}
+        dl.close();
+        var who = g.grant.studentId ? (nm[g.grant.studentId] || 'the trainee') : 'everyone in the sitting';
+        S.toast(A.minutesText(g.grant.minutes) + ' added for ' + who + '. The clock shows it within a minute or two.');
+        try { if (typeof W.invigRender === 'function') W.invigRender(); } catch (x) {}
+      } });
+    var last = document.querySelector('.assess-dlg-back:last-of-type');
+    if (last) last.addEventListener('click', function (ev) { var b = ev.target.closest('[data-min]'); if (b) last.querySelector('[data-f="min"]').value = b.getAttribute('data-min'); });
+  }
+
   /* ---- Page plumbing ------------------------------------------------- */
   function rerender() { var root = S.rootFor('assessments'); if (root) renderAssessments(root); }
   function bindAssessments(root) {
@@ -429,7 +472,8 @@
   }
 
   var Staff = { mount: null, renderAssessments: renderAssessments, prepare: prepare, preview: preview, edit: edit, markReady: markReady, openForIntake: openForIntake, groups: groups,
-    me: me, courseMatch: courseMatch, catalogs: catalogs, loadIndex: loadIndex, loadBank: loadBank, rosterFor: rosterFor, asTicks: asTicks, updateBadge: updateBadge };
+    me: me, courseMatch: courseMatch, catalogs: catalogs, loadIndex: loadIndex, loadBank: loadBank, rosterFor: rosterFor, asTicks: asTicks, updateBadge: updateBadge,
+    mayAddTime: mayAddTime, addTime: addTime };
 
   Staff.mount = function (feature, prefix) {
     S.styles();

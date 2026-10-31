@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <script src="cestis-config.js?v=284ebb2a"></script>
-<script src="cestis-core.js?v=f752fbe7"></script>
+<script src="cestis-core.js?v=e8ebcb2e"></script>
 <script src="cestis-form-modal.js?v=74020c38" defer></script>
 <!-- Inert until a page registers: the CMC Board registers as a READ-ONLY reader
      so the operating pages' books reach its dashboards without anyone syncing. -->
@@ -341,7 +341,7 @@
     // A trainee's phone fetches only CESTISAssess (and the PDF parts when she
     // downloads her record); the staff part never reaches it.
     CESTISAssess: { local: 'cestis-assessments.js?v=a8eec07f', cdn: [] },
-    CESTISAssessStaff: { local: 'cestis-assessments-staff.js?v=d6a08a2a', cdn: [] },
+    CESTISAssessStaff: { local: 'cestis-assessments-staff.js?v=7a95ab47', cdn: [] },
     CESTISAssessPdf: { local: 'cestis-assessment-pdf.js?v=90c0b23b', cdn: [] },
     PDFLib: { local: 'vendor/pdf-lib-1.17.1.min.js', cdn: [] },
     JSZip: { local: 'vendor/jszip-3.10.1.min.js', cdn: [] },
@@ -3206,6 +3206,8 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 .exam-confirm p { font-size:14px; color:var(--text-secondary); margin-bottom:10px; line-height:1.5; }
 .exam-confirm .exam-confirm-warn { color:var(--accent); }
 .exam-confirm-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:18px; flex-wrap:wrap; }
+.invig-extra { color:var(--accent); font-weight:600; }
+.invig-addtime { margin-top:4px; padding:3px 9px; font-size:12px; }
 /* Extra time on her clock, and "Sign and submit" (prepared assessments). The
    signature font is this site's own (vendor/fonts, SIL OFL), fetched only
    when the dialog shows her name. */
@@ -33334,6 +33336,17 @@ function invigWindowText(b, exam) {
   var st = b.status === 'active' ? 'Open now — closes at ' + invigClock(w.end) : b.status === 'upcoming' ? 'Opens at ' + invigClock(w.start) : 'Closed';
   return span + ' · <strong>' + escapeHtml(st) + '</strong>';
 }
+/* Add time (prepared assessments; any test): the Administrator, and Admin
+   Staff with Online Exams ticked (CESTISCore.assessments.mayAddTime) — for one
+   trainee from her row, or for the whole sitting. */
+function invigMayAddTime() {
+  try { return !!(CESTISCore.assessments && CESTISCore.assessments.mayAddTime(currentRole, currentRole === 'adminstaff' ? asAccessForMe() : null)); } catch (e) { return false; }
+}
+function invigAddTime(studentId) {
+  var exam = invigState && invigState.exam;
+  if (!exam) return;
+  assessLoad(true).then(function() { CESTISAssessStaff.addTime(exam.id, studentId || ''); }, function() { showToast('This could not be opened just now. Try again.', 'error'); });
+}
 function invigRender() {
   invigState.lastDraw = Date.now();
   var main = document.getElementById('invigMain');
@@ -33355,8 +33368,13 @@ function invigRender() {
     var dh = b.dates.map(function(d) { return '<option value="' + escapeAttr(d) + '"' + (d === b.date ? ' selected' : '') + '>' + escapeHtml(invigDayText(d)) + '</option>'; }).join('');
     if (dSel.innerHTML !== dh) dSel.innerHTML = dh;
   }
+  var _allX = 0;
+  try { _allX = CESTISCore.exams.extraMinutesFor(exam, '__whole-sitting__'); } catch (x) { _allX = 0; }
   if (meta) meta.innerHTML = '<strong>' + escapeHtml(exam.course || '') + '</strong> · ' + escapeHtml(invigDayText(b.date)) + ' · ' + invigWindowText(b, exam) +
-    ' · ' + escapeHtml(String(exam.duration || '')) + ' minutes, ' + CESTISCore.exams.questionCount(exam) + ' questions';
+    ' · ' + escapeHtml(String(exam.duration || '')) + ' minutes, ' + CESTISCore.exams.questionCount(exam) + ' questions' +
+    (_allX ? ' · <span class="invig-extra">+' + escapeHtml(CESTISCore.assessments.minutesText(_allX)) + ' extra time for everyone</span>' : '');
+  var _xtb = document.getElementById('invigAddTimeBtn');
+  if (_xtb) _xtb.hidden = !(typeof invigMayAddTime === 'function' && invigMayAddTime());
   var liveN = b.rows.filter(function(r) { return r.live; }).length;
   var fh = '<span>Updates arrive by themselves — last checked <span id="invigChecked">just now</span>.</span>' +
     (liveN ? '<span class="invig-live">' + liveN + ' linked live</span>' : '') +
@@ -33415,6 +33433,11 @@ function invigRowHtml(r) {
   var answered = (r.status === 'in-progress' || r.status === 'submitted') && r.total
     ? '<span class="invig-num">' + r.answered + ' of ' + r.total + '</span><div class="invig-bar" aria-hidden="true"><span style="width:' + pct + '%"></span></div>' : '—';
   var left = r.status === 'in-progress' && r.deadline ? '<span class="invig-num" data-invig-left="' + r.deadline + '"></span>' : '—';
+  // Extra time given to her (or the whole sitting), and Add time.
+  if (r.extraMin) left = (left === '—' ? '' : left) + '<div class="invig-sub invig-extra">+' + escapeHtml(CESTISCore.assessments ? CESTISCore.assessments.minutesText(r.extraMin) : r.extraMin + ' min') + ' extra time</div>';
+  if ((r.status === 'in-progress' || r.status === 'not-started') && typeof invigMayAddTime === 'function' && invigMayAddTime()) {
+    left += '<div><button type="button" class="btn btn-sm btn-secondary invig-addtime" onclick="event.stopPropagation();invigAddTime(' + sid + ')" aria-label="Add time for ' + escapeAttr(r.name) + '">Add time</button></div>';
+  }
   var last = r.lastActivityAt && r.status !== 'not-started' && r.status !== 'absent'
     ? '<span data-invig-ago="' + r.lastActivityAt + '"></span>' +
       (r.asOf && r.status === 'in-progress' ? '<div class="invig-sub">updated <span data-invig-ago="' + r.asOf + '"></span></div>' : '')
