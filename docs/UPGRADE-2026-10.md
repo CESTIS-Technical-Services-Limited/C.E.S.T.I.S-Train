@@ -423,7 +423,9 @@ instructor and 6 trainees on phone settings, every connection's bytes read from 
   Cosmetology Level 2 (47 core units; natural and textured hair throughout), then General Beauty
   Therapy Level 2 (28 core units). A further check was added to every bank: the right option is the
   longest or the shortest (ties count) in at least 9 of the 45 questions, so a trainee cannot rule
-  out both ends; five Cosmetology banks were rebalanced for it (wording only).
+  out both ends; five Cosmetology banks were rebalanced for it (wording only). Hospitality
+  Villa/Properties Services Level 2 completed the Level 2 core units (58), so every core unit of
+  the five Level 2 programmes now has prepared tests.
 
 ### Grades, transcripts and Student Progress
 - **Renames and moves.** Renaming a trainee or moving them to another programme carries every
