@@ -420,7 +420,10 @@ instructor and 6 trainees on phone settings, every connection's bytes read from 
   *To check*; `assessments/welding-fabrication/CHECK-LIST.md` lists what an instructor should
   confirm against the Centre's equipment and rules.
   Electrical Installation Level 2 followed (40 core units; practicals dead on training boards), then
-  Cosmetology Level 2 (47 core units; natural and textured hair throughout).
+  Cosmetology Level 2 (47 core units; natural and textured hair throughout), then General Beauty
+  Therapy Level 2 (28 core units). A further check was added to every bank: the right option is the
+  longest or the shortest (ties count) in at least 9 of the 45 questions, so a trainee cannot rule
+  out both ends; five Cosmetology banks were rebalanced for it (wording only).
 
 ### Grades, transcripts and Student Progress
 - **Renames and moves.** Renaming a trainee or moving them to another programme carries every
