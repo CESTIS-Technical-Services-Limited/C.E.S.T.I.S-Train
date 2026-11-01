@@ -419,7 +419,8 @@ instructor and 6 trainees on phone settings, every connection's bytes read from 
   and its 26 shared units are filed under the other Level 2 programmes too. Every bank starts as
   *To check*; `assessments/welding-fabrication/CHECK-LIST.md` lists what an instructor should
   confirm against the Centre's equipment and rules.
-  Electrical Installation Level 2 followed (40 core units; practicals dead on training boards).
+  Electrical Installation Level 2 followed (40 core units; practicals dead on training boards), then
+  Cosmetology Level 2 (47 core units; natural and textured hair throughout).
 
 ### Grades, transcripts and Student Progress
 - **Renames and moves.** Renaming a trainee or moving them to another programme carries every
