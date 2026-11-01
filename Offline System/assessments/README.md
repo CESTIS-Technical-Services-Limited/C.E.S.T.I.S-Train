@@ -120,4 +120,5 @@ The sample bank is `welding-fabrication/memfab0042c.json` (Welding Level 2, MEMF
 ## What is written so far
 
 - **Welding Level 2: every core unit (42).** These units are shared with other Level 2 programmes, so their banks are also filed under those programmes, with that programme's names (26 copies): communication, maths, OH&S, human relations, entrepreneurship, professionalism, measuring, marking out, drawings, reports, customer service, quotations, ordering materials, mobile devices, computer applications, social media and time management.
+- **Electrical Installation Level 2: every core unit (40)**, 11 of them shared with Welding. Every practical is done dead on training boards, never live. Its two computer units are filed under Cosmetology and Beauty Therapy too.
 - Each programme folder has a `CHECK-LIST.md`: the points an instructor should confirm against the Centre's own equipment, stock and rules (gas pressures, filter shades, currents, local terms) before marking a test Ready.
