@@ -10400,6 +10400,40 @@
             el.style.display = '';
         }
 
+        // Draw a dashboard chart without making it jump.
+        //
+        // Auto-sync refreshes the dashboard every 15 seconds. Each refresh used
+        // to destroy both charts and build new ones, so the bars and the line
+        // replayed their grow-from-zero animation every time: the charts
+        // jumped up and down while nobody touched anything. Now the existing
+        // chart is kept and its data swapped in place with no animation, and
+        // when nothing has changed it is not redrawn at all.
+        function feeDrawChart(chart, canvas, config) {
+            config.options = config.options || {};
+            config.options.animation = false;
+            config.options.resizeDelay = 100;
+            const sig = JSON.stringify({ t: config.type, d: config.data, o: config.options }, function (k, v) {
+                return typeof v === 'function' ? String(v) : v;
+            });
+            if (chart && chart.canvas === canvas && chart.config.type === config.type) {
+                if (chart._feeSig === sig) return chart;
+                chart.data.labels = config.data.labels;
+                config.data.datasets.forEach(function (ds, i) {
+                    if (chart.data.datasets[i]) Object.assign(chart.data.datasets[i], ds);
+                    else chart.data.datasets[i] = ds;
+                });
+                chart.data.datasets.length = config.data.datasets.length;
+                chart.options = config.options;
+                chart.update('none');
+                chart._feeSig = sig;
+                return chart;
+            }
+            if (chart) { try { chart.destroy(); } catch (e) {} }
+            const made = new Chart(canvas, config);
+            made._feeSig = sig;
+            return made;
+        }
+
         // Initialize Charts.
         //
         // scopedPayments / scopedStudents are passed in by updateDashboard(),
@@ -10429,10 +10463,6 @@
             // Collection Rate Chart
             const collectionCtx = document.getElementById('collectionChart');
             if (collectionCtx) {
-                if (collectionChart) {
-                    collectionChart.destroy();
-                }
-                
                 // One bar per programme, not one per spelling of it.
                 const skillAreas = feeProgrammeNames();
                 const _nrm = function(v){ return (v == null ? '' : String(v)).toLowerCase().trim(); };
@@ -10468,7 +10498,7 @@
                     return expected > 0 ? Math.min(100, (collected / expected * 100)).toFixed(1) : 0;
                 });
                 
-                collectionChart = new Chart(collectionCtx, {
+                collectionChart = feeDrawChart(collectionChart, collectionCtx, {
                     type: 'bar',
                     data: {
                         labels: skillAreas,
@@ -10521,10 +10551,6 @@
             // Trend Chart
             const trendCtx = document.getElementById('trendChart');
             if (trendCtx) {
-                if (trendChart) {
-                    trendChart.destroy();
-                }
-                
                 // The trend window follows the active scope so the dashboard changes
                 // with the FY/quarter: a selected quarter shows its 3 months; "All
                 // Quarters" shows the active financial year's 12 months (Apr–Mar);
@@ -10564,7 +10590,7 @@
                 });
                 const amounts = trendMonths.map(t => _byMonth.get(t.ym) || 0);
                 
-                trendChart = new Chart(trendCtx, {
+                trendChart = feeDrawChart(trendChart, trendCtx, {
                     type: 'line',
                     data: {
                         labels: months,
