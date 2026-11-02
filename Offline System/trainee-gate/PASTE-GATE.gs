@@ -5746,10 +5746,10 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
     }
     // Two copies of a record from two inboxes: the attempt rules for attempts,
     // the first submission for results, otherwise the copy written last.
-    function mergeRecords(acc, recs) {
+    function mergeRecords(acc, recs, nowMs) {
       Object.keys(recs || {}).forEach(function (k) {
         var v = recs[k];
-        if (k === 'voctrain_examAttempts') { acc[k] = Core.exams.mergeAttemptLists(acc[k] || [], v || []).list; return; }
+        if (k === 'voctrain_examAttempts') { acc[k] = Core.exams.mergeAttemptLists(acc[k] || [], v || [], typeof nowMs === 'number' ? { nowMs: nowMs } : undefined).list; return; }
         if (k === 'voctrain_certTranscriptRequests' && Core.Transcript && Core.Transcript.mergeRequestLists) {
           acc[k] = Core.Transcript.mergeRequestLists(acc[k] || [], v || []); return;
         }
@@ -5761,10 +5761,30 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
           });
           acc[k] = m; return;
         }
+        if (k === 'voctrain_examResults') {
+          // Only the first submission stands (Core.exams.oneResultPerAttempt).
+          // Two copies of one attempt's result share an id, so the newest-wins
+          // rule kept the LATER one, unless its stamp happened to be more than
+          // a day ahead of this computer's clock.
+          acc[k] = byIdFirstSubmitted(acc[k] || [], v || []);
+          Core.exams.oneResultPerAttempt(acc[k]);
+          return;
+        }
         acc[k] = byIdNewest(acc[k] || [], v || []);
-        if (k === 'voctrain_examResults') Core.exams.oneResultPerAttempt(acc[k]);
       });
       return acc;
+    }
+    function byIdFirstSubmitted(a, b) {
+      var out = a.slice(), at = dict();
+      var sub = function (r) { return msOf(r && r.submittedAt) || Infinity; };
+      out.forEach(function (r, i) { if (r && r.id != null) at[str(r.id)] = i; });
+      (Array.isArray(b) ? b : []).forEach(function (r) {
+        if (!isObj(r)) return;
+        var k = r.id != null ? str(r.id) : null;
+        if (k === null || at[k] === undefined) { if (k !== null) at[k] = out.length; out.push(r); return; }
+        if (sub(r) < sub(out[at[k]])) out[at[k]] = r;
+      });
+      return out;
     }
     function byIdNewest(a, b) {
       var out = a.slice(), at = dict();
@@ -5923,7 +5943,7 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
           out.unassigned.push({ file: tag, accountId: folderAcct, studentId: from.stu, reason: owner.reason, records: recs, ops: ops });
           return;
         }
-        mergeRecords(acc, reown(recs, from, owner));
+        mergeRecords(acc, reown(recs, from, owner), cx.nowMs);   // cx.nowMs: optional; the real clock otherwise
         ops.forEach(function (op) { out.ops.push({ me: { acct: owner.acct, stu: owner.stu }, op: op }); });
         seen[tag] = ver;
         out.files++;
