@@ -59,7 +59,8 @@ function attemptOf(t, over) {
 const submission = (t, over) => Object.assign({ id: 'SUB-NEW-' + t.acct.id, assignmentId: 'ASG-1', studentId: t.stu.id, accountId: t.acct.id,
   submittedAt: iso(NOW - 2 * MIN), comment: 'mine' }, over || {});
 const file = (id, folderAcct, json, ver, mod) => ({ fileId: id, version: ver || 1, modifiedTime: mod || iso(NOW - MIN), folderAcct, json });
-const cx = (over) => Object.assign({ accounts: C.store.voctrain_users, students: C.store.voctrain_students, deletedUserIds: [] }, over || {});
+// nowMs: the fixture's own clock, so the checks do not depend on today's date.
+const cx = (over) => Object.assign({ accounts: C.store.voctrain_users, students: C.store.voctrain_students, deletedUserIds: [], nowMs: NOW }, over || {});
 
 /* ------------------------------------------------------------ toPayload */
 console.log('toPayload: the names the dashboard\'s merge already reads');
@@ -246,6 +247,8 @@ console.log('A result the gatekeeper marked is collected with its retired attemp
   assertEq(G.collect([file('F-RES2', T.acct.id, forged)], cx()).refused[0].reason, 'not-yours', 'a result the gatekeeper did not mark is refused');
   const two = G.collect([file('F-R1', T.acct.id, marked.file), file('F-R2', T.acct.id, G.markAttempt(attemptOf(T), key, NOW + 5000, { crypto, receivedAt: NOW + 5000 }).file)], cx());
   assertEq(two.payload.data.examResults.map(x => x.submittedAt), [iso(NOW)], 'two copies of one attempt\'s result: one, the first');
+  const swapped = G.collect([file('F-R2', T.acct.id, G.markAttempt(attemptOf(T), key, NOW + 5000, { crypto, receivedAt: NOW + 5000 }).file), file('F-R1', T.acct.id, marked.file)], cx());
+  assertEq(swapped.payload.data.examResults.map(x => x.submittedAt), [iso(NOW)], 'the later copy collected first still gives way to the first');
 }
 
 /* --------------------------------------------------------- applyOps */
