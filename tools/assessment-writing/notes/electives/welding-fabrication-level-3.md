@@ -38,3 +38,25 @@
 
 ## BSBSBM0012C
 - Names the Companies Office of Jamaica, TAJ, TRN, the tax compliance certificate (TCC) for government contracts, and JBDC (short answer 5) — confirm these are current. GCT registration "once sales pass the set level" (no figure). J$ figures are made up: check T1-14 to T1-18 and short answers 2, 7, 11 and 14. Kept apart from Level 2 BSBSBM0012E and Electrical BSBSBM0012A.
+
+## MEMFAB0142B
+- "…to FCAW" read as FCAW to the AWS code the Centre uses, plate in all positions (3G/4G, 3F/4F); fresh against Level 2 MEMFAB0142C. Q24: 3G plus 4G generally qualifies plate in all positions; Q4: "J" = impact test at a colder temperature, H4/H8 = tested hydrogen; Q8: an argon-rich mix on a CO2-only wire raises the alloy in the weld; Q44: too short a stick-out on self-shielded wire can cause porosity.
+- Both practicals need an all-position stand; bend tests only if the Centre has a bend jig.
+
+## MEMFAB0103B
+- Alloy plate. Confirm electrode suffixes: C1 about 2.5% Ni, C3 about 1% Ni, A1 about ½% Mo, W2 weathering steel, H4R = 4 mL/100 g, moisture-resistant. CE = C + Mn/6 + (Cr+Mo+V)/5 + (Ni+Cu)/15. The preheat band rule (Q41) and table (short answer 5) are data. Carbon steel may stand in if there is no low-alloy plate. Kept apart from MEMFAB0113B (alloy pipe).
+
+## MEMFAB0043B
+- Submerged arc. Practical 1 has two forms the assessor picks: A on a real SAW machine; B a set-up check on a travel carriage with the arc never struck, or a visit to a shop with its permission. Practical 2 is paper only. Confirm Q11 and essay 7 (wire "off top dead centre, as the WPS says", the other way for inside seams) and F7A2-EM12K (A as-welded, P after heat treatment, K killed steel). Flux-to-wire ratio 1.2 is data.
+
+## MEMFAB0053B
+- Supervision: both practicals use made-up welder records; Practical 2 is a role play with props, no welding, and a damaged lead isolated for display only. Q22: repair limits "as the code or client allows"; the fire-watch time is left to the permit.
+
+## MEMFAB0063B
+- Inspection: Practical 1 needs a dye penetrant kit and an AC yoke with a lift-test weight; Practical 2 a fabricated beam or frame with a bolted connection and built-in errors. Tolerances (camber up to length ÷ 1000, misalignment up to 10%, pores up to 10 mm per 100 mm) are data. Q33: the bolt is "at least flush with the nut, often by a thread or more".
+
+## MEMFAB0013B
+- Production quality: Practical 2 needs a made-up month of production data and J$ rates; in Practical 1 the assessor may change a setting or knock a jig stop during the run.
+
+## Etching (MEMFAB0142B, MEMFAB0103B, MEMFAB0063B)
+- Macro etches use "the etchant the Centre approves", handled as its SDS says; no chemical is named.
