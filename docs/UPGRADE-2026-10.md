@@ -426,6 +426,12 @@ instructor and 6 trainees on phone settings, every connection's bytes read from 
   out both ends; five Cosmetology banks were rebalanced for it (wording only). Hospitality
   Villa/Properties Services Level 2 completed the Level 2 core units (58), so every core unit of
   the five Level 2 programmes now has prepared tests.
+  Welding Level 3 followed (41 core units), written fresh at Level 3 depth; no question repeats a
+  Level 2 Welding question word for word, since a trainee who sat Level 2 may sit Level 3.
+- **The Administrator changes a sitting's dates** once its actual dates are set (Change dates… on
+  the Assessments page). Before anyone has begun, both dates move; once someone has begun, the
+  opening stays and the closing can only move later. Every change is kept (from, to, why, who,
+  when) and the intake is told the new dates.
 
 ### Grades, transcripts and Student Progress
 - **Renames and moves.** Renaming a trainee or moving them to another programme carries every
