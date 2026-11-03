@@ -18,3 +18,23 @@
 
 ## MEMMAH0042B
 - Steel 7850 kg/m³; a 1220 × 2440 × 6 mm sheet ≈ 140 kg; 65% deposit efficiency as data; 46 m² of mesh plus 10% = 18 sheets of 2.4 × 1.2 m; the handrail needs 4 lengths of 6 m tube. J$ prices made up; GCT given by the assessor. Overlaps MEMCOR0083B and MEMCOR0161B.
+
+## MEMFAB0102B
+- Sheet: lap and flare joints, arc spot welds, 3F/4F, peel tests. T1-20 (copper backing bar) and its PQR questions (T1-38, short answer 8) are close in idea to MEMFAB0062B and MEMFAB0023B; short answer 11 (zinc fume illness) is close to Level 2 MEMFAB0022C.
+
+## MEMFAB0112B
+- MMAW pipe: 2G/5G/6G/6GR, E6010 open root with E7018 fill, flanges, isometrics. T1-38: a pipe test qualifies plate but a plate test does not qualify small-bore pipe — confirm against the code the Centre uses. T1-20: a 4-inch long-radius elbow has about a 150 mm radius. Practical 1 needs a DC machine for E6010, 100–150 mm pipe, and a saw and bend jig used by the assessor.
+
+## MEMFAB0122B
+- Oxy-fuel gas welding qualification (WPS, PQR, WPQ): a 3G plate test welded uphill and a 6G small-bore pipe test. Rod class R60 (older RG60; 60 = least tensile strength in ksi) — confirm the classification the Centre uses. T1-13: about 2.4 mm rod for 3 mm plate; T1-30: a 3 mm open-defect limit on a bend strip (data); T1-20: a 6G pass "generally" covers all positions; T1-28: tensile tests added for procedure qualification.
+- The practicals assume 50–60 mm OD pipe with a 3–4 mm wall, a 45° positioner and a bend jig; 5G at the assessor's choice.
+
+## MEMCOR0062B
+- Both practicals need a training machine or mock-up with planted faults. Only the Centre's electrician or the assessor isolates and proves dead; each member puts a lock on a multi-lock hasp under the assessor's permit; Practical 2 also needs a hot work permit and a fire watcher. Check T1-38 (lost output J$150 000) and T1-40 (6 belts in stock).
+
+## MEMCOR0092B
+- T1-23: each end of a full segment in a three-joint 90° lobster-back bend is cut 15° from square; T1-37: the V-notch for a 90° bend in angle is 90°. Check the worked sums T1-14 (4.27 m), T1-18 (3 173 mm), T1-36 (529 mm), T1-44 (344 mm) and essay 5 (√29 ≈ 5.385 m). Essay 3: cope radius about 10–15 mm "or as the drawing says".
+- The practicals assume a plate table or flat floor and about 1 mm sheet for the square-to-round.
+
+## BSBSBM0012C
+- Names the Companies Office of Jamaica, TAJ, TRN, the tax compliance certificate (TCC) for government contracts, and JBDC (short answer 5) — confirm these are current. GCT registration "once sales pass the set level" (no figure). J$ figures are made up: check T1-14 to T1-18 and short answers 2, 7, 11 and 14. Kept apart from Level 2 BSBSBM0012E and Electrical BSBSBM0012A.
