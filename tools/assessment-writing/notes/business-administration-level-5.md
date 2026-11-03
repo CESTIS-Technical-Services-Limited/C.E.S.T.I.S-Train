@@ -87,3 +87,26 @@ Figures in finance questions are data given in the question; every sum was worke
 
 ## PSSCOR0124B Use complex workplace communication strategies
 - Audience analysis, sensitive messages, facilitation, conflict, representing the unit, briefing notes, checking whether communication worked; apart from BSBSBM0143A, BSBCOR0353B and PSSCOR0145B. T1-35 (sign language interpreter) is close in subject to PSSCOR0103B (worded differently).
+
+## THHWPO0344B Manage quality guest service
+- Management level in hotels and villas: standards, SOPs, SERVQUAL/RATER, Pareto, fishbone and five whys on complaint logs, empowerment limits, recovery and online reputation. Figures: complaints 8 (T1-07) and 5 (S03) per 1,000 room nights; 72% (T1-09); 85% (T1-21); J$1,800,000 lost (T1-36); 12 times (T1-37); S07/S11/S13 6 points, 95%, 90%; E02 40% + 30% = 70% of 210 complaints. The J$15,000 credit limit is an example.
+
+## PSSCOR0034B Contribute to and manage the change processes
+- Lewin, ADKAR, force field, the change curve, pilots, phased roll-out, embedding (Kotter is in PSSADM0264B). Figures: force field difference 3 (T1-05); 35% (T1-12); J$30,000,000 a year saved (T1-28); 3-year payback (T1-29); 70% (T1-38); S09/S10/S14 50 days, 40%, 65%; S15 accepts "shock" or "denial".
+
+## BSBBAD1244B Manage workplace (industrial) relations
+- Laws by purpose only — confirm they match what the Centre teaches: a protected right to join a union (T1-03, E10); a disputed recognition claim goes to a poll of workers arranged by the Ministry of Labour (T1-04, E10); Ministry conciliation helps agreement but does not decide (T1-17, T1-18, E02); the IDT hears disputes referred to it and its award is binding (T1-19, S01, E02); not renewing a contract because of pregnancy "may break employment law" (T1-36); redundancy by the purpose of the redundancy law; "constructive dismissal" accepted (S12).
+- Figures: J$6,912,000 (T1-23); J$109,200 (T1-24); J$9,000,000 (T1-25); S05/S06/S11/S13 7%, J$150,000, 75%, 60%; E03 a J$17,280,000 claim against a J$9,720,000 mandate (J$4,050 per worker, 4.5%) — re-check.
+
+## PSSCOR0164B Represent and promote the organization
+- Confirm forms of address: "the Honourable" for Ministers (T1-06), "His or Her Worship" for the Mayor (T1-07), the Custos and order of precedence (E08). Gifts, conflicts of interest and political neutrality by the code of conduct in general terms. Figures: J$1,500 per enquiry (T1-19); J$300,000 (T1-34); 80% (T1-39); S08/S09/S15 125%, 75%, J$90,000; E05 +150% visits, 120% of target, J$4,000 per application.
+
+## PSSADM0175A Develop partnering arrangements
+- Designing the arrangement: MOU, contract, SLA, PPP or joint venture; due diligence; clauses; risk sharing; accountability for public money (PSSPAD0115B covers community, government and business partnerships). Figures: weighted scores 7.1/7.5/6.9 (T1-10); J$10,800,000 (T1-14); J$3,600,000 (T1-15); S08/S09/S10 7.8, 30%, 80%; E03 7.7 against 7.8; E10 90% of target, about J$16,667 against J$20,000 per trainee, a saving of about J$9,000,000.
+
+## PSSCOR0145B Prepare high-level-sensitive written materials
+- Confirm: T1-08 public officers do not write party political speeches; S11 the Cabinet Secretary is head of the public service; S09 and S10 name Hansard and the Jamaica Gazette. Cabinet submission headings are general; access to information and data protection by purpose only. Figures: J$15,000 per person (T1-27); 15 weeks (T1-28); S12 1,560 words; S13 80%; E01 J$200,000,000 a year.
+
+## PSSPAD0095B Establish and maintain a strategic planning cycle
+- The financial year begins on 1 April (T1-05); names Vision 2030 Jamaica (S02) and the Estimates of Expenditure (S11). Figures: 60% of the planned improvement (T1-14); 6.8 against 7.2 (T1-17); 45% (T1-35); J$1,200,000,000 (T1-37); S06/S07/S08 30%, 85%, J$135,000,000; E06 75% and 20% of planned improvement.
+- Shared ideas in new wording: the power-interest grid (with PSSCOR0034B and PSSADM0204B), steering committees (PSSCOR0034B, PSSADM0175A), the mid-year review (close to BSBBAD1345B).
