@@ -19110,10 +19110,29 @@
           });
           acc[k] = m; return;
         }
+        // A result: the first submission stands (as Core.exams.oneResultPerAttempt
+        // keeps the first of two attempts) — never "the copy stamped last", which
+        // depended on whether this device's clock trusted the stamps at all.
+        if (k === 'voctrain_examResults') { acc[k] = byIdFirstSubmitted(acc[k] || [], v || []); Core.exams.oneResultPerAttempt(acc[k]); return; }
         acc[k] = byIdNewest(acc[k] || [], v || []);
-        if (k === 'voctrain_examResults') Core.exams.oneResultPerAttempt(acc[k]);
       });
       return acc;
+    }
+    // Two copies of one result (one id): the earlier submittedAt is kept; when
+    // both say the same time (or neither says), the copy written last, as for
+    // any other record, so a later-marked copy of one submission is kept.
+    function byIdFirstSubmitted(a, b) {
+      var out = a.slice(), at = dict();
+      out.forEach(function (r, i) { if (r && r.id != null) at[str(r.id)] = i; });
+      (Array.isArray(b) ? b : []).forEach(function (r) {
+        if (!isObj(r)) return;
+        var k = r.id != null ? str(r.id) : null;
+        if (k === null || at[k] === undefined) { if (k !== null) at[k] = out.length; out.push(r); return; }
+        var tr = msOf(r.submittedAt), th = msOf(out[at[k]].submittedAt);
+        if (tr !== th) { if (tr && (!th || tr < th)) out[at[k]] = r; }
+        else if (stampOf(r) > stampOf(out[at[k]])) out[at[k]] = r;
+      });
+      return out;
     }
     function byIdNewest(a, b) {
       var out = a.slice(), at = dict();
