@@ -3278,6 +3278,60 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       if (practical) c2.practical = copy(master.practical);
       return { exam: c2 };
     }
+    /* "Change dates…": the Administrator moves an opened copy to the dates
+       actually set for it. o: { date, time, closeDate, closeTime, offset,
+       started (trainees who have begun it or handed anything in), reason,
+       byId, byName, byRole, at }, nowMs. -> { exam, change } | { error }.
+       Before anyone has begun, both dates may move (to a window not yet
+       over), and the test waits for its new opening. Once someone has begun,
+       the opening stays as it was and the closing may only move later, so
+       nobody sitting it is cut short. Every change is kept on the copy
+       (assessment.dateChanges): from, to, why, who and when. */
+    function mayChangeDates(role) { return role === 'admin'; }
+    function datesOf(exam) {
+      return { date: str(exam && exam.date), time: str(exam && exam.time), closeDate: str(exam && exam.closeDate),
+        closeTime: exam && exam.closeDate ? str(exam.closeTime || '23:59') : '' };
+    }
+    function changeDates(exam, o, nowMs) {
+      o = o || {};
+      if (!isAssessment(exam) || isMaster(exam)) return { error: 'not-opened' };
+      if (exam.status === 'cancelled') return { error: 'cancelled' };
+      if (!mayChangeDates(o.byRole) || !trim(o.byName)) return { error: 'who' };
+      var reason = trim(o.reason);
+      if (reason.length > REASON_MAX || !noMarkup(reason)) return { error: 'reason' };
+      var was = datesOf(exam), started = Number(o.started) > 0;
+      var to = { date: str(o.date), time: str(o.time), closeDate: str(o.closeDate), closeTime: o.closeDate ? str(o.closeTime || '23:59') : '' };
+      if (started) { to.date = was.date; to.time = was.time; }
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(to.date) || !/^\d{1,2}:\d{2}$/.test(to.time)) return { error: 'no-date' };
+      if (to.closeDate && !/^\d{4}-\d{2}-\d{2}$/.test(to.closeDate)) return { error: 'no-close' };
+      if (isPractical(exam) && !to.closeDate) return { error: 'no-close' };
+      if (to.closeDate && !/^\d{1,2}:\d{2}$/.test(to.closeTime)) return { error: 'no-close' };
+      if (to.date === was.date && to.time === was.time && to.closeDate === was.closeDate && to.closeTime === was.closeTime) return { error: 'same' };
+      var off = o.offset;
+      var start = Core.exams.centreTime(to.date, to.time, off);
+      if (start == null) return { error: 'no-date' };
+      var close = to.closeDate ? Core.exams.centreTime(to.closeDate, to.closeTime, off) : null;
+      if (to.closeDate && (close == null || close <= start)) return { error: 'close-before-open' };
+      var w = Core.exams.windowOf({ date: to.date, time: to.time, closeDate: to.closeDate, closeTime: to.closeTime, duration: exam.duration || (isPractical(exam) ? 1440 : 0) }, off);
+      var end = w ? (w.baseEnd != null ? w.baseEnd : w.end) : null;
+      if (end == null || end <= nowMs) return { error: 'past' };
+      if (started) {
+        var old = Core.exams.windowOf({ date: was.date, time: was.time, closeDate: was.closeDate, closeTime: was.closeTime, duration: exam.duration || (isPractical(exam) ? 1440 : 0) }, off);
+        var oldEnd = old ? (old.baseEnd != null ? old.baseEnd : old.end) : null;
+        if (oldEnd != null && end < oldEnd) return { error: 'earlier' };
+      }
+      exam.date = to.date; exam.time = to.time;
+      if (to.closeDate) { exam.closeDate = to.closeDate; exam.closeTime = to.closeTime; } else { delete exam.closeDate; delete exam.closeTime; }
+      // A test nobody has begun waits for its new opening; one already begun
+      // stays open to its new closing (a closed one opens again).
+      if (!started) { exam.status = 'upcoming'; delete exam.activatedAt; delete exam.passRate; }
+      else if (exam.status === 'completed') { exam.status = 'active'; delete exam.passRate; }
+      var change = { from: was, to: to, reason: reason, started: started, byId: str(o.byId), byName: trim(o.byName), byRole: str(o.byRole), at: str(o.at) };
+      if (!Array.isArray(exam.assessment.dateChanges)) exam.assessment.dateChanges = [];
+      exam.assessment.dateChanges.push(change);
+      if (o.at) exam.updatedAt = str(o.at);
+      return { exam: exam, change: change };
+    }
     /* A practical's state on the given clock: 'draft' (the prepared copy),
        'upcoming', 'open' (the group can add photos and hand in), 'closed'. */
     function practicalStatus(exam, nowMs, offset) {
@@ -3977,6 +4031,7 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       checkBank: checkBank, examTitle: examTitle, bankToExam: bankToExam, practicalBrief: practicalBrief,
       masterFor: masterFor, copiesOf: copiesOf, statusOf: statusOf, mayCheck: mayCheck, markReady: markReady, markToCheck: markToCheck,
       openCopy: openCopy, practicalStatus: practicalStatus, intakeLabel: intakeLabel,
+      mayChangeDates: mayChangeDates, datesOf: datesOf, changeDates: changeDates,
       mayAddTime: mayAddTime, roleLabel: roleLabel, makeGrant: makeGrant, addGrant: addGrant, grantsForTrainee: grantsForTrainee,
       minutesText: minutesText, extraLine: extraLine,
       signatureId: signatureId, makeSignature: makeSignature, cleanSignature: cleanSignature, signedLine: signedLine, when: when,

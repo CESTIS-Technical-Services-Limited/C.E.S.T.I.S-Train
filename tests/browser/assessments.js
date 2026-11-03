@@ -27,6 +27,8 @@
                 smaller, sent in parts), one hands in for the group and signs;
                 the other signs later ("Not yet signed" until then); the
                 assessor records a result per member; filed with its photos.
+     dates      Change dates (the Administrator): a sitting nobody has begun
+                moves to new days; one begun keeps its opening.
      results    The Assessment Results page: filters, counts, View PDF,
                 Download, one PDF of several to print, a group's photos and
                 their ZIP.
@@ -495,6 +497,49 @@ function seed({ MORE, PASSHASH }) {
   };
   const published2 = () => op.evaluate(() => JSON.parse(localStorage.getItem('cestisGatePublished') || '{}'));
   const groupB = async () => op.evaluate(id => { const g = CESTISCore.assessments.groupsOf(assessmentWork, id).find(x => x.name === 'Group B'); return g ? { id: g.id, members: g.members.slice() } : null; }, await pracId('practical1'));
+
+  await section('dates', 'Change dates: the Administrator moves a sitting to the dates actually set', async () => {
+    await collect();
+    await go(op, 'assessments');
+    await op.selectOption('#page-assessments [data-ctl="prog"]', 'QUAL-WEL-L2');
+    await op.fill('#page-assessments [data-ctl="q"]', 'MEMFAB0042C');
+    await op.waitForTimeout(700);
+    const card = await txt(op, '#page-assessments .assess-unit');
+    ok(/Change dates…/.test(card), 'an opened assessment offers Change dates… to the Administrator');
+    // Practical 2: nobody has begun, so both dates move.
+    const m2 = await op.evaluate(() => exams.find(e => CESTISCore.assessments.isMaster(e) && e.assessment.kind === 'practical2').id);
+    await op.click('#page-assessments [data-act="dates"][data-id="' + m2 + '"]');
+    await op.waitForSelector('.assess-dlg [data-f="closeDate"]', { timeout: 5000 });
+    ok(!(await op.evaluate(() => document.querySelector('.assess-dlg [data-f="date"]').disabled)), 'nobody has begun: the opening can move');
+    const nd = await op.evaluate(() => {
+      const o = CESTISCore.exams.centreParts(Date.now() + 7 * 86400000, examCentreOffset()), c = CESTISCore.exams.centreParts(Date.now() + 9 * 86400000, examCentreOffset());
+      document.querySelector('.assess-dlg [data-f="date"]').value = o.date; document.querySelector('.assess-dlg [data-f="time"]').value = '08:30';
+      document.querySelector('.assess-dlg [data-f="closeDate"]').value = c.date; document.querySelector('.assess-dlg [data-f="closeTime"]').value = '15:30';
+      document.querySelector('.assess-dlg [data-f="reason"]').value = 'The actual date has been set';
+      return { o: o.date, c: c.date };
+    });
+    await shot(op, '15-change-dates');
+    await op.click('.assess-dlg [data-dlg="save"]');
+    await op.waitForTimeout(500);
+    const moved = await op.evaluate(id => { const c = exams.find(e => e.assessment && e.assessment.from === id); return { d: c.date, t: c.time, cd: c.closeDate, ct: c.closeTime, st: c.status, h: c.assessment.dateChanges, n: notifications[0] && notifications[0].text, nc: notifications[0] && notifications[0].forCourse, c: c.course }; }, m2);
+    ok(moved.d === nd.o && moved.t === '08:30' && moved.cd === nd.c && moved.ct === '15:30' && moved.st === 'upcoming', 'saved: the new opening and closing (' + JSON.stringify(moved).slice(0, 160) + ')');
+    ok(moved.h && moved.h.length === 1 && moved.h[0].reason === 'The actual date has been set' && moved.h[0].byName === 'Marcia Thompson', 'the change is kept with who made it and why');
+    ok(/^Assessment dates changed: /.test(moved.n || '') && moved.nc === moved.c, 'the intake is told the new dates');
+    ok(/Group task/.test(await txt(op, '#page-assessments .assess-unit')) && (await txt(op, '#page-assessments .assess-unit')).indexOf('08:30') !== -1, 'the card shows the new dates');
+    // Theory 1: a trainee has begun, so only the closing can move, and only later.
+    const m1 = await op.evaluate(() => exams.find(e => CESTISCore.assessments.isMaster(e) && e.assessment.kind === 'theory1').id);
+    await op.click('#page-assessments [data-act="dates"][data-id="' + m1 + '"]');
+    await op.waitForSelector('.assess-dlg [data-f="closeDate"]', { timeout: 5000 });
+    const lock = await op.evaluate(() => ({ d: document.querySelector('.assess-dlg [data-f="date"]').disabled, t: document.querySelector('.assess-dlg').innerText }));
+    ok(lock.d && /already begun/.test(lock.t), 'begun: the opening is locked and the dialog says why');
+    await shot(op, '16-change-dates-begun');
+    await op.evaluate(() => { const c = CESTISCore.exams.centreParts(Date.now() + 30 * 60000, examCentreOffset()); document.querySelector('.assess-dlg [data-f="closeDate"]').value = c.date; document.querySelector('.assess-dlg [data-f="closeTime"]').value = c.time; });
+    await op.click('.assess-dlg [data-dlg="save"]');
+    await op.waitForTimeout(300);
+    const er = await txt(op, '.assess-dlg .assess-err');
+    ok(/cannot close earlier/.test(er), 'begun: it cannot close earlier (' + er + ')');
+    await op.click('.assess-dlg [data-dlg="cancel"]');
+  });
 
   await section('office', 'The office copy: filed in the Assessment Results folder; a practical marked member by member, filed again', async () => {
     await collect();

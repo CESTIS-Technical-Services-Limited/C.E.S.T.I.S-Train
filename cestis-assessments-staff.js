@@ -97,10 +97,14 @@
         if (canCheck) acts.push('<button type="button" class="btn btn-secondary" data-act="edit" data-id="' + esc(m.id) + '">Check &amp; edit</button>');
         if (canCheck && st.state === 'to-check') acts.push('<button type="button" class="btn btn-primary" data-act="ready" data-id="' + esc(m.id) + '">Mark Ready</button>');
         if (canCheck && st.state !== 'to-check') acts.push('<button type="button" class="btn btn-primary" data-act="open" data-id="' + esc(m.id) + '">Open for an intake…</button>');
+        if (st.intakes.length && A.mayChangeDates(me().role)) acts.push('<button type="button" class="btn btn-secondary" data-act="dates" data-id="' + esc(m.id) + '">Change dates…</button>');
         if (canCheck && A.isPractical(m) && st.intakes.length) acts.push('<button type="button" class="btn btn-secondary" data-act="groups" data-id="' + esc(m.id) + '">Groups…</button>');
         if (canCheck && A.isPractical(m) && st.intakes.length) acts.push('<button type="button" class="btn btn-secondary" data-act="mark" data-id="' + esc(m.id) + '">Mark…</button>');
       }
       var who = m && m.assessment.ready && m.assessment.readyByName ? '<div class="assess-kind-meta">Checked by ' + esc(m.assessment.readyByName) + '</div>' : '';
+      if (m && st.intakes.length) who += A.copiesOf(all, m.id).filter(function (c) { return c.status !== 'cancelled'; }).map(function (c) {
+        return '<div class="assess-kind-meta">' + esc(c.assessment.intake || c.course) + ': ' + esc(datesText(c)) + '</div>';
+      }).join('');
       return '<div class="assess-kind"><div class="assess-kind-top"><span class="assess-kind-name">' + esc(A.KINDS[k].label) + '</span>' + chip(st) + '</div>' +
         '<div class="assess-kind-meta">' + esc(kindMeta(m, k)) + '</div>' + who + (acts.length ? '<div class="assess-acts">' + acts.join('') + '</div>' : '') + '</div>';
     }).join('');
@@ -315,6 +319,78 @@
       } });
   }
 
+  /* ---- Change dates (the Administrator) ------------------------------
+     When the dates actually set for a sitting are known, the Administrator
+     moves the opened copy to them (Core.assessments.changeDates). */
+  var MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  function dayText(d) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(str(d)); return m ? Number(m[3]) + ' ' + MON[Number(m[2]) - 1] + ' ' + m[1] : str(d); }
+  function datesText(x) {
+    var d = A.datesOf(x);
+    if (!d.date) return 'no dates yet';
+    var a = dayText(d.date) + ', ' + d.time;
+    if (!d.closeDate) return 'opens ' + a;
+    return a + ' to ' + (d.closeDate === d.date ? d.closeTime : dayText(d.closeDate) + ', ' + d.closeTime);
+  }
+  // Trainees who have begun this sitting or handed anything in for it.
+  function startedBy(ex) {
+    var who = {}, id = str(ex.id);
+    list(W.examAttempts).forEach(function (a) { if (a && str(a.examId) === id) who[str(a.studentId)] = 1; });
+    list(W.examResults).forEach(function (r) { if (r && !r.archived && str(r.examId) === id) who[str(r.studentId)] = 1; });
+    list(S.work()).forEach(function (w) { if (w && w.type !== 'group' && str(w.examId) === id && w.studentId) who[str(w.studentId)] = 1; });
+    return Object.keys(who).length;
+  }
+  function changeDates(id) {
+    var e = S.examById(id);
+    if (!e) return;
+    var m = me();
+    if (!A.mayChangeDates(m.role)) { S.toast('Only the Administrator changes the dates of an assessment.', 'warning'); return; }
+    var opened = (A.isMaster(e) ? A.copiesOf(S.exams(), e.id) : [e]).filter(function (c) { return c.status !== 'cancelled'; });
+    if (!opened.length) { S.toast('Open it for an intake first.', 'warning'); return; }
+    var off = S.offset();
+    var pick = opened.length > 1 ? '<label class="assess-field">Intake<select class="form-control" data-f="copy">' + opened.map(function (c, i) { return '<option value="' + i + '">' + esc(c.assessment.intake || c.course) + '</option>'; }).join('') + '</select></label>' : '';
+    var d = S.dialog({ title: 'Change dates — ' + A.KINDS[opened[0].assessment.kind].label, wide: false,
+      body: '<p class="assess-sub" style="margin-bottom:12px">' + esc(opened[0].title) + '</p><div class="assess-err" hidden></div>' + pick + '<div data-g="body"></div>',
+      actions: [{ id: 'cancel', label: 'Cancel', close: true }, { id: 'save', label: 'Save the new dates', kind: 'primary' }],
+      onAction: function (act, dl) {
+        if (act !== 'save') return;
+        var ex = state.ex, v = function (f) { var el = dl.q('[data-f="' + f + '"]'); return el ? el.value : ''; };
+        var r = A.changeDates(ex, { date: v('date'), time: v('time'), closeDate: v('closeDate'), closeTime: v('closeTime'), offset: off, started: state.started,
+          reason: v('reason'), byId: m.role === 'admin' ? 'admin' : m.id, byName: m.name, byRole: m.role, at: S.nowIso() }, S.now());
+        var why = { 'no-date': 'Choose the day and time it opens.', 'no-close': 'Choose the day and time it closes.', 'close-before-open': 'It must close after it opens.',
+          same: 'Those are the dates it already has.', past: 'Those times are already over: choose dates still to come.',
+          earlier: 'Trainees have already begun, so it cannot close earlier than it does now.', reason: 'Keep the reason short, without the < and > signs.',
+          who: 'Only the Administrator changes the dates of an assessment.', cancelled: 'This sitting was cancelled.', 'not-opened': 'Open it for an intake first.' };
+        if (r.error) return dl.error(why[r.error] || 'The dates could not be changed.');
+        S.saveExams();
+        var msg = 'Assessment dates changed: "' + ex.title + '" (' + (ex.assessment.intake || ex.course) + ') is now ' + datesText(ex);
+        try { if (typeof W.addNotification === 'function') W.addNotification(msg, 'calendar', null, ['admin', 'instructor', 'student'], null, { forCourse: ex.course }); } catch (x) {}
+        dl.close();
+        S.toast('New dates saved for ' + (ex.assessment.intake || ex.course) + '.');
+        rerender();
+      } });
+    var state = { ex: opened[0], started: 0 };
+    d.el.addEventListener('change', function (ev) { if (ev.target.getAttribute('data-f') === 'copy') { state.ex = opened[Number(ev.target.value)]; draw(); } });
+    function draw() {
+      var ex = state.ex, now = A.datesOf(ex), practical = A.isPractical(ex);
+      state.started = startedBy(ex);
+      var lock = state.started > 0;
+      var hist = list(ex.assessment.dateChanges).slice().reverse().map(function (c) {
+        return '<li>' + esc(datesText(c.from)) + ' → ' + esc(datesText(c.to)) + (c.reason ? ' — ' + esc(c.reason) : '') + ' — by ' + esc(c.byName) + ', ' + esc(A.when(c.at, off, true)) + '</li>';
+      }).join('');
+      d.q('[data-g="body"]').innerHTML = '<p class="assess-sub" style="margin-bottom:12px"><strong>Now:</strong> ' + esc(datesText(ex)) + '</p>' +
+        (lock ? '<div class="assess-note" style="margin-bottom:12px">' + state.started + ' trainee' + (state.started === 1 ? ' has' : 's have') + ' already begun, so it keeps its opening time and can only close later.</div>' : '') +
+        '<div class="assess-row2"><label class="assess-field">Opens on<input type="date" class="form-control" data-f="date" value="' + esc(now.date) + '"' + (lock ? ' disabled' : '') + '></label>' +
+        '<label class="assess-field">at<input type="time" class="form-control" data-f="time" value="' + esc(now.time) + '"' + (lock ? ' disabled' : '') + '></label></div>' +
+        '<div class="assess-row2"><label class="assess-field">Closes on<input type="date" class="form-control" data-f="closeDate" value="' + esc(now.closeDate) + '"></label>' +
+        '<label class="assess-field">at<input type="time" class="form-control" data-f="closeTime" value="' + esc(now.closeTime) + '"></label></div>' +
+        '<label class="assess-field">Reason (kept with the record)<input type="text" class="form-control" data-f="reason" maxlength="200" placeholder="For example: the actual date has been set"></label>' +
+        '<p class="assess-sub">' + (practical ? 'Groups can add photos and hand in between these times.' : 'Trainees can start between these times; each has ' + esc(A.minutesText(ex.duration)) + ' from when she starts, but never past the closing time.') +
+        ' The trainees of this intake are told the new dates.</p>' +
+        (hist ? '<div class="assess-sub" style="margin-top:12px"><strong>Earlier changes</strong><ul class="assess-todo">' + hist + '</ul></div>' : '');
+    }
+    draw();
+  }
+
   /* ---- Groups of 4 or 5 for an opened practical ---------------------- */
   function rosterFor(e) {
     var stage = function (s) { var st = str(s.stage).toLowerCase(); return !st || st === 'training' || st === 'in training'; };
@@ -460,6 +536,7 @@
       else if (act === 'edit') edit(id);
       else if (act === 'ready') markReady(id);
       else if (act === 'open') openForIntake(id);
+      else if (act === 'dates') changeDates(id);
       else if (act === 'groups') groups(id);
       else if (act === 'mark') markPractical(id);
     });
