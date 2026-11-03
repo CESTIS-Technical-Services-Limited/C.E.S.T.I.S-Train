@@ -354,6 +354,10 @@
       onAction: function (act, dl) {
         if (act !== 'save') return;
         var ex = state.ex, v = function (f) { var el = dl.q('[data-f="' + f + '"]'); return el ? el.value : ''; };
+        // Counted again now: a trainee may have begun while the dialog was open.
+        var began = startedBy(ex);
+        if (began > 0 && !state.started) { var cd = v('closeDate'), ct = v('closeTime'); draw(); dl.q('[data-f="closeDate"]').value = cd; dl.q('[data-f="closeTime"]').value = ct; return dl.error('A trainee has just begun, so it keeps its opening time and can only close later. Check the closing time and save again.'); }
+        state.started = began;
         var r = A.changeDates(ex, { date: v('date'), time: v('time'), closeDate: v('closeDate'), closeTime: v('closeTime'), offset: off, started: state.started,
           reason: v('reason'), byId: m.role === 'admin' ? 'admin' : m.id, byName: m.name, byRole: m.role, at: S.nowIso() }, S.now());
         var why = { 'no-date': 'Choose the day and time it opens.', 'no-close': 'Choose the day and time it closes.', 'close-before-open': 'It must close after it opens.',

@@ -526,6 +526,22 @@ function seed({ MORE, PASSHASH }) {
     ok(moved.h && moved.h.length === 1 && moved.h[0].reason === 'The actual date has been set' && moved.h[0].byName === 'Marcia Thompson', 'the change is kept with who made it and why');
     ok(/^Assessment dates changed: /.test(moved.n || '') && moved.nc === moved.c, 'the intake is told the new dates');
     ok(/Group task/.test(await txt(op, '#page-assessments .assess-unit')) && (await txt(op, '#page-assessments .assess-unit')).indexOf('08:30') !== -1, 'the card shows the new dates');
+    // A trainee begins while the dialog is open: the save counts again and locks the opening.
+    await op.click('#page-assessments [data-act="dates"][data-id="' + m2 + '"]');
+    await op.waitForSelector('.assess-dlg [data-f="closeDate"]', { timeout: 5000 });
+    const race = await op.evaluate(id => {
+      const c = exams.find(e => e.assessment && e.assessment.from === id);
+      assessmentWork.push({ id: 'PH-race', type: 'photo', examId: c.id, groupId: 'G', studentId: 'STU-race', addedAt: new Date().toISOString() });
+      const o = CESTISCore.exams.centreParts(Date.now() + 2 * 86400000, examCentreOffset());
+      document.querySelector('.assess-dlg [data-f="date"]').value = o.date;
+      return { was: c.date };
+    }, m2);
+    await op.click('.assess-dlg [data-dlg="save"]');
+    await op.waitForTimeout(300);
+    const raced = await op.evaluate(id => ({ d: exams.find(e => e.assessment && e.assessment.from === id).date, lock: document.querySelector('.assess-dlg [data-f="date"]').disabled, err: document.querySelector('.assess-dlg .assess-err').textContent }), m2);
+    ok(raced.d === race.was && raced.lock && /just begun/.test(raced.err), 'a trainee began while it was open: nothing moved, the opening is now locked (' + JSON.stringify(raced) + ')');
+    await op.click('.assess-dlg [data-dlg="cancel"]');
+    await op.evaluate(() => { assessmentWork = assessmentWork.filter(w => w.id !== 'PH-race'); });
     // Theory 1: a trainee has begun, so only the closing can move, and only later.
     const m1 = await op.evaluate(() => exams.find(e => CESTISCore.assessments.isMaster(e) && e.assessment.kind === 'theory1').id);
     await op.click('#page-assessments [data-act="dates"][data-id="' + m1 + '"]');
