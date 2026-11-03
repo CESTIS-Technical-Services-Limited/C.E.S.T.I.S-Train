@@ -66,3 +66,24 @@ Figures in finance questions are data given in the question; every sum was worke
 
 ## PSAHRD0224B Develop and use emotional intelligence
 - Public sector; names Goleman (T1-02, S02, S04); S01 also accepts "EQ". Wellbeing answers: refer to professional help or the employee assistance programme, and urgent help if there is a risk of self-harm (T1-21, E08) — check against the Centre's practice. In Practical 1, members' personal scores and plans are seen only by the assessor: confirm the Centre agrees.
+
+## BSBIPR0014A Comply with organizational requirements for protection and use of intellectual property
+- A staff or supervisor's view: the policy, using others' material properly, software licence counts, marking, reporting breaches. Names JIPO as Jamaica's IP office (S11) — confirm; S12 gives a 10-year trade mark renewal as data. T1-25: music in a restaurant needs a licence from "the music licensing body" (not named). T1-18 (a cookbook written at home belongs to the clerk) and T1-39 (declaring IP owned before joining) depend on the contract — confirm.
+
+## BSBIPR0044A Manage intellectual property to protect and grow business
+- Strategy, clearance searches, registration choices and budget, earning from IP, valuation, investor checks, portfolio review; kept apart from BSBSBM0354A. Re-check: T1-13 J$9,700,000; T1-15 J$3,200,000; T1-18 J$960,000; T1-20 30%; T1-36 J$1,200,000; S05 4 times; S10 J$1,080,000; S15 3 years; E04 J$3,000,000 against J$2,000,000. E02: a patent lasts "usually up to about twenty years".
+
+## FSFACC0884A Implement and maintain internal control procedures
+- Avoids BSBSBM0423A's petty cash and bank reconciliation. Re-check: T1-05 risk score 12; T1-17 J$50,400; T1-25 J$270,000; T1-30 7.5%; S04 J$78,500; S09 J$1,500; S14 4.8%; E03 scores 15, 12 and 8.
+
+## PSSADM0144B Exercise delegations
+- Formal legal and financial delegations in public bodies (management delegation is BSBBAD1273B). Principles kept general (within power, relevant matters, fairness, proper purpose). S10 uses "ultra vires"; T1-24 says the head can "usually" still use a power he has delegated — confirm both. Figures: S04 J$1,400,000; S09 J$1,800,000; S13 12.5%; E04 J$5,700,000 then J$300,000 left.
+
+## BSBLEG0014A Apply the principles of contract law
+- Principles only, no cases or sections: postal acceptance rule "where post is a reasonable way to reply" (T1-08), privity "as a general rule" (T1-26), terms implied by law on quality (T1-19), force majeure (E09). Figures: T1-29 J$70,000; T1-34 J$360,000; S05 J$135,000; S15 J$1,680,000; E04 J$97,000 with the lost profit treated as too remote.
+
+## PSSCOR0114B Conduct systems evaluations
+- Evaluating public systems, apart from continuous improvement and audit. Figures: T1-07 J$4,000 against J$5,000 per case; T1-17 40 rural files; T1-23 25%; T1-24 85%; T1-29 2.5 years; T1-38 30%; S05 J$4,000; S10 7.5%; S13 400; E03 J$6,000 against J$7,000.
+
+## PSSCOR0124B Use complex workplace communication strategies
+- Audience analysis, sensitive messages, facilitation, conflict, representing the unit, briefing notes, checking whether communication worked; apart from BSBSBM0143A, BSBCOR0353B and PSSCOR0145B. T1-35 (sign language interpreter) is close in subject to PSSCOR0103B (worded differently).
