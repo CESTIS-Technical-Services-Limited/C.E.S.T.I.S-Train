@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <script src="cestis-config.js?v=284ebb2a"></script>
-<script src="cestis-core.js?v=8d9eebde"></script>
+<script src="cestis-core.js?v=d4bf786c"></script>
 <script src="cestis-form-modal.js?v=74020c38" defer></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>C.E.S.T.I.S - Payroll Management System</title>
@@ -412,7 +412,7 @@ tr:hover td{background:rgba(59,130,246,.04)}
 .ft-status.success{color:var(--green)}
 .ft-status.error{color:var(--danger)}
 .ft-status.info{color:var(--primary)}
-.ft-skip{display:block;text-align:center;margin-top:.75rem;font-size:.75rem;color:var(--text-muted);cursor:pointer;background:none;border:none;font-family:inherit;transition:color .15s;text-decoration:none}
+.ft-skip{display:block;width:100%;text-align:center;margin-top:.75rem;font-size:.75rem;color:var(--text-muted);cursor:pointer;background:none;border:none;font-family:inherit;transition:color .15s;text-decoration:none}
 .ft-skip:hover{color:var(--text-dim);text-decoration:underline}
 .ft-google-account{display:flex;align-items:center;gap:.6rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;margin-top:.75rem;font-size:.78rem;text-align:left}
 .ft-google-account .ft-avatar{width:28px;height:28px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.75rem;flex-shrink:0}
@@ -678,7 +678,7 @@ tr:hover td{background:rgba(59,130,246,.04)}
         <div class="login-user-info">
           <span id="loggedInUserName" style="display:none"></span>
           <span id="loggedInUserRole" style="display:none"></span>
-          <span>Contact your administrator for access</span>
+          <span>Administrators: use your LMS username and password</span>
         </div>
         <!-- Debug panel removed for security -->
       </form>
@@ -5182,6 +5182,76 @@ async function pyDefaultPasswordGate(user,typed){
   return false;
 }
 
+/* Sign in with the LMS administrator's own password.
+   Payroll kept a separate list of logins, so an administrator needed a second
+   password just for payslips. Now an Administrator account of the Centre's
+   LMS (voctrain_users on this computer) can sign in here with the same
+   username or email and the same password it uses for the LMS. The LMS's
+   rules still apply: a switched-off account, or the password published with
+   the platform, opens nothing, and an account with an authenticator app must
+   give its 6-digit code. Nothing about the LMS account is copied into
+   Payroll's own login list, so a password change in the LMS takes effect here
+   straight away. */
+async function pyVerifyLmsPassword(password,stored){
+  if(typeof stored!=='string'||!stored)return false;
+  try{
+    var computed,expected;
+    if(stored.indexOf('pbkdf2$')===0){
+      var parts=stored.split('$');if(parts.length!==4)return false;
+      computed=await _pbkdf2Hex(password,_hexToBuf(parts[2]),parseInt(parts[1],10)||PBKDF2_ITERATIONS);expected=parts[3];
+    }else if(/^[a-f0-9]{64}$/.test(stored)){
+      // An LMS account nobody has signed in to since PBKDF2 arrived.
+      computed=_bufToHex(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(password+'__CESTIS_SALT_2026__')));expected=stored;
+    }else{
+      return String(password)===stored;   // not yet migrated by the LMS
+    }
+    if(computed.length!==expected.length)return false;
+    var d=0;for(var i=0;i<computed.length;i++)d|=computed.charCodeAt(i)^expected.charCodeAt(i);
+    return d===0;
+  }catch(e){return false;}
+}
+// Resolves { user } for a matching LMS administrator, { message } when the
+// account exists but may not sign in, or null when no LMS administrator matches.
+async function pyFindLmsAdmin(username,password){
+  var list=[];
+  try{list=JSON.parse(CESTISStore.getItem('voctrain_users')||'[]');}catch(e){list=[];}
+  if(!Array.isArray(list))return null;
+  var name=String(username||'').trim().toLowerCase();
+  var acct=list.find(function(a){
+    return a&&a.role==='admin'&&(String(a.username||'').toLowerCase()===name||(a.email&&String(a.email).toLowerCase()===name));
+  });
+  if(!acct)return null;
+  var AA=window.CESTISCore&&CESTISCore.accountAccess;
+  if(AA){
+    if(AA.isPublishedDefault(password)||AA.isSeededLogin(acct))return null;   // the default never opens Payroll
+    var chk=AA.check(acct);
+    if(!chk.allowed)return {message:chk.message};
+  }else if(String(acct.status||'').toLowerCase()==='disabled'||String(acct.status||'').toLowerCase()==='inactive'){
+    return {message:'This account has been disabled. Contact an administrator.'};
+  }
+  if(!(await pyVerifyLmsPassword(password,acct.password)))return {message:'Invalid password. Please try again.'};
+  var hasApp=!!(acct.twoFactorEnabled&&acct.twoFactorSecret);
+  if(acct.emailOtpLogin&&!hasApp){
+    // Its second step is an e-mailed code, which only the LMS sends. Accept it
+    // when this computer is already signed in to the LMS as an administrator.
+    var lmsAdmin=false;
+    try{lmsAdmin=!!CESTISCore.sessionAccess.forPage({allowed:['admin']}).ok;}catch(e){lmsAdmin=false;}
+    if(!lmsAdmin)return {message:'This account signs in with an e-mailed code. Sign in to the LMS dashboard on this computer first, then open Payroll.'};
+  }
+  return {user:{
+    id:'lms_'+(acct.id||acct.username),
+    username:acct.username||acct.email,
+    displayName:acct.name||acct.displayName||acct.username,
+    email:acct.email||'',
+    role:'Administrator',
+    isAdmin:true,
+    lmsAccount:true,
+    twoFactorEnabled:hasApp,
+    twoFactorSecret:hasApp?acct.twoFactorSecret:null,
+    backupCodes:[]   // LMS backup codes are used up in the LMS only
+  }};
+}
+
 async function handleLogin(event){
   if(event)event.preventDefault();
   var username=document.getElementById('username').value.trim();
@@ -5202,6 +5272,30 @@ async function handleLogin(event){
 
   // Case-insensitive username match, hash-aware password check (+ lazy upgrade)
   var user=await findUserForLogin(users,username,password);
+
+  // Not one of Payroll's own logins: an LMS administrator with their LMS password.
+  if(!user){
+    var lms=await pyFindLmsAdmin(username,password);
+    if(lms&&lms.user){
+      loginError.classList.remove('show');
+      if(lms.user.twoFactorEnabled){
+        pendingTwoFAUser=lms.user;
+        document.getElementById('loginStep1').style.display='none';
+        document.getElementById('loginStep2FA').style.display='block';
+        document.getElementById('login2FACode').focus();
+        loginBtnEl.disabled=false;
+      }else{
+        completeLogin(lms.user);
+      }
+      return;
+    }
+    if(lms&&lms.message){
+      document.getElementById('loginErrorText').textContent=lms.message;
+      loginError.classList.add('show');
+      loginBtnEl.disabled=false;
+      return;
+    }
+  }
 
   var usernameExists=users.find(function(u){
     return u.username.toLowerCase()===username.toLowerCase();
@@ -5334,9 +5428,12 @@ function completeLogin(user){
   sessionStorage.setItem('loggedInUser',JSON.stringify({
     username:user.username,displayName:user.displayName,
     role:user.role,isAdmin:user.isAdmin||user.role==='admin'||user.role==='Administrator',
-    twoFactorEnabled:user.twoFactorEnabled||false
+    twoFactorEnabled:user.twoFactorEnabled||false,
+    lmsAccount:!!user.lmsAccount
   }));
-  sessionStorage.setItem('cestisAttendanceCurrentUser',JSON.stringify(user));
+  // An LMS account's 2FA secret stays in the LMS's own store, not in this tab.
+  var _sessUser=user.lmsAccount?Object.assign({},user,{twoFactorSecret:null}):user;
+  sessionStorage.setItem('cestisAttendanceCurrentUser',JSON.stringify(_sessUser));
 
   pendingTwoFAUser=null;
   document.getElementById('loginStep1').style.display='block';
@@ -6143,7 +6240,9 @@ function renderUserManagement(){
   html+='<div style="margin-top:2rem;padding-top:1.5rem;border-top:1px solid var(--border)">';
   html+='<h3 style="font-size:1rem;font-weight:600;color:var(--text);margin-bottom:1rem">🔐 Two-Factor Authentication (Your Account)</h3>';
   var fullUser=allUsers.find(function(u){return u.id===currentUser.id||u.username.toLowerCase()===currentUser.username.toLowerCase();});
-  if(fullUser&&fullUser.twoFactorEnabled){
+  if(currentUser.lmsAccount&&!fullUser){
+    html+='<p style="font-size:.85rem;color:var(--text-dim)">You signed in with your LMS administrator account. Its password and two-factor settings are managed in the LMS dashboard.</p>';
+  }else if(fullUser&&fullUser.twoFactorEnabled){
     var unusedCodes=fullUser.backupCodes?fullUser.backupCodes.filter(function(bc){return !bc.used;}).length:0;
     html+='<div class="twofa-success"><strong>Two-Factor Authentication is ENABLED</strong>';
     html+='<p style="margin-top:.4rem">Your account is protected with an authenticator app.</p>';
