@@ -45,3 +45,24 @@ Figures in finance questions are data given in the question; every sum was worke
 ## FSFACC0134B Produce management reports to enable effective decision making
 - Decision reports only: relevant, sunk, committed, opportunity and avoidable costs; make-or-buy, special orders, limiting factor, branch closure, pricing, sensitivity. Practical 1 is a product-line profitability report.
 - Figures to re-check: E02 (J$32 relevant cost, J$200,000 a month), E03 (contribution J$9m; closing the branch cuts profit by J$1.5m), E05 (contribution falls J$75,000; about 2,667 meals), E07 (J$700,000), E08 (500 R, 300 P, 120 Q gives J$940,000 against J$740,000 ranked per unit), T1-14 to T1-25. Sunk and opportunity cost also appear in BSBMKP1053B in other words.
+
+## BSBBAD0274B Manage finances within a budget
+- Written by a writer who was stopped before reporting: read it with the usual care (figures are data in the questions).
+
+## FSFADM0074B Provide financial and business performance information
+- Giving information to managers (needs, collecting and checking data, KPIs, presentation, confidentiality), kept apart from FSFACC0134B and FSFACC0294B. Ratios are data: check T1-13/14/18/21/24/43/44, S02/03/05/07/12/14/15 and E03 (gross margins 40% and 35%, net 10% and 8%). T1-26 lists the four balanced-scorecard headings.
+
+## PSSADM0204B Manage policy implementation
+- Ministries, agencies and parish councils. T1-35 names "the access to information rules" by purpose only. E09: contingency J$300,000, a rise of J$540,000, a shortfall of J$240,000. S12 accepts several spellings of "power-interest grid".
+
+## BSBSBM0024B Research business opportunities
+- Research only (sources and their reliability, market size, competitors, legal checks, scoring); launching is BSBMKP1053B. T1-24 weighted scores 7.55, 7.20, 6.85; E03 a yearly market of J$72,000,000; E08 names licences for tours and passenger transport in general terms.
+
+## BSBSBM0054C Develop a business plan
+- The plan document itself. T1-16: break-even as a sales value (BSBMKP1053B uses units). E03: a J$4,000,000 loan, net profit J$1,500,000 (10% margin), J$700,000 left after repayment. E04: general partners "usually" have unlimited liability.
+
+## BSBSBM0354A Protect and use intangible assets
+- Confirm the IP principles for Jamaica: copyright arises automatically (T1-04, E02); a patent needs novelty, inventiveness and usefulness, and no public showing before filing (T1-06/07); an employer usually owns staff work, a contractor's needs a written assignment (T1-10/11); a self-built brand is not on the balance sheet (T1-42); T1-31 a coffee-region name is a geographical indication (the coffee is not named). The national IP office is not named. E04: a J$9,000,000 royalty against a J$1,500,000 shortfall.
+
+## PSAHRD0224B Develop and use emotional intelligence
+- Public sector; names Goleman (T1-02, S02, S04); S01 also accepts "EQ". Wellbeing answers: refer to professional help or the employee assistance programme, and urgent help if there is a risk of self-harm (T1-21, E08) — check against the Centre's practice. In Practical 1, members' personal scores and plans are seen only by the assessor: confirm the Centre agrees.
