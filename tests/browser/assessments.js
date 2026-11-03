@@ -29,6 +29,8 @@
                 assessor records a result per member; filed with its photos.
      dates      Change dates (the Administrator): a sitting nobody has begun
                 moves to new days; one begun keeps its opening.
+     unitcode   Change unit code (the Administrator): a unit's tests re-coded,
+                listed while off the plan, then given the plan's code back.
      results    The Assessment Results page: filters, counts, View PDF,
                 Download, one PDF of several to print, a group's photos and
                 their ZIP.
@@ -761,6 +763,40 @@ function seed({ MORE, PASSHASH }) {
     const entries = (listing.match(/\d\d [^\n]+\.jpg/g) || []);
     ok(d4.suggestedFilename() === 'Group B - MEMFAB0042C Practical 1 - photos.zip' && entries.length === 7 && /\b01 [^\n]+\.jpg/.test(listing) && /\b07 [^\n]+\.jpg/.test(listing), 'all the photos as a ZIP named after the group and the unit (' + d4.suggestedFilename() + ', ' + entries.length + ' photos)');
     await op.evaluate(() => document.querySelectorAll('.assess-dlg-back').forEach(d => d.remove()));
+  });
+
+  await section('unitcode', 'Change unit code: the Administrator re-codes a unit\'s tests, then gives them the plan\'s code back', async () => {
+    await go(op, 'assessments');
+    await op.selectOption('#page-assessments [data-ctl="prog"]', 'QUAL-WEL-L2');
+    await op.fill('#page-assessments [data-ctl="q"]', 'MEMFAB0042C');
+    await op.waitForTimeout(700);
+    ok(await op.evaluate(() => !!document.querySelector('#page-assessments [data-act="unitcode"]')), 'a unit with prepared tests offers Change unit code… to the Administrator');
+    const before = await op.evaluate(() => exams.filter(e => e.assessment && e.assessment.unitCode === 'MEMFAB0042C').map(e => ({ id: e.id, t: e.title })));
+    await op.click('#page-assessments [data-act="unitcode"]');
+    await op.waitForSelector('.assess-dlg [data-f="code"]', { timeout: 5000 });
+    await op.fill('.assess-dlg [data-f="code"]', 'MEMFAB0042X');
+    await op.fill('.assess-dlg [data-f="reason"]', 'Re-coded by the awarding body');
+    await shot(op, '17-change-unit-code');
+    await op.click('.assess-dlg [data-dlg="save"]');
+    await op.waitForTimeout(500);
+    const after = await op.evaluate(() => exams.filter(e => e.assessment && e.assessment.unitCode === 'MEMFAB0042X').map(e => ({ id: e.id, t: e.title, h: (e.assessment.unitChanges || []).length })));
+    ok(after.length === before.length && before.length >= 8 && after.every(a => /MEMFAB0042X/.test(a.t) && a.h === 1), 'every prepared test of the unit and every opened copy took the new code (' + after.length + ')');
+    await op.fill('#page-assessments [data-ctl="q"]', '');
+    await op.waitForTimeout(700);
+    const stray = await txt(op, '#page-assessments .assess-stray');
+    ok(/not on the Qualification Plan/.test(stray) && /MEMFAB0042X/.test(stray), 'the unit is no longer on the plan: its tests are listed, not hidden');
+    await op.evaluate(() => { const e = document.querySelector('#page-assessments .assess-stray'); if (e) e.scrollIntoView({ block: 'start' }); });
+    await shot(op, '18-tests-not-on-plan', { focus: '#page-assessments .assess-stray' });
+    // Back to the plan's code, picked from the plan.
+    await op.click('#page-assessments .assess-stray [data-act="unitcode"]');
+    await op.waitForSelector('.assess-dlg [data-f="plan"]', { timeout: 5000 });
+    const picked = await op.evaluate(() => { const s = document.querySelector('.assess-dlg [data-f="plan"]'); const o = Array.from(s.options).find(x => /MEMFAB0042C/.test(x.textContent)); s.value = o.value; s.dispatchEvent(new Event('change', { bubbles: true })); return document.querySelector('.assess-dlg [data-f="code"]').value; });
+    ok(picked === 'MEMFAB0042C', 'picking the unit from the plan fills its code');
+    await op.click('.assess-dlg [data-dlg="save"]');
+    await op.waitForTimeout(500);
+    const back = await op.evaluate(ids => ids.map(x => { const e = exams.find(y => y.id === x.id); return { same: e.title === x.t, code: e.assessment.unitCode, h: e.assessment.unitChanges.length }; }), before);
+    ok(back.every(b => b.same && b.code === 'MEMFAB0042C' && b.h === 2), 'given the plan\'s code back: titles as before, both changes kept');
+    ok(!(await op.evaluate(() => !!document.querySelector('#page-assessments .assess-stray'))), 'nothing left off the plan');
   });
 
   console.log('\n' + passed + ' passed, ' + failed + ' failed');

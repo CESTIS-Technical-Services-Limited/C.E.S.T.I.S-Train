@@ -432,6 +432,12 @@ instructor and 6 trainees on phone settings, every connection's bytes read from 
   the Assessments page). Before anyone has begun, both dates move; once someone has begun, the
   opening stays and the closing can only move later. Every change is kept (from, to, why, who,
   when) and the intake is told the new dates.
+- **The Administrator changes a unit's code** on its prepared tests (Change unit code… on the
+  Assessments page), when the awarding body re-codes a unit or the Qualification Plan uses another
+  code. All four tests and every copy opened from them change together, with their titles (a
+  result counts towards the unit by the code in the title), and the change is kept with who, when
+  and why. Questions, results and records are untouched. Tests whose unit is no longer on the plan
+  are listed on the page, never hidden, so they can be given the plan's code.
 
 ### Grades, transcripts and Student Progress
 - **Renames and moves.** Renaming a trainee or moving them to another programme carries every

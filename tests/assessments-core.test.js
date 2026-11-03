@@ -582,6 +582,42 @@ console.log('Change dates: the Administrator moves an opened sitting to its actu
   assert(A.datesOf(fresh()).closeTime === '12:30' && A.datesOf({ date: '2026-11-04', time: '09:00' }).closeTime === '', 'its dates, as the dialog shows them');
 }
 
+console.log('Change unit code: a unit\'s tests (and the copies opened from them) take a new code');
+{
+  const all = [];
+  A.ORDER.forEach((k, i) => { const m = A.bankToExam(makeBank(), k, { id: 'EX-U' + i, qual: QUAL, unit: UNIT, at: '2026-10-31T10:00:00.000Z' }); A.markReady(m, { name: 'Ian Barrett' }, '2026-10-31T11:00:00.000Z'); all.push(m); });
+  const c1 = A.openCopy(all[0], { id: 'EX-UC', course: 'W', intake: 'Sep 2026', date: '2026-11-04', time: '09:00', closeDate: '2026-11-04', closeTime: '12:30', offset: OFF }).exam;
+  all.push(c1);
+  const other = A.bankToExam(makeBank(), 'theory1', { id: 'EX-OTHER', qual: QUAL, unit: { code: 'MEMFAB0052C', title: 'Weld using GMAW' } });
+  all.push(other);
+  const who = { qualId: QUAL.id, from: { code: UNIT.code, title: UNIT.title }, byName: 'The Administrator', byRole: 'admin', byId: 'admin', at: '2026-11-03T18:00:00.000Z' };
+  const go = o => A.changeUnitCode(all, Object.assign({}, who, o));
+  assert(A.mayChangeUnit('admin') && !A.mayChangeUnit('instructor') && !A.mayChangeUnit('adminstaff'), 'only the Administrator changes a unit code');
+  assert(go({ byRole: 'instructor', code: 'MEMFAB0042D' }).error === 'who', 'an instructor cannot');
+  assert(go({ code: 'MEM FAB<1>' }).error === 'code' && go({ code: '' }).error === 'code', 'a plain code is needed');
+  assert(go({ code: UNIT.code }).error === 'same', 'the same code and title: nothing to change');
+  const t = go({ code: 'MEMFAB0052C' });
+  assert(t.error === 'taken' && t.kinds.join() === 'theory1', 'another unit\'s Theory 1 already has that code: nothing changes');
+  assert(all[0].assessment.unitCode === UNIT.code, 'and nothing changed');
+  const r = go({ code: 'memfab0042d', reason: 'Re-coded on the Qualification Plan' });
+  assert(!r.error && r.changed.length === 5 && r.unit.code === 'MEMFAB0042D', 'all four prepared tests and the copy opened from one: five (' + JSON.stringify(r).slice(0, 80) + ')');
+  assert(all.slice(0, 5).every(e => e.assessment.unitCode === 'MEMFAB0042D' && e.title.indexOf('MEMFAB0042D') !== -1 && e.title.indexOf(UNIT.code) === -1), 'the code and the titles changed');
+  assert(c1.questionData.length === 45 && c1.status === 'upcoming' && c1.date === '2026-11-04', 'the questions and dates stay as they are');
+  const h = c1.assessment.unitChanges;
+  assert(h.length === 1 && h[0].from.code === UNIT.code && h[0].to.code === 'MEMFAB0042D' && h[0].reason === 'Re-coded on the Qualification Plan' && h[0].byName === 'The Administrator', 'the change is kept: from, to, why, who');
+  assert(A.masterFor(all, QUAL, { code: 'MEMFAB0042D', title: UNIT.title }, 'theory1') === all[0] && A.masterFor(all, QUAL, UNIT, 'theory1') === null, 'the tests now show under the new code');
+  assert(Core.Transcript.examMatchesUnit(c1, { code: 'MEMFAB0042D', name: UNIT.title }) && !Core.Transcript.examMatchesUnit(c1, { code: UNIT.code, name: 'x' }), 'a result counts towards the new code on the transcript');
+  assert(other.assessment.unitCode === 'MEMFAB0052C' && other.assessment.unitChanges === undefined, 'another unit\'s tests are untouched');
+  const r2 = A.changeUnitCode(all, Object.assign({}, who, { from: { code: 'MEMFAB0042D', title: UNIT.title }, code: 'MEMFAB0042D', title: 'Perform weld (flat and horizontal) using MMAW' }));
+  assert(!r2.error && all[0].assessment.unitTitle === 'Perform weld (flat and horizontal) using MMAW' && all[0].title.indexOf('Perform weld (flat and horizontal) using MMAW') !== -1, 'the title alone can change too');
+  // Tests whose unit is no longer on the plan are listed, never hidden.
+  const progs = [{ qual: QUAL, units: [{ code: UNIT.code, title: UNIT.title }, { code: 'MEMFAB0052C', title: 'Weld using GMAW' }] }];
+  const stray = A.strayUnits(all, progs);
+  assert(stray.length === 1 && stray[0].code === 'MEMFAB0042D' && stray[0].masters.length === 4, 'the re-coded unit, not on this plan, is listed with its four tests');
+  progs[0].units.push({ code: 'MEMFAB0042D', title: 'x' });
+  assert(A.strayUnits(all, progs).length === 0, 'once the plan has the code, nothing is listed');
+}
+
 console.log('The units, for the owner to send (Export units)');
 {
   const csv = A.unitsCsv([{ id: 'QUAL-WEL-L2', title: 'WELDING LEVEL 2', skillArea: 'Welding & Fabrication', level: 2, code: 'MEM22423', units: [{ code: 'MEMFAB0042C', name: 'Perform weld "flat"' }, { code: 'MEMFAB0042C', name: 'dup' }, { code: 'X1', name: '=SUM(A1)', coreElective: 'Elective' }] }, { id: 'bad' }]);

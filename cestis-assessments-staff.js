@@ -88,6 +88,9 @@
     var canCheck = mayCheck(q);
     var prep = entry && missing.length && canCheck ? '<div class="assess-acts" style="margin-bottom:8px"><button type="button" class="btn btn-primary" data-act="prepare" data-qual="' + esc(q.id) + '" data-unit="' + esc(u.code || u.title) + '">' +
       (missing.length === 4 ? 'Prepare this unit\'s four assessments' : 'Prepare the rest (' + missing.length + ')') + '</button></div>' : '';
+    var hasAny = A.ORDER.some(function (k) { return !!masters[k]; });
+    var codeBtn = hasAny && A.mayChangeUnit(me().role) ? '<button type="button" class="btn btn-secondary btn-sm assess-unit-code" data-act="unitcode" data-qual="' + esc(q.id) + '" data-code="' + esc(u.code) + '" data-title="' + esc(u.title) + '">Change unit code…</button>' : '';
+    if (codeBtn) head = '<div class="assess-unit-head">' + head + codeBtn + '</div>';
     var cards = A.ORDER.map(function (k) {
       var m = masters[k];
       var st = A.statusOf(m, m ? A.copiesOf(all, m.id) : []);
@@ -149,6 +152,7 @@
       '<div class="assess-note">Every prepared test starts as <strong>To check</strong>. An instructor must read it, correct anything, and mark it <strong>Ready</strong> before it can be opened for an intake. Nothing reaches trainees until then.' +
       (r === 'adminstaff' ? ' You can look at them here; instructors and the Administrator check and open them.' : '') + '</div>' +
       (idx.failed ? '<div class="assess-note" role="alert">The list of prepared assessments could not be read just now. Check the connection and open this page again.</div>' : '') +
+      strayBlock(all, progs) +
       (body || '<div class="card assess-empty">' + (progs.length ? 'No units match.' : 'There are no units on the Qualification Plan for your programme yet.') + '</div>');
     updateBadge();
   }
@@ -317,6 +321,75 @@
         rerender();
         if (practical) groups(o.exam.id);
       } });
+  }
+
+  /* ---- Change unit code (the Administrator) --------------------------
+     A unit's prepared tests take a new code (and title): all four, and every
+     copy opened from them (Core.assessments.changeUnitCode). */
+  function strayBlock(all, progs) {
+    var quals = {}; progs.forEach(function (p) { quals[p.qual.id] = p.qual; });
+    var stray = A.strayUnits(all, progs).filter(function (x) { return quals[x.qualId] && (!view.prog || view.prog === x.qualId); });
+    if (!stray.length) return '';
+    var admin = A.mayChangeUnit(me().role);
+    return '<div class="card assess-stray"><h3>Tests whose unit is not on the Qualification Plan</h3>' +
+      '<p class="assess-sub">The plan no longer has these units\' codes (a unit may have been re-coded there). Their tests, results and records are kept.' +
+      (admin ? ' Give them the unit\'s code from the plan with Change unit code….' : ' The Administrator can give them the unit\'s code from the plan.') + '</p>' +
+      stray.map(function (x) {
+        return '<div class="assess-unit"><div class="assess-unit-head"><div class="assess-unit-title">' + (x.code ? '<span class="assess-code">' + esc(x.code) + '</span>' : '') + esc(x.title) +
+          ' <span class="assess-sub">· ' + esc((quals[x.qualId] || {}).title || x.qualTitle) + ' · ' + x.masters.slice().sort(function (a, b) { return A.ORDER.indexOf(a.assessment.kind) - A.ORDER.indexOf(b.assessment.kind); }).map(function (m) { return esc(A.KINDS[m.assessment.kind].label); }).join(', ') + '</span></div>' +
+          (admin ? '<button type="button" class="btn btn-secondary btn-sm assess-unit-code" data-act="unitcode" data-qual="' + esc(x.qualId) + '" data-code="' + esc(x.code) + '" data-title="' + esc(x.title) + '">Change unit code…</button>' : '') +
+          '</div></div>';
+      }).join('') + '</div>';
+  }
+  function changeUnitCode(qualId, code, title) {
+    var m = me();
+    if (!A.mayChangeUnit(m.role)) { S.toast('Only the Administrator changes a unit code.', 'warning'); return; }
+    var all = S.exams();
+    var masters = all.filter(function (e) { return A.isMaster(e) && (!e.assessment.qualId || e.assessment.qualId === qualId) &&
+      (code ? A.normCode(e.assessment.unitCode) === A.normCode(code) : A.normTitle(e.assessment.unitTitle) === A.normTitle(title)); });
+    if (!masters.length) return;
+    var copies = [], begun = 0;
+    masters.forEach(function (x) { A.copiesOf(all, x.id).forEach(function (c) { copies.push(c); if (startedBy(c)) begun++; }); });
+    var p = A.unitsFrom(catalogs()).filter(function (x) { return x.qual.id === qualId; })[0];
+    var taken = {}; all.forEach(function (e) { if (A.isMaster(e) && e.assessment.qualId === qualId) taken[A.normCode(e.assessment.unitCode)] = 1; });
+    var planUnits = p ? p.units.filter(function (u) { return u.code && A.normCode(u.code) !== A.normCode(code) && !taken[A.normCode(u.code)]; }) : [];
+    var pick = planUnits.length ? '<label class="assess-field">Pick the unit from the Qualification Plan (optional)<select class="form-control" data-f="plan"><option value="">—</option>' +
+      planUnits.map(function (u, i) { return '<option value="' + i + '">' + esc(A.unitLabel(u)) + '</option>'; }).join('') + '</select></label>' : '';
+    var hist = [];
+    masters.forEach(function (x) { list(x.assessment.unitChanges).forEach(function (c) { if (!hist.some(function (h) { return h.at === c.at && h.to.code === c.to.code; })) hist.push(c); }); });
+    S.dialog({ title: 'Change unit code', wide: false,
+      body: '<p class="assess-sub" style="margin-bottom:12px"><strong>Now:</strong> ' + esc(A.unitLabel({ code: code, title: title })) + '</p><div class="assess-err" hidden></div>' + pick +
+        '<label class="assess-field">New unit code<input type="text" class="form-control" data-f="code" maxlength="30" value="' + esc(code) + '" autocapitalize="characters" spellcheck="false"></label>' +
+        '<label class="assess-field">Unit title<input type="text" class="form-control" data-f="title" maxlength="200" value="' + esc(title) + '"></label>' +
+        '<label class="assess-field">Reason (kept with the record)<input type="text" class="form-control" data-f="reason" maxlength="200" placeholder="For example: the unit was re-coded on the Qualification Plan"></label>' +
+        '<p class="assess-sub">This changes the unit on its ' + masters.length + ' prepared test' + (masters.length === 1 ? '' : 's') +
+        (copies.length ? ' and the ' + copies.length + ' opened for intakes' + (begun ? ' (' + begun + ' already sat or begun: their results then count towards the new code)' : '') : '') +
+        '. The questions, checks, results and records stay as they are.</p>' +
+        (hist.length ? '<div class="assess-sub" style="margin-top:12px"><strong>Earlier changes</strong><ul class="assess-todo">' + hist.slice().reverse().map(function (c) {
+          return '<li>' + esc(A.unitLabel(c.from)) + ' → ' + esc(A.unitLabel(c.to)) + (c.reason ? ' — ' + esc(c.reason) : '') + ' — by ' + esc(c.byName) + ', ' + esc(A.when(c.at, S.offset(), true)) + '</li>';
+        }).join('') + '</ul></div>' : ''),
+      actions: [{ id: 'cancel', label: 'Cancel', close: true }, { id: 'save', label: 'Change the code', kind: 'primary' }],
+      onAction: function (act, dl) {
+        if (act !== 'save') return;
+        var v = function (f) { var el = dl.q('[data-f="' + f + '"]'); return el ? el.value : ''; };
+        var r = A.changeUnitCode(S.exams(), { qualId: qualId, from: { code: code, title: title }, code: v('code'), title: v('title'), reason: v('reason'),
+          byId: 'admin', byName: m.name, byRole: m.role, at: S.nowIso() });
+        var why = { code: 'Type the unit code: letters and numbers, 2 to 30 characters, no spaces.', title: 'Type the unit title (without the < and > signs).',
+          reason: 'Keep the reason short, without the < and > signs.', same: 'That is the code and title the tests already have.', none: 'This unit has no prepared tests.',
+          who: 'Only the Administrator changes a unit code.' };
+        if (r.error === 'taken') return dl.error('Another unit\'s ' + r.kinds.map(function (k) { return A.KINDS[k].label; }).join(' and ') + ' already use' + (r.kinds.length === 1 ? 's' : '') + ' that code. Nothing was changed.');
+        if (r.error) return dl.error(why[r.error] || 'The code could not be changed.');
+        S.saveExams();
+        var msg = 'Unit code changed: ' + A.unitLabel({ code: code, title: title }) + ' is now ' + A.unitLabel(r.unit) + ' on its prepared tests';
+        try { if (typeof W.addNotification === 'function') W.addNotification(msg, 'exam', null, ['admin', 'instructor']); } catch (x) {}
+        dl.close();
+        S.toast('The unit\'s tests now use ' + r.unit.code + '.');
+        rerender();
+      } }).el.addEventListener('change', function (ev) {
+        if (ev.target.getAttribute('data-f') !== 'plan' || ev.target.value === '') return;
+        var u = planUnits[Number(ev.target.value)], box = ev.target.closest('.assess-dlg');
+        box.querySelector('[data-f="code"]').value = u.code; box.querySelector('[data-f="title"]').value = u.title;
+      });
   }
 
   /* ---- Change dates (the Administrator) ------------------------------
@@ -541,6 +614,7 @@
       else if (act === 'ready') markReady(id);
       else if (act === 'open') openForIntake(id);
       else if (act === 'dates') changeDates(id);
+      else if (act === 'unitcode') changeUnitCode(b.getAttribute('data-qual'), b.getAttribute('data-code'), b.getAttribute('data-title'));
       else if (act === 'groups') groups(id);
       else if (act === 'mark') markPractical(id);
     });
