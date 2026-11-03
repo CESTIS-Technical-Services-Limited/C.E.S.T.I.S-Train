@@ -60,3 +60,21 @@
 
 ## Etching (MEMFAB0142B, MEMFAB0103B, MEMFAB0063B)
 - Macro etches use "the etchant the Centre approves", handled as its SDS says; no chemical is named.
+
+## MEMFAB0123B
+- GTAW plate. Q15: in 2G the filler goes in at the upper edge of the pool; Q4: 3G plus 4G "generally" qualifies all plate positions; Q3: a test with backing covers backed joints only. Practical 1 assumes about 6 mm plate and stands for 3G and 4G.
+
+## MEMFAB0133B
+- GTAW pipe. Q6: socket welds pulled back about 1.5 mm; Q2 and essay 5: a small-pipe test covers larger pipe, not the reverse (check the diameter ranges in the code the Centre uses). Practical 1 needs 6G stands (members take turns if there are too few); Practical 2 needs 15–25 mm socket-weld fittings and a dye penetrant kit.
+
+## MEMFAB0143B
+- GMAW pipe and plate. Q1: short-circuit GMAW is "not prequalified under many AWS structural codes"; Q4: transfer mode limits a welder's qualification; Q16: 0.9 mm wire for pipe roots. Pipe-to-plate 5F, 2F, 4F; ISO PJ (downhill) and PH (uphill). Practical 1 needs ceramic backing tape.
+
+## MEMFAB0153B
+- Submerged arc to AWS. Practical 1 Form B (a shop visit or a stand-in weld on a travel carriage) means the SAW operating skill is assessed later; Practical 2 needs no machine. F7A2: "2" = minus 20 °F (about −29 °C); Q10: with an active flux, higher voltage adds more alloy. Kept apart from MEMFAB0043B (SAW basics).
+
+## MEMFAB0193B
+- Advanced FCAW: T-5 is low-hydrogen; E71T-8 suits site work needing toughness; Ni1 ≈ 1% nickel; weathering steel needs a matching wire; Q5: mixing self-shielded FCAW with other processes can lower toughness; Q9: damp wire re-dried only if the maker allows. Air carbon arc gouging only if the Centre permits, under supervision.
+
+## MEMMAH0073B
+- Purchasing for welding and fabrication; fresh against Electrical MEMMAH0073A, Welding MEMMAH0042B and MEMCOR0083B. Prices and exchange rates made up; GCT "at the current rate". Check FOB and CIF meanings, the EOQ formula (given in the question) and the 220 V, 50 Hz supply check in Q27. Both practicals are paper and role play.
