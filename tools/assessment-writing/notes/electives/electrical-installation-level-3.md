@@ -40,3 +40,34 @@
 ## MEMPLN0124A
 - Fall-of-potential: the potential spike at 62% (31 m of 50 m). Polarisation index about 2 or more is good, about 1 poor. Type B RCDs detect smooth DC leakage. The 1.2 temperature factor, the RCD 300 ms limit and the 1 MΩ minimum are data. Generator Zs, PFC and RCD results are handed out by the assessor.
 - Practical 1 needs a multi-source rig (generator inlet with changeover switch, dummy PV isolator), a low-resistance ohmmeter, and a practice earth-electrode yard with an earth tester.
+
+## MEMCOR0132A
+- Confirm: Pt100 about 138.5 Ω at 100 °C; 9.81 kPa per metre of water; a reference at least 4× more accurate; orifice meter 25% DP = 50% flow, 64% DP = 80% flow. Cable screen earthed at the panel end only; the three-valve manifold steps in a set order: check both against Centre practice.
+- Short answer 15 accepts "extension cable" as well as "compensating cable": strictly these differ — remove "extension cable" if the Centre teaches the difference.
+- The practicals need an instrument training bench (4–20 mA transmitter, hand pump, in-date reference gauge, Pt100 and type K loops); the 24 V DC loop supply is switched by the assessor.
+
+## MEMCOR0063A
+- Uses the zone system (Zones 0/1/2 and 20/21/22, gas groups IIA–IIC, T1–T6); Q10 names class/division as the alternative — confirm which local sites use. Q21 explains 10% LEL; short answer 9 accepts i/ia/ib/ic; short answer 15 accepts LPG, propane, butane or cooking gas.
+- Practical 1 is a paper exercise; Practical 2 needs an Ex-type training enclosure (or stand-in) and feeler gauges, with the gap figure given by the assessor.
+
+## MEMCOR0013A
+- Short answer 15 names the HEART/NSTA Trust as managing NVQ-J and apprenticeships — confirm the wording. Q35 says "strappers" (UK); local electricians may say "travellers". Short answers 6 and 7 rely on learning styles: keep only if the Centre teaches them.
+- Practical 1 needs an unpowered training board with a lockable isolator, a tester and a proving unit; Practical 2 is desk work and a role play.
+
+## MEMMRD0703A
+- Theory and planning only; Practical 2 sets out a full-size layout with tape in the yard (no digging) and inspects unpowered training items or photos; the assessor gives the clearances.
+- Sums (checked): 500 kVA at 480 V ≈ 601 A; 380 kW at 0.8 = 475 kVA (500 kVA chosen); essay 8: 520 kW at 0.85 = 612 kVA, +20% = 734 kVA, so 750 kVA ≈ 902 A at 480 V; 300 A at 480 V ≈ 249 kVA; 12 000/240 V = 50:1; bund 110% of 800 L = 880 L. 480 V is example data; no Jamaican medium voltages are named.
+- Q41 and essay 9: inspection certificate and approval before the power company connects — confirm. Check the terms RMU, ONAN, Dyn11, Buchholz relay, SF6, step and touch voltage, and the commissioning tests in essay 9.
+
+## MEMMRD0443A
+- Kept to transformers, universal and DC motors, bearings, generators with changeover switches, UPS units, star-delta starters, solenoids and portable equipment (other fault-finding units cover the rest).
+- Insulation test 500 V DC for 110/220 V equipment "unless the maker says otherwise"; PI compares the 10-minute and 1-minute readings; 220 V 1 500 W heater ≈ 32 Ω, 110 V 1 000 W = 12.1 Ω; turns-ratio answers 24 V and 12 V; 4-pole at 50 Hz = 1 500 rpm. Q43: a DC shunt motor races with its field open; Q23: an AC solenoid burns out when the plunger sticks.
+- Practical 1 needs portable tools with planted faults and an insulation tester; Practical 2 a star-delta training panel with a control transformer and timer, and a group lock hasp.
+
+## BSBFLM0053A
+- The Electrical version of Welding BSBFLM0053B for an electrical contractor: about 10 questions share ideas (SMART, variance, hurricane risk, skills gap, cash flow) in new wording and figures.
+- Sums (checked): 1 120 h ÷ 160 h = 7 electricians; 80 h × J$1,500 = J$120,000; essay 4 totals J$35,000 over, about 1.6%. GCT as letters only; the assessor gives the rate in Practical 1.
+
+## BSBFLM0093A
+- Shares ground with MEMCOR0103A and Welding MEMCOR0052B and MEMCOR0023C (no repeated stems). Sums: 12 to 9 callbacks = 25%; payback 12 and 6 months; 60 to 48 m = 20%; 10 to 4 min = 60%; Pareto top two causes 27 of 40 = 67.5%. PDCA "C" also accepts "study".
+- Practical 1 needs a real stores shelf or tool cupboard to organise (5S), with red tags and labels; the instructor approves anything thrown away.
