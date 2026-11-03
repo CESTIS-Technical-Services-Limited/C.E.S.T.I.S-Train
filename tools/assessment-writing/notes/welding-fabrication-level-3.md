@@ -52,3 +52,12 @@ Level 3 banks were written fresh. Where a Level 2 bank covers the same topic, no
 - MEMCOR0052B: overlaps MEMCOR0131B (meetings, conflict) and MEMCOR0012B/0161B (planning); team stages forming–performing.
 - MEMCOR0122C: topic overlap with Level 2 MEMCOR0122D (no repeated question); its disposition short answer is close to the NCR one in MEMCOR0131B.
 - MEMFAB0022B: confirm vertical air carbon arc gouging downwards (Q14), set-on branch hole about the branch bore (Q33), 44 electrodes for 12 m (Q2), stop-holes only if the procedure asks (Q22). Practical 1 needs a gouging-capable power source, compressor, fume extraction and screens; practical 2 assumes about 114 mm and 60 mm OD pipe, a wrap-around and an oxy-fuel set. Overlaps MEMFAB0061B by topic.
+
+## Batch 6
+- MEMFAB0113B (pipe, Cr-Mo): assumes P11-type pipe and E8018-B2 electrodes (assessor may use carbon steel), a holding oven, heating gear and temperature crayons, and a bend tester (nick-break as fallback). The 37.5° bevel is "common"; 150 °C preheat and 75 mm each side are given as data; heat-treatment figures left to the WPS; Q28 "a 6G pass generally qualifies all positions"; Q44 uses 60% deposit efficiency as data.
+- MEMFAB0023B (MIG): practical 2 uses spray transfer if the set allows; practical 1 needs a press or heavy vice; Q17 inductance, Q20 stick-out; heat input without an arc-efficiency factor.
+- MEMFAB0033B (TIG): assumes an AC/DC inverter set, stainless tube with purge dams, a dye penetrant kit (oxygen meter optional); purge "5 × volume" given as data; cup No. 8 accepts 13 or 12.7 mm; Q14 1.6 mm tungsten for 90 A; Q28 tungsten shows bright white on film; Q29 too-high purge causes suck-back.
+- MEMCOR0083B (estimating): section masses and 60% deposit efficiency given as data; J$ prices made up; GCT rate given by the assessor.
+- BSBFLM0053B: paper and role-play practicals; SMART "A" accepts achievable, attainable, agreed.
+- MEMCOR0113B: S11 and S14 have several accepted answers; others go to the assessor.
+- Overlaps to read side by side: MEMFAB0023B/0033B with MEMFAB0052B/0062B; MEMFAB0113B with MEMFAB0042B; MEMCOR0113B and BSBFLM0053B with MEMCOR0093B, 0052B, 0012B; MEMCOR0083B with Level 2 BSBMKP0342D.
