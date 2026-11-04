@@ -153,3 +153,24 @@ Figures in finance questions are data given in the question; every sum was worke
 
 ## FSFACC0294B Report on financial activity
 - Figures: prepayments J$300,000 and J$450,000 (S04 J$300,000); sales variance J$140,000 adverse, volume J$500,000 adverse, price J$108,000 adverse (S03 also accepts the bare number); depreciation J$100,000 a month, J$600,000 a year; exchange loss J$60,000 and J$40,000; E02 food cost 35% to 38% of sales (J$360,000 over at the flexed level), combined shortfall J$1,635,000. Debtor days and ratios are FSFADM0074B; decision reports FSFACC0134B; commitments and virement BSBBAD0274B.
+
+## PSSADM0165B Manage innovation and continuous improvement
+- Organisation-wide in public bodies: innovation types and culture, idea systems, co-design, stage-gate, weighted scoring, pilots and scaling, diffusion, TQM, Lean, Six Sigma (DMAIC), the QMS, risk appetite. Figures: T1-11 weighted scores 6.8, 7.3, 6.9; T1-16 60%; T1-17 4 years; T1-26 15%; S07 12 months; S11 300; S14 J$300; E03 paybacks 4 and 5 years. T1-43: an agency "usually" owns a tool an officer builds at work — confirm.
+
+## BSBEBU0085B Evaluate new technologies for business
+- Figures: T1-08 J$2,500,000; T1-09 cloud cheaper by J$80,000; T1-10 ROI 50%; T1-11 30 months; T1-12 vendor scores 7.1, 7.45, 7.55; T1-23 43.2 minutes; T1-33 100 hours; S03 J$2,160,000; S05 J$600,000; S11 30%; S14 J$1,080,000; E02 J$2,550,000 against J$2,310,000 (a J$240,000 gap).
+
+## BSBFLM0035B Manage effective workplace relationships
+- Figures: T1-38 75%, T1-39 15%, T1-40 25%, S06 70%, S07 20%; E03 20-point falls in both survey questions, grievances 3 to 8, leavers 5 to 11 of 50. Wellbeing (T1-28, E06): urgent professional help where there is risk of self-harm; personal problems to the employee assistance programme — check against the Centre's practice. Kept apart from BSBBAD1244B, BSBBAD1273B and PSAHRD0224B.
+
+## BSBBAD1305B Analyse and interpret workforce development trends
+- Names STATIN's Labour Force Survey (T1-02), the PIOJ (S02), the Economic and Social Survey Jamaica (T1-45) and NVQ-J (T1-33) — confirm. Figures: T1-06 25%, T1-17 4.5%, T1-18 25%, T1-19 36, T1-37 1,210, T1-38 10%, T1-39 6, S05 20%, S06 18%, S13 15%; E03 growth 10% then about 13.6%, turnover 15%, about 18.2% and 20%, about 240 hires in 2025.
+
+## BSBEBU0125B Use online systems to support managerial decision- making
+- (The title's spacing is as the Qualification Plan gives it.) Figures: T1-14 3%; T1-16 one percentage point; T1-17 85%; T1-18 J$3,000; T1-19 15 days; T1-20 expected value J$1,000,000; T1-23 25%; T1-38 90%; S05 87.5%; S06 J$1,200,000; S07 5%; E03 a 40% response rate, 62.5% would use the service, expected values J$2,000,000 and J$1,950,000 (recommends the lower-risk Kingston option). T1-36 "the official companies registry search", not named.
+
+## BSBFLM0095B Facilitate continuous improvement
+- A team leader facilitating with a team: huddles, visual boards, nominal group technique, affinity diagram, dot voting, impact-effort grid, kaizen events, GROW, A3, standard work. Avoids the short-answer terms of the Electrical and Welding BSBFLM0093 units. Figures: T1-20 20 weeks; T1-22 60 calls; T1-24 20%; S03 18 dots; S05 3 per 1,000; S06 5 days; S13 95%; S15 11.25 staff-hours; E03 600 then 360 repeat calls (240 fewer), J$60,000 a week.
+
+## PSAHRD0185B Formulate a human resource strategic plan
+- Public bodies; post approval and pay scales in general terms. T1-43: the Permanent Secretary or head of the body gives final approval — confirm. Figures: T1-07 12%; T1-08 150; T1-10 35; T1-12 30%; T1-23 J$4,200,000; T1-24 J$7,200,000; T1-29 70 days; T1-30 5%; S04 7.5%; S05 J$15,000; S08 85%; S14 20%; E03 24 leavers, 54 hires, J$5,400,000 recruitment plus J$1,890,000 induction = J$7,290,000, a J$1,290,000 shortfall. Trend analysis is BSBBAD1305B; the plan is here.
