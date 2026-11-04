@@ -430,6 +430,7 @@ instructor and 6 trainees on phone settings, every connection's bytes read from 
   Level 2 Welding question word for word, since a trainee who sat Level 2 may sit Level 3.
   Electrical Installation and Maintenance Level 3 followed (48 core units), every practical done
   dead on training boards, so every Level 3 core unit now has prepared tests (305 banks in all).
+  Every elective of the seven programmes followed (64 tests), making 369 banks.
 - **The Administrator changes a sitting's dates** once its actual dates are set (Change dates… on
   the Assessments page). Before anyone has begun, both dates move; once someone has begun, the
   opening stays and the closing can only move later. Every change is kept (from, to, why, who,
