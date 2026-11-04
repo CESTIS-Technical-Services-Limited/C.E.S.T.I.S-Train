@@ -132,3 +132,24 @@ Figures in finance questions are data given in the question; every sum was worke
 
 ## BSBSBM0313A Lead and facilitate offsite staff
 - No motivation theories (BSBBAD1273B). Phone location tracking and data protection kept general (T1-21, E06); duty of care in general terms (S07, T1-36, E04); the Toronto time clash (T1-35) gives no hours. Figures: 70% (T1-09); J$576,000 (T1-15); J$34,000 (T1-17); 90% (T1-27); J$3.6m (T1-29); 92% (T1-39); J$45,000 (S03); J$56,250 (S06); 80% (S09); J$1.8m (S13); E03 first-year net saving J$3,150,000, then J$4,500,000 a year, output up 10%.
+
+## BSBBAD0473B Plan and manage conferences
+- Conferences, not ordinary meetings (T1-02 asks the difference). Figures: break-even 150 (T1-05) and 120 (S06); room-block shortfall J$324,000 (T1-11); 108 rooms (S10); 36 and 40 meals (T1-36, S09); early fee J$17,000 (S07); response rate 75% (S14). Procurement and data protection by purpose only.
+
+## BSBBAD0793B Promote the business
+- Promotion activity (research and the marketing plan are BSBMKP0173B). Figures: J$1,440,000 (T1-07); cost per thousand J$1,500 and J$3,000 (T1-10, S01); return 60% and 150% (T1-31, S07); J$900,000 (S06); 750 (S15). Consumer protection, IP and data protection in general terms (T1-20, T1-23, T1-24, E04).
+
+## BSBBAD0384B Ensure sales and service delivery
+- T1-38: the store's policy "usually honours the shelf price" — confirm against Jamaican consumer practice. T1-45 and E07: goods must match their description and be of fit quality, in general terms. Check the figures in T1-02/05/09/10/12/16 and S04/05/06/11/15. B2B accounts are BSBMKP0913B.
+
+## PSAHRD0214B Manage performance
+- Formal appraisal, moderation, forced distribution (E05), capability versus conduct, the poor-performance procedure: the right to be accompanied by a union delegate (T1-26), warnings, then redeployment, demotion or termination, natural justice (S10). Employment law by purpose; T1-44 "the public service rules". Weighted scores 3.6, 3.7, 4.3, 4.0 (T1-05, T1-38, S04, S15).
+
+## THTCOT0204B Manage projects
+- T1-20: RACI "A" = Accountable; S12 accepts RAG. Critical path 12 days, float 3 (T1-11/12); three-point estimates 7 and 6 days (T1-16, S07); CPI 0.90 and 1.2; SPI 0.75 and 0.8; E04 forecast about J$11.8m (J$11,764,706).
+
+## BSBADM0034B Develop and use complex spreadsheets
+- The system's bank check refuses the < and > signs, so comparison formulas are written in words (T1-08, T1-09, T1-19, T1-20, S12, E10). Where two functions are named (VLOOKUP or XLOOKUP) either is accepted; S06 accepts VLOOKUP, XLOOKUP, LOOKUP or INDEX/MATCH.
+
+## FSFACC0294B Report on financial activity
+- Figures: prepayments J$300,000 and J$450,000 (S04 J$300,000); sales variance J$140,000 adverse, volume J$500,000 adverse, price J$108,000 adverse (S03 also accepts the bare number); depreciation J$100,000 a month, J$600,000 a year; exchange loss J$60,000 and J$40,000; E02 food cost 35% to 38% of sales (J$360,000 over at the flexed level), combined shortfall J$1,635,000. Debtor days and ratios are FSFADM0074B; decision reports FSFACC0134B; commitments and virement BSBBAD0274B.
