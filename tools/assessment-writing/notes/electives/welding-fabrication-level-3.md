@@ -78,3 +78,22 @@
 
 ## MEMMAH0073B
 - Purchasing for welding and fabrication; fresh against Electrical MEMMAH0073A, Welding MEMMAH0042B and MEMCOR0083B. Prices and exchange rates made up; GCT "at the current rate". Check FOB and CIF meanings, the EOQ formula (given in the question) and the 220 V, 50 Hz supply check in Q27. Both practicals are paper and role play.
+
+## MEMCOR0013B
+- Q32: undercut on the top toe of a 2F fillet — "shorter arc and a little less current". Short answer 5: 25% of a 40-hour week = 10 h; short answer 9: 18 apprentice-hours. Practical 1 assumes E6013 rods (or the Centre's WPS); in Practical 2 trainees light and use oxy-acetylene sets themselves, under supervision.
+
+## MEMCOM0023B
+- Q9: a cracked LPG cylinder goes back to the gas supplier, never welded; Q8: burglar bars on bedrooms need an opening or escape grille. J$ figures made up; short answer 15 accepts "marine" or "coastal".
+
+## MEMPLN0063B
+- Q5 and Q13: "building approval from the local authority" in general terms. Short answer 2 (crane hire, 4-hour minimum = J$72 000) and essay 6 (holding-down bolts 30 mm out) are made-up data; short answer 13 is Wednesday 18 November 2026. Practical 2 needs a small pre-made frame or stand; the assessor sets the working height.
+
+## MEMMAH0093B
+- Coordinating material flow (ordering is MEMMAH0042B). Q19: 2.38 m² on a 1220 × 2440 sheet ≈ 80%; short answer 9: twenty 2 × 1 m × 6 mm plates = 1 884 kg (1 880 accepted), steel 7850 kg/m³. Practical 2 needs plate and bar stamped with heat numbers, mill certificates with a planted error, and the electrode oven and saw under Centre rules.
+
+## MEMCOR0063B
+- Gas zones 0/1/2 and dust zones 20/21/22 in general terms; no hot-work LEL limit is stated (the permit sets it; Q31 uses "below 5% LEL" as data). Sums: Q44 LEL 1.2% vol (data); short answer 3: 25% of a 2% LEL = 0.5% vol; short answer 10: purge 5 × pipe volume ≈ 0.79 m³; short answer 13 accepts 21% or 20.9% oxygen.
+- Confirm: Q29 non-sparking tools do not replace gas tests; Q18 and Q21 only certified cameras or phones in the zone, and the engine-driven welder stays outside it. Practical 2 is a simulation in a taped-off "Zone 2" with no fuel or gas; readings from cards or the instructor's detector.
+
+## BSBFLM0093B
+- Q19 and essay 7: switching from MMAW to flux-cored needs a qualified WPS and approved welders first. Essay 2: Pareto top two 32 of 50 = 64%. Practical 1 needs bar for at least four small frames and scrap for a jig; Practical 2 needs 20–30 weld samples with planted faults.
