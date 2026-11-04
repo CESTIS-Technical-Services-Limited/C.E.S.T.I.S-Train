@@ -195,3 +195,24 @@ Figures in finance questions are data given in the question; every sum was worke
 
 ## PSSAPM0065B Negotiate strategic procurement
 - Procurement rules by purpose only. Negotiation "only as the rules and tender documents allow" (T1-05); other bidders' prices stay confidential (T1-06); re-tender if a scope change would affect fair competition (T1-41) — confirm. S08 accepts "liquidated damages" and also "penalty clause" (not the same in law: drop the second for strict wording). Figures: T1-10 A cheaper by J$300,000; T1-20 J$2,000,000; T1-21 10%; T1-22 J$720,000; T1-38 9%; T1-42 J$300,000 saved; E03 J$46.2m against J$49.0m; E08 J$80,280,000, still J$280,000 over budget.
+
+## PSSADM0245B Obtain and manage consultancy services
+- Fee J$1,800,000 (T1-05); price score = lowest price ÷ firm's price × 100 (Firm A 80, T1-19); combined 84 against 82.4 with 80/20 weights (T1-20, E03; Firm C fails a 70-point minimum); payments J$2,500,000 (T1-29); variation 12.5% (T1-38); S05 J$1,000,000; S06 75; S13 J$1,500,000; E08 J$4,600,000 fees, J$5,000,000 before GCT. "QCBS" (S15) and 80/20 are common practice, not quoted from the procurement rules; direct selection "only where the rules allow it" (T1-11); a late proposal is rejected (T1-16).
+
+## FSFADM0025B Develop and monitor financial policy statements and operating procedures
+- Debtor days 60 (T1-18, E03); reserve J$12,000,000 (T1-20); mileage J$10,800 (T1-21); compliance 85% (T1-31, E07); S03 12%; S04 J$70,000 over a credit limit; S08 J$5,000,000; S11 J$18,000; S12 90%. Records kept "for the period tax and company law require" (T1-08). Apart from FSFACC0884A's controls.
+
+## BSBFLM0135B Manage budgets and financial plans within the work team
+- The team's financial plan from its work plan, consulting members, contingency and scenarios, procedures, review (apart from FSFACC0033B and BSBBAD0274B). Figures: overtime J$48,000 (T1-04); workshop J$375,000 (T1-05, E03); J$720,000 (T1-06); J$150,000 (T1-12); J$300 per application (T1-21); J$1,152,000 a year (T1-24); 12-month payback (T1-25, E08; J$480,000 net over three years); J$36,000 (T1-37); short answers J$99,000, J$240, J$450,000, 12, J$42,000, J$135,000, J$100,000.
+
+## PSAHRD0155B Manage remuneration strategies and plans
+- Package J$3,600,000 (T1-04); 10% below the median (T1-11); midpoint J$2,500,000 and spread 50% (T1-15/16); compa-ratio 110% (T1-19); J$2,100,000 (T1-26); pay gap 12% (T1-31); J$12,000,000 for a 4% rise (T1-33, E06); turnover 15% (T1-42); E03 compa-ratios 88%, 100%, 116%; S04 J$2,090,000; S11 J$2,400,000; S14 20 leavers. Minimum wage and equal pay laws by purpose (T1-29); employer contributions "at the current rates". T1-37: public pay set "within central government policy and approvals" — confirm.
+
+## PSSADM0235B Manage self as a board member
+- A member's own conduct (running the meeting is PSSADM0215B). Duties by general purpose (good faith, proper purpose, care, skill and diligence); "the law on the management and accountability of public bodies" (T1-07). Confirm good-practice points: a conflicted member leaves for the item (T1-14, E03); media referred to the chair (T1-22); accountable "through the Minister and Parliament to the public" (T1-45); directors and officers insurance (S12). S15 "perceived/apparent conflict". Figures: 70% attendance, 90 hours a year, S07 9 meetings, S11 48 hours.
+
+## CSEGCC0075A Provide workplace mentoring
+- General workplaces. Wellbeing: EAP or professional help, urgent help if there is a risk of self-harm "as the agreement allows" (T1-25, T1-45) — check against the Centre's practice. The four stages (initiation, cultivation, separation, redefinition; T1-24, S15) from an unnamed model. S11 accepts 12 or 13 hours (fortnightly over 6 months); T1-35 18 hours; T1-43 and E10 90% and 70% retention; S12 88%.
+
+## PSSADM0215B Manage a board meeting
+- Annual calendar, papers and portal, consent agenda, quorum (also when conflicted members leave), in camera, numbered and written resolutions, extraordinary meetings, the secretary, action schedule. Figures: papers due Thursday 13 March for a meeting on Thursday 20 March (T1-05); quorum 5 of 9 (T1-11); 5–2–1 passes (T1-22); two-thirds of 12 is 8 (T1-23); 80% attendance (T1-41); S07 4 members count; S09 15 June; S10 88% (87.5% accepted). Confirm against the Centre's model: conflicted members do not count towards quorum "under the board's rules" (T1-13, E04); amendments voted before the main motion (T1-25); minutes signed by the chair at the next meeting (T1-36). Access to information by purpose (T1-43).
