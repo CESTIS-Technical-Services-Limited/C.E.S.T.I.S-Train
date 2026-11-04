@@ -110,3 +110,25 @@ Figures in finance questions are data given in the question; every sum was worke
 ## PSSPAD0095B Establish and maintain a strategic planning cycle
 - The financial year begins on 1 April (T1-05); names Vision 2030 Jamaica (S02) and the Estimates of Expenditure (S11). Figures: 60% of the planned improvement (T1-14); 6.8 against 7.2 (T1-17); 45% (T1-35); J$1,200,000,000 (T1-37); S06/S07/S08 30%, 85%, J$135,000,000; E06 75% and 20% of planned improvement.
 - Shared ideas in new wording: the power-interest grid (with PSSCOR0034B and PSSADM0204B), steering committees (PSSCOR0034B, PSSADM0175A), the mid-year review (close to BSBBAD1345B).
+
+## BSBBAD1365B Manage environmental risks
+- Law by purpose: the environment and planning authority's permits, an EIA when the authority asks (S06, T1-41), "polluter pays" (S15). Refrigerant recovered by a trained technician (T1-27). Figures: risk scores 15 and 16 (T1-03, S03); 20% (T1-18); 30% (T1-19); payback 4 years (T1-20) and 4.5 years (S09); 15% (S07); 30 kWh per room night (S13); E03 J$8,000,000 against J$12,500,000, a J$4,500,000 difference, 4-year payback.
+
+## BSBBAD1345B Monitor and review strategic direction
+- Figures: 62.5% (T1-06); 12.5% (T1-16); 15% (T1-17); 3 points (T1-43, S13); 84% (S03); 20% (S06); J$90 million (S09); 12% (S15); E03 target J$525m against actual J$360m gross profit, a J$165m gap (J$105m lower sales, J$60m lower margin). The balanced scorecard (T1-10, S04) also appears in FSFADM0074B, asked differently.
+
+## PSSADM0535B Provide advice to executive team and stakeholders
+- Figures: J$5,000 and J$6,000 per farmer (T1-06); year 4 (T1-37); J$8,000 (S03); 5 years (S06); benefit-cost ratio 2.5 (S08); 5,000 households (S09); 65% (S10); 6.6 (S13); E03 J$90m each option, J$9,000 against J$11,250 per household. Close in subject to PSSCOR0124B and PSSADM0285B.
+
+## PSSPAD0065B Evaluate an organization's OHS performance
+- Management level (indicators, data quality, culture, contractors, reporting, action plans); the OSH law as general duties; reporting serious injuries in general terms (T1-35). LTIFR and severity rates use "per million hours", the injury rate "per 100 workers" — some bodies use 200,000 hours: confirm what the Centre teaches.
+- Figures: 5.0 (T1-03); 3.0 (T1-09); 12 (T1-16); 87.5% (T1-22); J$9.6m (T1-24); 75% (T1-27); 200 (T1-29); 2 and 1.5 (T1-37); 8 (S02); 85% (S04); 1.25 (S08); J$7.5m (S11); 1.6 (S14); E03 LTIFR 6.0 then 5.0, severity 120 then 175, days per injury 20 then 35.
+
+## PSSPAD0115B Establish and maintain community, government and business partnerships
+- Starting and keeping up cross-sector relationships (no agreement drafting, MOU or PPP questions — those are PSSADM0175A). Confirm the Parish Development Committee (S07), the Social Development Commission "SDC" (S12) and the Maroon community in Portland example (T1-24). Figures: J$3 (T1-16); 75% (T1-21); 30% (T1-26); 25% (T1-41); 2.5 (S04); 80% (S08); 60% (S11); 50% (S14); E03 a J$40m total, 30% agency share, about J$2.33 per J$1, J$12,500 total against J$3,750 agency cost per young person.
+
+## PSSCOR0023B Develop and implement work unit plan
+- The financial year runs April to March (S08, T1-17); six weeks before 1 October is 20 August (T1-34). Figures: 1,200 hours (T1-04); 400 (T1-09); 87.5% (T1-10); 10% (T1-29); J$3,000 (T1-36); J$450,000 (T1-43); 225 (S03); 7,500 (S05); 95% (S07); 5% (S09); 150 (S13); E03 11,200 hours capacity against 11,800 needed (a 600-hour gap), J$1,080,000 overtime against J$1,350,000 for a temporary officer. Kept apart from THTCOT0204B (E10 compares the two plans on purpose).
+
+## BSBSBM0313A Lead and facilitate offsite staff
+- No motivation theories (BSBBAD1273B). Phone location tracking and data protection kept general (T1-21, E06); duty of care in general terms (S07, T1-36, E04); the Toronto time clash (T1-35) gives no hours. Figures: 70% (T1-09); J$576,000 (T1-15); J$34,000 (T1-17); 90% (T1-27); J$3.6m (T1-29); 92% (T1-39); J$45,000 (S03); J$56,250 (S06); 80% (S09); J$1.8m (S13); E03 first-year net saving J$3,150,000, then J$4,500,000 a year, output up 10%.
