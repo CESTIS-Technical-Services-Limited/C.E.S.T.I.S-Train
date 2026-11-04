@@ -27,6 +27,10 @@
                 smaller, sent in parts), one hands in for the group and signs;
                 the other signs later ("Not yet signed" until then); the
                 assessor records a result per member; filed with its photos.
+     dates      Change dates (the Administrator): a sitting nobody has begun
+                moves to new days; one begun keeps its opening.
+     unitcode   Change unit code (the Administrator): a unit's tests re-coded,
+                listed while off the plan, then given the plan's code back.
      results    The Assessment Results page: filters, counts, View PDF,
                 Download, one PDF of several to print, a group's photos and
                 their ZIP.
@@ -496,6 +500,65 @@ function seed({ MORE, PASSHASH }) {
   const published2 = () => op.evaluate(() => JSON.parse(localStorage.getItem('cestisGatePublished') || '{}'));
   const groupB = async () => op.evaluate(id => { const g = CESTISCore.assessments.groupsOf(assessmentWork, id).find(x => x.name === 'Group B'); return g ? { id: g.id, members: g.members.slice() } : null; }, await pracId('practical1'));
 
+  await section('dates', 'Change dates: the Administrator moves a sitting to the dates actually set', async () => {
+    await collect();
+    await go(op, 'assessments');
+    await op.selectOption('#page-assessments [data-ctl="prog"]', 'QUAL-WEL-L2');
+    await op.fill('#page-assessments [data-ctl="q"]', 'MEMFAB0042C');
+    await op.waitForTimeout(700);
+    const card = await txt(op, '#page-assessments .assess-unit');
+    ok(/Change dates…/.test(card), 'an opened assessment offers Change dates… to the Administrator');
+    // Practical 2: nobody has begun, so both dates move.
+    const m2 = await op.evaluate(() => exams.find(e => CESTISCore.assessments.isMaster(e) && e.assessment.kind === 'practical2').id);
+    await op.click('#page-assessments [data-act="dates"][data-id="' + m2 + '"]');
+    await op.waitForSelector('.assess-dlg [data-f="closeDate"]', { timeout: 5000 });
+    ok(!(await op.evaluate(() => document.querySelector('.assess-dlg [data-f="date"]').disabled)), 'nobody has begun: the opening can move');
+    const nd = await op.evaluate(() => {
+      const o = CESTISCore.exams.centreParts(Date.now() + 7 * 86400000, examCentreOffset()), c = CESTISCore.exams.centreParts(Date.now() + 9 * 86400000, examCentreOffset());
+      document.querySelector('.assess-dlg [data-f="date"]').value = o.date; document.querySelector('.assess-dlg [data-f="time"]').value = '08:30';
+      document.querySelector('.assess-dlg [data-f="closeDate"]').value = c.date; document.querySelector('.assess-dlg [data-f="closeTime"]').value = '15:30';
+      document.querySelector('.assess-dlg [data-f="reason"]').value = 'The actual date has been set';
+      return { o: o.date, c: c.date };
+    });
+    await shot(op, '15-change-dates');
+    await op.click('.assess-dlg [data-dlg="save"]');
+    await op.waitForTimeout(500);
+    const moved = await op.evaluate(id => { const c = exams.find(e => e.assessment && e.assessment.from === id); return { d: c.date, t: c.time, cd: c.closeDate, ct: c.closeTime, st: c.status, h: c.assessment.dateChanges, n: notifications[0] && notifications[0].text, nc: notifications[0] && notifications[0].forCourse, c: c.course }; }, m2);
+    ok(moved.d === nd.o && moved.t === '08:30' && moved.cd === nd.c && moved.ct === '15:30' && moved.st === 'upcoming', 'saved: the new opening and closing (' + JSON.stringify(moved).slice(0, 160) + ')');
+    ok(moved.h && moved.h.length === 1 && moved.h[0].reason === 'The actual date has been set' && moved.h[0].byName === 'Marcia Thompson', 'the change is kept with who made it and why');
+    ok(/^Assessment dates changed: /.test(moved.n || '') && moved.nc === moved.c, 'the intake is told the new dates');
+    ok(/Group task/.test(await txt(op, '#page-assessments .assess-unit')) && (await txt(op, '#page-assessments .assess-unit')).indexOf('08:30') !== -1, 'the card shows the new dates');
+    // A trainee begins while the dialog is open: the save counts again and locks the opening.
+    await op.click('#page-assessments [data-act="dates"][data-id="' + m2 + '"]');
+    await op.waitForSelector('.assess-dlg [data-f="closeDate"]', { timeout: 5000 });
+    const race = await op.evaluate(id => {
+      const c = exams.find(e => e.assessment && e.assessment.from === id);
+      assessmentWork.push({ id: 'PH-race', type: 'photo', examId: c.id, groupId: 'G', studentId: 'STU-race', addedAt: new Date().toISOString() });
+      const o = CESTISCore.exams.centreParts(Date.now() + 2 * 86400000, examCentreOffset());
+      document.querySelector('.assess-dlg [data-f="date"]').value = o.date;
+      return { was: c.date };
+    }, m2);
+    await op.click('.assess-dlg [data-dlg="save"]');
+    await op.waitForTimeout(300);
+    const raced = await op.evaluate(id => ({ d: exams.find(e => e.assessment && e.assessment.from === id).date, lock: document.querySelector('.assess-dlg [data-f="date"]').disabled, err: document.querySelector('.assess-dlg .assess-err').textContent }), m2);
+    ok(raced.d === race.was && raced.lock && /just begun/.test(raced.err), 'a trainee began while it was open: nothing moved, the opening is now locked (' + JSON.stringify(raced) + ')');
+    await op.click('.assess-dlg [data-dlg="cancel"]');
+    await op.evaluate(() => { assessmentWork = assessmentWork.filter(w => w.id !== 'PH-race'); });
+    // Theory 1: a trainee has begun, so only the closing can move, and only later.
+    const m1 = await op.evaluate(() => exams.find(e => CESTISCore.assessments.isMaster(e) && e.assessment.kind === 'theory1').id);
+    await op.click('#page-assessments [data-act="dates"][data-id="' + m1 + '"]');
+    await op.waitForSelector('.assess-dlg [data-f="closeDate"]', { timeout: 5000 });
+    const lock = await op.evaluate(() => ({ d: document.querySelector('.assess-dlg [data-f="date"]').disabled, t: document.querySelector('.assess-dlg').innerText }));
+    ok(lock.d && /already begun/.test(lock.t), 'begun: the opening is locked and the dialog says why');
+    await shot(op, '16-change-dates-begun');
+    await op.evaluate(() => { const c = CESTISCore.exams.centreParts(Date.now() + 30 * 60000, examCentreOffset()); document.querySelector('.assess-dlg [data-f="closeDate"]').value = c.date; document.querySelector('.assess-dlg [data-f="closeTime"]').value = c.time; });
+    await op.click('.assess-dlg [data-dlg="save"]');
+    await op.waitForTimeout(300);
+    const er = await txt(op, '.assess-dlg .assess-err');
+    ok(/cannot close earlier/.test(er), 'begun: it cannot close earlier (' + er + ')');
+    await op.click('.assess-dlg [data-dlg="cancel"]');
+  });
+
   await section('office', 'The office copy: filed in the Assessment Results folder; a practical marked member by member, filed again', async () => {
     await collect();
     const r = await fileNow();
@@ -700,6 +763,40 @@ function seed({ MORE, PASSHASH }) {
     const entries = (listing.match(/\d\d [^\n]+\.jpg/g) || []);
     ok(d4.suggestedFilename() === 'Group B - MEMFAB0042C Practical 1 - photos.zip' && entries.length === 7 && /\b01 [^\n]+\.jpg/.test(listing) && /\b07 [^\n]+\.jpg/.test(listing), 'all the photos as a ZIP named after the group and the unit (' + d4.suggestedFilename() + ', ' + entries.length + ' photos)');
     await op.evaluate(() => document.querySelectorAll('.assess-dlg-back').forEach(d => d.remove()));
+  });
+
+  await section('unitcode', 'Change unit code: the Administrator re-codes a unit\'s tests, then gives them the plan\'s code back', async () => {
+    await go(op, 'assessments');
+    await op.selectOption('#page-assessments [data-ctl="prog"]', 'QUAL-WEL-L2');
+    await op.fill('#page-assessments [data-ctl="q"]', 'MEMFAB0042C');
+    await op.waitForTimeout(700);
+    ok(await op.evaluate(() => !!document.querySelector('#page-assessments [data-act="unitcode"]')), 'a unit with prepared tests offers Change unit code… to the Administrator');
+    const before = await op.evaluate(() => exams.filter(e => e.assessment && e.assessment.unitCode === 'MEMFAB0042C').map(e => ({ id: e.id, t: e.title })));
+    await op.click('#page-assessments [data-act="unitcode"]');
+    await op.waitForSelector('.assess-dlg [data-f="code"]', { timeout: 5000 });
+    await op.fill('.assess-dlg [data-f="code"]', 'MEMFAB0042X');
+    await op.fill('.assess-dlg [data-f="reason"]', 'Re-coded by the awarding body');
+    await shot(op, '17-change-unit-code');
+    await op.click('.assess-dlg [data-dlg="save"]');
+    await op.waitForTimeout(500);
+    const after = await op.evaluate(() => exams.filter(e => e.assessment && e.assessment.unitCode === 'MEMFAB0042X').map(e => ({ id: e.id, t: e.title, h: (e.assessment.unitChanges || []).length })));
+    ok(after.length === before.length && before.length >= 8 && after.every(a => /MEMFAB0042X/.test(a.t) && a.h === 1), 'every prepared test of the unit and every opened copy took the new code (' + after.length + ')');
+    await op.fill('#page-assessments [data-ctl="q"]', '');
+    await op.waitForTimeout(700);
+    const stray = await txt(op, '#page-assessments .assess-stray');
+    ok(/not on the Qualification Plan/.test(stray) && /MEMFAB0042X/.test(stray), 'the unit is no longer on the plan: its tests are listed, not hidden');
+    await op.evaluate(() => { const e = document.querySelector('#page-assessments .assess-stray'); if (e) e.scrollIntoView({ block: 'start' }); });
+    await shot(op, '18-tests-not-on-plan', { focus: '#page-assessments .assess-stray' });
+    // Back to the plan's code, picked from the plan.
+    await op.click('#page-assessments .assess-stray [data-act="unitcode"]');
+    await op.waitForSelector('.assess-dlg [data-f="plan"]', { timeout: 5000 });
+    const picked = await op.evaluate(() => { const s = document.querySelector('.assess-dlg [data-f="plan"]'); const o = Array.from(s.options).find(x => /MEMFAB0042C/.test(x.textContent)); s.value = o.value; s.dispatchEvent(new Event('change', { bubbles: true })); return document.querySelector('.assess-dlg [data-f="code"]').value; });
+    ok(picked === 'MEMFAB0042C', 'picking the unit from the plan fills its code');
+    await op.click('.assess-dlg [data-dlg="save"]');
+    await op.waitForTimeout(500);
+    const back = await op.evaluate(ids => ids.map(x => { const e = exams.find(y => y.id === x.id); return { same: e.title === x.t, code: e.assessment.unitCode, h: e.assessment.unitChanges.length }; }), before);
+    ok(back.every(b => b.same && b.code === 'MEMFAB0042C' && b.h === 2), 'given the plan\'s code back: titles as before, both changes kept');
+    ok(!(await op.evaluate(() => !!document.querySelector('#page-assessments .assess-stray'))), 'nothing left off the plan');
   });
 
   console.log('\n' + passed + ' passed, ' + failed + ' failed');

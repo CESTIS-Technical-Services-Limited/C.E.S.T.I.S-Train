@@ -16629,6 +16629,134 @@
       if (practical) c2.practical = copy(master.practical);
       return { exam: c2 };
     }
+    /* "Change dates…": the Administrator moves an opened copy to the dates
+       actually set for it. o: { date, time, closeDate, closeTime, offset,
+       started (trainees who have begun it or handed anything in), reason,
+       byId, byName, byRole, at }, nowMs. -> { exam, change } | { error }.
+       Before anyone has begun, both dates may move (to a window not yet
+       over), and the test waits for its new opening. Once someone has begun,
+       the opening stays as it was and the closing may only move later, so
+       nobody sitting it is cut short. Every change is kept on the copy
+       (assessment.dateChanges): from, to, why, who and when. */
+    function mayChangeDates(role) { return role === 'admin'; }
+    function datesOf(exam) {
+      return { date: str(exam && exam.date), time: str(exam && exam.time), closeDate: str(exam && exam.closeDate),
+        closeTime: exam && exam.closeDate ? str(exam.closeTime || '23:59') : '' };
+    }
+    function changeDates(exam, o, nowMs) {
+      o = o || {};
+      if (!isAssessment(exam) || isMaster(exam)) return { error: 'not-opened' };
+      if (exam.status === 'cancelled') return { error: 'cancelled' };
+      if (!mayChangeDates(o.byRole) || !trim(o.byName)) return { error: 'who' };
+      var reason = trim(o.reason);
+      if (reason.length > REASON_MAX || !noMarkup(reason)) return { error: 'reason' };
+      var was = datesOf(exam), started = Number(o.started) > 0;
+      var to = { date: str(o.date), time: str(o.time), closeDate: str(o.closeDate), closeTime: o.closeDate ? str(o.closeTime || '23:59') : '' };
+      if (started) { to.date = was.date; to.time = was.time; }
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(to.date) || !/^\d{1,2}:\d{2}$/.test(to.time)) return { error: 'no-date' };
+      if (to.closeDate && !/^\d{4}-\d{2}-\d{2}$/.test(to.closeDate)) return { error: 'no-close' };
+      if (isPractical(exam) && !to.closeDate) return { error: 'no-close' };
+      if (to.closeDate && !/^\d{1,2}:\d{2}$/.test(to.closeTime)) return { error: 'no-close' };
+      if (to.date === was.date && to.time === was.time && to.closeDate === was.closeDate && to.closeTime === was.closeTime) return { error: 'same' };
+      var off = o.offset;
+      var start = Core.exams.centreTime(to.date, to.time, off);
+      if (start == null) return { error: 'no-date' };
+      var close = to.closeDate ? Core.exams.centreTime(to.closeDate, to.closeTime, off) : null;
+      if (to.closeDate && (close == null || close <= start)) return { error: 'close-before-open' };
+      var w = Core.exams.windowOf({ date: to.date, time: to.time, closeDate: to.closeDate, closeTime: to.closeTime, duration: exam.duration || (isPractical(exam) ? 1440 : 0) }, off);
+      var end = w ? (w.baseEnd != null ? w.baseEnd : w.end) : null;
+      if (end == null || end <= nowMs) return { error: 'past' };
+      if (started) {
+        var old = Core.exams.windowOf({ date: was.date, time: was.time, closeDate: was.closeDate, closeTime: was.closeTime, duration: exam.duration || (isPractical(exam) ? 1440 : 0) }, off);
+        var oldEnd = old ? (old.baseEnd != null ? old.baseEnd : old.end) : null;
+        if (oldEnd != null && end < oldEnd) return { error: 'earlier' };
+      }
+      exam.date = to.date; exam.time = to.time;
+      if (to.closeDate) { exam.closeDate = to.closeDate; exam.closeTime = to.closeTime; } else { delete exam.closeDate; delete exam.closeTime; }
+      // A test nobody has begun waits for its new opening; one already begun
+      // stays open to its new closing (a closed one opens again).
+      if (!started) { exam.status = 'upcoming'; delete exam.activatedAt; delete exam.passRate; }
+      else if (exam.status === 'completed') { exam.status = 'active'; delete exam.passRate; }
+      var change = { from: was, to: to, reason: reason, started: started, byId: str(o.byId), byName: trim(o.byName), byRole: str(o.byRole), at: str(o.at) };
+      if (!Array.isArray(exam.assessment.dateChanges)) exam.assessment.dateChanges = [];
+      exam.assessment.dateChanges.push(change);
+      if (o.at) exam.updatedAt = str(o.at);
+      return { exam: exam, change: change };
+    }
+    /* "Change unit code…": the Administrator gives one unit's prepared
+       tests a new unit code (and, if wanted, title) — when the awarding body
+       re-codes a unit, or the Qualification Plan uses another code. Every
+       prepared test of the unit (all four) and every copy opened from them
+       changes together: the code, the title (the code in it is how a result
+       counts towards the unit on the transcript), and a history entry. The
+       questions, checks, results and filed records are untouched.
+       o: { qualId, from: { code, title }, code, title, reason, byId, byName,
+       byRole, at }. -> { changed: [ids], unit } | { error, kinds? }. */
+    var CODE_RE = /^[A-Za-z0-9][A-Za-z0-9._\/-]{1,29}$/;
+    function mayChangeUnit(role) { return role === 'admin'; }
+    function changeUnitCode(exams, o) {
+      o = o || {};
+      if (!mayChangeUnit(o.byRole) || !trim(o.byName)) return { error: 'who' };
+      var code = trim(o.code).replace(/\s+/g, '').toUpperCase();
+      if (!CODE_RE.test(code)) return { error: 'code' };
+      var from = o.from || {};
+      var title = trim(o.title) || trim(from.title);
+      if (!title || title.length > 200 || !noMarkup(title)) return { error: 'title' };
+      var reason = trim(o.reason);
+      if (reason.length > REASON_MAX || !noMarkup(reason)) return { error: 'reason' };
+      var qid = str(o.qualId);
+      var inQual = function (e) { return !qid || !e.assessment.qualId || str(e.assessment.qualId) === qid; };
+      var masters = list(exams).filter(function (e) { return isMaster(e) && inQual(e) && sameUnit(e.assessment, { code: from.code, title: from.title }); });
+      if (!masters.length) return { error: 'none' };
+      if (normCode(code) === normCode(from.code) && normTitle(title) === normTitle(from.title)) return { error: 'same' };
+      // Another unit's tests already under the new code: never two of one kind.
+      var mine = {}; masters.forEach(function (m) { mine[str(m.id)] = 1; });
+      if (normCode(code) !== normCode(from.code)) {
+        var clash = list(exams).filter(function (e) { return isMaster(e) && !mine[str(e.id)] && inQual(e) && normCode(e.assessment.unitCode) === normCode(code); })
+          .map(function (e) { return e.assessment.kind; });
+        var both = masters.map(function (m) { return m.assessment.kind; }).filter(function (k) { return clash.indexOf(k) !== -1; });
+        if (both.length) return { error: 'taken', kinds: both };
+      }
+      var oldLabel = unitLabel({ code: from.code, title: from.title }), newLabel = unitLabel({ code: code, title: title });
+      var oldCode = trim(from.code);
+      var retitle = function (t) {
+        t = str(t);
+        if (oldLabel && t.indexOf(oldLabel) !== -1) return t.split(oldLabel).join(newLabel);
+        if (oldCode && t.indexOf(oldCode) !== -1) return t.split(oldCode).join(code);
+        return t;
+      };
+      var change = { from: { code: oldCode, title: trim(from.title) }, to: { code: code, title: title }, reason: reason,
+        byId: str(o.byId), byName: trim(o.byName), byRole: str(o.byRole), at: str(o.at) };
+      var changed = [];
+      var apply = function (e) {
+        e.assessment.unitCode = code; e.assessment.unitTitle = title;
+        e.title = retitle(e.title);
+        if (Array.isArray(e.unitCodes)) e.unitCodes = e.unitCodes.map(function (c) { return normCode(c) === normCode(oldCode) ? code : c; });
+        if (!Array.isArray(e.assessment.unitChanges)) e.assessment.unitChanges = [];
+        e.assessment.unitChanges.push(copy(change));
+        if (o.at) e.updatedAt = str(o.at);
+        changed.push(str(e.id));
+      };
+      masters.forEach(function (m) { apply(m); copiesOf(exams, m.id).forEach(apply); });
+      return { changed: changed, unit: { code: code, title: title } };
+    }
+    /* Prepared tests whose unit is no longer on the Qualification Plan (its
+       code was changed there): listed so they can be given the plan's code,
+       never hidden. -> [{ qualId, programme, code, title, masters }] */
+    function strayUnits(exams, progs) {
+      var onPlan = {};
+      list(progs).forEach(function (p) { list(p.units).forEach(function (u) { onPlan[str(p.qual && p.qual.id) + '|' + (normCode(u.code) || normTitle(u.title)) ] = 1; }); });
+      var out = {}, order = [];
+      list(exams).forEach(function (e) {
+        if (!isMaster(e)) return;
+        var a = e.assessment, key = (normCode(a.unitCode) || normTitle(a.unitTitle));
+        if (onPlan[str(a.qualId) + '|' + key]) return;
+        var k = str(a.qualId) + '|' + key;
+        if (!out[k]) { out[k] = { qualId: str(a.qualId), programme: trim(a.programme), qualTitle: trim(a.qualTitle), code: trim(a.unitCode), title: trim(a.unitTitle), masters: [] }; order.push(k); }
+        out[k].masters.push(e);
+      });
+      return order.map(function (k) { return out[k]; });
+    }
     /* A practical's state on the given clock: 'draft' (the prepared copy),
        'upcoming', 'open' (the group can add photos and hand in), 'closed'. */
     function practicalStatus(exam, nowMs, offset) {
@@ -17328,6 +17456,8 @@
       checkBank: checkBank, examTitle: examTitle, bankToExam: bankToExam, practicalBrief: practicalBrief,
       masterFor: masterFor, copiesOf: copiesOf, statusOf: statusOf, mayCheck: mayCheck, markReady: markReady, markToCheck: markToCheck,
       openCopy: openCopy, practicalStatus: practicalStatus, intakeLabel: intakeLabel,
+      mayChangeDates: mayChangeDates, datesOf: datesOf, changeDates: changeDates,
+      mayChangeUnit: mayChangeUnit, changeUnitCode: changeUnitCode, strayUnits: strayUnits,
       mayAddTime: mayAddTime, roleLabel: roleLabel, makeGrant: makeGrant, addGrant: addGrant, grantsForTrainee: grantsForTrainee,
       minutesText: minutesText, extraLine: extraLine,
       signatureId: signatureId, makeSignature: makeSignature, cleanSignature: cleanSignature, signedLine: signedLine, when: when,

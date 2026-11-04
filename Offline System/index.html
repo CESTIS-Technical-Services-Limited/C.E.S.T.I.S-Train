@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <script src="cestis-config.js?v=284ebb2a"></script>
-<script src="cestis-core.js?v=89300c05"></script>
+<script src="cestis-core.js?v=a33b449b"></script>
 <script src="cestis-form-modal.js?v=74020c38" defer></script>
 <!-- Inert until a page registers: the CMC Board registers as a READ-ONLY reader
      so the operating pages' books reach its dashboards without anyone syncing. -->
@@ -340,8 +340,8 @@
     // group's photos — all from this site, the first time they are needed.
     // A trainee's phone fetches only CESTISAssess (and the PDF parts when she
     // downloads her record); the staff part never reaches it.
-    CESTISAssess: { local: 'cestis-assessments.js?v=a9833358', cdn: [] },
-    CESTISAssessStaff: { local: 'cestis-assessments-staff.js?v=2e07061f', cdn: [] },
+    CESTISAssess: { local: 'cestis-assessments.js?v=9fcbb6e2', cdn: [] },
+    CESTISAssessStaff: { local: 'cestis-assessments-staff.js?v=b4409df9', cdn: [] },
     CESTISAssessPdf: { local: 'cestis-assessment-pdf.js?v=3db9ea79', cdn: [] },
     PDFLib: { local: 'vendor/pdf-lib-1.17.1.min.js', cdn: [] },
     JSZip: { local: 'vendor/jszip-3.10.1.min.js', cdn: [] },
@@ -30261,6 +30261,8 @@ function createExam() {
   if(_prepared) course = editing.course;
   var duration = parseInt(document.getElementById('examDuration').value)||90;
   var passMark = Math.min(100, Math.max(1, parseInt(document.getElementById('examPassMark').value)||60));
+  // A prepared assessment keeps the Centre's pass mark (65%, the owner's rule).
+  if(editing && CESTISCore.assessments && CESTISCore.assessments.isAssessment(editing)) passMark = parseInt(editing.passMark) || 65;
   var relEl = document.getElementById('examAnswersRelease');
   var answersRelease = relEl && relEl.value ? relEl.value : 'after-close';
   var dateVal = document.getElementById('examDate').value;

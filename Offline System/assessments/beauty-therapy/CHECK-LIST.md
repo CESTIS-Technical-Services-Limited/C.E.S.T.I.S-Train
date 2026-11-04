@@ -60,3 +60,7 @@ General: practicals use only mock blood, blunt or covered blades and made-up cli
   - basalt stones for hot stone massage;
   - African and Caribbean oil traditions (castor oil, coconut oil, shea butter).
 - The practicals need the assessor's fact sheet and question cards.
+
+# Electives
+
+Three electives are shared with Cosmetology and filed here with Beauty Therapy's names: CSBBAR0042D Perform face shave, CSBCOS0202C Perform hair styling services, and THHFRO0032B (Spanish, set in a salon and spa). Their points to check are in cosmetology/CHECK-LIST.md (THHFRO0032B under Electives).

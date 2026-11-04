@@ -426,6 +426,23 @@ instructor and 6 trainees on phone settings, every connection's bytes read from 
   out both ends; five Cosmetology banks were rebalanced for it (wording only). Hospitality
   Villa/Properties Services Level 2 completed the Level 2 core units (58), so every core unit of
   the five Level 2 programmes now has prepared tests.
+  Welding Level 3 followed (41 core units), written fresh at Level 3 depth; no question repeats a
+  Level 2 Welding question word for word, since a trainee who sat Level 2 may sit Level 3.
+  Electrical Installation and Maintenance Level 3 followed (48 core units), every practical done
+  dead on training boards, so every Level 3 core unit now has prepared tests (305 banks in all).
+  Every elective of the seven programmes followed (64 tests), making 369 banks.
+  Business Administration (Management) Level 5 completed the set (70 units): every unit of every
+  programme on the Qualification Plan now has prepared tests (439 banks).
+- **The Administrator changes a sitting's dates** once its actual dates are set (Change dates… on
+  the Assessments page). Before anyone has begun, both dates move; once someone has begun, the
+  opening stays and the closing can only move later. Every change is kept (from, to, why, who,
+  when) and the intake is told the new dates.
+- **The Administrator changes a unit's code** on its prepared tests (Change unit code… on the
+  Assessments page), when the awarding body re-codes a unit or the Qualification Plan uses another
+  code. All four tests and every copy opened from them change together, with their titles (a
+  result counts towards the unit by the code in the title), and the change is kept with who, when
+  and why. Questions, results and records are untouched. Tests whose unit is no longer on the plan
+  are listed on the page, never hidden, so they can be given the plan's code.
 
 ### Grades, transcripts and Student Progress
 - **Renames and moves.** Renaming a trainee or moving them to another programme carries every

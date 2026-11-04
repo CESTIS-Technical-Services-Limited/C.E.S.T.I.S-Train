@@ -534,6 +534,90 @@ console.log('What the office files (the papers, their copies, filed again when t
   assert(A.filingDue([{ key: 'grp:AG-F', status: 'provisional', hash: 'x' }], fin).length === 0, 'a paper filed as final never goes back to provisional');
 }
 
+console.log('Change dates: the Administrator moves an opened sitting to its actual dates');
+{
+  // A fixed clock, so this never depends on today's date.
+  const NOW = Date.parse('2026-11-03T15:00:00Z');   // 10:00 at the Centre
+  const fresh = () => {
+    const m = A.bankToExam(makeBank(), 'theory1', { id: 'EX-M1', qual: QUAL, unit: UNIT, at: '2026-10-31T10:00:00.000Z' });
+    A.markReady(m, { name: 'Ian Barrett' }, '2026-10-31T11:00:00.000Z');
+    return A.openCopy(m, { id: 'EX-C1', course: 'W', intake: 'Sep 2026', date: '2026-11-04', time: '09:00', closeDate: '2026-11-04', closeTime: '12:30', offset: OFF }).exam;
+  };
+  const who = { byId: 'admin', byName: 'The Administrator', byRole: 'admin', at: '2026-11-03T15:00:00.000Z', offset: OFF };
+  const go = (c, o) => A.changeDates(c, Object.assign({}, who, o), NOW);
+  assert(A.mayChangeDates('admin') && !A.mayChangeDates('instructor') && !A.mayChangeDates('adminstaff') && !A.mayChangeDates('student'), 'only the Administrator changes the dates');
+  let c = fresh();
+  assert(go(c, { byRole: 'instructor', date: '2026-11-10', time: '09:00', closeDate: '2026-11-10', closeTime: '12:30' }).error === 'who', 'an instructor cannot');
+  assert(go(c, { date: '2026-11-04', time: '09:00', closeDate: '2026-11-04', closeTime: '12:30' }).error === 'same', 'the same dates: nothing to change');
+  assert(go(c, { date: '2026-11-10', time: '09:00', closeDate: '2026-11-09', closeTime: '12:30' }).error === 'close-before-open', 'it must close after it opens');
+  assert(go(c, { date: '2026-11-01', time: '09:00', closeDate: '2026-11-01', closeTime: '12:30' }).error === 'past', 'not to a time already over');
+  assert(go(c, { date: '2026-11-10', time: '09:00', closeDate: '2026-11-10', closeTime: '12:30', reason: '<b>x</b>' }).error === 'reason', 'a reason without markup');
+  c.status = 'active'; c.activatedAt = '2026-11-03T14:00:00.000Z';
+  const r = go(c, { date: '2026-11-10', time: '09:00', closeDate: '2026-11-10', closeTime: '12:30', reason: 'The actual date has been set' });
+  assert(r.exam === c && c.date === '2026-11-10' && c.closeDate === '2026-11-10' && c.closeTime === '12:30', 'moved to the new dates');
+  assert(c.status === 'upcoming' && c.activatedAt === undefined && X.statusAt(c, NOW, OFF) === 'upcoming', 'nobody had begun: it waits for its new opening');
+  assert(X.statusAt(c, Date.parse('2026-11-10T15:00:00Z'), OFF) === 'active', 'and opens then');
+  const h = c.assessment.dateChanges;
+  assert(h.length === 1 && h[0].from.date === '2026-11-04' && h[0].to.date === '2026-11-10' && h[0].reason === 'The actual date has been set' && h[0].byName === 'The Administrator' && h[0].at === who.at, 'the change is kept: from, to, why, who and when');
+  assert(c.updatedAt === who.at, 'stamped, so every computer takes the new dates');
+  go(c, { date: '2026-11-12', time: '10:00', closeDate: '2026-11-12', closeTime: '13:30' });
+  assert(c.assessment.dateChanges.length === 2 && c.assessment.dateChanges[1].from.date === '2026-11-10', 'a second change adds to the history');
+  // Begun: the opening stays, and it can only close later.
+  c = fresh(); c.date = '2026-11-03'; c.time = '09:00'; c.closeDate = '2026-11-03'; c.closeTime = '12:30';
+  assert(go(c, { started: 2, date: '2026-11-20', time: '09:00', closeDate: '2026-11-03', closeTime: '11:00' }).error === 'earlier', 'trainees have begun: it cannot close earlier');
+  const r2 = go(c, { started: 2, date: '2026-11-20', time: '09:00', closeDate: '2026-11-03', closeTime: '16:00' });
+  assert(!r2.error && c.date === '2026-11-03' && c.time === '09:00' && c.closeTime === '16:00', 'trainees have begun: the opening is kept, the closing moves later');
+  c.status = 'completed';
+  go(c, { started: 2, closeDate: '2026-11-04', closeTime: '16:00' });
+  assert(c.status === 'active' && X.statusAt(c, NOW, OFF) === 'active', 'a closed sitting someone began opens again to its new closing');
+  // A practical keeps a closing day; the prepared copy and a cancelled one have no dates to change.
+  const p = A.bankToExam(makeBank(), 'practical1', { id: 'EX-PM', qual: QUAL, unit: UNIT });
+  A.markReady(p, { name: 'Ian Barrett' }, '2026-10-31T11:00:00.000Z');
+  const pc = A.openCopy(p, { id: 'EX-PC', course: 'W', date: '2026-11-04', time: '09:00', closeDate: '2026-11-06', closeTime: '16:00', offset: OFF }).exam;
+  assert(go(pc, { date: '2026-11-11', time: '09:00', closeDate: '', closeTime: '' }).error === 'no-close', 'a practical needs its closing day');
+  assert(!go(pc, { date: '2026-11-11', time: '09:00', closeDate: '2026-11-13', closeTime: '16:00' }).error && A.practicalStatus(pc, Date.parse('2026-11-12T15:00:00Z'), OFF) === 'open', 'a practical moves to its new days');
+  assert(go(p, { date: '2026-11-11', time: '09:00', closeDate: '2026-11-13', closeTime: '16:00' }).error === 'not-opened', 'the prepared copy has no dates to change');
+  const cc = fresh(); cc.status = 'cancelled';
+  assert(go(cc, { date: '2026-11-11', time: '09:00', closeDate: '2026-11-11', closeTime: '12:00' }).error === 'cancelled', 'a cancelled sitting stays cancelled');
+  assert(A.datesOf(fresh()).closeTime === '12:30' && A.datesOf({ date: '2026-11-04', time: '09:00' }).closeTime === '', 'its dates, as the dialog shows them');
+}
+
+console.log('Change unit code: a unit\'s tests (and the copies opened from them) take a new code');
+{
+  const all = [];
+  A.ORDER.forEach((k, i) => { const m = A.bankToExam(makeBank(), k, { id: 'EX-U' + i, qual: QUAL, unit: UNIT, at: '2026-10-31T10:00:00.000Z' }); A.markReady(m, { name: 'Ian Barrett' }, '2026-10-31T11:00:00.000Z'); all.push(m); });
+  const c1 = A.openCopy(all[0], { id: 'EX-UC', course: 'W', intake: 'Sep 2026', date: '2026-11-04', time: '09:00', closeDate: '2026-11-04', closeTime: '12:30', offset: OFF }).exam;
+  all.push(c1);
+  const other = A.bankToExam(makeBank(), 'theory1', { id: 'EX-OTHER', qual: QUAL, unit: { code: 'MEMFAB0052C', title: 'Weld using GMAW' } });
+  all.push(other);
+  const who = { qualId: QUAL.id, from: { code: UNIT.code, title: UNIT.title }, byName: 'The Administrator', byRole: 'admin', byId: 'admin', at: '2026-11-03T18:00:00.000Z' };
+  const go = o => A.changeUnitCode(all, Object.assign({}, who, o));
+  assert(A.mayChangeUnit('admin') && !A.mayChangeUnit('instructor') && !A.mayChangeUnit('adminstaff'), 'only the Administrator changes a unit code');
+  assert(go({ byRole: 'instructor', code: 'MEMFAB0042D' }).error === 'who', 'an instructor cannot');
+  assert(go({ code: 'MEM FAB<1>' }).error === 'code' && go({ code: '' }).error === 'code', 'a plain code is needed');
+  assert(go({ code: UNIT.code }).error === 'same', 'the same code and title: nothing to change');
+  const t = go({ code: 'MEMFAB0052C' });
+  assert(t.error === 'taken' && t.kinds.join() === 'theory1', 'another unit\'s Theory 1 already has that code: nothing changes');
+  assert(all[0].assessment.unitCode === UNIT.code, 'and nothing changed');
+  const r = go({ code: 'memfab0042d', reason: 'Re-coded on the Qualification Plan' });
+  assert(!r.error && r.changed.length === 5 && r.unit.code === 'MEMFAB0042D', 'all four prepared tests and the copy opened from one: five (' + JSON.stringify(r).slice(0, 80) + ')');
+  assert(all.slice(0, 5).every(e => e.assessment.unitCode === 'MEMFAB0042D' && e.title.indexOf('MEMFAB0042D') !== -1 && e.title.indexOf(UNIT.code) === -1), 'the code and the titles changed');
+  assert(c1.questionData.length === 45 && c1.status === 'upcoming' && c1.date === '2026-11-04', 'the questions and dates stay as they are');
+  const h = c1.assessment.unitChanges;
+  assert(h.length === 1 && h[0].from.code === UNIT.code && h[0].to.code === 'MEMFAB0042D' && h[0].reason === 'Re-coded on the Qualification Plan' && h[0].byName === 'The Administrator', 'the change is kept: from, to, why, who');
+  assert(A.masterFor(all, QUAL, { code: 'MEMFAB0042D', title: UNIT.title }, 'theory1') === all[0] && A.masterFor(all, QUAL, UNIT, 'theory1') === null, 'the tests now show under the new code');
+  assert(Core.Transcript.examMatchesUnit(c1, { code: 'MEMFAB0042D', name: UNIT.title }) && !Core.Transcript.examMatchesUnit(c1, { code: UNIT.code, name: 'x' }), 'a result counts towards the new code on the transcript');
+  assert(other.assessment.unitCode === 'MEMFAB0052C' && other.assessment.unitChanges === undefined, 'another unit\'s tests are untouched');
+  const r2 = A.changeUnitCode(all, Object.assign({}, who, { from: { code: 'MEMFAB0042D', title: UNIT.title }, code: 'MEMFAB0042D', title: 'Perform weld (flat and horizontal) using MMAW' }));
+  assert(!r2.error && all[0].assessment.unitTitle === 'Perform weld (flat and horizontal) using MMAW' && all[0].title.indexOf('Perform weld (flat and horizontal) using MMAW') !== -1, 'the title alone can change too');
+  // Tests whose unit is no longer on the plan are listed, never hidden.
+  const progs = [{ qual: QUAL, units: [{ code: UNIT.code, title: UNIT.title }, { code: 'MEMFAB0052C', title: 'Weld using GMAW' }] }];
+  const stray = A.strayUnits(all, progs);
+  assert(stray.length === 1 && stray[0].code === 'MEMFAB0042D' && stray[0].masters.length === 4, 'the re-coded unit, not on this plan, is listed with its four tests');
+  progs[0].units.push({ code: 'MEMFAB0042D', title: 'x' });
+  assert(A.strayUnits(all, progs).length === 0, 'once the plan has the code, nothing is listed');
+}
+
 console.log('The units, for the owner to send (Export units)');
 {
   const csv = A.unitsCsv([{ id: 'QUAL-WEL-L2', title: 'WELDING LEVEL 2', skillArea: 'Welding & Fabrication', level: 2, code: 'MEM22423', units: [{ code: 'MEMFAB0042C', name: 'Perform weld "flat"' }, { code: 'MEMFAB0042C', name: 'dup' }, { code: 'X1', name: '=SUM(A1)', coreElective: 'Elective' }] }, { id: 'bad' }]);
