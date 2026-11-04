@@ -174,3 +174,24 @@ Figures in finance questions are data given in the question; every sum was worke
 
 ## PSAHRD0185B Formulate a human resource strategic plan
 - Public bodies; post approval and pay scales in general terms. T1-43: the Permanent Secretary or head of the body gives final approval — confirm. Figures: T1-07 12%; T1-08 150; T1-10 35; T1-12 30%; T1-23 J$4,200,000; T1-24 J$7,200,000; T1-29 70 days; T1-30 5%; S04 7.5%; S05 J$15,000; S08 85%; S14 20%; E03 24 leavers, 54 hires, J$5,400,000 recruitment plus J$1,890,000 induction = J$7,290,000, a J$1,290,000 shortfall. Trend analysis is BSBBAD1305B; the plan is here.
+
+## BSBBAD1264B Undertake compliance audits
+- The audit itself (plan, evidence, sampling, grading findings, report, follow-up) in businesses and hotels; internal controls are FSFACC0884A. Figures: T1-15 24 invoices; T1-23 85%; T1-32 25%; T1-39 90%; T1-40 20; T1-41 J$300,000; S03 18; S04 92%; S09 10; S12 J$280,000; S13 80%; E04 85%, 11.25%, 3.75%. T1-38: an injury "may not have been reported as the law requires" (no duty or time limit stated).
+
+## CSCSAD0014A Provide community education projects
+- Figures: T1-13 J$170,000; T1-14 J$1,500; T1-24 80%; T1-25 27 points; T1-34 15%; T1-37 9 May; T1-42 75%; S04 J$111,000; S08 J$1,600; S14 week 10; E03 J$420,000 against a J$450,000 grant (J$30,000 left); E09 60 down to 24 (40% remain). Confirm police record checks for volunteers (S10, E08), the abuse-disclosure answer ("listen, then follow the referral procedure", T1-45) and the bleach demonstration safety points (T1-40).
+
+## BSBMKP0054B Design and deliver a presentation
+- Both practicals are real presentations with slides, photographed at each stage (persuasive; a data briefing with feedback forms). Confirm "about 24 point or larger" body text (T1-09, E03) and the "6x6 rule" (S14). Figures: T1-18 1.5 minutes; T1-19 1,500 words; T1-37 4.2; T1-38 80%; S04 2.5 minutes; S07 960 words; S11 8.5; E08 30 minutes against 48 needed (about 15 slides). Copyright and data protection by purpose (E10).
+
+## PSSPAD0075B Develop and implement organizational policies
+- Internal policies: policy vs procedure vs guideline, template, version control, register, approval, launch with acknowledgements and training, breaches, exceptions, review and withdrawal. Figures: T1-13 J$624,000; T1-18 25%; T1-22 90%; T1-37 25%; T1-38 J$750,000; T1-44 3 August; S05 86%; S07 J$1,620,000; S11 12.5%; S14 15%; E05 J$3,960,000 a year against a J$3,600,000 budget (J$360,000, 10% over).
+
+## PSSPAD0105B Plan organizational needs
+- Read as planning resource and capability needs (staff, space, equipment, ICT, money) against the agency's objectives; apart from PSSPAD0095B and PSAHRD0185B. T1-29 assumes the financial year ends on 31 March; 8 m² per workstation (T1-30, S10) is data. Figures: T1-05 24,200; T1-12 71%; T1-16 A cheaper by J$100,000; T1-27 J$1,040,000; T1-29 J$9,600,000; E02 34 officers (a gap of 2); E03 75% funded, a J$30m shortfall; E05 J$10.1m against J$10.9m.
+
+## PSSADM0285B Advise on organisation policy
+- Analysis and advice: problem definition, problem tree, instruments, cost-benefit and cost-effectiveness, regulatory impact, equity, coherence, counterfactuals, pilots, evaluating an existing policy. Confirm the Green Paper and White Paper descriptions (T1-19, T1-20, E05). Figures: T1-10 A better by J$10m; T1-11 C at 1.8; T1-12 J$15,000 per job; T1-29 J$18m; T1-40 J$10m; T1-41 7,200; S04 J$18m; S07 J$6m; S12 J$10.5m; S14 J$16,000; E03 J$150m, J$70m and J$60m (J$18.75m, J$5m and J$15m per day of waiting removed).
+
+## PSSAPM0065B Negotiate strategic procurement
+- Procurement rules by purpose only. Negotiation "only as the rules and tender documents allow" (T1-05); other bidders' prices stay confidential (T1-06); re-tender if a scope change would affect fair competition (T1-41) — confirm. S08 accepts "liquidated damages" and also "penalty clause" (not the same in law: drop the second for strict wording). Figures: T1-10 A cheaper by J$300,000; T1-20 J$2,000,000; T1-21 10%; T1-22 J$720,000; T1-38 9%; T1-42 J$300,000 saved; E03 J$46.2m against J$49.0m; E08 J$80,280,000, still J$280,000 over budget.
