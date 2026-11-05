@@ -727,6 +727,67 @@
         }
 
         /* Find-a-trainee search, above the Record Payment form */
+        /* Narrow the trainee list: by programme and by the date a trainee was
+           added. A closed programme is listed greyed, with "(closed)". */
+        .pay-pick-filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.6rem 0.75rem;
+            align-items: flex-end;
+            margin: 0 0 1rem;
+            max-width: 640px;
+        }
+        .pay-pick-filters label {
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            flex: 1 1 150px;
+            min-width: 0;
+        }
+        .pay-pick-filters select,
+        .pay-pick-filters input {
+            width: 100%;
+            min-width: 0;
+            padding: 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+        .pay-pick-filters select:focus,
+        .pay-pick-filters input:focus {
+            outline: none;
+            border-color: var(--primary-blue);
+        }
+        .pay-pick-filters .pay-pick-clear {
+            flex: 0 0 auto;
+            padding: 0.55rem 0.9rem;
+        }
+        .pay-pick-count {
+            flex-basis: 100%;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+        option.fee-closed { color: var(--text-secondary); }
+        tr.fee-row-closed td { color: var(--text-secondary); }
+        tr.fee-row-closed td strong { color: var(--text-secondary); }
+        .fee-closed-tag {
+            display: inline-block;
+            margin-left: 0.4rem;
+            padding: 0.05rem 0.45rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            background: var(--bg-primary);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+            vertical-align: middle;
+        }
+
         .trainee-search {
             position: relative;
             margin-bottom: 1.25rem;
@@ -2599,6 +2660,24 @@
                     </div>
                     <div class="trainee-search-results" id="traineeSearchResults" role="listbox" aria-label="Matching trainees"></div>
                     <div class="trainee-search-chosen" id="traineeSearchChosen" role="status"></div>
+                </div>
+
+                <!-- Narrow the Select Student list. Newest trainees come first;
+                     last year's trainees sit below a line naming their year. -->
+                <div class="pay-pick-filters" id="payPickFilters">
+                    <label>Programme
+                        <select id="payFilterProgramme" class="form-control" onchange="populatePaymentStudentSelect()">
+                            <option value="">All programmes</option>
+                        </select>
+                    </label>
+                    <label>Added from
+                        <input type="date" id="payFilterFrom" class="form-control" onchange="populatePaymentStudentSelect()">
+                    </label>
+                    <label>to
+                        <input type="date" id="payFilterTo" class="form-control" onchange="populatePaymentStudentSelect()">
+                    </label>
+                    <button type="button" class="btn btn-secondary pay-pick-clear" onclick="clearPaymentPickFilters()">Clear</button>
+                    <div class="pay-pick-count" id="payPickCount" aria-live="polite"></div>
                 </div>
 
                 <div class="form-grid">
@@ -5469,15 +5548,20 @@
                 }
                 skillAreaSelect.appendChild(option1);
 
+                // A closed programme (its training centre has ended) is greyed
+                // with "(closed)" wherever it is still listed.
+                const closed = dec.code === 'ended';
                 const option2 = document.createElement('option');
                 option2.value = area;
-                option2.textContent = area + (fy ? ' — FY ' + fy : '');
+                option2.textContent = area + (fy ? ' — FY ' + fy : '') + (closed ? ' (closed)' : '');
+                if (closed) option2.className = 'fee-closed';
                 editSkillAreaSelect.appendChild(option2);
 
                 if (filterSelect) {
                     const option3 = document.createElement('option');
                     option3.value = area;
-                    option3.textContent = area;
+                    option3.textContent = area + (closed ? ' (closed)' : '');
+                    if (closed) option3.className = 'fee-closed';
                     filterSelect.appendChild(option3);
                 }
             });
@@ -6587,6 +6671,7 @@
                 if (!key) return;                                   // programme not priced here
                 var total = parseFloat(feeStructure[key] && feeStructure[key].total) || 0;
                 if (total <= 0) return;
+                if (Array.isArray(feeBackfillTuition.ids)) feeBackfillTuition.ids.push(String(s.id));
                 s.tuitionFee = total;
                 // Stamped, so the pricing survives every merge instead of being
                 // reverted by an older cloud copy still holding the $0.
@@ -6594,6 +6679,18 @@
                 changed++;
             });
             return changed;
+        }
+
+        // How many of these trainees this device has not yet been told about;
+        // remembers them so the notice is never repeated for the same people.
+        const FEE_SEED_NOTICE_KEY = 'cestisFeeSeedNoticed';
+        function feeSeedNoticeNew(ids) {
+            let seen = {};
+            try { seen = JSON.parse(localStorage.getItem(FEE_SEED_NOTICE_KEY) || '{}') || {}; } catch (e) { seen = {}; }
+            let fresh = 0;
+            (ids || []).forEach(function (id) { if (!seen[id]) { seen[id] = 1; fresh++; } });
+            if (fresh) { try { localStorage.setItem(FEE_SEED_NOTICE_KEY, JSON.stringify(seen)); } catch (e) {} }
+            return fresh;
         }
 
         function seedFeeInformation() {
@@ -6609,7 +6706,9 @@
 
             try {
                 // 2. Price the unpriced, then re-derive every balance and status.
+                feeBackfillTuition.ids = [];
                 var priced = feeBackfillTuition();
+                var pricedIds = feeBackfillTuition.ids; feeBackfillTuition.ids = null;
                 if (priced > 0) {
                     recalculateStudentTotals();
                     saveData();
@@ -6618,9 +6717,15 @@
                     populatePaymentStudentSelect();
                     updateDashboard();
                     console.log('[SchoolFee] Priced ' + priced + ' trainee(s) from the Fee Structure.');
-                    feeShowBanner('Fee information seeded: ' + priced + ' trainee' +
-                        (priced === 1 ? '' : 's') + ' priced from the Fee Structure. ' +
-                        'Their balances and payment statuses now reflect the real tuition.');
+                    // Said once per trainee on this device. The same trainees
+                    // priced again (an older copy came back from another device)
+                    // is routine and done quietly: the fees are correct either way.
+                    var fresh = feeSeedNoticeNew(pricedIds);
+                    if (fresh > 0) {
+                        feeShowBanner('Fee information seeded: ' + fresh + ' trainee' +
+                            (fresh === 1 ? '' : 's') + ' priced from the Fee Structure. ' +
+                            'Their balances and payment statuses now reflect the real tuition.');
+                    }
                 }
             } catch (e) { console.warn('[SchoolFee] tuition backfill failed:', e); }
 
@@ -8375,35 +8480,193 @@
                 : 'Student information updated.', yearNote);
         }
 
+        /* ==================== THE TRAINEE PICKER ===========================
+           Select Student lists the newest trainees first (by the date they were
+           added: enrolment date, else when the record was made). This year's
+           group comes first; last year's trainees follow below a line naming
+           their financial year (under "Every year", every earlier year follows
+           the same way). The Programme and Added from/to filters narrow it,
+           and the Find Trainee box searches the same list.
+
+           Rebuilding a <select> while its list is open closes and reopens it on
+           a phone — and the page rebuilt it on every background save, so the
+           list kept popping open by itself. It is now rebuilt only when what it
+           shows has changed, and never while it is open: the change waits until
+           the list is closed. */
+        function feeAddedDate(s) {
+            const d = String((s && (s.enrollmentDate || s.createdAt)) || '').slice(0, 10);
+            return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : '';
+        }
+        function feeStudentFY(s) {
+            if (!s) return null;
+            const dq = CESTISCore.deriveQuarter(s.enrollmentDate) || CESTISCore.deriveQuarter(s.createdAt);
+            return dq ? dq.fy : null;
+        }
+        function feeFYStart(fy) { const m = /^(\d{4})/.exec(String(fy || '')); return m ? Number(m[1]) : 0; }
+        function feePrevFY(fy) { const y = feeFYStart(fy); return y ? (y - 1) + '/' + y : ''; }
+        // A programme whose training centre has ended (the Add form already
+        // refuses new trainees for it).
+        let _feeClosedMemo = null;     // one answer per programme while a list is built
+        function feeProgrammeClosed(area) {
+            const k = String(area || '');
+            if (_feeClosedMemo && k in _feeClosedMemo) return _feeClosedMemo[k];
+            let v = false;
+            try { v = feeEnrolmentDecision(area).code === 'ended'; } catch (e) { v = false; }
+            if (_feeClosedMemo) _feeClosedMemo[k] = v;
+            return v;
+        }
+        function feeSameProgramme(a, b) {
+            const ka = feeKeyFor(a) || String(a || '').trim().toLowerCase();
+            const kb = feeKeyFor(b) || String(b || '').trim().toLowerCase();
+            return !!ka && ka === kb;
+        }
+
+        // Write a <select>'s options only when they changed, and never while
+        // the list is open (it waits for the list to close).
+        const _feeSelectPending = {};
+        function feeSetSelectOptions(select, html, keepValue) {
+            if (!select) return false;
+            if (select._feeHtml === html) return false;
+            if (document.activeElement === select) {
+                _feeSelectPending[select.id] = { html: html, keep: keepValue };
+                if (!select._feeDeferHooked) {
+                    select._feeDeferHooked = true;
+                    select.addEventListener('blur', function () {
+                        const p = _feeSelectPending[select.id];
+                        if (!p) return;
+                        delete _feeSelectPending[select.id];
+                        // Rebuilt from the latest data, now the list is closed.
+                        if (select.id === 'paymentStudentId') populatePaymentStudentSelect();
+                        else if (select.id === 'docStudentId' || select.id === 'filterDocStudent') populateDocumentStudentSelect();
+                        else feeSetSelectOptions(select, p.html, select.value);
+                    });
+                }
+                return false;
+            }
+            select.innerHTML = html;
+            select._feeHtml = html;
+            if (keepValue) {
+                for (let i = 0; i < select.options.length; i++) {
+                    if (select.options[i].value === keepValue) { select.selectedIndex = i; break; }
+                }
+            }
+            return true;
+        }
+
+        // The programmes offered by the picker's filter: every priced programme,
+        // a closed one greyed with "(closed)".
+        function populatePaymentProgrammeFilter() {
+            const sel = document.getElementById('payFilterProgramme');
+            if (!sel) return;
+            const prev = sel.value;
+            const names = feeProgrammeNames();
+            const html = ['<option value="">All programmes</option>'].concat(names.map(function (n) {
+                const closed = feeProgrammeClosed(n);
+                return '<option value="' + feeAttr(n) + '"' + (closed ? ' class="fee-closed"' : '') + '>' +
+                    feeAttr(n + (closed ? ' (closed)' : '')) + '</option>';
+            })).join('');
+            feeSetSelectOptions(sel, html, prev);
+            if (prev && sel.value !== prev) restoreSelectValue(sel, prev);
+        }
+
+        // The trainees the picker offers, newest first, in their year's group.
+        // -> [{ fy, label, list: [student] }]
+        function paymentPickGroups() {
+            const progEl = document.getElementById('payFilterProgramme');
+            const fromEl = document.getElementById('payFilterFrom');
+            const toEl = document.getElementById('payFilterTo');
+            const prog = progEl ? progEl.value : '';
+            const from = fromEl ? fromEl.value : '';
+            const to = toEl ? toEl.value : '';
+            const cur = feeActiveQuarter();
+            const curFY = (cur && cur.fy) || ((CESTISCore.currentQuarter && CESTISCore.currentQuarter()) || {}).fy || '';
+            const lastFY = feePrevFY(curFY);
+            const all = feeWholeRollScope();
+            const byFY = {};
+            students.forEach(function (s) {
+                if (!s || !s.id) return;
+                const fy = feeStudentFY(s);
+                // A trainee with no usable date belongs to every year (as on the
+                // rest of the page) and is shown with this year's group.
+                const g = fy || curFY;
+                if (!all && g !== curFY && g !== lastFY) return;
+                if (prog && !feeSameProgramme(s.skillArea, prog)) return;
+                const added = feeAddedDate(s);
+                if ((from || to) && !added) return;
+                if (from && added < from) return;
+                if (to && added > to) return;
+                (byFY[g] = byFY[g] || []).push(s);
+            });
+            const newest = function (a, b) {
+                const da = feeAddedDate(a), db = feeAddedDate(b);
+                if (da !== db) return da < db ? 1 : -1;
+                const ca = String(a.createdAt || ''), cb = String(b.createdAt || '');
+                if (ca !== cb) return ca < cb ? 1 : -1;
+                return String(a.name || '').localeCompare(String(b.name || ''));
+            };
+            return Object.keys(byFY).sort(function (a, b) { return feeFYStart(b) - feeFYStart(a); }).map(function (fy) {
+                const label = fy === curFY ? 'This year — FY ' + fy
+                    : fy === lastFY ? 'Last year — FY ' + fy
+                    : 'FY ' + fy;
+                return { fy: fy, label: label, list: byFY[fy].sort(newest) };
+            });
+        }
+        function paymentPickList() {
+            return paymentPickGroups().reduce(function (all, g) { return all.concat(g.list); }, []);
+        }
+
+        function clearPaymentPickFilters() {
+            ['payFilterProgramme', 'payFilterFrom', 'payFilterTo'].forEach(function (id) {
+                const el = document.getElementById(id); if (el) el.value = '';
+            });
+            populatePaymentStudentSelect();
+        }
+
         // Populate payment student select
         function populatePaymentStudentSelect() {
             const select = document.getElementById('paymentStudentId');
             if (!select) return;
+            _feeClosedMemo = {};
+            try { _populatePaymentStudentSelect(select); } finally { _feeClosedMemo = null; }
+        }
+        function _populatePaymentStudentSelect(select) {
+            try { populatePaymentProgrammeFilter(); } catch (e) {}
             // Keep whoever is already chosen — rebuilding the list under a
             // half-filled payment form must not silently clear the trainee.
             const prev = select.value;
-            // Built as one string and written once, like the tables: on a full
-            // roll this was hundreds of separate DOM insertions.
-            const opts = ['<option value="">Select Student</option>'];
-            // The year's group only: last year's trainees are offered once
-            // somebody steps back to last year — which is where the page says
-            // their outstanding fees are entered.
-            studentsInScope().forEach(student => {
+            const groups = paymentPickGroups();
+            const optionFor = function (student) {
                 const balance = (parseFloat(student.balance) || 0).toFixed(2);
-                opts.push('<option value="' + feeAttr(student.id) + '">' +
-                    feeAttr(`${student.name} - ${student.skillArea} (Balance: $${balance})`) +
-                    '</option>');
+                const closed = feeProgrammeClosed(student.skillArea);
+                const added = feeAddedDate(student);
+                return '<option value="' + feeAttr(student.id) + '"' + (closed ? ' class="fee-closed"' : '') + '>' +
+                    feeAttr(`${student.name} - ${student.skillArea}${closed ? ' (closed)' : ''} (Balance: $${balance})${added ? ' · added ' + added : ''}`) +
+                    '</option>';
+            };
+            // Built as one string and written once, like the tables.
+            const opts = ['<option value="">Select Student</option>'];
+            let shown = 0, chosenListed = !prev;
+            groups.forEach(function (g, i) {
+                // Each year is headed with its financial year and how many it
+                // holds; every year after the first sits below a line.
+                const heading = (i === 0 ? '' : '──── ') + g.label + ' · ' + g.list.length + (i === 0 ? '' : ' ────');
+                opts.push('<optgroup label="' + feeAttr(heading) + '">');
+                g.list.forEach(function (s) { if (String(s.id) === String(prev)) chosenListed = true; opts.push(optionFor(s)); shown++; });
+                opts.push('</optgroup>');
             });
-            select.innerHTML = opts.join('');
-            if (prev) {
-                for (let i = 0; i < select.options.length; i++) {
-                    if (select.options[i].value === prev) { select.selectedIndex = i; break; }
-                }
-                // Whoever was chosen belongs to another year now on screen:
-                // clear their balance line rather than leave it naming them.
-                if (select.value !== prev) { try { loadStudentPaymentInfo(); } catch (e) {} }
+            // The chosen trainee stays chosen even when a filter now hides them.
+            if (!chosenListed) {
+                const chosen = students.find(function (s) { return s && String(s.id) === String(prev); });
+                if (chosen) opts.splice(1, 0, '<optgroup label="' + feeAttr('Chosen') + '">' + optionFor(chosen) + '</optgroup>');
             }
-            // The search index is built from the same group, so rebuild it here.
+            const changed = feeSetSelectOptions(select, opts.join(''), prev);
+            const countEl = document.getElementById('payPickCount');
+            if (countEl) {
+                const filtered = ['payFilterProgramme', 'payFilterFrom', 'payFilterTo'].some(function (id) { const el = document.getElementById(id); return el && el.value; });
+                countEl.textContent = shown + ' trainee' + (shown === 1 ? '' : 's') + ' listed, newest first' + (filtered ? ' (filtered)' : '') + '.';
+            }
+            if (changed && prev && select.value !== prev) { try { loadStudentPaymentInfo(); } catch (e) {} }
+            // The search index is built from the same list, so rebuild it here.
             buildTraineeSearchIndex();
             renderChosenTrainee();
         }
@@ -8430,8 +8693,8 @@
         const TRAINEE_SEARCH_LIMIT = 30;
 
         function buildTraineeSearchIndex() {
-            // The same year's group as the dropdown it fills.
-            traineeSearchIndex = studentsInScope().map(student => {
+            // The same list as the dropdown it fills (filters included), newest first.
+            traineeSearchIndex = paymentPickList().map(student => {
                 const balance = parseFloat(student.balance) || 0;
                 return {
                     id: student.id,
@@ -8629,21 +8892,17 @@
             const select = document.getElementById('docStudentId');
             const filterSelect = document.getElementById('filterDocStudent');
             
-            select.innerHTML = '<option value="">Select Student</option>';
-            filterSelect.innerHTML = '<option value="">All Students</option>';
-            
-            // The year's group, as everywhere else on the page.
-            studentsInScope().forEach(student => {
-                const option = document.createElement('option');
-                option.value = student.id;
-                option.textContent = `${student.name} - ${student.id}`;
-                select.appendChild(option);
-                
-                const filterOption = document.createElement('option');
-                filterOption.value = student.id;
-                filterOption.textContent = `${student.name} - ${student.id}`;
-                filterSelect.appendChild(filterOption);
+            // The year's group, as everywhere else on the page, newest first.
+            // Written only when it changed and never while a list is open (a
+            // rebuild under an open list closes and reopens it on a phone), and
+            // whoever is chosen stays chosen.
+            const list = studentsInScope().slice().sort(function (a, b) {
+                const da = feeAddedDate(a), db = feeAddedDate(b);
+                return da === db ? String(a.name || '').localeCompare(String(b.name || '')) : (da < db ? 1 : -1);
             });
+            const opts = list.map(student => '<option value="' + feeAttr(student.id) + '">' + feeAttr(`${student.name} - ${student.id}`) + '</option>').join('');
+            if (select) feeSetSelectOptions(select, '<option value="">Select Student</option>' + opts, select.value);
+            if (filterSelect) feeSetSelectOptions(filterSelect, '<option value="">All Students</option>' + opts, filterSelect.value);
         }
 
         // Handle document type change (show/hide custom input)
@@ -10273,8 +10532,12 @@
                 const carriedTag = data.carriedFrom
                     ? `<div class="fee-carried-tag" title="Set automatically when this intake appeared. Edit to change it.">↻ Carried over from ${feeAttr(data.carriedFrom)}</div>`
                     : '';
+                // A programme whose training centre has ended is greyed out.
+                const closed = feeProgrammeClosed(skillArea);
+                if (closed) row.className = 'fee-row-closed';
+                const closedTag = closed ? '<span class="fee-closed-tag" title="Its training centre has ended: no new trainees can be enrolled.">Closed</span>' : '';
                 let html = `
-                    <td><strong>${skillArea}</strong>${carriedTag}</td>
+                    <td><strong>${skillArea}</strong>${closedTag}${carriedTag}</td>
                     <td><strong>$${total.toFixed(2)}</strong></td>
                     ${termCells.join('')}
                 `;

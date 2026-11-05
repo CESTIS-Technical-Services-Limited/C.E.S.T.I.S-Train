@@ -121,6 +121,9 @@ console.log('What a trainee owes (office only), found the fee page\'s way');
 }
 
 console.log('The dashboard (index.html)');
+// The dashboard asks the rules for "now" by the real clock; pin it to the
+// fixture's day so these checks do not depend on today's date.
+Date.now = () => NOW;
 const src = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 function fn(name) {
   const s = src.indexOf('function ' + name + '(');
