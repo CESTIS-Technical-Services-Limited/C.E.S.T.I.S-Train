@@ -286,8 +286,34 @@ function runFor(file) {
   // Reads the year's group, and never walks the whole roll.
   const scoped = fn => { const b = extractFunction(fn); return /studentsInScope\(\)/.test(b) && !/(^|[^\w.])students\.(forEach|map|filter)\(/.test(b); };
   assert(scoped('reportUnpricedTrainees'), 'the "no fee set" notice counts the year\u2019s group, as the cards beside it do');
-  assert(scoped('populatePaymentStudentSelect'), 'the payment "Select Student" list offers the year\u2019s group');
-  assert(scoped('buildTraineeSearchIndex'), 'and so does the trainee search above it');
+  // The payment picker (the owner, 5 Nov 2026): newest first, this year's
+  // group, then last year's below a line naming their year; earlier years only
+  // under "Every year". Programme and "Added from/to" narrow it, and the
+  // trainee search above it searches the same list.
+  {
+    const pick = (opts, filters) => {
+      const pg = makePage(opts);
+      const vals = Object.assign({ payFilterProgramme: '', payFilterFrom: '', payFilterTo: '' }, filters || {});
+      Object.keys(vals).forEach(id => { pg._els[id] = Object.assign(fakeElement(), { value: vals[id] }); });
+      pg.feeWholeRollScope = () => pg.feeScopeMode === 'all';
+      pg.feeKeyFor = n => String(n || '').trim().toUpperCase();
+      vm.runInContext(['feeAddedDate', 'feeStudentFY', 'feeFYStart', 'feePrevFY', 'feeSameProgramme', 'paymentPickGroups', 'paymentPickList'].map(extractFunction).join('\n\n'), pg);
+      return vm.runInContext('paymentPickGroups()', pg).map(g => ({ fy: g.fy, label: g.label, ids: g.list.map(x => x.id) }));
+    };
+    const g = pick({ shared: { fy: PRESENT, q: 1 } });
+    assertEq(JSON.stringify(g.map(x => x.ids)), JSON.stringify([['P2', 'P1'], ['L2', 'L1']]), 'the payment picker: this year newest first, then last year newest first; earlier years left out');
+    assert(/^This year/.test(g[0].label) && g[1].label === 'Last year — FY ' + LAST, 'each group is named with its financial year (' + g.map(x => x.label).join(' | ') + ')');
+    const all = pick({ shared: { fy: PRESENT, q: 1 }, mode: 'all' });
+    assertEq(all.map(x => x.fy).join(','), [PRESENT, LAST, EARLIER].join(','), 'under "Every year", every year in turn, newest year first');
+    assertEq(pick({ shared: { fy: PRESENT, q: 1 } }, { payFilterProgramme: 'COSMETOLOGY L2' }).map(x => x.ids.join()).join('|'), 'L2', 'the Programme filter');
+    assertEq(pick({ shared: { fy: PRESENT, q: 1 } }, { payFilterFrom: dayIn(PRESENT, '06-01') }).map(x => x.ids.join()).join('|'), 'P2', 'the Added from filter');
+    assertEq(pick({ shared: { fy: PRESENT, q: 1 } }, { payFilterTo: dayIn(LAST, '09-30') }).map(x => x.ids.join()).join('|'), 'L1', 'the Added to filter');
+    assert(/paymentPickGroups\(\)/.test(extractFunction('_populatePaymentStudentSelect')) && /<optgroup/.test(extractFunction('_populatePaymentStudentSelect')),
+      'the Select Student list is built from those groups, each under its heading');
+    assert(/paymentPickList\(\)/.test(extractFunction('buildTraineeSearchIndex')), 'and the trainee search above it searches the same list');
+    assert(/document\.activeElement === select/.test(extractFunction('feeSetSelectOptions')) && /select\._feeHtml === html/.test(extractFunction('feeSetSelectOptions')),
+      'a trainee list is never rebuilt while it is open, nor when nothing changed (it reopened by itself on a phone)');
+  }
   assert(scoped('populateDocumentStudentSelect'), 'and the document pickers');
   assert(/documentInActiveFY\(doc, student\)/.test(extractFunction('renderDocumentsTable')), 'the documents list shows the year\u2019s trainees\u2019 documents');
   page = makePage();

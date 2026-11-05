@@ -168,16 +168,27 @@ const ok = (c, m) => { if (c) { pass++; console.log('  ✓ ' + m); } else { fail
     const opts = [...document.querySelectorAll('#paymentStudentId option')].filter(o => o.value).map(o => students.find(x => x.id === o.value)).filter(Boolean);
     document.getElementById('traineeSearch').value = 'a'; traineeSearchInput();
     const results = [...document.querySelectorAll('#traineeSearchResults [data-id], #traineeSearchResults .trainee-result')].length;
-    const pickerPast = opts.filter(x => __stuFY(x) !== __PRESENT);
+    // The owner (5 Nov 2026): this year's trainees first, newest first; last
+    // year's below a line naming their year; nothing older.
+    const LASTFY = __PRESENT - 1;
+    const groups = [...document.querySelectorAll('#paymentStudentId optgroup')].map(g => ({ label: g.label,
+      people: [...g.querySelectorAll('option')].map(o => students.find(x => x.id === o.value)).filter(Boolean) }));
+    const older = opts.filter(x => __stuFY(x) != null && __stuFY(x) !== __PRESENT && __stuFY(x) !== LASTFY);
+    const firstWrong = (groups[0] ? groups[0].people : []).filter(x => __stuFY(x) != null && __stuFY(x) !== __PRESENT).length;
+    const lastWrong = (groups[1] ? groups[1].people : []).filter(x => __stuFY(x) !== LASTFY).length;
+    const added = x => String(x.enrollmentDate || x.createdAt || '').slice(0, 10);
+    const sorted = groups.every(g => g.people.every((x, i) => i === 0 || !added(x) || added(g.people[i - 1]) >= added(x)));
     const idx = traineeSearchIndex.map(t => students.find(x => x.id === t.id)).filter(Boolean);
-    window.__idx = { n: idx.length, past: idx.filter(x => __stuFY(x) !== __PRESENT).length };
+    window.__idx = { n: idx.length, older: idx.filter(x => __stuFY(x) != null && __stuFY(x) !== __PRESENT && __stuFY(x) !== LASTFY).length };
     return { n: dates.length, pastDates: dates.filter(x => __fy(x) !== __PRESENT), want: __presentPayments().length,
-      picker: opts.length, pickerPast: pickerPast.length, pickerPastEx: pickerPast.slice(0, 3).map(x => x.name + ' ' + (x.enrollmentDate || '')), results };
+      picker: opts.length, older: older.length, firstWrong, lastWrong, sorted, labels: groups.map(g => g.label), lastFY: LASTFY + '/' + (LASTFY + 1), results };
   });
   ok(p.n === p.want && p.pastDates.length === 0, 'payments table lists ' + p.n + ' payments, all dated in FY ' + present + (p.pastDates.length ? ' — PAST: ' + p.pastDates.join(', ') : ''));
-  ok(p.pickerPast === 0, '"Select Student" picker offers present-year trainees only: ' + p.picker + ' offered, ' + p.pickerPast + ' from past years' + (p.pickerPast ? ' e.g. ' + p.pickerPastEx.join('; ') : ''));
+  ok(p.older === 0 && p.firstWrong === 0 && p.lastWrong === 0 && p.labels.length === 2 && /^This year/.test(p.labels[0]) && p.labels[1].indexOf('Last year — FY ' + p.lastFY) !== -1,
+    '"Select Student" picker: this year first, then last year below a line, nothing older (' + p.picker + ' offered; ' + p.labels.join(' | ') + ')');
+  ok(p.sorted, 'and newest first within each year');
   const idx = await page.evaluate(() => window.__idx);
-  ok(idx.past === 0 && idx.n === p.picker, 'the "Find Trainee" search covers the same ' + idx.n + ' present-year trainees, ' + idx.past + ' from past years');
+  ok(idx.older === 0 && idx.n === p.picker, 'the "Find Trainee" search covers the same ' + idx.n + ' trainees, none older than last year');
   await snap(page, '3-payments.png');
   await page.evaluate(() => { document.getElementById('traineeSearch').value = ''; traineeSearchInput(); });
 
