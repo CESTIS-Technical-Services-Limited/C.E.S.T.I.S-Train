@@ -19903,7 +19903,7 @@
       cx = cx || {};
       var seen = copy(isObj(cx.seen) ? cx.seen : {});
       var out = { payload: null, ops: [], unassigned: [], refused: [], seen: seen, watermark: str(cx.watermark), files: 0 };
-      var acc = {};
+      var acc = {}, openCopies = [];
       (Array.isArray(files) ? files : []).forEach(function (f) {
         if (!isObj(f)) return;
         var tag = str(f.fileId || f.id || f.name), ver = str(f.version != null ? f.version : f.modifiedTime);
@@ -19974,12 +19974,24 @@
           out.unassigned.push({ file: tag, accountId: folderAcct, studentId: from.stu, reason: owner.reason, records: recs, ops: ops });
           return;
         }
-        mergeRecords(acc, reown(recs, from, owner), cx.nowMs);   // cx.nowMs: optional; the real clock otherwise
+        var mine = reown(recs, from, owner);
+        // An open copy (a trainee's other device) is set aside before the
+        // merge below can close it against a result file collected in this
+        // same pass: its late answers are kept on that result at the end.
+        (Array.isArray(mine.voctrain_examAttempts) ? mine.voctrain_examAttempts : []).forEach(function (a) {
+          if (Core.exams.attemptIsOpen(a)) openCopies.push(copy(a));
+        });
+        mergeRecords(acc, mine, cx.nowMs);   // cx.nowMs: optional; the real clock otherwise
         ops.forEach(function (op) { out.ops.push({ me: { acct: owner.acct, stu: owner.stu }, op: op }); });
         seen[tag] = ver;
         out.files++;
         if (str(f.modifiedTime) > out.watermark) out.watermark = str(f.modifiedTime);
       });
+      // Answers an open copy holds that the result collected with it lacks:
+      // kept on the result for staff (Core.exams.keepLateAnswers), never marked.
+      if (openCopies.length && Array.isArray(acc.voctrain_examResults) && Core.exams.keepLateAnswers) {
+        Core.exams.keepLateAnswers(openCopies, acc.voctrain_examResults, typeof cx.nowMs === 'number' ? cx.nowMs : undefined);
+      }
       out.payload = toPayload(acc);
       return out;
     }
