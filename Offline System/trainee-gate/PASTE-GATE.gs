@@ -7363,8 +7363,8 @@ function gatePlace(G, acct, entry) {
   if (s.error) return s;
   return { folder: folder, slice: s.slice };
 }
-function gateSharedFile(G, folderId, name, cacheKey) {
-  var hot = cacheKey ? gateCacheJson(G, cacheKey) : null;
+function gateSharedFile(G, folderId, name, cacheKey, fresh) {
+  var hot = cacheKey && !fresh ? gateCacheJson(G, cacheKey) : null;
   if (hot && hot.j && hot.c && G.now - hot.c >= 0 && G.now - hot.c < GATE_LIMITS.SHARED_FRESH_MS) return hot.j;
   var fld = gateFolderById(folderId);
   if (!fld) return null;
@@ -7374,8 +7374,8 @@ function gateSharedFile(G, folderId, name, cacheKey) {
   if (cacheKey && j) gateCachePut(G, cacheKey, { u: file.getLastUpdated().getTime(), id: file.getId(), j: j, c: G.now }, GATE_LIMITS.CACHE_MAX_S);
   return j;
 }
-function gateKeyFile(G, examId) {
-  var k = gateSharedFile(G, gateCfg(G).keysId, 'key.' + examId + '.json', 'kf:' + examId);
+function gateKeyFile(G, examId, fresh) {
+  var k = gateSharedFile(G, gateCfg(G).keysId, 'key.' + examId + '.json', 'kf:' + examId, fresh);
   return k && k.format === G.gate.FORMAT.key && Number(k.version) <= G.gate.VERSION ? k : null;
 }
 function gatePaperFile(G, examId) {
@@ -7875,7 +7875,9 @@ function gateUploadPurpose(p) { return p === 'chat' ? 'chat' : p === 'submission
 function gateExamTime(G, req) {
   var s = gateSession(G, req), examId = gateSafeId(req.examId);
   if (!examId || !gateAccessHas(s.slice, 'papers', examId)) return { ok: false, error: 'unknown-exam' };
-  var key = gateKeyFile(G, examId);
+  // Read fresh, not from the one-minute copy: time added in her last minutes
+  // must reach her before her own deadline is called finished.
+  var key = gateKeyFile(G, examId, true);
   var grants = key && key.exam && G.core.assessments ? G.core.assessments.grantsForTrainee(key.exam, s.me.stu) : [];
   var mins = grants.reduce(function (n, g) { return n + (Number(g.minutes) || 0); }, 0);
   return { ok: true, examId: examId, minutes: mins, grants: grants, serverTime: gateIso(G.now) };
