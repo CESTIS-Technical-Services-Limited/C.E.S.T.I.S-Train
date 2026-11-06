@@ -13801,7 +13801,9 @@ function enterApp(role) {
       return;
     }
     currentRole = role;
-    try { localStorage.setItem('cestisLastRole', role === 'student' ? 'student' : 'staff'); } catch (e) {}
+    // Not written in a trainee-gate session: a lab PC she signs in on keeps its
+    // storage exactly as it was (her session leaves no trace there).
+    try { if (!(typeof cestisGateSession === 'function' && cestisGateSession())) localStorage.setItem('cestisLastRole', role === 'student' ? 'student' : 'staff'); } catch (e) {}
     _sessionWiped = false; _sessionSeq++;
     // Exam results submitted on this PC but not yet uploaded come back into
     // the list a previous sign-out trimmed, so this session uploads them.
