@@ -750,6 +750,35 @@
     var bMod = b && b.lastModified ? new Date(b.lastModified).getTime() : 0;
     var base = (bMod > aMod) ? Object.assign({}, b) : Object.assign({}, a);
     var other = (bMod > aMod) ? a : b;
+    // A detail edited on the older copy AFTER the newer copy's last edit of
+    // that same detail stands (Core.sync.fields: two people changing two
+    // different details at once both keep theirs). Where the detail stamps do
+    // not decide — neither copy stamps it, an older build changed it — the
+    // newer record stands for it, as before. A blank never replaces a detail
+    // the fill below keeps (as before).
+    var F = (Core.sync && Core.sync.fields) || null;
+    // (Two identical copies — most of every sync — have nothing to decide.)
+    var fsOn = !!(F && a && b && (F.hasStamps(a) || F.hasStamps(b)) && JSON.stringify(a) !== JSON.stringify(b));
+    if (fsOn) {
+      var R = Core.STUDENT_FIELD_RULES;
+      var rules = { stamp: R.stamp, skip: R.skip, groups: R.groups, nowMs: Core.sync.now() };
+      var blankV = function (v) { return v === undefined || v === null || v === ''; };
+      var seenF = {};
+      Object.keys(a).concat(Object.keys(b)).forEach(function (f) {
+        if (seenF[f]) return;
+        seenF[f] = true;
+        if (f === F.FIELD || f === 'lastModified' || f === 'updatedAt' || f === '_plaintextPw' || R.skip[f]) return;
+        if (a[f] === b[f]) return;                          // nothing to decide
+        var w = F.pick(a, b, f, rules);
+        if (!w) return;
+        var src = w === 'cloud' ? b : a;
+        if (src === (bMod > aMod ? b : a)) return;          // the newer copy already holds it
+        if (F.valueHash(src[f]) === F.valueHash(base[f])) return;
+        if (blankV(src[f]) && !blankV(base[f]) && MERGE_FIELDS.indexOf(f) !== -1) return;
+        if (src[f] === undefined) delete base[f];
+        else base[f] = (src[f] && typeof src[f] === 'object') ? JSON.parse(JSON.stringify(src[f])) : src[f];
+      });
+    }
     MERGE_FIELDS.forEach(function (f) {
       if ((base[f] === undefined || base[f] === null || base[f] === '') &&
           other[f] !== undefined && other[f] !== null && other[f] !== '') {
@@ -784,6 +813,8 @@
     // next sync. While the newest decision on either copy is a withdrawal,
     // the number lives on only as an alias.
     Core.settleWithdrawnCertificate(base);
+    // The detail stamps that describe what the merged record now holds.
+    if (fsOn) F.settle(base, a, b, rules);
     return base;
   };
 
@@ -10505,6 +10536,329 @@
       setClockOffset: setClockOffset, clockOffset: clockOffset, now: now, nowIso: nowIso, restampOwn: restampOwn,
       snapshotMaps: snapshotMaps, reconcileMaps: reconcileMaps, RECORD_MAPS: RECORD_MAPS, mapRules: mapRules };
   })();
+
+  /* ==========================================================================
+     PER-DETAIL EDIT STAMPS — two people changing different details of one
+     record at the same time both keep their change.
+
+     A trainee record used to win or lose as one: the copy with the newer
+     lastModified replaced the other. When the office changed a trainee's
+     phone number on one PC and an instructor changed the same trainee's
+     status on another a few seconds later, the later save won and the phone
+     number was silently put back everywhere.
+
+     Now each record carries, beside its details, WHEN each detail was last
+     changed and WHAT it was changed to, plus how old its other details are
+     at most:
+
+         _fs: { phone: '<ms, base 36>~<value hash>', status: '...',
+                _: '<ms, base 36>~<hash of the unstamped details>' }
+
+     '_' (the floor) says: every detail of this record WITHOUT a stamp was
+     last changed no later than this. It is set when the record is first
+     stamped (to the record's date before that edit) and only ever rises.
+     Without it, a detail nobody touched since the upgrade would look as new
+     as the record's date, and the instructor's later status change would
+     still put the office's phone number back.
+
+     The hashes are the safety catch for a mixed fleet. A computer on an
+     older build changes a detail without touching _fs: the stamp beside that
+     detail then no longer describes its value, and the floor no longer
+     describes the unstamped details — so neither is believed (stampFor,
+     floorOf). That copy is then judged by its record date, exactly as
+     before.
+
+     WRITING (stamp): every save compares each record with the baseline —
+     what was loaded, merged or last saved here — and stamps the details that
+     changed. Edits are caught by difference, so no edit path has to remember
+     to do it. Two rules keep it honest:
+       - only a record whose own date moved forward since the baseline is
+         stamped (opts.gate — 'lastModified' for trainees). A record is only
+         re-dated by a deliberate edit, so a figure recalculated on every
+         computer never turns into a claim that it was just edited; such a
+         change raises the floor to the record's date instead, which is the
+         date the old rule gave it. A stamp is therefore only ever given where
+         the whole record would have won anyway;
+       - a detail that arrived from another copy WITH its own stamp keeps it.
+       A detail is stamped with the corrected clock (Core.sync.now), never
+       earlier than the stamp it already carries; a stamp more than a day
+       ahead of the correct time is re-dated on save (as restampOwn does).
+
+     MERGING (pick, settle): for one detail of two copies of a record —
+       - both copies stamp it: the newer stamp wins;
+       - one copy stamps it: that copy wins only if its stamp is newer than
+         the OTHER copy's floor — for a copy with no (believable) stamps, its
+         record date, which is the rule asked for: an older build may have
+         changed the detail at any time up to then;
+       - neither does, the stamps tie, or a stamp is more than a day in the
+         future (a wrong clock — Core.sync.trusted): pick returns null and
+         the caller applies its own record-level rule, exactly as before.
+     Details that only make sense together (opts.groups — a trainee's stage
+     and everything the stage sets, or name and programme) are decided as one.
+     The merged record's _fs keeps, per detail, the newest stamp that
+     describes the value the merge kept, and the higher floor (settle).
+
+     Nothing here ever deletes a record or decides a deletion: deletions are
+     settled by each caller before any of this runs, as before.
+     ========================================================================== */
+  Core.sync.fields = (function () {
+    var FS = '_fs', FLOOR = '_';
+    // Never stamped: the stamps themselves, the record's own dates, secrets.
+    var ALWAYS_SKIP = { _fs: 1, updatedAt: 1, lastModified: 1, _plaintextPw: 1 };
+    function isPlain(v) { return !!v && typeof v === 'object' && !Array.isArray(v); }
+    /* JSON with sorted keys, so one value hashes the same on every device. */
+    function canon(v) {
+      if (v === undefined) return 'u';
+      if (v === null || typeof v !== 'object') return JSON.stringify(v);
+      if (Array.isArray(v)) return '[' + v.map(function (x) { return x === undefined ? 'null' : canon(x); }).join(',') + ']';
+      return '{' + Object.keys(v).sort().filter(function (k) { return v[k] !== undefined; })
+        .map(function (k) { return JSON.stringify(k) + ':' + canon(v[k]); }).join(',') + '}';
+    }
+    /* A short hash of one detail's value; '-' for a detail that is absent. */
+    function valueHash(v) { return v === undefined ? '-' : String(Core.hashString(canon(v))).slice(0, 6); }
+    function fmt(ms, h) { return Math.max(1, Math.round(ms)).toString(36) + '~' + h; }
+    function parse(s) {
+      if (typeof s !== 'string') return null;
+      var i = s.indexOf('~');
+      if (i < 1) return null;
+      var t = parseInt(s.slice(0, i), 36);
+      if (!isFinite(t) || t <= 0) return null;
+      return { t: t, h: s.slice(i + 1) };
+    }
+    function nowMsOf(opts) {
+      return (opts && typeof opts.nowMs === 'number' && !isNaN(opts.nowMs)) ? opts.nowMs : Core.sync.now();
+    }
+    function skipped(f, opts) { return !!(ALWAYS_SKIP[f] || (opts && opts.skip && opts.skip[f])); }
+    function groupOf(f, opts) {
+      var gs = (opts && opts.groups) || [];
+      for (var i = 0; i < gs.length; i++) if (gs[i].indexOf(f) !== -1) return gs[i];
+      return [f];
+    }
+    /* Does this copy's stamp for `f` describe the value it now holds? */
+    function stampMatches(r, f) {
+      var m = r && r[FS];
+      if (!isPlain(m) || m[f] == null || f === FLOOR) return false;
+      var p = parse(m[f]);
+      return !!p && p.h === valueHash(r[f]);
+    }
+    /* When this copy's `f` was set, in ms — only when its stamp describes the
+       value the copy now holds and is believable (not a day in the future);
+       otherwise 0. */
+    function stampFor(r, f, nowMs) {
+      if (!stampMatches(r, f)) return 0;
+      return Core.sync.trusted(parse(r[FS][f]).t, typeof nowMs === 'number' ? nowMs : Core.sync.now());
+    }
+    /* A hash of every stampable detail that carries no believable stamp. */
+    function restHash(r, opts) {
+      var parts = [];
+      Object.keys(r).sort().forEach(function (f) {
+        if (skipped(f, opts) || r[f] === undefined || stampMatches(r, f)) return;
+        parts.push(JSON.stringify(f) + ':' + canon(r[f]));
+      });
+      return String(Core.hashString(parts.join(','))).slice(0, 6);
+    }
+    function recordDate(r, opts) {
+      var t = Date.parse((r && r[(opts && opts.stamp) || 'updatedAt']) || '');
+      return isNaN(t) ? 0 : t;
+    }
+    /* No unstamped detail of this copy was changed after this moment (ms):
+       its floor when the floor still describes those details and is
+       believable, else its record date (the old rule). */
+    function floorOf(r, opts, nowMs) {
+      var date = recordDate(r, opts);
+      var m = r && r[FS];
+      if (!isPlain(m) || m[FLOOR] == null) return date;
+      var p = parse(m[FLOOR]);
+      if (!p || p.h !== restHash(r, opts) || !Core.sync.trusted(p.t, nowMs)) return date;
+      return date ? Math.min(p.t, date) : p.t;
+    }
+    function sortedMap(m) {
+      var o = {};
+      Object.keys(m).sort().forEach(function (k) { o[k] = m[k]; });
+      return o;
+    }
+    function hasStamps(r) {
+      if (!r || !isPlain(r[FS])) return false;
+      return Object.keys(r[FS]).some(function (k) { return k !== FLOOR; });
+    }
+
+    /* Which copy's value of `f` stands by the detail stamps: 'local',
+       'cloud', or null when the stamps do not decide (the caller's
+       record-level rule then applies). opts: { stamp, skip, groups, nowMs }
+       — one opts object per pair of copies (their floors are kept on it). */
+    function pick(local, cloud, f, opts) {
+      if (!local || !cloud) return null;
+      if (!hasStamps(local) && !hasStamps(cloud)) return null;
+      opts = opts || {};
+      var nowMs = nowMsOf(opts);
+      var group = groupOf(f, opts);
+      var ls = 0, cs = 0;
+      var differ = group.some(function (g) {
+        var x = local[g], y = cloud[g];
+        if (x === y) return false;
+        return (x && typeof x === 'object') || (y && typeof y === 'object') ? valueHash(x) !== valueHash(y) : true;
+      });
+      if (!differ) return null;
+      group.forEach(function (g) {
+        ls = Math.max(ls, stampFor(local, g, nowMs));
+        cs = Math.max(cs, stampFor(cloud, g, nowMs));
+      });
+      if (!ls && !cs) return null;
+      if (ls && cs) return cs > ls ? 'cloud' : (ls > cs ? 'local' : null);
+      var memo = opts.__floors;
+      if (!memo || memo.l !== local || memo.c !== cloud) {
+        memo = opts.__floors = { l: local, c: cloud, fl: floorOf(local, opts, nowMs), fc: floorOf(cloud, opts, nowMs) };
+      }
+      if (cs) return cs > memo.fl ? 'cloud' : null;
+      return ls > memo.fc ? 'local' : null;
+    }
+
+    /* After a merge has settled `target`'s values: its _fs becomes, per
+       detail, the newest believable stamp either copy had for the value now
+       held, and the higher of the two copies' floors (a copy without one
+       counts its record date). a, b: the two copies as they were BEFORE the
+       merge (when target is one of them, pass a snapshot of it). Returns
+       whether target._fs changed. */
+    function settle(target, a, b, opts) {
+      if (!target || typeof target !== 'object') return false;
+      opts = opts || {};
+      var nowMs = nowMsOf(opts);
+      var out = {}, rank = {}, any = false;
+      [a, b].forEach(function (r) {
+        var m = r && r[FS];
+        if (!isPlain(m)) return;
+        Object.keys(m).forEach(function (f) {
+          if (f === FLOOR) return;
+          var p = parse(m[f]);
+          if (!p || p.h !== valueHash(target[f])) return;
+          // A believable stamp outranks one from a wrong clock.
+          var rk = Core.sync.trusted(p.t, nowMs) ? p.t : -1;
+          if (out[f] === undefined || rk > rank[f]) { out[f] = m[f]; rank[f] = rk; any = true; }
+        });
+      });
+      var before = JSON.stringify(target[FS] === undefined ? null : target[FS]);
+      if (any) {
+        var fl = Math.max(a ? floorOf(a, opts, nowMs) : 0, b ? floorOf(b, opts, nowMs) : 0);
+        target[FS] = out;
+        out[FLOOR] = fmt(fl, restHash(target, opts));
+        // One order on every computer, so two copies holding the same stamps
+        // are byte for byte the same (and never look changed to each other).
+        target[FS] = sortedMap(out);
+      } else delete target[FS];
+      return JSON.stringify(target[FS] === undefined ? null : target[FS]) !== before;
+    }
+
+    /* A stamp more than a day ahead of the correct time (this device's clock
+       was wrong when it was written) is re-dated to now, so it competes as an
+       edit made now and is believed elsewhere. */
+    function restampOwnFields(r, nowMs) {
+      if (!r || !isPlain(r[FS])) return false;
+      var changed = false;
+      Object.keys(r[FS]).forEach(function (f) {
+        var p = parse(r[FS][f]);
+        if (p && p.t > nowMs + Core.sync.MAX_AHEAD_MS) { r[FS][f] = fmt(nowMs, p.h); changed = true; }
+      });
+      return changed;
+    }
+
+    /* Stamp the details edited here since `index` was taken; return the new
+       index. index null = no baseline yet: nothing is stamped. opts:
+       { skip, gate, rebase } — rebase takes the baseline afresh (after a
+       load or a merge) without stamping anything. A record not in the index
+       (new here, or re-keyed) is not stamped: only details changed after it
+       was first seen here carry stamps. */
+    function stamp(records, keyOf, index, now, opts) {
+      opts = opts || {};
+      var next = {};
+      var nowMs = Date.parse(now || '');
+      var live = !!index && !opts.rebase && !isNaN(nowMs);
+      var gate = opts.gate || null;
+      (Array.isArray(records) ? records : []).forEach(function (r) {
+        if (!r || typeof r !== 'object') return;
+        var k = keyOf(r);
+        if (k === undefined || k === null) return;
+        k = String(k);
+        if (live) restampOwnFields(r, nowMs);
+        var fp;
+        try { fp = Core.hashString(JSON.stringify(r)); } catch (e) { return; }
+        var prev = index ? index[k] : null;
+        if (prev && prev.fp === fp) { next[k] = prev; return; }
+        var fh = {};
+        Object.keys(r).forEach(function (f) { if (!skipped(f, opts)) fh[f] = valueHash(r[f]); });
+        if (live && prev) {
+          var g0 = Date.parse(prev.g || ''), g1 = Date.parse((gate && r[gate]) || '');
+          var moved = !gate || (!isNaN(g1) && (isNaN(g0) || g1 > g0));
+          var edited = [], seen = {};
+          Object.keys(prev.f).concat(Object.keys(fh)).forEach(function (f) {
+            if (seen[f]) return;
+            seen[f] = true;
+            var h = fh[f] || '-';
+            if (h === (prev.f[f] || '-')) return;
+            var cur = isPlain(r[FS]) ? r[FS][f] : undefined;
+            var p = parse(cur);
+            // Arrived from another copy with its own stamp for this value.
+            if (p && p.h === h && cur !== (prev.s ? prev.s[f] : undefined)) return;
+            edited.push({ f: f, h: h, p: p });
+          });
+          if (edited.length && moved) {
+            // The unstamped details are no newer than the record's date
+            // before this edit — the floor, set at the record's first stamp.
+            var first = !hasStamps(r);
+            edited.forEach(function (e) {
+              var t = nowMs;
+              if (e.p && Core.sync.trusted(e.p.t, nowMs) && e.p.t >= t) t = e.p.t + 1;   // never backwards
+              if (!isPlain(r[FS])) r[FS] = {};
+              r[FS][e.f] = fmt(t, e.h);
+            });
+            var fp0 = first ? null : parse(r[FS][FLOOR]);
+            r[FS][FLOOR] = fmt(fp0 ? fp0.t : (isNaN(g0) ? 1 : g0), restHash(r, opts));
+          } else if (edited.length && hasStamps(r)) {
+            // Changed without the record being re-dated (a recalculated
+            // figure): not an edit made now. The old rule dated it by the
+            // record's date, and so does the floor from now on.
+            var fl = parse(r[FS][FLOOR]);
+            r[FS][FLOOR] = fmt(Math.max(fl ? fl.t : 1, isNaN(g1) ? 1 : g1), restHash(r, opts));
+          }
+          if (edited.length) {
+            if (isPlain(r[FS])) r[FS] = sortedMap(r[FS]);
+            fp = Core.hashString(JSON.stringify(r));
+          }
+        }
+        next[k] = { fp: fp, f: fh, s: isPlain(r[FS]) ? Object.assign({}, r[FS]) : null, g: gate ? String(r[gate] || '') : '' };
+      });
+      return next;
+    }
+
+    return { FIELD: FS, FLOOR: FLOOR, valueHash: valueHash, parse: parse, format: fmt, stampFor: stampFor, floorOf: floorOf,
+             hasStamps: hasStamps, pick: pick, settle: settle, stamp: stamp, restampOwnFields: restampOwnFields };
+  })();
+
+  /* The trainee record's rules for the detail stamps above — one definition
+     for the dashboard, Student Progress and every merge of trainee records.
+       - certificate state is merged by its own rules (Core.certs: a number
+         once issued never changes, the newest withdrawal stands, every
+         number is kept as an alias), and the id by identity rules — none of
+         them is stamped;
+       - the stage and everything a stage change sets travel together, and so
+         do the name and the programme (they make the trainee's identity). */
+  Core.STUDENT_FIELD_RULES = {
+    stamp: 'lastModified',
+    gate: 'lastModified',
+    skip: { id: 1, certNo: 1, certNoAliases: 1, certSig: 1, certHistory: 1, certRevokedAt: 1, certRevokedBy: 1,
+            certRevokedReason: 1, certReinstatedAt: 1 },
+    groups: [
+      ['stage', 'stageSetByUser', 'progress', 'certCollected', 'certDate', 'completionDate',
+       'courseEndState', 'courseEndReason', 'readyToCertifyAt', '_nycAuto', '_nycForCourseEnd'],
+      ['name', 'course', 'centreKey', 'centreId', 'centreName', 'courseStart', 'courseEnd', 'fiscalYear']
+    ]
+  };
+  /* Stamp the trainee details edited here since `index`; returns the new
+     index (see Core.sync.fields.stamp). rebase: take the baseline afresh. */
+  Core.stampStudentFields = function (list, index, nowIso, rebase) {
+    var R = Core.STUDENT_FIELD_RULES;
+    return Core.sync.fields.stamp(list, function (r) { return r && r.id != null ? String(r.id) : undefined; },
+      index || null, nowIso || '', { skip: R.skip, gate: R.gate, rebase: !!rebase });
+  };
 
   /* ==========================================================================
      CASHBOOK: one merge rule for every quarter, on every path.

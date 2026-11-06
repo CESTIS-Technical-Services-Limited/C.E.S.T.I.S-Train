@@ -63,7 +63,9 @@ BUILDS.forEach(where => {
 
   assert(/cestisSettleRoster\('a background sync'\)/.test(merge),
     where + ': mergeBackupData settles the roll itself — this is the merge the automatic sync uses');
-  assert(/students\.push\(cloudStudent\)/.test(merge),
+  // The trainee roll is merged by mergeCloudStudents, called from here.
+  assert(/mergeCloudStudents\(backupData\.data\.students/.test(merge) &&
+         /students\.push\(cloudStudent\)/.test(extractFunction(src, 'mergeCloudStudents', where)),
     where + ': (and it is still the merge that adds trainees, so the settle belongs here)');
 
   // The settle must come AFTER the students have been merged in, or it collapses

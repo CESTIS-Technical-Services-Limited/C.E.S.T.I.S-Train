@@ -61,7 +61,7 @@ const SUITES = [
   'tests/megadata-bat-lint.test.js', 'tests/review-security.test.js', 'tests/exam-grading-panel.test.js', 'tests/lan-push-adopt.test.js',
   'tests/lan-login-sync.test.js', 'tests/session-record-follows-roll.test.js', 'tests/lan-host-ticket-first-run.test.js', 'tests/centre-fuzzy-rewrite.test.js',
   'tests/lan-cert-images.test.js', 'tests/exam-review-ux.test.js', 'tests/export-backup-completeness.test.js', 'tests/lan-legacy-attendance-carryover.test.js',
-  'tests/fee-placeholder-merge.test.js', 'tests/tombstone-id-types.test.js', 'tests/backup-import-shell.test.js', 'tests/virement-locked-page-save.test.js',
+  'tests/fee-placeholder-merge.test.js', 'tests/field-stamps-merge.test.js', 'tests/tombstone-id-types.test.js', 'tests/backup-import-shell.test.js', 'tests/virement-locked-page-save.test.js',
   'tests/cashbook-signin-screen-sync.test.js', 'tests/pre-upgrade-carry.test.js', 'tests/cert-page2-columns.test.js', 'tests/cert-course-type-editor.test.js',
   'tests/ui-no-sync-source-wording.test.js', 'tests/exam-question-types.test.js', 'tests/theme-tokens.test.js', 'tests/email-signin-approval.test.js',
   'tests/backfill-stub-fold.test.js', 'tests/force-change-pw-focus.test.js', 'tests/ui-phone-search.test.js', 'tests/ui-phone-tables.test.js',

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
 <script src="cestis-config.js?v=284ebb2a"></script>
-<script src="cestis-core.js?v=a6d7583a"></script>
+<script src="cestis-core.js?v=8b11ea5e"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CESTIS - Student Progress</title>
 
@@ -530,6 +530,28 @@ function loadData() {
   // is left untouched in storage.
   userAccounts = safeJsonParse(CESTISStore.getItem('voctrain_users'), []);
   studentProfiles = safeJsonParse(CESTISStore.getItem('voctrain_studentProfiles'), {});
+  // What was just read is the baseline the next save compares against.
+  if (typeof spFieldsRebaseline === 'function') spFieldsRebaseline();
+}
+
+/* Trainee details edited on this page are stamped one by one when it saves
+   (CESTISCore.sync.fields), so a detail changed here and a different detail
+   changed on another computer at the same time are both kept. The baseline
+   is what this page last read or saved; changes this page makes by itself
+   (merging duplicates, moving ids) are taken into it without a stamp. */
+var _spFieldIndex = null;
+function spFieldsStamp() {
+  try {
+    if (!window.CESTISCore || typeof CESTISCore.stampStudentFields !== 'function' || !Array.isArray(students)) return;
+    var now = (window.CESTISPageCloud && typeof CESTISPageCloud.now === 'function') ? CESTISPageCloud.now() : CESTISCore.sync.nowIso();
+    _spFieldIndex = CESTISCore.stampStudentFields(students, _spFieldIndex, now, false);
+  } catch (e) {}
+}
+function spFieldsRebaseline() {
+  try {
+    if (!window.CESTISCore || typeof CESTISCore.stampStudentFields !== 'function' || !Array.isArray(students)) return;
+    _spFieldIndex = CESTISCore.stampStudentFields(students, _spFieldIndex, '', true);
+  } catch (e) {}
 }
 
 // Merge two student records, preferring the more complete / more recent one
@@ -694,6 +716,7 @@ function cestisStabilizeStudentIds() {
   droppedTomb += spDropTombstoned();
 
   if (!((res && res.changed) || droppedTomb > 0)) return false;
+  if (typeof spFieldsRebaseline === 'function') spFieldsRebaseline();
   saveData();
   return true;
 }
@@ -744,6 +767,11 @@ function spSaveCollection(key, value) {
 }
 
 function saveData(detail) {
+  // Stamp the details edited here — but a copy this page was handed (the
+  // MegaData mirror) is not an edit made here.
+  if (typeof spFieldsStamp === 'function') {
+    if (detail && detail.source === 'megadata-mirror') spFieldsRebaseline(); else spFieldsStamp();
+  }
   spSaveCollection('voctrain_students', students);
   spSaveCollection('voctrain_skillAreas', skillAreas);
   spSaveCollection('voctrain_instructorData', instructorData);
@@ -1691,6 +1719,7 @@ function init() {
   if (_dr.removed > 0) {
     console.log('[StudentProgress] Removed ' + _dr.removed + ' duplicate student record(s)');
     relinkDependentData(_dr.idMap);
+    if (typeof spFieldsRebaseline === 'function') spFieldsRebaseline();
     saveData();
   }
   populateCourseDropdowns();
@@ -1720,7 +1749,7 @@ window.addEventListener('storage', function(e){
     loadData();
     cestisStabilizeStudentIds();
     var _dr3 = deduplicateStudents();
-    if(_dr3.removed > 0) { relinkDependentData(_dr3.idMap); saveData(); }
+    if(_dr3.removed > 0) { relinkDependentData(_dr3.idMap); if (typeof spFieldsRebaseline === 'function') spFieldsRebaseline(); saveData(); }
     populateCourseDropdowns();
     filterStudents();
     updatePipelineCounts();

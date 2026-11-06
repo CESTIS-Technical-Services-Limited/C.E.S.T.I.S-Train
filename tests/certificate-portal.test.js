@@ -414,7 +414,7 @@ PAGES.forEach(function (page) {
   // Every path that could disagree now agrees.
   assert(extractFunction(src, 'updateStudentStage', w).indexOf('CESTISCore.certs.applyStage(students[idx], newStage') !== -1, w + ': Update Stage issues through the one shared rule, which derives the number from the trainee');
   assert(extractFunction(src, '_generateCertPDFInner', w).indexOf('certAlignNumberWithApproval(student, approval)') !== -1, w + ': the PDF records the printed number on the approval');
-  assert(extractFunction(src, 'mergeBackupData', w).indexOf('certMergeNumberAliases(localMatch, cloudStudent)') !== -1, w + ': the cloud merge keeps displaced numbers');
+  assert(extractFunction(src, 'mergeCloudStudents', w).indexOf('certMergeNumberAliases(localMatch, cloudStudent)') !== -1, w + ': the cloud merge keeps displaced numbers');
   assert(extractFunction(src, 'fetchCertDataFromDrive', w).indexOf('certMergeNumberAliases(existing, cloudStudent)') !== -1, w + ': so does the certificate lookup\'s pull');
   assert(extractFunction(src, 'certPortalVerify', w).indexOf('certResolveNumber(query)') !== -1, w + ': the verify door resolves through aliases and approvals');
   assert(extractFunction(src, 'certPortalPreview', w).indexOf('certStudentHasNumber(student, _certPortalCertNo)') !== -1, w + ': a QR-opened download answers to any number the holder carried');
@@ -431,7 +431,7 @@ PAGES.forEach(function (page) {
   // lives in CESTISCore.certs.applyStage and is pinned by tests/cert-issuance.test.js;
   // here: the dashboard's Update Stage goes through it.
   assert(us.indexOf('CESTISCore.certs.applyStage(students[idx], newStage, { roll: students, approvals: certDownloadApprovals') !== -1, w + ': Update Stage never re-mints a number a trainee already has, and reuses a withdrawn one (the shared rule)');
-  assert(count(extractFunction(src, 'mergeBackupData', w), "if (field === 'certNo' && localMatch.certNo) return;") === 1
+  assert(count(extractFunction(src, 'mergeCloudStudents', w), "if (field === 'certNo' && localMatch.certNo) return;") === 1
       && count(extractFunction(src, 'mergeFromCloud', w), "if (field === 'certNo' && localMatch.certNo) return;") === 1, w + ': no cloud merge overwrites a number this device holds');
   assert(extractFunction(src, 'fetchCertDataFromDrive', w).indexOf('if (cloudStudent.certNo && !existing.certNo) existing.certNo = cloudStudent.certNo;') !== -1, w + ': nor does the certificate lookup\'s pull');
   assert(extractFunction(src, 'certPortalVerify', w).indexOf('Certificate Withdrawn') !== -1, w + ': a withdrawn certificate\'s number resolves, and says so');

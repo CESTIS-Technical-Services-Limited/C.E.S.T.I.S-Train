@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <script src="cestis-config.js?v=284ebb2a"></script>
-<script src="cestis-core.js?v=a6d7583a"></script>
+<script src="cestis-core.js?v=8b11ea5e"></script>
 <script src="cestis-form-modal.js?v=74020c38" defer></script>
 <!-- Inert until a page registers: the CMC Board registers as a READ-ONLY reader
      so the operating pages' books reach its dashboards without anyone syncing. -->
@@ -7525,6 +7525,28 @@ function syncStampAll() {
       _syncIndex[c.name] = CESTISCore.sync.stampChanges(recs, keyOf, prev, now, c.ignore);
     } catch (e) {}
   });
+  if (typeof studentFieldsStamp === 'function') studentFieldsStamp(now);
+}
+/* Trainee records: WHICH details were edited here, each with its own stamp
+   (CESTISCore.sync.fields), so two people changing two different details of
+   one trainee at once both keep theirs. The record-level lastModified works
+   exactly as before; this only adds _fs beside it. The baseline is what was
+   loaded, merged or last saved here. */
+var _studentFieldIndex = null;
+function studentFieldsStamp(now) {
+  try {
+    if (!window.CESTISCore || typeof CESTISCore.stampStudentFields !== 'function' || !Array.isArray(students)) return;
+    if (!now) now = (window.CESTISPageCloud && typeof CESTISPageCloud.now === 'function') ? CESTISPageCloud.now() : CESTISCore.sync.nowIso();
+    _studentFieldIndex = CESTISCore.stampStudentFields(students, _studentFieldIndex, now, false);
+  } catch (e) {}
+}
+/* What arrived from another copy is that copy's work, not an edit made here:
+   take the baseline afresh so the next save does not stamp it as new. */
+function studentFieldsRebaseline() {
+  try {
+    if (!window.CESTISCore || typeof CESTISCore.stampStudentFields !== 'function' || !Array.isArray(students)) return;
+    _studentFieldIndex = CESTISCore.stampStudentFields(students, _studentFieldIndex, '', true);
+  } catch (e) {}
 }
 /* Take the baseline afresh — after a load or a merge, when nothing that
    differs from the index was edited here. */
@@ -7539,6 +7561,7 @@ function syncRebaselineAll() {
         : CESTISCore.sync.stampChanges(recs, c.map ? null : c.key, null, '', c.ignore);
     } catch (e) {}
   });
+  if (typeof studentFieldsRebaseline === 'function') studentFieldsRebaseline();
 }
 function syncRecordTombstone(collection, key, at) {
   if (!collection || key === undefined || key === null) return;
@@ -10416,6 +10439,9 @@ function enforceOnePersonOneRecord() {
    removed; nothing is written when nothing changed. */
 function cestisSettleRoster(reason) {
   if (typeof students === 'undefined' || !Array.isArray(students)) return 0;
+  // An edit made here is stamped before the collapse below, and what the
+  // collapse itself changes is not taken for an edit (studentFieldsStamp).
+  if (typeof studentFieldsStamp === 'function') studentFieldsStamp();
   // Backfill stubs first, with their tombstones — the collapse below would
   // otherwise drop them here with no record, and the accounts list would hand
   // them back.
@@ -10441,6 +10467,7 @@ function cestisSettleRoster(reason) {
     try { saveUserAccounts(); } catch (e) {}
     console.log('[VocTrain] Settled the roll after ' + (reason || 'a merge') + ': ' + before + ' -> ' + students.length + ' trainee record(s)');
   }
+  if (typeof studentFieldsRebaseline === 'function') studentFieldsRebaseline();
   try { updateSkillAreaCounts(); } catch (e) {}
   return removed;
 }
@@ -26058,6 +26085,9 @@ window.addEventListener('message', function(e) {
       try { CESTISStore.setItem('voctrain_certDownloadApprovals', JSON.stringify(certDownloadApprovals)); } catch(e2) {}
       try { saveUserAccounts(); } catch(e2) {}
     }
+    // Student Progress stamps the details it edits itself; what was just
+    // adopted is not an edit made in this window.
+    if (typeof studentFieldsRebaseline === 'function') studentFieldsRebaseline();
     // A student deleted in the Student Progress frame must lose their School Fee
     // twin as well, tombstoned so no mirror resurrects them.
     if (e.data.deleted && studentProgressManageAllowed()) {
@@ -26316,7 +26346,9 @@ function cestisRepointSessionRecords() {
   } catch(e) {}
 }
 var CESTIS_SHARED_COLLECTIONS = {
-  voctrain_students:            function(v){ students = v; cestisRepointSessionRecords(); },
+  // Another tab's or the Centre's network's copy: its details' stamps came
+  // with it, and nothing in it was edited in THIS window.
+  voctrain_students:            function(v){ students = v; cestisRepointSessionRecords(); if (typeof studentFieldsRebaseline === 'function') studentFieldsRebaseline(); },
   voctrain_studentProfiles:     function(v){ studentProfiles = v; },
   voctrain_instructorData:      function(v){ instructorData = v; cestisRepointSessionRecords(); },
   voctrain_instructorProfiles:  function(v){ instructorProfiles = v; },
@@ -38599,6 +38631,9 @@ async function mergeFromCloud() {
     // Merge students — update existing records AND add new ones (match by id)
     // Uses lastModified timestamp when available for conflict resolution
     if (backupData.data.students) {
+      // A detail edited here and not saved yet is stamped first (studentFieldsStamp).
+      if (typeof studentFieldsStamp === 'function') studentFieldsStamp();
+      var _fsF = (CESTISCore.sync && CESTISCore.sync.fields) || null, _fsR = CESTISCore.STUDENT_FIELD_RULES || null;
       backupData.data.students.forEach(cloudStudent => {
         if (cestisIsStudentTombstoned(cloudStudent)) return; // Honor tombstone (id + stable id)
         if (_demoStudentIds[cloudStudent.id]) return; // Skip legacy demo data
@@ -38614,16 +38649,22 @@ async function mergeFromCloud() {
           var cloudMod = cloudStudent.lastModified ? new Date(cloudStudent.lastModified).getTime() : 0;
           var localMod = localMatch.lastModified ? new Date(localMatch.lastModified).getTime() : 0;
           var cloudIsNewer = cloudMod > localMod;
+          // Each detail's own edit stamp decides where both copies have one
+          // (CESTISCore.sync.fields), read from the copies as they stood.
+          var _fsOn = !!(_fsF && _fsR && (_fsF.hasStamps(localMatch) || _fsF.hasStamps(cloudStudent)));
+          var _localBefore = _fsOn ? JSON.parse(JSON.stringify(localMatch)) : null;
+          var _fsRules = _fsOn ? { stamp: _fsR.stamp, skip: _fsR.skip, groups: _fsR.groups, nowMs: CESTISCore.sync.now() } : null;
           certMergeNumberAliases(localMatch, cloudStudent);
           // Update fields: cloud wins if newer OR if local field is empty/undefined
           // 'stageSetByUser' travels with the stage: without it the other
           // devices still believe the course-end rule owns this trainee, and
           // would undo the Centre's decision the next time the course reopens.
-          var fieldsToMerge = ['stage','stageSetByUser','progress','name','course','instructor','certCollected','certNo','certDate','score','gpa','attendance','email','phone','status','address','dob','enrollDate','completionDate','nqfLevel','notes'];
+          var fieldsToMerge = ['stage','stageSetByUser','progress','name','course','instructor','certCollected','certNo','certDate','score','gpa','attendance','email','phone','status','address','dob','enrollDate','completionDate','nqfLevel','notes','enrolStatus','gender','trn','nqs'];
           fieldsToMerge.forEach(function(field) {
             if (field === 'certNo' && localMatch.certNo) return;   // a number, once issued, never changes
             if (cloudStudent[field] !== undefined && cloudStudent[field] !== null && cloudStudent[field] !== '') {
-              if (cloudIsNewer || !localMatch[field] || localMatch[field] === '') {
+              var _w = _fsOn ? _fsF.pick(_localBefore, cloudStudent, field, _fsRules) : null;
+              if ((_w ? _w === 'cloud' : cloudIsNewer) || !localMatch[field] || localMatch[field] === '') {
                 if (localMatch[field] !== cloudStudent[field]) {
                   localMatch[field] = cloudStudent[field];
                 }
@@ -38636,6 +38677,7 @@ async function mergeFromCloud() {
             cloudStudent.skills.forEach(function(sk) { if (localMatch.skills.indexOf(sk) === -1) localMatch.skills.push(sk); });
           }
           if (cloudIsNewer && cloudStudent.lastModified) localMatch.lastModified = cloudStudent.lastModified;
+          if (_fsOn) _fsF.settle(localMatch, _localBefore, cloudStudent, _fsRules);
           mergeStats.studentsUpdated++;
         } else {
           students.push(cloudStudent);
@@ -39067,6 +39109,10 @@ async function mergeFromCloud() {
       mergeIncomingTombstoneLists(backupData.data);
       syncApplyTombstones();
     } catch(e) {}
+
+    // The trainee details that arrived are the cloud's work, not edits made
+    // here: the save below must not stamp them as new.
+    if (typeof studentFieldsRebaseline === 'function') studentFieldsRebaseline();
 
     // Persist all merged data
     saveState();
@@ -40578,6 +40624,89 @@ function pullAllowsUpload() {
 // into this device. Every automatic pull and the manual Sync from Cloud come
 // through here, so there is exactly one set of merge rules.
 var _mergeBackupFailed = false;
+/* The trainee roll from a backup, into this device's roll. A deleted trainee
+   stays deleted; a trainee this device does not hold is added; one it holds
+   (same id, or same name and programme) is merged detail by detail:
+     - where the details carry their own edit stamps (CESTISCore.sync.fields),
+       the newer edit of each detail wins — so the office changing the phone
+       number on one PC and an instructor changing the status on another a
+       few seconds later both keep their change;
+     - otherwise the copy with the newer lastModified wins, as it always has;
+     - a blank never replaces a detail, a certificate number once issued
+       never changes, and a withdrawn certificate is not filled back in.
+   `skip` holds the legacy demo ids. Returns true when anything changed. */
+function mergeCloudStudents(cloudList, skip) {
+  var changed = false;
+  var F = (window.CESTISCore && CESTISCore.sync && CESTISCore.sync.fields) || null;
+  var R = (window.CESTISCore && CESTISCore.STUDENT_FIELD_RULES) || null;
+  (Array.isArray(cloudList) ? cloudList : []).forEach(function(cloudStudent) {
+    if (!cloudStudent || typeof cloudStudent !== 'object') return;
+    if (cestisIsStudentTombstoned(cloudStudent)) return; // Honor tombstone (id + stable id)
+    if (skip && skip[cloudStudent.id]) return;
+    var localMatch = students.find(function(s) {
+      if (s.id === cloudStudent.id) return true;
+      return s.name && cloudStudent.name &&
+        s.name.trim().toLowerCase() === cloudStudent.name.trim().toLowerCase() &&
+        s.course && cloudStudent.course &&
+        s.course.trim().toLowerCase() === cloudStudent.course.trim().toLowerCase();
+    });
+    if (localMatch) {
+      // Timestamp-based merge: cloud wins if it has a newer lastModified, or if local has none
+      var cloudMod = cloudStudent.lastModified ? new Date(cloudStudent.lastModified).getTime() : 0;
+      // A stamp more than a day ahead of the correct time is not believed
+      // (CESTISCore.sync.trusted): a PC whose clock had jumped days ahead
+      // won every merge until real time caught up.
+      if (cloudMod && CESTISCore.sync && CESTISCore.sync.trusted) cloudMod = CESTISCore.sync.trusted(cloudMod) || 0;
+      var localMod = localMatch.lastModified ? new Date(localMatch.lastModified).getTime() : 0;
+      var cloudIsNewer = cloudMod > localMod;
+      // The details' own stamps, read from both copies as they stood before
+      // anything below changed this one.
+      // (Two identical copies — most of every pull — have nothing to decide.)
+      var fsOn = !!(F && R && (F.hasStamps(localMatch) || F.hasStamps(cloudStudent))) &&
+        JSON.stringify(localMatch) !== JSON.stringify(cloudStudent);
+      var localBefore = fsOn ? JSON.parse(JSON.stringify(localMatch)) : null;
+      var fsRules = fsOn ? { stamp: R.stamp, skip: R.skip, groups: R.groups, nowMs: CESTISCore.sync.now() } : null;
+      // Whichever number the field merge keeps, the other stays as an alias.
+      if (certMergeNumberAliases(localMatch, cloudStudent)) changed = true;
+      // 'stageSetByUser' travels with the stage: without it the other
+      // devices still believe the course-end rule owns this trainee, and
+      // would undo the Centre's decision the next time the course reopens.
+      // enrolledAt says this record is a NEW enrolment of a person deleted
+      // earlier; without it the copy here would be hidden by the old tombstone.
+      var fieldsToMerge = ['stage','stageSetByUser','progress','name','course','instructor','certCollected','certNo','certDate','score','gpa','attendance','email','phone','status','address','dob','enrollDate','completionDate','nqfLevel','notes','enrolledAt','enrolStatus','gender','trn','nqs'];
+      // A certificate withdrawn on either copy (the newest decision) is not
+      // filled back in from the copy that still holds it.
+      var _withdrawn = !!(CESTISCore.certs && CESTISCore.certs.isRevoked(localMatch));
+      fieldsToMerge.forEach(function(field) {
+        if (field === 'certNo' && localMatch.certNo) return;   // a number, once issued, never changes
+        if (_withdrawn && (field === 'certNo' || field === 'certDate' || field === 'certCollected')) return;
+        if (cloudStudent[field] !== undefined && cloudStudent[field] !== null && cloudStudent[field] !== '') {
+          // The detail's own stamps decide where they can; else the record's date.
+          var _w = fsOn ? F.pick(localBefore, cloudStudent, field, fsRules) : null;
+          var _cloudWins = _w ? _w === 'cloud' : cloudIsNewer;
+          if (_cloudWins || !localMatch[field] || localMatch[field] === '') {
+            if (localMatch[field] !== cloudStudent[field]) {
+              localMatch[field] = cloudStudent[field];
+              changed = true;
+            }
+          }
+        }
+      });
+      if (Array.isArray(cloudStudent.skills)) {
+        if (!Array.isArray(localMatch.skills)) localMatch.skills = [];
+        cloudStudent.skills.forEach(function(sk) { if (localMatch.skills.indexOf(sk) === -1) { localMatch.skills.push(sk); changed = true; } });
+      }
+      if (cloudIsNewer && cloudStudent.lastModified) localMatch.lastModified = cloudStudent.lastModified;
+      try { if (CESTISCore.settleWithdrawnCertificate(localMatch)) changed = true; } catch (e) {}
+      // The merged record keeps the newest stamp of each detail it now holds.
+      if (fsOn && F.settle(localMatch, localBefore, cloudStudent, fsRules)) changed = true;
+    } else {
+      students.push(cloudStudent);
+      changed = true;
+    }
+  });
+  return changed;
+}
 async function mergeBackupData(backupData) {
   // The appraisals travel with every backup: wait for their module where it was left out.
   if (window.cestisStaffModules && !cestisStaffModules.ready()) {
@@ -40636,60 +40765,10 @@ async function mergeBackupData(backupData) {
 
     // Merge students — timestamp-based update for existing, add new ones
     if (backupData.data.students) {
-      backupData.data.students.forEach(cloudStudent => {
-        if (!cloudStudent || typeof cloudStudent !== 'object') return;
-        if (cestisIsStudentTombstoned(cloudStudent)) return; // Honor tombstone (id + stable id)
-        if (_ds[cloudStudent.id]) return;
-        var localMatch = students.find(function(s) {
-          if (s.id === cloudStudent.id) return true;
-          return s.name && cloudStudent.name &&
-            s.name.trim().toLowerCase() === cloudStudent.name.trim().toLowerCase() &&
-            s.course && cloudStudent.course &&
-            s.course.trim().toLowerCase() === cloudStudent.course.trim().toLowerCase();
-        });
-        if (localMatch) {
-          // Timestamp-based merge: cloud wins if it has a newer lastModified, or if local has none.
-          // A stamp more than a day ahead of the correct time is not believed
-          // (CESTISCore.sync.trusted): a PC whose clock had jumped days ahead
-          // won every merge until real time caught up.
-          var cloudMod = cloudStudent.lastModified ? new Date(cloudStudent.lastModified).getTime() : 0;
-          if (cloudMod && CESTISCore.sync && CESTISCore.sync.trusted) cloudMod = CESTISCore.sync.trusted(cloudMod) || 0;
-          var localMod = localMatch.lastModified ? new Date(localMatch.lastModified).getTime() : 0;
-          var cloudIsNewer = cloudMod > localMod;
-          // Whichever number the field merge keeps, the other stays as an alias.
-          if (certMergeNumberAliases(localMatch, cloudStudent)) changed = true;
-          // 'stageSetByUser' travels with the stage: without it the other
-          // devices still believe the course-end rule owns this trainee, and
-          // would undo the Centre's decision the next time the course reopens.
-          // enrolledAt says this record is a NEW enrolment of a person deleted
-          // earlier; without it the copy here would be hidden by the old tombstone.
-          var fieldsToMerge = ['stage','stageSetByUser','progress','name','course','instructor','certCollected','certNo','certDate','score','gpa','attendance','email','phone','status','address','dob','enrollDate','completionDate','nqfLevel','notes','enrolledAt'];
-          // A certificate withdrawn on either copy (the newest decision) is not
-          // filled back in from the copy that still holds it.
-          var _withdrawn = !!(CESTISCore.certs && CESTISCore.certs.isRevoked(localMatch));
-          fieldsToMerge.forEach(function(field) {
-            if (field === 'certNo' && localMatch.certNo) return;   // a number, once issued, never changes
-            if (_withdrawn && (field === 'certNo' || field === 'certDate' || field === 'certCollected')) return;
-            if (cloudStudent[field] !== undefined && cloudStudent[field] !== null && cloudStudent[field] !== '') {
-              if (cloudIsNewer || !localMatch[field] || localMatch[field] === '') {
-                if (localMatch[field] !== cloudStudent[field]) {
-                  localMatch[field] = cloudStudent[field];
-                  changed = true;
-                }
-              }
-            }
-          });
-          if (Array.isArray(cloudStudent.skills)) {
-            if (!Array.isArray(localMatch.skills)) localMatch.skills = [];
-            cloudStudent.skills.forEach(function(sk) { if (localMatch.skills.indexOf(sk) === -1) { localMatch.skills.push(sk); changed = true; } });
-          }
-          if (cloudIsNewer && cloudStudent.lastModified) localMatch.lastModified = cloudStudent.lastModified;
-          try { if (CESTISCore.settleWithdrawnCertificate(localMatch)) changed = true; } catch (e) {}
-        } else {
-          students.push(cloudStudent);
-          changed = true;
-        }
-      });
+      // A detail edited here and not saved yet is stamped first, so it is
+      // weighed fairly against the cloud's copy (studentFieldsStamp).
+      if (typeof studentFieldsStamp === 'function') studentFieldsStamp();
+      if (mergeCloudStudents(backupData.data.students, _ds)) changed = true;
 
       // Create disabled user accounts for any orphaned students (no linked user account)
       students.forEach(function(s) {
@@ -45610,9 +45689,14 @@ function cloudFetchAccountData(interactive) {
     // had not been uploaded yet — grades entered, attendance marked, a stage
     // moved on. The shared rule keeps the newer lastModified and fills blanks
     // from the other copy, exactly as the main autosave merge does.
+    // Detail by detail where the details carry their own edit stamps
+    // (CESTISCore.sync.fields): a detail edited here and not saved yet is
+    // stamped first, and what arrived is not stamped as an edit made here.
+    if (typeof studentFieldsStamp === 'function') studentFieldsStamp();
     cloudStudents.forEach(function(cs) {
       CESTISCore.cloudMerge.applyStudent(students, cs, cestisIsStudentTombstoned);
     });
+    if (typeof studentFieldsRebaseline === 'function') studentFieldsRebaseline();
 
     // The instructors' records too, by the same rule as the full sync. An
     // instructor approved in the office arrived here with an "active" account
@@ -54112,6 +54196,8 @@ async function fetchCertDataFromDrive() {
     // Merge students — update existing and add new ones
     var merged = 0;
     if (backupData.data.students && Array.isArray(backupData.data.students)) {
+      if (typeof studentFieldsStamp === 'function') studentFieldsStamp();
+      var _fsF = (CESTISCore.sync && CESTISCore.sync.fields) || null, _fsR = CESTISCore.STUDENT_FIELD_RULES || null;
       backupData.data.students.forEach(function(cloudStudent) {
         if (!cloudStudent || !cloudStudent.id) return;
         if (cestisIsStudentTombstoned(cloudStudent)) return; // Honor tombstone (id + stable id)
@@ -54125,20 +54211,27 @@ async function fetchCertDataFromDrive() {
           // nothing else is touched.
           var _cloudMod = cloudStudent.lastModified ? new Date(cloudStudent.lastModified).getTime() : 0;
           var _localMod = existing.lastModified ? new Date(existing.lastModified).getTime() : 0;
+          var _cloudNewer = _cloudMod > _localMod;
+          // Each detail's own edit stamp decides where both copies have one
+          // (CESTISCore.sync.fields); otherwise the newer record, as before.
+          var _fsOn = !!(_fsF && _fsR && (_fsF.hasStamps(existing) || _fsF.hasStamps(cloudStudent)));
+          var _lb = _fsOn ? JSON.parse(JSON.stringify(existing)) : null;
+          var _fsRules = _fsOn ? { stamp: _fsR.stamp, skip: _fsR.skip, groups: _fsR.groups, nowMs: CESTISCore.sync.now() } : null;
+          var _take = function(f) {
+            var w = _fsOn ? _fsF.pick(_lb, cloudStudent, f, _fsRules) : null;
+            return w ? w === 'cloud' : _cloudNewer;
+          };
           certMergeNumberAliases(existing, cloudStudent);
-          if (_cloudMod > _localMod) {
-            if (cloudStudent.certNo && !existing.certNo) existing.certNo = cloudStudent.certNo;   // a number, once issued, never changes
-            if (cloudStudent.certDate !== undefined) existing.certDate = cloudStudent.certDate;
-            if (cloudStudent.certCollected !== undefined) existing.certCollected = cloudStudent.certCollected;
-            if (cloudStudent.stage !== undefined) existing.stage = cloudStudent.stage;
-            if (cloudStudent.progress !== undefined) existing.progress = cloudStudent.progress;
-            if (cloudStudent.name) existing.name = cloudStudent.name;
-            if (cloudStudent.course) existing.course = cloudStudent.course;
-            existing.lastModified = cloudStudent.lastModified;
-          } else {
-            if (!existing.certNo && cloudStudent.certNo) existing.certNo = cloudStudent.certNo;
-            if (!existing.certDate && cloudStudent.certDate) existing.certDate = cloudStudent.certDate;
-          }
+          if (cloudStudent.certNo && !existing.certNo) existing.certNo = cloudStudent.certNo;   // a number, once issued, never changes
+          if (_take('certDate')) { if (cloudStudent.certDate !== undefined) existing.certDate = cloudStudent.certDate; }
+          else if (!existing.certDate && cloudStudent.certDate) existing.certDate = cloudStudent.certDate;
+          if (_take('certCollected') && cloudStudent.certCollected !== undefined) existing.certCollected = cloudStudent.certCollected;
+          if (_take('stage') && cloudStudent.stage !== undefined) existing.stage = cloudStudent.stage;
+          if (_take('progress') && cloudStudent.progress !== undefined) existing.progress = cloudStudent.progress;
+          if (_take('name') && cloudStudent.name) existing.name = cloudStudent.name;
+          if (_take('course') && cloudStudent.course) existing.course = cloudStudent.course;
+          if (_cloudNewer) existing.lastModified = cloudStudent.lastModified;
+          if (_fsOn) _fsF.settle(existing, _lb, cloudStudent, _fsRules);
         } else {
           students.push(cloudStudent);
           merged++;
@@ -54201,6 +54294,8 @@ async function fetchCertDataFromDrive() {
     if (readMain || readMaster) {
       // Count nobody twice, whichever copy brought them in.
       try { cestisSettleRoster('the certificate lookup'); } catch (e) {}
+      // What arrived is the cloud's work, not an edit made here.
+      if (typeof studentFieldsRebaseline === 'function') studentFieldsRebaseline();
       _certDriveLastFetched = Date.now();
       _certCloudStatus('Certificate records updated.', 'ok');
       setTimeout(function() { _certCloudStatus(''); }, 2500);
