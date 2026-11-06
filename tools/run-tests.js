@@ -41,7 +41,7 @@ const SUITES = [
   'tests/storage-durability.test.js', 'tests/security-and-approvals.test.js', 'tests/money-correctness.test.js', 'tests/sync-preconditions.test.js',
   'tests/build-parity.test.js', 'tests/roster-settles-on-sync.test.js', 'tests/school-fee-ui.test.js', 'tests/school-fee-year-records.test.js',
   'tests/school-fee-carry-forward.test.js', 'tests/account-deletion.test.js', 'tests/account-merge.test.js', 'tests/sync-integrity.test.js',
-  'tests/record-sync.test.js', 'tests/admin-staff-access.test.js', 'tests/course-end-status.test.js', 'tests/course-end-transcript.test.js',
+  'tests/record-sync.test.js', 'tests/fake-drive-revisions.test.js', 'tests/admin-staff-access.test.js', 'tests/course-end-status.test.js', 'tests/course-end-transcript.test.js',
   'tests/attendance-register.test.js', 'tests/transfer-core.test.js', 'tests/cloud-merge.test.js', 'tests/deletion-tombstones.test.js',
   'tests/page-cloud.test.js', 'tests/shared-cloud-read.test.js', 'tests/no-data-loss.test.js', 'tests/megadata-schemas.test.js',
   'tests/megadata-broker.test.js', 'tests/megadata-dal.test.js', 'tests/megadata-bootstrap.test.js', 'tests/megadata-glue.test.js',
