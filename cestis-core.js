@@ -3988,6 +3988,13 @@
     /* How much picture each device sends. A phone filming at 720p for a tile
        the size of a thumbnail costs data and battery for nothing.
        opts: { mobile, host, peers }  ->  { width, height, frameRate, maxBitrate } */
+    /* The host's whole upload for pictures, shared by every copy it sends.
+       5 Mbit/s was more than most instructors' home lines (and every phone
+       on mobile data) can push upstream: each connection then measured the
+       line for itself, all of them overran it together, and every trainee's
+       picture froze at once. 3 Mbit/s by default; a Centre whose
+       instructors have more (or less) upload sets systemSettings.vcHostUploadKbps. */
+    var HOST_UPLOAD_BPS = 3000000;
     function videoProfile(opts) {
       opts = opts || {};
       var p;
@@ -3995,7 +4002,11 @@
         p = opts.mobile ? { width: 960, height: 540, frameRate: 24 } : { width: 1280, height: 720, frameRate: 30 };
         // The host uploads one copy per participant: share a fixed budget.
         var n = Math.max(1, Math.floor(opts.peers || 1));
-        p.maxBitrate = Math.max(250000, Math.min(1200000, Math.floor(5000000 / n)));
+        var budget = Number(opts.uploadBps) > 0 ? Number(opts.uploadBps) : HOST_UPLOAD_BPS;
+        p.maxBitrate = Math.max(150000, Math.min(1200000, Math.floor(budget / n)));
+        // A thin copy at full size is a blurred, stuttering one: send a
+        // smaller picture instead (720p -> 480p -> 360p -> 240p).
+        p.scaleDown = p.maxBitrate >= 900000 ? 1 : p.maxBitrate >= 450000 ? 1.5 : p.maxBitrate >= 250000 ? 2 : 3;
       } else if (opts.mobile) {
         p = { width: 640, height: 360, frameRate: 24, maxBitrate: 350000 };
       } else {
@@ -4122,6 +4133,7 @@
       recorderOptions: recorderOptions,
       recordingMBPerHour: recordingMBPerHour,
       videoProfile: videoProfile,
+      HOST_UPLOAD_BPS: HOST_UPLOAD_BPS,
       backoffDelay: backoffDelay,
       parseIceServers: parseIceServers,
       iceServers: iceServers,
@@ -11224,6 +11236,15 @@
       var s = String(raw).trim();
       if (s === '' || s === 'null' || s === 'undefined') return true;
       if (s === '[]' || s === '{}') return true;
+      // A long list or object is never empty: '[' or '{', something other
+      // than white space, then the closing bracket. Answered without
+      // JSON.parse — this runs on every save of every collection, and parsing
+      // a 15 MB exam-results list only to learn it is not empty cost seconds
+      // on a slow machine. (Unreadable values were already "not empty".)
+      if (s.length > 64) {
+        var c0 = s.charAt(0);
+        if (c0 === '[' || c0 === '{') return s.slice(1, -1).trim() === '';
+      }
       try {
         var v = JSON.parse(s);
         if (v == null) return true;
@@ -11248,7 +11269,9 @@
        which is exactly how deleting a trainee, a payment or a training centre
        already works — those write a record of the deletion, not an empty list. */
     function wouldDiscardRecords(from, to) {
-      return !isEmptyValue(from) && isEmptyValue(to);
+      // The (cheap) question about the new value first: only an empty write
+      // needs the stored value looked at at all.
+      return isEmptyValue(to) && !isEmptyValue(from);
     }
 
     /* Write a collection to the store unless doing so would throw records away.
@@ -11264,6 +11287,12 @@
     function guardedSet(store, key, value, onRefuse) {
       if (!store || !key) return false;
       var next = (typeof value === 'string') ? value : JSON.stringify(value);
+      // A write that carries records can never discard any: no need to read
+      // (and copy out of localStorage) what is stored before writing it.
+      if (!isEmptyValue(next)) {
+        try { store.setItem(key, next); } catch (e) { return false; }
+        return true;
+      }
       var current = null;
       try { current = store.getItem(key); } catch (e) { current = null; }
       // Nothing readable here YET is not the same as nothing stored: before
@@ -11430,7 +11459,14 @@
       // cestiSchoolFeeDeletedLmsIds list, which travels in the same file) is not
       // brought back by the other side's copy.
       { key: 'cestiSchoolFeeStudents', type: 'feeStudents', id: byId, stamps: ['updatedAt'],
-        rank: function (r) { return Core.feeRecordRank(r); }, rankDrop: Core.FEE_PLACEHOLDER_FIELDS }
+        rank: function (r) { return Core.feeRecordRank(r); }, rankDrop: Core.FEE_PLACEHOLDER_FIELDS },
+      // School Fee payments, payment by payment, on every path (`always`): two
+      // offices taking payments within the same minute each wrote their whole
+      // list, and the later list replaced the earlier — in the page's Drive
+      // file, then (pulled back as "newer") on the PC that took the payment.
+      // A payment goes only through its deletion list.
+      { key: 'cestiSchoolFeePayments', type: 'list', id: byId, stamps: ['updatedAt', 'createdAt'],
+        idListTomb: 'cestiSchoolFeeDeletedPaymentIds', always: true }
     ];
 
     function recordSpec(key) {
@@ -11458,7 +11494,7 @@
        once each wrote their whole list, and the later upload erased the
        other's work. */
     var DRIVE_RECORD_KEYS = ['voctrain_transcriptGrades', 'voctrain_unitCatalogs', 'voctrain_transcriptProfiles', 'voctrain_unitProposals',
-      'voctrain_certTranscriptRequests', 'cesti_virements', 'cestis_cmc_rulings', 'cestiSchoolFeeStudents'];
+      'voctrain_certTranscriptRequests', 'cesti_virements', 'cestis_cmc_rulings', 'cestiSchoolFeeStudents', 'cestiSchoolFeePayments'];
 
     function parseJson(raw) { try { return JSON.parse(raw); } catch (e) { return undefined; } }
     function isObj(v) { return !!v && typeof v === 'object' && !Array.isArray(v); }
@@ -11803,8 +11839,10 @@
       }
 
       // A plain list of records.
+      var listGone = (spec.idListTomb && ctx.ids) ? ctx.ids(spec.idListTomb) : {};
       out = unionList(L, C, spec.id, function (l, c) { return newer(l, c, spec.stamps); }, function (r) {
         if (spec.accept && !spec.accept(r)) return false;
+        if (spec.idListTomb && listGone[String(spec.id(r))]) return false;
         if (spec.studentField && ownerDeleted(ctx, r[spec.studentField], r)) return false;
         if (spec.tombs && Core.sync.deletedAfter(tombs, spec.id(r), r)) return false;
         return true;
@@ -18647,7 +18685,15 @@
         centreName: str(S.institutionName), centreUtcOffset: ctx.offset,
         maintenanceMode: S.maintenanceMode === true,
         maintenanceMessage: S.maintenanceMode === true ? str(S.maintenanceMessage) : '',
-        gateUrl: str(ctx.opts.gateUrl || (isObj(S.traineeGate) ? S.traineeGate.url : ''))
+        gateUrl: str(ctx.opts.gateUrl || (isObj(S.traineeGate) ? S.traineeGate.url : '')),
+        // Video classes: a phone signed in through the gate must use the SAME
+        // introduction (signalling) server, relay and Large Class server as
+        // its instructor, and make the same Large Class room password. Left
+        // out, it used the public defaults: it looked for the class on another
+        // server, or opened a different meeting, whenever the Centre had set
+        // its own in Settings -> Video Conference.
+        vcSignallingHost: str(S.vcSignallingHost), vcTurnServers: str(S.vcTurnServers),
+        vcLargeRoomBase: str(S.vcLargeRoomBase), vcRoomPasswordSalt: str(S.vcRoomPasswordSalt)
       };
 
       var body = { data: d, tombstones: tombstones, access: access };

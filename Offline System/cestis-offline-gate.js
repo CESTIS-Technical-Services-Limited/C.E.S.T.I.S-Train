@@ -793,35 +793,57 @@ function create(opts) {
     });
   }
 
+  /* Deliveries that arrive while the records file is being saved wait for the
+     next save and go into it TOGETHER: one read, one pass over the Centre's
+     records (Core.gate.prepare) and one write for all of them, instead of one
+     each. A room of trainees saving at once then costs about one save, not
+     one save per trainee (each is a whole-file read, merge and write). Each
+     request still gets its own receipts, decided exactly as before. */
+  let deliverBatch = null;
   function deliver(req, t) {
     const items = req.items;
     if (!Array.isArray(items) || !items.length || items.length > LIMITS.DELIVER_MAX_ITEMS) fail('bad-request');
     const suffix = req.lane != null && req.lane !== '' ? str(req.lane) : '';
     if (suffix && !/^[A-Za-z0-9]{1,12}$/.test(suffix)) fail('bad-request');
     ready(t);
-    const out = new Array(items.length);
-    let writing = [], decided = false;
-    return saveRecords(storedText => {
-      writing = []; decided = false;
+    return new Promise((resolve, reject) => {
+      if (!deliverBatch) {
+        const batch = deliverBatch = { reqs: [] };
+        saveBatch(batch);
+      }
+      deliverBatch.reqs.push({ items, t, resolve, reject, out: new Array(items.length), writing: [], decided: false });
+    });
+  }
+  function saveBatch(batch) {
+    saveRecords(storedText => {
+      if (deliverBatch === batch) deliverBatch = null;      // later arrivals start the next batch
+      const t = batch.reqs.reduce((m, r) => Math.max(m, r.t), 0);
       const c = ready(t, storedText);
-      const w = new Work(c, t), groups = {}, order = [];
-      items.forEach((it, i) => {
-        if (!isObj(it) || it.id == null || !it.a || !it.sid) { out[i] = { id: isObj(it) && it.id != null ? str(it.id) : '', ok: false, reason: 'malformed' }; return; }
-        const k = str(it.a) + '\u0000' + str(it.sid);
-        if (!groups[k]) { groups[k] = []; order.push(k); }
-        groups[k].push({ i, item: it });
+      const w = new Work(c, t);
+      batch.reqs.forEach(r => {
+        r.writing = []; r.decided = false;
+        const groups = {}, order = [];
+        r.items.forEach((it, i) => {
+          if (!isObj(it) || it.id == null || !it.a || !it.sid) { r.out[i] = { id: isObj(it) && it.id != null ? str(it.id) : '', ok: false, reason: 'malformed' }; return; }
+          const k = str(it.a) + '\u0000' + str(it.sid);
+          if (!groups[k]) { groups[k] = []; order.push(k); }
+          groups[k].push({ i, item: it });
+        });
+        order.forEach(k => { const g = groups[k]; deliverSession(c, w, str(g[0].item.a), str(g[0].item.sid), g, r.out, r.writing, t); });
+        r.decided = true;
       });
-      order.forEach(k => { const g = groups[k]; deliverSession(c, w, str(g[0].item.a), str(g[0].item.sid), g, out, writing, t); });
-      decided = true;
       const values = w.values();
       return Object.keys(values).length ? payloadWith(c.payload, values, t) : null;
-    }).then(() => ({ ok: true, receipts: out }), err => {
-      if (err && err.gateError && !decided) throw err;
+    }).then(() => { batch.reqs.forEach(r => r.resolve({ ok: true, receipts: r.out })); }, err => {
+      if (deliverBatch === batch) deliverBatch = null;
+      if (err && err.gateError && !batch.reqs.some(r => r.decided)) { batch.reqs.forEach(r => r.reject(err)); return; }
       // Nothing was written: every item that was to be written is answered
       // "retry", stays on the device and is sent again.
       log('A trainee\'s work could not be saved just now (their device will send it again): ' + (err && err.message));
-      (decided ? writing : items.map((_, i) => i)).forEach(i => { out[i] = { id: out[i] ? out[i].id : str(items[i] && items[i].id), ok: false, reason: 'retry', retry: true }; });
-      return { ok: true, receipts: out };
+      batch.reqs.forEach(r => {
+        (r.decided ? r.writing : r.items.map((_, i) => i)).forEach(i => { r.out[i] = { id: r.out[i] ? r.out[i].id : str(r.items[i] && r.items[i].id), ok: false, reason: 'retry', retry: true }; });
+        r.resolve({ ok: true, receipts: r.out });
+      });
     });
   }
 

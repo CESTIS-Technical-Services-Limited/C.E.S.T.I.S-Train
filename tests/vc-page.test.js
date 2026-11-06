@@ -655,7 +655,7 @@ console.log('A muted microphone sends nothing; unmuting sends again; the room is
     audio.flush(); await flushAll();
     assertEq(audio.applied.active, false, 'and stops again when sharing ends');
     // Connected calls get the same rule.
-    assert(/vcApplySenderLimits\(pc\);\s*vcApplySoundSending\(pc\);/.test(extractFunction('vcWatchIce')), 'every connection, once connected, sends sound only if the microphone is on');
+    assert(/vcApplySenderLimits\(pc(, pid)?\);\s*vcApplySoundSending\(pc\);/.test(extractFunction('vcWatchIce')), 'every connection, once connected, sends sound only if the microphone is on');
     ['force-mute', 'force-unmute', 'mute-all'].forEach(t => {
       const body = extractFunction('vcOnData');
       const i = body.indexOf("case '" + t + "'");

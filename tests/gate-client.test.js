@@ -83,6 +83,8 @@ Gate.configure({ outboxBackend: backend, store: null, client: 'test' });
   /* ====================================================== pure rules */
   console.log('Backoff 2 s → 5 min, and what a receipt means');
   eq([0, 1, 2, 3, 7, 8, 30].map(P.backoffMs), [2000, 4000, 8000, 16000, 256000, 300000, 300000], 'the wait before the next try');
+  eq([[3, 0], [3, 1], [3, 0.5], [8, 1, 60000], [8, 0, 60000], [8]].map(a => P.backoffSpreadMs(a[0], a[1], a[2])), [8000, 16000, 12000, 60000, 30000, 300000],
+    'the wait spread over its upper half (devices refused together come back apart); a submit waits at most a minute');
   eq([{ ok: true }, { ok: true, dup: true }, { ok: false, reason: 'revoked' }, { ok: false, reason: 'retry', retry: true },
     { ok: false, reason: 'not-ready', retry: true }, { ok: false, reason: 'not-yours' }, { ok: false, reason: 'bad-seal' }, null].map(P.receiptAction),
     ['done', 'done', 'reseal', 'retry', 'retry', 'refused', 'refused', 'retry'], 'done / reseal / retry / refused (no receipt at all: retry)');
@@ -109,7 +111,7 @@ Gate.configure({ outboxBackend: backend, store: null, client: 'test' });
     eq(await ob.settle(by('i6'), { id: 'i6', ok: false, reason: 'not-yours' }, 1000), 'refused', 'refused');
     eq(await ob.settle(by('i7'), null, 1000), 'retry', 'no receipt: tried again');
     const after = await ob.all(), st = id => after.find(e => e.id === id);
-    assert(!st('i2') && st('i4').state === 'revoked' && st('i5').state === 'wait' && st('i5').tries === 1 && st('i5').nextAt === 1000 + 4000 &&
+    assert(!st('i2') && st('i4').state === 'revoked' && st('i5').state === 'wait' && st('i5').tries === 1 && st('i5').nextAt >= 1000 + 2000 && st('i5').nextAt <= 1000 + 4000 &&
       st('i6').state === 'refused' && st('i6').reason === 'not-yours' && st('i3').state === 'refused', 'only the delivered one left the outbox; the refused are kept, with why');
     eq((await ob.pendingFor('USR-A')).map(e => e.id).sort(), ['i4', 'i7'], 'unsent for a trainee: waiting and revoked, not refused');
   }
@@ -410,6 +412,11 @@ Gate.configure({ outboxBackend: backend, store: null, client: 'test' });
 
     // Her password, changed at home.
     eq((await Gate.changePassword({ oldPassword: 'not-it', newPassword: 'Welder2026' })).error, 'no-match', 'a wrong current password: no-match');
+    // A delivery an earlier step scheduled (kick, 400 ms) must have run before
+    // this item is queued: on a busy machine it fired during the slow password
+    // change and sent the item under the old session, so nothing was left to re-seal.
+    await new Promise(r => setTimeout(r, 600));
+    await Gate.deliver({ force: true });
     const before = Gate.session();
     await Gate.queue('rec', { key: 'voctrain_support_messages', rec: { id: 'SUP-HOME-PW', subject: 'Before the change', message: 'kept', timestamp: WORLD.clock.now } }, { noKick: true });
     const ch = await Gate.changePassword({ oldPassword: 'new-pw-1', newPassword: 'Welder2026' });

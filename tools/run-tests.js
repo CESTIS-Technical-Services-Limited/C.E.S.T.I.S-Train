@@ -34,7 +34,7 @@ const SUITES = [
   'tests/centre-key-identity.test.js', 'tests/centre-drift.test.js', 'tests/identity-churn.test.js', 'tests/intake-level-match.test.js',
   'tests/same-name-collapse.test.js', 'tests/transcript-core.test.js', 'tests/transcript-records.test.js', 'tests/transadmin-pages.test.js',
   'tests/finance-core.test.js', 'tests/staff-appraisals.test.js', 'tests/cmc-portal.test.js', 'tests/income-expenditure.test.js',
-  'tests/enrolment-core.test.js', 'tests/school-fee-programmes.test.js', 'tests/fee-intake-collapse.test.js', 'tests/school-fee-perf.test.js',
+  'tests/enrolment-core.test.js', 'tests/school-fee-programmes.test.js', 'tests/fee-intake-collapse.test.js', 'tests/school-fee-perf.test.js', 'tests/sync-concurrency-fixes.test.js',
   'tests/school-fee-seed.test.js', 'tests/school-fee-dashboard-scope.test.js', 'tests/reports-analytics.test.js', 'tests/system-settings-merge.test.js',
   'tests/cert-vc-core.test.js', 'tests/cert-template-seed.test.js', 'tests/certificate-portal.test.js', 'tests/vc-sessions.test.js',
   'tests/account-access.test.js', 'tests/account-store-key.test.js', 'tests/two-step-login-layer.test.js', 'tests/two-step-state-sync.test.js',

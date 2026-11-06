@@ -436,6 +436,17 @@
             });
           } finally { API._applying = false; }
           noteAgreed(self, payload.data, res.data);
+          // The file lacks something this device holds (its write lost a
+          // read-modify-write race with another device's push, which Drive
+          // cannot refuse): send the union back up. A push merges with the
+          // file first, so this can only add; once the file holds it, the
+          // next pull finds nothing behind and stays quiet.
+          try {
+            var behind = Object.keys(res.data).some(function (k) {
+              return C.ownsKey(self.spec, k) && res.data[k] !== payload.data[k];
+            });
+            if (behind) self.schedulePush();
+          } catch (e) {}
           // Always record stamps after a pull, even when nothing changed, so the
           // next pull is judged on recency rather than treated as a first sync.
           self.setStamps(res.stamps && Object.keys(res.stamps).length ? res.stamps : { __synced: new Date().toISOString() });

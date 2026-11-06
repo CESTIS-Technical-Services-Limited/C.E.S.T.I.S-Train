@@ -5298,7 +5298,15 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
         centreName: str(S.institutionName), centreUtcOffset: ctx.offset,
         maintenanceMode: S.maintenanceMode === true,
         maintenanceMessage: S.maintenanceMode === true ? str(S.maintenanceMessage) : '',
-        gateUrl: str(ctx.opts.gateUrl || (isObj(S.traineeGate) ? S.traineeGate.url : ''))
+        gateUrl: str(ctx.opts.gateUrl || (isObj(S.traineeGate) ? S.traineeGate.url : '')),
+        // Video classes: a phone signed in through the gate must use the SAME
+        // introduction (signalling) server, relay and Large Class server as
+        // its instructor, and make the same Large Class room password. Left
+        // out, it used the public defaults: it looked for the class on another
+        // server, or opened a different meeting, whenever the Centre had set
+        // its own in Settings -> Video Conference.
+        vcSignallingHost: str(S.vcSignallingHost), vcTurnServers: str(S.vcTurnServers),
+        vcLargeRoomBase: str(S.vcLargeRoomBase), vcRoomPasswordSalt: str(S.vcRoomPasswordSalt)
       };
 
       var body = { data: d, tombstones: tombstones, access: access };
@@ -6866,7 +6874,10 @@ var GATE_LIMITS = {
   EMAIL_CODE_S: 600, EMAIL_CODE_TRIES: 6, EMAIL_RESEND_S: 60,
   CFG_S: 60, INDEX_CHECK_S: 60, CACHE_MAX_S: 21600, CHUNK_CHARS: 30000, CACHE_VALUE_CHARS: 90000,
   UPLOAD_MAX: 5 * 1024 * 1024, UPLOADS_PER_DAY: 50, UPLOAD_BYTES_PER_DAY: 100 * 1024 * 1024, FILE_GET_MAX: 10 * 1024 * 1024,
-  DELIVER_MAX_ITEMS: 200, LANE_RECENT_MS: 3 * 24 * 3600 * 1000, OVERLAY_MAX: 20, DIAG_PER_MIN: 10
+  DELIVER_MAX_ITEMS: 200, LANE_RECENT_MS: 3 * 24 * 3600 * 1000, OVERLAY_MAX: 20, DIAG_PER_MIN: 10,
+  // Papers, keys and rooms are looked at in Drive at most once a minute (a sitting asks for them
+  // with every save and every exam.time); a trainee's slice file is found by its id for 10 minutes.
+  SHARED_FRESH_MS: 60 * 1000, SLICE_ID_S: 600
 };
 var GATE_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // What a trainee may upload (DESIGN.md §5.4): pdf, images, office documents, text, zip.
@@ -7332,7 +7343,12 @@ function gateJsonOf(G, file, cacheKey) {
 /* The trainee's slice (from-centre.json, written by staff devices). A slice
    of a newer version than this script reads is never read as empty. */
 function gateSliceOf(G, acct, folder) {
-  var file = gateNewest(folder.getFilesByName(GATE_NAMES.slice));
+  var known = G.cache.get('sf:' + acct), file = known ? gateFileById(known) : null;
+  if (file && file.getName() !== GATE_NAMES.slice) file = null;
+  if (!file) {
+    file = gateNewest(folder.getFilesByName(GATE_NAMES.slice));
+    if (file) G.cache.put('sf:' + acct, file.getId(), GATE_LIMITS.SLICE_ID_S);
+  }
   if (!file) return { error: 'not-ready' };
   var s = gateJsonOf(G, file, 'sl:' + acct);
   if (!s || s.format !== G.gate.FORMAT.slice) return { error: 'not-ready' };
@@ -7348,11 +7364,15 @@ function gatePlace(G, acct, entry) {
   return { folder: folder, slice: s.slice };
 }
 function gateSharedFile(G, folderId, name, cacheKey) {
+  var hot = cacheKey ? gateCacheJson(G, cacheKey) : null;
+  if (hot && hot.j && hot.c && G.now - hot.c >= 0 && G.now - hot.c < GATE_LIMITS.SHARED_FRESH_MS) return hot.j;
   var fld = gateFolderById(folderId);
   if (!fld) return null;
   var file = gateNewest(fld.getFilesByName(name));
   if (!file) return null;
-  return gateJsonOf(G, file, cacheKey);
+  var j = gateJsonOf(G, file, cacheKey);
+  if (cacheKey && j) gateCachePut(G, cacheKey, { u: file.getLastUpdated().getTime(), id: file.getId(), j: j, c: G.now }, GATE_LIMITS.CACHE_MAX_S);
+  return j;
 }
 function gateKeyFile(G, examId) {
   var k = gateSharedFile(G, gateCfg(G).keysId, 'key.' + examId + '.json', 'kf:' + examId);

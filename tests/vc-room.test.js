@@ -177,8 +177,11 @@ console.log('Phones send a smaller picture; the host shares a budget');
   assert(desk.width < 1280 && desk.maxBitrate <= 600000, 'a trainee on a computer sends less than 720p');
   const host1 = R.videoProfile({ host: true, peers: 1 }), host8 = R.videoProfile({ host: true, peers: 8 });
   assert(host1.width === 1280 && host1.maxBitrate === 1200000, 'an instructor with one trainee sends 720p at 1.2 Mbps');
-  assertEq(host8.maxBitrate, 625000, 'with eight trainees each copy gets a share of 5 Mbps');
-  assertEq(R.videoProfile({ host: true, peers: 100 }).maxBitrate, 250000, 'never below 250 kbps a copy');
+  assertEq(host8.maxBitrate, 375000, 'with eight trainees each copy gets a share of 3 Mbps');
+  assertEq(host8.scaleDown, 2, 'and is sent at half size (360p) rather than a blurred 720p');
+  assertEq(R.videoProfile({ host: true, peers: 100 }).maxBitrate, 150000, 'never below 150 kbps a copy');
+  assertEq(R.videoProfile({ host: true, peers: 4, uploadBps: 8000000 }).maxBitrate, 1200000, 'a Centre with more upload sets its own budget');
+  assertEq(host1.scaleDown, 1, 'one trainee: full size');
 }
 
 /* ---------- Reconnecting to the introduction service ---------- */

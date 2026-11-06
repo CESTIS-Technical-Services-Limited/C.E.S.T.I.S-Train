@@ -546,7 +546,8 @@ async function pushSettled(page) {
   const srv = await serve(ROOT);
   base = 'http://127.0.0.1:' + srv.address().port;
   browser = await chromium.launch({ executablePath: EXE, args: ['--no-sandbox'] });
-  MAIN_FOLDER = (/FOLDER_ID:\s*'([^']+)'/.exec(fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8')) || [])[1];
+  // GOOGLE_DRIVE_CONFIG.FOLDER_ID; since 20480a4 index.html reads it from cestis-config.js (as gate-kit.js does).
+  MAIN_FOLDER = require(path.join(ROOT, 'cestis-config.js')).folders.mainBackup;
   let lanServer = null;
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'cestis-email-'));
 

@@ -159,7 +159,7 @@ function makePage(opts) {
     currentExamSession: null, examTimerInterval: null, _isExamPreviewMode: false, _examDraftTimer: null, _examGateExtra: {}, _examGateExtraAsked: {},
     examBuilderQuestions: [], editingExamId: null, examBuilderNewId: null, examBuilderCopiedFrom: null, examBuilderDraftId: null, importedQuestions: [], importRawTextContent: '', importSelectedFile: null,
     EXAM_OUTBOX_KEY: 'cestisExamOutbox', _sessionWiped: false,
-    examAttempts: [], EXAM_PUBLISH_MS: 30000, _examPublishTimer: null, _examLastPublish: 0, _examDraftFirstAt: 0, scheduleDebouncedCloudSave() {},
+    examAttempts: [], EXAM_PUBLISH_MS: 30000, EXAM_PUBLISH_GATE_MS: 60000, _examLastPublishSig: '', _examPublishTimer: null, _examLastPublish: 0, _examDraftFirstAt: 0, scheduleDebouncedCloudSave() {},
     _examEventSeq: 0, _examLeft: null, _examBlurTimer: null, _examOffline: null, _examWatchers: {}, EXAM_WATCH_MS: 75000, _examPulseAt: 0, _examPulseTimer: null, lmsChatRTReady: false,
     studentProfiles: {}, attendanceRecords: [], adminMeetings: [], adrTasks: [], adrStaffMeta: {}, adminStaffAccessSettings: {},
     instructorData: [], instructorProfiles: {}, certDownloadApprovals: [], certTemplates: {}, lmsChatMessages: {}, lmsChatProfiles: {},

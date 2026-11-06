@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <script src="cestis-config.js?v=284ebb2a"></script>
-<script src="cestis-core.js?v=a33b449b"></script>
+<script src="cestis-core.js?v=0c7279e3"></script>
 <script src="cestis-form-modal.js?v=74020c38" defer></script>
 <!-- Inert until a page registers: the CMC Board registers as a READ-ONLY reader
      so the operating pages' books reach its dashboards without anyone syncing. -->
-<script src="cestis-page-cloud.js?v=5bb7972d"></script>
-<script src="cestis-gate-client.js?v=0e26cf0d" defer></script>
+<script src="cestis-page-cloud.js?v=32331e75"></script>
+<script src="cestis-gate-client.js?v=e44ebfd2" defer></script>
 <!-- The staff and board modules: Staff Appraisals, the CMC Board's portal and
      the certificate designs' seed (about 255 KB, 61 KB on the wire). A trainee's
      phone never runs them, so they are not downloaded on a trainee's sign-in link
@@ -24,6 +24,12 @@
   var GLOBALS = ['sappCloudExport', 'CESTISCmc', 'CESTISCertSeed'];
   var trainee = false;
   try { trainee = /^g[0-9]{1,3}$/.test(localStorage.getItem('cestisGateNs') || '') || /(?:^#|[#&])gate=/.test(location.hash || ''); } catch (e) {}
+  // A device whose last sign-in was a trainee's (her own phone) is treated the
+  // same way: ~61 KB on the wire and ~255 KB of script parsed before the first
+  // paint, for modules only staff use. A member of staff signing in there still
+  // gets them first (enterApp), and every sync waits for them as it already
+  // does on a gate device. (enterApp writes this note; it never leaves the device.)
+  try { if (!trainee && localStorage.getItem('cestisLastRole') === 'student') trainee = true; } catch (e) {}
   function have() { return GLOBALS.every(function (g) { return !!window[g]; }); }
   var pending = null;
   window.cestisStaffModules = {
@@ -9001,6 +9007,15 @@ function lmsChatEnsureMembership() {
   }
 
   // 3. Refresh membership for all group/class rooms
+  // Each account's programme is resolved to its training centre once for the
+  // pass, not once per room: findSkillAreaForCourse is a fuzzy search over
+  // every centre, and every room asked it about every account (21 rooms x
+  // 3,000 accounts = 63,000 searches on each load and each sync).
+  var _skillOfProg = {};
+  var skillForProgramme = function(p) {
+    if (!Object.prototype.hasOwnProperty.call(_skillOfProg, p)) _skillOfProg[p] = (typeof findSkillAreaForCourse === 'function') ? findSkillAreaForCourse(p) : null;
+    return _skillOfProg[p];
+  };
   lmsChatRooms.forEach(function(room) {
     if (room.type === 'dm') return; // DMs are managed separately
 
@@ -9017,7 +9032,7 @@ function lmsChatEnsureMembership() {
         programmeMatches: function(u) {
           if (!u.programme) return false;
           if (u.programme.toLowerCase().trim() === roomNameC) return true;
-          var userSkill = (typeof findSkillAreaForCourse === 'function') ? findSkillAreaForCourse(u.programme) : null;
+          var userSkill = skillForProgramme(u.programme);
           if (roomSkillC && userSkill && userSkill.id && userSkill.id === roomSkillC.id) return true;
           return !!(userSkill && userSkill.name && userSkill.name.toLowerCase().trim() === roomNameC);
         }
@@ -9897,6 +9912,13 @@ function saveState() {
     // Stamp every record edited here since the last save, and write down what
     // was removed, before anything is written — see CESTISCore.sync.
     try { syncStampAll(); } catch(e) {}
+    // A trainee record dated more than a day ahead of the correct time was
+    // edited on this device while its clock was wrong: re-dated to the correct
+    // time before it is written or sent, as every other collection already is
+    // (CESTISCore.sync.restampOwn), so it travels as an edit made now instead of
+    // winning every merge for days — or, once other devices stop believing
+    // such a stamp, losing them all.
+    try { if (typeof CESTISCore !== 'undefined' && CESTISCore.sync && CESTISCore.sync.restampOwn && Array.isArray(students)) students.forEach(function(s) { CESTISCore.sync.restampOwn(s, ['lastModified']); }); } catch(e) {}
     saveCollection('voctrain_students', students);
     saveCollection('voctrain_exams', exams);
     saveCollection('voctrain_announcements', announcements);
@@ -13779,6 +13801,7 @@ function enterApp(role) {
       return;
     }
     currentRole = role;
+    try { localStorage.setItem('cestisLastRole', role === 'student' ? 'student' : 'staff'); } catch (e) {}
     _sessionWiped = false; _sessionSeq++;
     // Exam results submitted on this PC but not yet uploaded come back into
     // the list a previous sign-out trimmed, so this session uploads them.
@@ -17847,7 +17870,7 @@ function ensureAttentionPage(pageId) {
     '<div style="font-size:12px;color:var(--text-muted);margin-top:2px;" id="attnRule-' + pageId + '"></div></div>' +
     '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
     (pageId === 'i-needs-attention' ? '' : '<select class="form-control" style="width:220px;" id="attnCourse-' + pageId + '" aria-label="Programme" onchange="renderNeedsAttention(' + jsArg(pageId) + ')"><option value="all">All programmes</option></select>') +
-    '<input type="text" class="form-control" style="width:200px;" id="attnSearch-' + pageId + '" placeholder="Search a name..." aria-label="Search a name" oninput="renderNeedsAttention(' + jsArg(pageId) + ')"></div></div>' +
+    '<input type="text" class="form-control" style="width:200px;" id="attnSearch-' + pageId + '" placeholder="Search a name..." aria-label="Search a name" oninput="renderNeedsAttentionSoon(' + jsArg(pageId) + ')"></div></div>' +
     '<div class="table-wrapper"><table class="attn-table tbl-phone"><thead id="attnHead-' + pageId + '"></thead><tbody id="attnBody-' + pageId + '"></tbody></table></div></div>';
   if (pageId !== 'i-needs-attention') sec.insertAdjacentHTML('afterbegin', '<div id="attnOffice-' + pageId + '"></div>');
   mc.appendChild(sec);
@@ -17856,6 +17879,15 @@ function attentionShortDate(d) {
   if (!d) return '';
   var p = String(d).split('-');
   return p.length === 3 ? Number(p[2]) + ' ' + ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][Number(p[1]) - 1] : d;
+}
+// Typing in the search box: one redraw when the typing pauses, not one per
+// key. Each redraw works out the whole list again (attendance, marks, missing
+// work and — for the office — parses both fee books), which on a slow PC with
+// a large Centre took longer than the gap between two key presses.
+var _attnSearchTimer = null;
+function renderNeedsAttentionSoon(pageId) {
+  if (_attnSearchTimer) clearTimeout(_attnSearchTimer);
+  _attnSearchTimer = setTimeout(function() { _attnSearchTimer = null; renderNeedsAttention(pageId); }, 200);
 }
 function renderNeedsAttention(pageId) {
   pageId = pageId || (currentRole === 'instructor' ? 'i-needs-attention' : currentRole === 'adminstaff' ? 'as-needs-attention' : 'needs-attention');
@@ -18191,6 +18223,8 @@ var vcRefusedByHost = false; // this participant was turned away; do not wait fo
 var vcRemoteRecorders = {};  // peerId -> name of anyone recording this room
 var vcReconnectTimer = null; // pending reconnect to the introduction service
 var vcPeerCamOn = {};        // peerId -> false when that person's camera is off (their tile shows their initial)
+var vcAudioOnlyPeers = {};   // host: trainees who asked for sound only (no picture) to save data
+var vcAudioOnly = false;     // this trainee asked for sound only
 
 function vcHostPeerId() { return CESTISCore.vcRoom.hostPeerId(currentRoomCode); }
 
@@ -18211,6 +18245,7 @@ function vcResetRoomState() {
   vcAdmitted = {}; vcRefusedPeers = {}; vcKickedUids = {}; vcPendingStreams = {};
   vcDialling = {}; vcIsCoHost = false; vcRemoteRecorders = {};
   vcPendingConns = {}; vcPeerUids = {}; vcNatFailed = {}; vcPeerCamOn = {};
+  vcAudioOnlyPeers = {};
 }
 
 // Phones send a smaller picture (CESTISCore.vcRoom.videoProfile).
@@ -18222,7 +18257,8 @@ function vcIsPhone() {
 }
 function vcVideoProfile() {
   var host = isRoomHost || (vcCurrentRole && vcCurrentRole !== 'student');
-  return CESTISCore.vcRoom.videoProfile({ mobile: vcIsPhone(), host: host, peers: Object.keys(peerNames).length || 1 });
+  var kbps = Number(typeof systemSettings !== 'undefined' && systemSettings && systemSettings.vcHostUploadKbps) || 0;
+  return CESTISCore.vcRoom.videoProfile({ mobile: vcIsPhone(), host: host, peers: Object.keys(peerNames).length || 1, uploadBps: kbps * 1000 });
 }
 function vcVideoConstraints() {
   var p = vcVideoProfile();
@@ -18927,10 +18963,18 @@ function vcCreateLargeRoom(title, role, scheduledCode) {
   // which programme the session belonged to.
   var _course = '';
   try { if(getCourseList().indexOf(title) !== -1) _course = title; } catch(e) {}
+  // A scheduled session whose title is not exactly a programme name still
+  // belongs to one: without the course, the trainee gate never carried this
+  // Large Class's record to the class's phones (it sends a programme's
+  // records only), so their Join went to the built-in room and found nobody.
+  if (!_course) {
+    try { var _cs = CESTISCore.vcRoom.findClassSession(classSessions || [], code, localDateStr()); if (_cs && _cs.course) _course = _cs.course; } catch(e) {}
+  }
   activeHostRoom = { code: code, title: title, role: role, large: true, course: _course };
   vcLargeRoomActive = { code: code, title: title, role: role };
   vcLastLargeTitle = title;
   vcMarkClassSession(code, 'live');
+  vcMarkClassSessionMode(code, 'large');
   vcShowLargeRoom(title, role, code);
   // The code itself stays out of a notice that goes to every trainee in the
   // Centre: those in the class reach it from their class session, or from
@@ -19064,7 +19108,17 @@ function vcStartJitsi(stage, title, role, code) {
       prejoinPageEnabled: false,
       startWithAudioMuted: !host,       // a class of 80 does not start with 80 open mics
       startWithVideoMuted: !host,
-      disableDeepLinking: true
+      disableDeepLinking: true,
+      // Trainees join on phones over mobile data. Cap what a trainee sends
+      // (360p is plenty for a tile in a gallery of 30; the instructor keeps
+      // 720p for the board) and how many cameras each device is sent at once,
+      // so a class where trainees switch their cameras on does not multiply
+      // everyone's download by the class size. (Keys on jitsi-meet's
+      // configOverwrite allow-list; a server that drops one keeps its default.)
+      resolution: host ? 720 : 360,
+      constraints: { video: { height: { ideal: host ? 720 : 360, max: host ? 720 : 360, min: 180 } } },
+      channelLastN: host ? 12 : 6,
+      disableAudioLevels: true
     },
     interfaceConfigOverwrite: { SHOW_JITSI_WATERMARK: false, MOBILE_APP_PROMO: false }
   });
@@ -19389,6 +19443,7 @@ function vcStartHostPeer(title, role, rejoin) {
       onOpen: function() {
         vcShowConference(title, role);
         vcMarkClassSession(currentRoomCode, 'live');
+        vcMarkClassSessionMode(currentRoomCode, 'mesh');
         if (rejoin) showToast('Rejoined room ' + currentRoomCode + ' as host');
       },
       onError: function(err) {
@@ -19612,7 +19667,7 @@ function vcWatchIce(call, pid, onUp) {
     if (st === 'connected' || st === 'completed') {
       if (onUp) onUp();
       vcNatNotice(pid, false);
-      vcApplySenderLimits(pc);
+      vcApplySenderLimits(pc, pid);
       vcApplySoundSending(pc);
     } else if (st === 'failed') {
       vcNatNotice(pid, true);
@@ -19640,11 +19695,11 @@ function vcNatNotice(pid, failed) {
 function vcApplySenderLimitsAll() {
   Object.keys(peerConnections).forEach(function (pid) {
     var pc = peerConnections[pid] && vcGetPeerConnection(peerConnections[pid].media);
-    if (pc && (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed')) vcApplySenderLimits(pc);
+    if (pc && (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed')) vcApplySenderLimits(pc, pid);
   });
 }
 // Cap how much picture each connection carries (CESTISCore.vcRoom.videoProfile).
-function vcApplySenderLimits(pc) {
+function vcApplySenderLimits(pc, pid) {
   try {
     var prof = vcVideoProfile();
     pc.getSenders().forEach(function (sender) {
@@ -19652,6 +19707,10 @@ function vcApplySenderLimits(pc) {
       var p = sender.getParameters();
       if (!p.encodings || !p.encodings.length) p.encodings = [{}];
       p.encodings[0].maxBitrate = prof.maxBitrate;
+      if (prof.scaleDown) p.encodings[0].scaleResolutionDownBy = prof.scaleDown;
+      // A trainee who chose sound only gets no picture at all (and costs the
+      // host no upload for it) until they ask for it again.
+      p.encodings[0].active = !(pid && vcAudioOnlyPeers[pid]);
       var r = sender.setParameters(p);
       if (r && r.catch) r.catch(function () {});
     });
@@ -19687,6 +19746,26 @@ function vcMarkClassSession(code, status) {
     return rec;
   } catch (e) { console.warn('[VideoConference] could not update the class session:', e); return null; }
 }
+// Which room the class runs in ('large' or 'mesh'), on the class session
+// record itself. That record already reaches every trainee of the programme
+// (it is what puts "Your class is live — Join class" on her phone), so Join
+// can route her to the Large Class even before — or without — the Large
+// Class's join log reaching her device (the API frame fallback keeps none).
+function vcMarkClassSessionMode(code, mode) {
+  try {
+    var s = CESTISCore.vcRoom.findClassSession(classSessions || [], code, localDateStr());
+    if (!s || s.vcMode === mode) return;
+    s.vcMode = mode;
+    s.updatedAt = new Date().toISOString();
+    saveState();
+  } catch (e) {}
+}
+function vcLargeFromClassSession(code) {
+  try {
+    var s = CESTISCore.vcRoom.findClassSession(classSessions || [], code, localDateStr());
+    return (s && s.status === 'live' && s.vcMode === 'large') ? { title: s.name || s.course || 'Large Class' } : null;
+  } catch (e) { return null; }
+}
 
 // ── Join Room ──
 async function vcJoinRoom(title, role, codeOverride) {
@@ -19710,7 +19789,7 @@ async function vcJoinRoom(title, role, codeOverride) {
   // class from their own device fell through to the mesh and tried to call a
   // peer host that does not exist. The live session list is shared, so ask that
   // — it is what tells any device that this code is a large class.
-  var _large = vcLiveLargeSession(code);
+  var _large = vcLiveLargeSession(code) || vcLargeFromClassSession(code);
   if(_large) {
     vcJoinLargeRoom(code, _large.title || 'Large Class', role);
     return;
@@ -19775,6 +19854,7 @@ function vcAttachHostConnection(conn, code) {
   peerConnections[hostId].data = conn;
   dataConnections[hostId] = conn;
   conn.send(JSON.stringify(vcNameMessage()));
+  if (vcAudioOnly) conn.send(JSON.stringify({type:'video-wanted', on:false}));
   conn.on('data', function(data) { vcOnData(data, hostId); });
   conn.on('close', function() {
     if (dataConnections[hostId] !== conn) return;          // already replaced, or we left
@@ -19882,6 +19962,7 @@ function vcOnPeerConnClosed(pid, conn) {
   delete mutedPeers[pid]; delete vcCoHosts[pid]; delete vcDialling[pid]; delete vcRemoteRecorders[pid];
   delete vcNatFailed[pid];
   delete vcPeerCamOn[pid];
+  delete vcAudioOnlyPeers[pid];
   if (isRoomHost) {
     delete vcAdmitted[pid];
     vcApplySenderLimitsAll();
@@ -20066,6 +20147,14 @@ function vcOnData(raw, fromId) {
       vcPeerCamOn[fromId] = !!msg.on;
       vcSetRemoteCamState(fromId, !!msg.on);
       break;
+    case 'video-wanted':
+      // A trainee on a weak or costly link asked for the instructor's sound
+      // only (vcToggleAudioOnly). Only the host sends pictures to trainees.
+      if (!isRoomHost) break;
+      if (msg.on) delete vcAudioOnlyPeers[fromId]; else vcAudioOnlyPeers[fromId] = true;
+      var _vw = peerConnections[fromId] && vcGetPeerConnection(peerConnections[fromId].media);
+      if (_vw) vcApplySenderLimits(_vw, fromId);
+      break;
     case 'mic-state':
       // A peer muted or unmuted their own microphone (trainees arrive
       // muted): the participant list shows it. A device speaks only for
@@ -20241,7 +20330,8 @@ function vcShowConference(title, role) {
             <button class="vc-btn" id="vc-cam-btn" onclick="vcToggleCam()" title="Camera">&#x1F4F9;</button>
             <button class="vc-btn" id="vc-screen-btn" onclick="vcToggleScreen()" title="Screen Share${!showHostControls ? ' (requires host permission)' : ''}" ${!showHostControls ? 'style="opacity:0.5;"' : ''}>&#x1F5A5;&#xFE0F;</button>
             ${role==='student'
-              ? `<button class="vc-btn" id="vc-hand-btn" onclick="vcToggleHand()" title="Raise Hand">&#x270B;</button>`
+              ? `<button class="vc-btn" id="vc-hand-btn" onclick="vcToggleHand()" title="Raise Hand">&#x270B;</button>
+                 <button class="vc-btn${vcAudioOnly ? ' vc-off' : ''}" id="vc-audioonly-btn" onclick="vcToggleAudioOnly()" title="${vcAudioOnly ? 'Show the instructor’s picture again' : 'Sound only — saves data'}">&#x1F50A;</button>`
               : showHostControls
                 ? `<button class="vc-btn" id="vc-rec-btn" onclick="vcToggleRecord()" title="Record Session">&#x23FA;&#xFE0F;</button>`
                 : `<button class="vc-btn" id="vc-rec-btn" onclick="vcToggleRecord()" title="Record Session (requires host permission)" style="opacity:0.5;">&#x23FA;&#xFE0F;</button>`}
@@ -20780,6 +20870,17 @@ function vcApplySoundSendingAll() {
     var pc = peerConnections[pid] && vcGetPeerConnection(peerConnections[pid].media);
     if (pc) vcApplySoundSending(pc);
   });
+}
+
+// Sound only: a trainee on mobile data or a weak line asks the host to stop
+// sending the picture (roughly 0.25–1.2 Mbit/s) and keeps the sound (~40 kbit/s).
+function vcToggleAudioOnly() {
+  vcAudioOnly = !vcAudioOnly;
+  var c = dataConnections[vcHostPeerId()];
+  try { if (c && c.open) c.send(JSON.stringify({type:'video-wanted', on: !vcAudioOnly})); } catch (e) {}
+  var b = document.getElementById('vc-audioonly-btn');
+  if (b) { b.classList.toggle('vc-off', vcAudioOnly); b.title = vcAudioOnly ? 'Show the instructor’s picture again' : 'Sound only — saves data'; }
+  showToast(vcAudioOnly ? 'Sound only: the instructor’s picture is paused to save data' : 'The instructor’s picture is back');
 }
 
 function vcToggleCam() {
@@ -25005,7 +25106,7 @@ function saveStudentProfile() {
       if(currentLoggedInUser) currentLoggedInUser.name = newName;
       var acct = userAccounts.find(function(u){ return u.id === currentLoggedInUser.id; });
       if(acct) acct.name = newName;
-      if(stu) { stu.name = newName; stu.lastModified = new Date().toISOString(); }
+      if(stu) { stu.name = newName; stu.lastModified = (typeof CESTISCore !== 'undefined' && CESTISCore.sync && CESTISCore.sync.laterStamp) ? CESTISCore.sync.laterStamp(CESTISCore.sync.nowIso(), stu.lastModified) : new Date().toISOString(); }
     }
   }
 
@@ -27703,7 +27804,8 @@ function markStageSetByUser(s) {
   } catch (e) {}
   // The shared rule (CESTISCore.courseEnd) — Student Progress marks it the same way.
   CESTISCore.courseEnd.markSetByUser(s, endKey);
-  s.lastModified = new Date().toISOString();
+  // The corrected clock, never earlier than the stamp it carries (CESTISCore.sync).
+  s.lastModified = (typeof CESTISCore !== 'undefined' && CESTISCore.sync && CESTISCore.sync.laterStamp) ? CESTISCore.sync.laterStamp(CESTISCore.sync.nowIso(), s.lastModified) : new Date().toISOString();
 }
 
 // When a course has ended, a trainee who is not certified is judged by their
@@ -28378,7 +28480,7 @@ function enrolSetStatus(studentId, statusKey) {
   var s = students.find(function(x){ return x.id === studentId; });
   if (!s) return;
   s.enrolStatus = statusKey || '';
-  s.lastModified = new Date().toISOString();
+  s.lastModified = (typeof CESTISCore !== 'undefined' && CESTISCore.sync && CESTISCore.sync.laterStamp) ? CESTISCore.sync.laterStamp(CESTISCore.sync.nowIso(), s.lastModified) : new Date().toISOString();
   saveState();
   renderEnrolmentRegistersPage();
   var def = enrolStatusDef(statusKey);
@@ -28566,7 +28668,7 @@ function enrolSaveTrainee() {
   if (!studentProfiles[id]) studentProfiles[id] = {};
   studentProfiles[id].email = email;
   studentProfiles[id].phone = phone;
-  s.lastModified = new Date().toISOString();
+  s.lastModified = (typeof CESTISCore !== 'undefined' && CESTISCore.sync && CESTISCore.sync.laterStamp) ? CESTISCore.sync.laterStamp(CESTISCore.sync.nowIso(), s.lastModified) : new Date().toISOString();
   // Two-way sync: overwrite the linked School Fee record before saveState (whose
   // mirror only backfills empty fields).
   var _after = { dateOfBirth: s.dob, gender: s.gender, address: s.address, nationalId: s.trn, email: email, contact: phone };
@@ -28642,9 +28744,13 @@ function enrolSyncFeeEditsIntoLms() {
   if (!Array.isArray(fee)) return false;
   var norm = function(v){ return (v == null ? '' : String(v)).trim().toLowerCase().replace(/\s+/g, ' '); };
   var changed = false;
+  // One index over the roll for the whole pass (CESTISCore.twinIndex answers
+  // what the scan below answers): every fee record used to scan the whole
+  // roll — 368 trainees cost ~2 s of a slow PC each time the fee page saved.
+  var _twins = (window.CESTISCore && typeof CESTISCore.twinIndex === 'function') ? CESTISCore.twinIndex(students) : null;
   fee.forEach(function(f) {
     if (!f) return;
-    var s = students.find(function(x){ return x && (
+    var s = _twins ? _twins.find(f) : students.find(function(x){ return x && (
       window.CESTISCore && typeof CESTISCore.isFeeTwin === 'function'
         ? CESTISCore.isFeeTwin(x, f)
         : (x.id === f.lmsId || x.id === f.id || x.schoolFeeId === f.id ||
@@ -29671,7 +29777,7 @@ function examBuilderFillFrom(e) {
    backup, sync or other person's device ever holds a half-built test or its
    answers. Saving the test clears it; so does Discard. */
 var EXAM_DRAFT_KEY = 'cestisExamBuilderDraft';
-var _examDraftTimer = null, _examDraftDebounce = null;
+var _examBuilderDraftTimer = null, _examDraftDebounce = null;
 // Which draft the open builder is writing: 'edit:<exam id>:<n>',
 // 'copy:<new id>' or 'new:<n>' — several unsaved tests can wait side by side,
 // and starting another never writes over one of them.
@@ -29728,7 +29834,7 @@ function examDraftUnchanged(d, e) {
 function examDraftSoon() { clearTimeout(_examDraftDebounce); _examDraftDebounce = setTimeout(function(){ examDraftSave(); }, 400); }
 function examDraftStartTimer() {
   examDraftStopTimer();
-  _examDraftTimer = setInterval(function(){ examDraftSave(); }, 4000);
+  _examBuilderDraftTimer = setInterval(function(){ examDraftSave(); }, 4000);
   var modal = document.getElementById('createExamModal');
   if (modal && !modal._cestisDraftWired) {
     modal._cestisDraftWired = true;
@@ -29737,7 +29843,7 @@ function examDraftStartTimer() {
     modal.addEventListener('click', examDraftSoon, true);
   }
 }
-function examDraftStopTimer() { if (_examDraftTimer) { clearInterval(_examDraftTimer); _examDraftTimer = null; } }
+function examDraftStopTimer() { if (_examBuilderDraftTimer) { clearInterval(_examBuilderDraftTimer); _examBuilderDraftTimer = null; } }
 function examDraftClear(id) {
   id = id || examBuilderDraftId;
   var all = examDraftAll(), me = examDraftOwner();
@@ -31589,10 +31695,14 @@ function examSaveDraftNow() {
 }
 // The shared copy: within EXAM_PUBLISH_MS of a change (the first change at
 // once), and immediately on leaving the page, signing out and submitting.
-var EXAM_PUBLISH_MS = 30000, _examPublishTimer = null, _examLastPublish = 0;
+// Through the trainee gate every shared copy is a request and a Drive write at
+// the gate for each trainee: once a minute there (her device keeps every answer
+// at once; the submit carries them all), and only when something changed.
+var EXAM_PUBLISH_MS = 30000, EXAM_PUBLISH_GATE_MS = 60000, _examPublishTimer = null, _examLastPublish = 0, _examLastPublishSig = '';
 function examPublishSoon() {
   if (_examPublishTimer) return;
-  var wait = Math.max(0, EXAM_PUBLISH_MS - (Date.now() - _examLastPublish));
+  var every = (typeof cestisGateSession === 'function' && cestisGateSession()) ? EXAM_PUBLISH_GATE_MS : EXAM_PUBLISH_MS;
+  var wait = Math.max(0, every - (Date.now() - _examLastPublish));
   if (!wait) { examPublishNow(); return; }
   _examPublishTimer = setTimeout(function() { _examPublishTimer = null; examPublishNow(); }, wait);
 }
@@ -31603,6 +31713,12 @@ function examPublishNow() {
   _examLastPublish = Date.now();
   var rec = examLoadDraft(s.studentId, s.examId);
   if (!rec) return;
+  // The same answers, page and flags as the copy last shared (only its time stamps
+  // differ): nothing new to share.
+  var sig = '';
+  try { sig = JSON.stringify(Object.assign({}, rec, { updatedAt: 0, savedAt: 0 })); } catch (e) { sig = ''; }
+  if (sig && sig === _examLastPublishSig) return;
+  _examLastPublishSig = sig;
   try { examAttemptsUpsert([rec]); } catch (e) {}
   // Sent with the next sync (online); on the Centre's network the store
   // write itself is sent on.
@@ -32050,7 +32166,10 @@ function examExtraLine(examId, studentId) {
 }
 function examGateExtraPoll(s) {
   if (!s || _isExamPreviewMode || !(typeof cestisGateSession === 'function' && cestisGateSession()) || !window.CESTISGate || typeof CESTISGate.examTime !== 'function') return;
-  if (s._xtAsking || (s._xtAt && Date.now() - s._xtAt < 60000)) return;
+  // Every minute in her last ten minutes (when added time matters most), else every three.
+  var left = (typeof examEffectiveDeadline === 'function' ? examEffectiveDeadline(s) : 0) - Date.now();
+  var every = left > 0 && left <= 10 * 60000 ? 60000 : 180000;
+  if (s._xtAsking || (s._xtAt && Date.now() - s._xtAt < every)) return;
   s._xtAsking = true; s._xtAt = Date.now();
   CESTISGate.examTime(s.examId).then(function(res) {
     s._xtAsking = false;
@@ -32706,7 +32825,10 @@ function autoSaveExamProgress() {
     }
     CESTISStore.setItem(X.draftKey(s.studentId, s.examId), JSON.stringify(rec));
     // The old single slot held the whole session, answer keys included.
-    CESTISStore.removeItem('voctrain_examInProgress');
+    // Removed only when it is there: this runs on every key typed, and each
+    // removal was a localStorage write, an IndexedDB transaction and a
+    // 'storage' event in every other tab, for a key that is almost never set.
+    if (CESTISStore.getItem('voctrain_examInProgress') !== null) CESTISStore.removeItem('voctrain_examInProgress');
   } catch(e) {}
   examPublishSoon();
   examLivePulse();
@@ -40172,7 +40294,13 @@ function mergeCloudAccounts(cloudAccounts, opts) {
    happened to save again. A device that is not an administrator's carries
    these forward exactly as it received them. */
 var _cloudAdminSlices = {};
-var CLOUD_ADMIN_SLICE_KEYS = ['systemSettings', 'adminStaffAccessSettings', 'driveResources', 'skillAreas', 'adrTasks', 'adrStaffMeta', 'documentHubFiles', 'certTemplates'];
+var CLOUD_ADMIN_SLICE_KEYS = ['systemSettings', 'adminStaffAccessSettings', 'driveResources', 'skillAreas', 'adrTasks', 'adrStaffMeta', 'documentHubFiles', 'certTemplates',
+  // A trainee's device publishes none of the dated register, the invigilators'
+  // registers or other trainees' assessment work (see buildPayload). Omitted,
+  // they were DELETED from the Main copy by every trainee's save, and staff
+  // devices that only ever read the newest copy never received each other's
+  // marks. They are carried forward exactly as last read, like the rest.
+  'attendanceRegister', 'examRegisters', 'assessmentWork'];
 function rememberCloudAdminSlices(data) {
   if (!data || typeof data !== 'object') return;
   CLOUD_ADMIN_SLICE_KEYS.forEach(function(k) {
@@ -40352,8 +40480,12 @@ async function mergeBackupData(backupData) {
             s.course.trim().toLowerCase() === cloudStudent.course.trim().toLowerCase();
         });
         if (localMatch) {
-          // Timestamp-based merge: cloud wins if it has a newer lastModified, or if local has none
+          // Timestamp-based merge: cloud wins if it has a newer lastModified, or if local has none.
+          // A stamp more than a day ahead of the correct time is not believed
+          // (CESTISCore.sync.trusted): a PC whose clock had jumped days ahead
+          // won every merge until real time caught up.
           var cloudMod = cloudStudent.lastModified ? new Date(cloudStudent.lastModified).getTime() : 0;
+          if (cloudMod && CESTISCore.sync && CESTISCore.sync.trusted) cloudMod = CESTISCore.sync.trusted(cloudMod) || 0;
           var localMod = localMatch.lastModified ? new Date(localMatch.lastModified).getTime() : 0;
           var cloudIsNewer = cloudMod > localMod;
           // Whichever number the field merge keeps, the other stays as an alias.
@@ -41143,6 +41275,7 @@ async function silentSaveToFolder(folderId, folderLabel, blob) {
     } else if (err.status === 403) {
       console.warn('[AutoSave] ' + folderLabel + ': Drive refused the write (permission or rate limit) — this folder is skipped this cycle, the connection stays.');
     }
+    try { if (err.status && !err.storageFull && typeof cestisDriveBackoff === 'function') cestisDriveBackoff(err.status); } catch (e) {}
     return false;
   }
 }
@@ -41192,9 +41325,19 @@ async function recoverOvertakenWrite(fileId, prevVer, newVer) {
     var revs = ((await lr.json()).revisions || []).slice().sort(function(a, b) { return Date.parse(a.modifiedTime || '') - Date.parse(b.modifiedTime || ''); });
     if (revs.length < 2) return lost();
     var theirs = revs[revs.length - 2];   // the revision this device's write replaced
-    var dr = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '/revisions/' + theirs.id + '?alt=media', { headers: { 'Authorization': 'Bearer ' + googleAccessToken } });
-    if (!dr.ok) return lost();
-    var merged = await mergeBackupData(await dr.json());
+    // ...and every other write between the version this device checked and
+    // its own: a jump of k means k-1 of them (merging one more than needed
+    // only adds — deletions travel as tombstones). Only the last one was
+    // taken, so with three devices racing, one device's write was dropped.
+    var _n = Math.max(1, Math.min(10, (Number(newVer) - Number(prevVer) - 1) || 1));
+    var theirsList = [theirs];
+    for (var _k = 3; _k <= _n + 1 && revs.length - _k >= 0; _k++) theirsList.push(revs[revs.length - _k]);
+    var merged = false;
+    for (var _ri = 0; _ri < theirsList.length; _ri++) {
+      var dr = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '/revisions/' + theirsList[_ri].id + '?alt=media', { headers: { 'Authorization': 'Bearer ' + googleAccessToken } });
+      if (!dr.ok) return lost();
+      if (await mergeBackupData(await dr.json())) merged = true;
+    }
     _lastAutoSaveHash = null;             // the union goes up on the next tick
     return merged;
   } catch (e) { console.warn('[Sync] Could not recover the overtaken write:', e && e.message); _copiesUrgent = true; return false; }
@@ -41216,11 +41359,13 @@ async function pullMainIfRemoteNewer() {
     try { cestisNoteServerClock(metaResp, _sent); } catch (e) {}
     if (!metaResp.ok) {
       if (metaResp.status === 401) handleCloudAuthExpired();   // 403 is a folder permission or a rate limit, never expiry
+      try { if (typeof cestisDriveBackoff === 'function') cestisDriveBackoff(metaResp.status); } catch (e) {}
       // Whether another device has written is unknown: no upload this tick.
       _lastPull = { ok: false, changed: false, kind: 'http' };
       return false;
     }
     var meta = await metaResp.json();
+    if (typeof _driveBackoff !== 'undefined') { _driveBackoff.ms = 0; _driveBackoff.until = 0; }
     if (typeof _mainHeadMd5 !== 'undefined') _mainHeadMd5 = meta.md5Checksum || null;
     var ver = String(meta.version || '');
     if (!ver) return false;
@@ -41358,8 +41503,23 @@ function cestisBookkeeping(fn) {
   }
 }
 
+/* Drive said "slow down" (403 rate limit, 429) or failed (5xx): wait before
+   the next tick, doubling to 2 minutes, with jitter so the Centre's devices do
+   not come back in step. Work stays on this device and its "not yet
+   uploaded" note with it; a successful pull clears the wait. */
+var _driveBackoff = { until: 0, ms: 0 };
+function cestisDriveBackoff(status) {
+  if (!(status === 403 || status === 429 || status >= 500)) return;
+  _driveBackoff.ms = Math.min(120000, _driveBackoff.ms ? _driveBackoff.ms * 2 : 10000);
+  _driveBackoff.until = Date.now() + _driveBackoff.ms * (0.5 + Math.random());
+}
 async function autoSaveToAllFolders() {
   if (!isCloudConnected || !googleAccessToken || _isAutoSaving) return;
+  // (A sign-out's final save is never held back.)
+  if (typeof _driveBackoff !== 'undefined' && _driveBackoff.until > Date.now() && !(typeof _copiesFlushRequested !== 'undefined' && _copiesFlushRequested)) {
+    _lastAutoSaveResult = { uploaded: false, reason: 'backoff' };
+    return;
+  }
   // Only a signed-in session publishes the backup: nothing goes up from the
   // landing page (a pre-login merge, a registration) before this device has
   // pulled, and nothing goes up from a store that has just been wiped.
@@ -41522,6 +41682,14 @@ async function autoSaveToAllFolders() {
     // replaces the whole backup). A device that is not an administrator's
     // carries forward what only an administrator publishes, as it last saw it.
     if (!_isAdminSave) carryForwardCloudAdminSlices(backupData.data);
+    // A trainee's own photos and sign-offs go up WITH everybody else's work as
+    // last read, never instead of it (her copy of a row wins by id).
+    if (currentRole === 'student' && Array.isArray(_cloudAdminSlices.assessmentWork) && Array.isArray(backupData.data.assessmentWork) &&
+        backupData.data.assessmentWork !== _cloudAdminSlices.assessmentWork) {
+      var _ownAw = backupData.data.assessmentWork, _ownAwIds = {};
+      _ownAw.forEach(function(r) { if (r && r.id != null) _ownAwIds[String(r.id)] = 1; });
+      backupData.data.assessmentWork = _cloudAdminSlices.assessmentWork.filter(function(r) { return !(r && r.id != null && _ownAwIds[String(r.id)]); }).concat(_ownAw);
+    }
     return backupData;
     };
     let backupData = buildPayload();
@@ -43827,6 +43995,7 @@ async function gateExamStart(e, me) {
   } finally { _gateT.examBusy = false; }
 }
 var GATE_EXAM_OFFLINE_NOTE = 'Your test is submitted here and will be sent to the office when you\'re back online.';
+var GATE_EXAM_WAITING_NOTE = 'Your test is submitted and saved on this device. The Centre is busy marking — your result will appear here in a minute or two. Keep this page open.';
 // The exam as the review page draws it: the paper's questions (no answers in
 // them); the right answers come in the result itself, when they are released.
 function gateExamForDisplay(exam, result) {
@@ -43909,7 +44078,9 @@ function gateSubmitExam(s, auto, opts) {
     var result = examResultFor(s.studentId, s.examId);
     if (result) { examListNote(''); showExamResult(result, gateExamForDisplay(exam, result), away); return; }
     try { renderStudentExams(); } catch (e) {}
-    examListNote((away ? away + ' ' : '') + GATE_EXAM_OFFLINE_NOTE);
+    // Online but not answered yet (a whole room submitting at once): say so, not "offline".
+    var online = !(typeof navigator !== 'undefined' && navigator.onLine === false);
+    examListNote((away ? away + ' ' : '') + (online ? GATE_EXAM_WAITING_NOTE : GATE_EXAM_OFFLINE_NOTE));
     try { refreshSyncChip(); } catch (e) {}
   });
 }

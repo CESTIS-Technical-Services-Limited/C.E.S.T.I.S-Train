@@ -13,6 +13,10 @@
    - Pages and scripts are NETWORK-FIRST. Whenever the network answers, its
      answer is what the page gets, so a new deploy is never hidden behind an
      old copy. The copy is used only when the request fails outright.
+     One exception: a script or file whose address carries its content tag
+     (?v=<8 hex>) is answered from the copy when there is one, because that
+     address can never hold different bytes. A new deploy changes the tag
+     in the page, so the new file is still fetched.
    - Never touched — the browser handles these exactly as if this worker did
      not exist: anything that is not a GET; anything on another site (Google
      sign-in, Drive and its APIs, EmailJS, PeerJS, the CDNs, fonts); the
@@ -241,6 +245,26 @@ if (typeof self !== 'undefined' && typeof self.addEventListener === 'function' &
     // Look for the kill switch now and then (at most every ten minutes) when a
     // page is opened; the page itself also looks on every load.
     if (request.mode === 'navigate' && Date.now() - lastKillCheck > 10 * 60 * 1000) event.waitUntil(checkKillSwitch());
+    // A file whose address carries its own content tag (?v=<first 8 hex of
+    // its SHA-256>, tools/stamp-versions.js) can never change under that
+    // address: the copy kept for it IS the file. Answer it from the copy and
+    // skip the network. Network-first made every warm visit wait for one
+    // round trip per script once the browser's 10-minute cache had lapsed —
+    // ~20 requests, 5-6 s on a slow 4G phone — to be told "not modified".
+    // Pages (index.html, the section files) stay network-first: a new deploy
+    // changes their tags, so the new scripts are fetched as before.
+    if (request.mode !== 'navigate' && /[?&]v=[0-9a-f]{8}(?:&|$)/.test(request.url)) {
+      event.respondWith(
+        caches.open(CACHE_NAME).then(function (cache) { return cache.match(request); }).then(function (hit) {
+          if (hit) return hit;
+          return fetch(request).then(function (response) {
+            if (keepable(response)) { var copy = response.clone(); event.waitUntil(keep(request, copy)); }
+            return response;
+          });
+        }, function () { return fetch(request); })
+      );
+      return;
+    }
     event.respondWith(
       fetch(request).then(function (response) {
         if (keepable(response)) {

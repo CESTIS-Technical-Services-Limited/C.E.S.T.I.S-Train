@@ -90,7 +90,7 @@ function page(userId) {
     openModal() {}, examCloseToggle() {}, goToExamStep1() { sb.step = 1; }, goToExamStep2() { sb.step = 2; }, examDraftBanner() {}
   };
   vm.createContext(sb);
-  vm.runInContext('var EXAM_DRAFT_KEY = "cestisExamBuilderDraft"; var _examDraftTimer = null, _examDraftDebounce = null; var examBuilderDraftId = null;' +
+  vm.runInContext('var EXAM_DRAFT_KEY = "cestisExamBuilderDraft"; var _examBuilderDraftTimer = null, _examDraftDebounce = null; var examBuilderDraftId = null;' +
     'var EXAM_DRAFT_FIELDS = ' + JSON.stringify(['examTitle', 'examCourse', 'examDate', 'examTime', 'examDuration', 'examPassMark', 'examShuffle', 'examInstructions',
       'examAnswersRelease', 'examPerPage', 'examShuffleOptions', 'examAllowFlag', 'examCloseDate', 'examCloseTime']) + ';' +
     ['examDraftOwner', 'examDraftAll', 'examDraftWrite', 'examDraftList', 'examDraftMine', 'examDraftHasContent', 'examDraftUnchanged', 'examDraftSave', 'examDraftClear', 'examDraftRestore', 'examDraftDiscard'].map(fn).join('\n'), sb);
