@@ -388,7 +388,10 @@ const QUESTIONS = [
       const e = exams[0], qs = CESTISCore.exams.publicQuestions(e.questionData);
       const m = CESTISCore.exams.mark(qs, qs.map(() => null), e.questionData);
       return { id: 'RES-TR', examId: e.id, studentId: 'STU-WF-TR', studentName: 'Tameka Richards', answers: m.gradedResults, score: 0, correctCount: 0, totalQuestions: 10,
-        totalPoints: m.totalPoints, earnedPoints: 0, passed: false, needsReview: true, reviewComplete: false, pendingCount: 2, submittedAt: new Date().toISOString(), timeTaken: 600 };
+        totalPoints: m.totalPoints, earnedPoints: 0, passed: false, needsReview: true, reviewComplete: false, pendingCount: 2, submittedAt: new Date().toISOString(), timeTaken: 600,
+        // An answer given on another device that did not reach this result
+        // (CESTISCore.exams.lateAnswersOf): shown to staff, never marked.
+        lateAnswers: [{ questionId: 'Q9', index: 8, answer: 'upright and chained', answeredAt: Date.now() - 60000, foundAt: new Date().toISOString(), attemptId: 'ATT-TR' }] };
     });
     const c2 = await fresh();
     const p = await open(c2, null, [res]);
@@ -399,11 +402,16 @@ const QUESTIONS = [
     await p.locator('#iExamTableBody tr', { hasText: TITLE }).locator('button:has-text("Monitor")').click();
     await p.waitForSelector('.exam-results-table');
     ok((await p.locator('.exam-results-table th.rq-head').count()) === 10, 'a column per question (10)');
-    await readable(p, 'results', ['.exam-results-table th', '.exam-results-table td.rq-incorrect', '.exam-results-table td.rq-pending', '.exam-results-table tr.rq-avg td']);
+    await readable(p, 'results', ['.exam-results-table th', '.exam-results-table td.rq-incorrect', '.exam-results-table td.rq-pending', '.exam-results-table tr.rq-avg td', '.exam-results-table .gp-late-badge']);
+    ok(/Extra answers \(1\)/.test(await txt(p, '.exam-results-table')), 'the row says the result has an answer given on another device');
     ok((await p.locator('.exam-results-table td.rq-pending').count()) === 2 && (await p.locator('.exam-results-table td.rq-incorrect').count()) === 8, 'unanswered questions read wrong; the essay and fill-in wait for marking');
     await p.locator('.exam-results-table tr', { hasText: 'Tameka Richards' }).locator('button:has-text("Grade")').click();
     await p.waitForSelector('#gradingPanel');
     await readable(p, 'grading panel', ['#gradingPanel .gp-auto-row .gp-m']);
+    const lateTxt = await txt(p, '#gpLateAnswers');
+    ok(/Answers given on another device that are not in this result \(not marked\)/i.test(lateTxt) && /Q9/.test(lateTxt) && /upright and chained/.test(lateTxt) && /Given /.test(lateTxt),
+      'the answer given on another device is shown, with its question, its words and its time (' + lateTxt.replace(/\s+/g, ' ').slice(0, 120) + '…)');
+    await readable(p, 'answers not in the result', ['#gpLateAnswers .gp-late-title', '#gpLateAnswers .gp-late-note', '#gpLateAnswers .gp-q', '#gpLateAnswers .gp-t', '#gpLateAnswers .gp-late-ans', '#gpLateAnswers .gp-late-when']);
     ok(/Marked automatically/i.test(await txt(p, '#gradingPanel')) && (await p.locator('#gradingPanel .gp-auto-row').count()) === 8, 'the grading panel lists the eight automatically marked questions');
     await p.click('#gradingPanel button:has-text("Cancel")');
     await p.click('#iExamResultsView button:has-text("Back to Exams")');

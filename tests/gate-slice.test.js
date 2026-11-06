@@ -165,7 +165,8 @@ console.log('A trainee gets everything that is theirs');
   assertEq(d.voctrain_skillAreas.map(x => x.id), [101], 'their training centre');
   assertEq(d.voctrain_instructorData, [{ name: 'Instructor TeachwellA', course: me.p.name }], 'their instructor: name and programme only');
   assertEq(s.settings, { centreName: 'C.E.S.T.I.S Training Centre', centreUtcOffset: '-05:00', maintenanceMode: false, maintenanceMessage: '',
-    gateUrl: 'https://script.google.com/macros/s/TEST/exec' }, 'the Centre\'s settings a trainee\'s device needs');
+    gateUrl: 'https://script.google.com/macros/s/TEST/exec', vcSignallingHost: '', vcTurnServers: '', vcLargeRoomBase: '', vcRoomPasswordSalt: '' },
+    'the Centre\'s settings a trainee\'s device needs (the video servers too, so her phone meets her instructor on the same ones)');
   assertEq(Object.keys(s.tombstones.announcements || {}), ['AN-OLD'], 'recent deletions in their pools (old ones age out)');
   assert(!s.tombstones.examResults && !s.tombstones.chatRooms, 'never another trainee\'s deletions');
   const t2 = C.trainees[2], s2 = built.slices[t2.acct.id].slice;

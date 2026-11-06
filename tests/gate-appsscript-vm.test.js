@@ -662,6 +662,34 @@ function sExams(src) {
   const dfs = w.drive.children(folderOf(env, D.acct.id).id, 'file').filter(f => f.name === 'CESTISINBOX.result.ATT-18.json');
   assertEq([dfs.filter(f => !f.trashed).length, dfs.filter(f => f.trashed).length], [1, 1], 'one result file kept; the younger copy in the bin (never deleted)');
 
+  section('An answer given on one device after the test was submitted on another reaches staff, even when both files are collected together');
+  {
+    const V = C.trainees[31];
+    const vA = signIn(env, V.acct.username, V.pw), vB = signIn(env, V.acct.username, V.pw);
+    const vPaperRes = w.post({ op: 'paper', token: vA.token, examId: examOf(V) });
+    const vPaper = vPaperRes.paper;
+    const vAtt = attemptOf(env, vPaper, V, 'ATT-24');
+    const vRes = deliver(env, [item(env, vB, 'submit', { attempt: vAtt })]).receipts[0].result;
+    assert(!!vRes && vRes.attemptId === 'ATT-24', 'device B submits the attempt');
+    // Device A still had it open and changed an answer a moment later.
+    const li = vAtt.questions.findIndex(q => q.type === 'shortanswer');
+    const late = J(vAtt);
+    late.answers[li] = 'Changed on the other device';
+    late.answeredAt[li] = w.clock.now + 30 * 1000;
+    late.updatedAt = iso(w.clock.now + 30 * 1000);
+    deliver(env, [item(env, vA, 'rec', { key: 'voctrain_examAttempts', rec: late })]);
+    const vFiles = inboxFiles(env, V.acct.id).map(f => ({ fileId: f.id, version: String(f.updated), modifiedTime: iso(f.updated), folderAcct: V.acct.id, json: w.drive.json(f.id) }));
+    assert(vFiles.some(f => f.json.format === 'cestis-gate-result') && vFiles.some(f => f.json.format !== 'cestis-gate-result'), '(her result file and her other device\'s lane are both there)');
+    [vFiles, vFiles.slice().reverse()].forEach((fs, n) => {
+      const col = G.collect(fs, { accounts: C.store.voctrain_users, students: C.store.voctrain_students, deletedUserIds: [] });
+      const res = col.payload.data.examResults.filter(r => r.attemptId === 'ATT-24')[0];
+      const la = (res && res.lateAnswers) || [];
+      assertEq([la.length, la[0] && la[0].answer, la[0] && String(la[0].questionId)], [1, 'Changed on the other device', String(vAtt.questions[li].id)],
+        'collected in one pass (' + (n ? 'result file first' : 'lane first') + '): the other device\'s answer is kept on the result for staff');
+      assertEq([res.earnedPoints, res.answers.length], [vRes.earnedPoints, vRes.answers.length], 'and the result\'s own answers and mark are unchanged');
+    });
+  }
+
   section('Late answers are kept and flagged; right answers only once the exam has closed');
   const L = C.trainees[19], K = C.trainees[21];
   const sL = signIn(env, L.acct.username, L.pw), sK = signIn(env, K.acct.username, K.pw);

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
 <script src="cestis-config.js?v=284ebb2a"></script>
-<script src="cestis-core.js?v=a33b449b"></script>
+<script src="cestis-core.js?v=cf7169e6"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CESTIS - School Fee Management System</title>
     
@@ -6565,6 +6565,12 @@
                 let changed = false;
                 try { if (dropTombstonedFeeStudents()) changed = true; } catch (e) {}
 
+                // One index over the fee roll for the whole pass (Core.feeTwinIndex
+                // answers exactly what the scan did). Without it every incoming
+                // trainee scanned the whole roll, normalising names all the way:
+                // 368 trainees cost ~1.4 s of a slow PC's time each time the
+                // dashboard sent its list, 3,000 cost minutes.
+                const _feeIdx = (window.CESTISCore && typeof CESTISCore.feeTwinIndex === 'function') ? CESTISCore.feeTwinIndex(students) : null;
                 incoming.forEach(p => {
                     if (!p || !p.name) return;
                     // Map dashboard fields -> fee fields.
@@ -6574,7 +6580,7 @@
                     // enough to link them — never a second record because the
                     // dashboard names their programme differently than we do.
                     const _fmt = (window.CESTISCore && typeof CESTISCore.feeMirrorTarget === 'function')
-                        ? CESTISCore.feeMirrorTarget(p, students)
+                        ? CESTISCore.feeMirrorTarget(p, students, _feeIdx ? { index: _feeIdx } : null)
                         : { action: 'create', match: null };
                     if (_fmt.action === 'skip') return;
                     const existing = _fmt.match;
@@ -6619,6 +6625,7 @@
                         source: 'lms',
                         needsFeeDetails: true
                     });
+                    if (_feeIdx) _feeIdx.add(students[students.length - 1]);
                     changed = true;
                 });
 
@@ -6880,6 +6887,11 @@
 
                 const norm = v => (v == null ? '' : String(v)).trim().toLowerCase().replace(/\s+/g, ' ');
                 let changed = false;
+                // Read once for the whole pass, not once per fee record (each
+                // read parsed the skill areas and the deletion lists again).
+                const _centres = feeTrainingCentres();
+                const _lmsIdx = (window.CESTISCore && typeof CESTISCore.twinIndex === 'function') ? CESTISCore.twinIndex(lmsStudents) : null;
+                const _del = new Set(delIds);   // same strict matching as indexOf
 
                 students.forEach(sf => {
                     if (!sf || !sf.name) return;
@@ -6890,10 +6902,10 @@
                     const feeSid = (window.CESTISCore && typeof CESTISCore.stableStudentId === 'function')
                         ? CESTISCore.stableStudentId({ name: sf.name, course: sf.skillArea }) : null;
                     // Skip if removed on the dashboard (twin id, raw fee id, stable id, or linked lms id).
-                    if (delIds.indexOf(linkId) !== -1 ||
-                        delIds.indexOf(sf.id) !== -1 ||
-                        (feeSid && delIds.indexOf(feeSid) !== -1) ||
-                        (sf.lmsId && delIds.indexOf(sf.lmsId) !== -1)) return;
+                    if (_del.has(linkId) ||
+                        _del.has(sf.id) ||
+                        (feeSid && _del.has(feeSid)) ||
+                        (sf.lmsId && _del.has(sf.lmsId))) return;
 
                     // Where does this record belong on the dashboard? The rule is
                     // shared (CESTISCore.lmsMirrorTarget) and it obeys VocTrain:
@@ -6901,9 +6913,10 @@
                     // another programme, and a programme with no training centre
                     // behind it is not mirrored there at all.
                     const target = (window.CESTISCore && typeof CESTISCore.lmsMirrorTarget === 'function')
-                        ? CESTISCore.lmsMirrorTarget(sf, lmsStudents, feeTrainingCentres(), {
+                        ? CESTISCore.lmsMirrorTarget(sf, lmsStudents, _centres, {
                             findCentre: CESTISCore.enrolment.findCentre,
-                            on: sf.enrollmentDate || sf.enrolmentDate || sf.createdAt || ''
+                            on: sf.enrollmentDate || sf.enrolmentDate || sf.createdAt || '',
+                            twinIndex: _lmsIdx
                           })
                         : { action: 'skip', match: null, course: '' };
 
@@ -6968,6 +6981,7 @@
                         enrolmentDate: sf.enrollmentDate || '',
                         fiscalYear: sf.fiscalYear || null
                     });
+                    if (_lmsIdx) _lmsIdx.add(lmsStudents[lmsStudents.length - 1]);
                     changed = true;
                 });
 
@@ -7129,6 +7143,7 @@
            those paths still work. A write that would throw records away is
            refused, reported, and the stored copy is reloaded instead. */
         let _feeLastRescue = 0;
+        const _feePersistWaiting = {};
         function feePersist(key, value) {
             const guarded = (window.CESTISCore && CESTISCore.pageCloud &&
                              typeof CESTISCore.pageCloud.guardedSet === 'function')
@@ -7136,6 +7151,21 @@
                 : null;
             if (!guarded) { CESTISStore.setItem(key, JSON.stringify(value)); return true; }
             return guarded(CESTISStore, key, value, function (k, current) {
+                // Refused only because this browser's store is still being read
+                // in (nothing is stored here that could be put back): not an
+                // alarm. Ask again once it has been read; the guard decides then.
+                if (current == null && typeof CESTISStore.isReady === 'function' && !CESTISStore.isReady() &&
+                    typeof CESTISStore.whenReady === 'function') {
+                    if (!_feePersistWaiting[k]) {
+                        _feePersistWaiting[k] = true;
+                        CESTISStore.whenReady(function () {
+                            _feePersistWaiting[k] = false;
+                            const now = k === 'cestiSchoolFeeStudents' ? students : k === 'cestiSchoolFeePayments' ? payments : k === 'cestiSchoolFeeDocuments' ? documents : null;
+                            if (now) feePersist(k, now);
+                        });
+                    }
+                    return;
+                }
                 // Refused. Put the stored records back into memory so the page
                 // stops showing an empty roll it would only try to save again.
                 console.error('[SchoolFee] Refused to overwrite stored records in "' + k +
@@ -9203,7 +9233,7 @@
             if (!_rAuto && !feeReceiptNumberConfirmed(receiptNumber, null)) return;
 
             const payment = {
-                id: 'PAY' + Date.now(),
+                id: 'PAY' + Date.now() + Math.random().toString(36).substr(2, 5),   // two offices in the same millisecond must not share an id
                 studentId: studentId,
                 studentName: student.name,
                 skillArea: student.skillArea,
@@ -16311,7 +16341,7 @@
 <script src="megadata/loader.js?v=8323d60e" data-megadata="megadata/schemas.js?v=587d1f90 megadata/projections.js?v=fab3751c megadata/dal.js?v=bfa8a7f0 megadata/adapter-idb.js?v=ed376ed4 megadata/broker-client.js?v=fe421bad megadata/enforcement-shim.js?v=822fd59a megadata/browser-sync.js?v=a8f6fc04 megadata/page-boot.js?v=cc05f2e4 megadata/pages/roster-model.js?v=9d3cd451 megadata/pages/fee-model.js?v=01bdff28 megadata/pages/fee-page.js?v=ea4ee1d0"></script>
 
 <!-- Per-page Google Drive save path (own file in the shared backup folder) -->
-<script src="cestis-page-cloud.js?v=5bb7972d"></script>
+<script src="cestis-page-cloud.js?v=32331e75"></script>
 <script src="cestis-sync-chip.js?v=074281c5"></script>
 <script>
 CESTISPageCloud.init({

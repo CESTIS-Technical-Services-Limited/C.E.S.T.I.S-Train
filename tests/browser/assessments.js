@@ -13,7 +13,8 @@
      prepare    The Assessments page: the Welding unit's four assessments
                 prepared from its bank, To check; Preview; Check & edit;
                 Mark Ready; Open for an intake; groups of 4 or 5 from the
-                register. A unit with no bank: "No prepared assessments yet".
+                register. Every unit of the plan has a bank (none says
+                "No prepared assessments yet").
      export     Export units on the Qualification Plan page (a CSV).
      theory1    At home: Theory 1 open; the Administrator adds 15 minutes
                 for her (who, how much, why); her clock moves; the invigilator
@@ -148,7 +149,9 @@ function seed({ MORE, PASSHASH }) {
     await op.waitForTimeout(400);
     const wl2 = await txt(op, '#page-assessments .assess');
     ok(/MEMFAB0042C/.test(wl2) && /46 units/.test(wl2), 'the Welding Level 2 units, by code and title');
-    ok(/No prepared assessments yet/.test(wl2), 'a unit with no bank: "No prepared assessments yet"');
+    // Every unit on the plan has a prepared bank now (#367); a unit without one
+    // is checked in tests/assessments-core.test.js (matchBank → null).
+    ok(!/No prepared assessments yet/.test(wl2), 'every Welding Level 2 unit has prepared assessments (none says "No prepared assessments yet")');
     await op.fill('#page-assessments [data-ctl="q"]', 'MEMFAB0042C');
     await op.waitForTimeout(700);
     ok(await clickIn(op, '#page-assessments [data-act="prepare"]'), 'Prepare this unit\'s four assessments');

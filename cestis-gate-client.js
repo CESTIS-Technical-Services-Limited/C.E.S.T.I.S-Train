@@ -65,6 +65,8 @@
   // A file goes in parts of 384 KB (512 KB as text): about 8 seconds each on a 500 kbps line.
   var PART_BYTES = 384 * 1024, PART_TIMEOUT_MS = 60000;
   var BACKOFF_MIN_MS = 2000, BACKOFF_MAX_MS = 5 * 60 * 1000;
+  // A test waiting for its result is never left for minutes once the gate answers again.
+  var SUBMIT_BACKOFF_MAX_MS = 60 * 1000;
   var RETRY_EVERY_MS = 30 * 1000;
   var PULL_EVERY_MS = 5 * 60 * 1000;
   var DELIVER_BATCH = 50;                 // the gate takes up to 200 items a request
@@ -111,6 +113,15 @@
     var n = Math.max(0, Math.floor(Number(tries) || 0));
     return Math.min(BACKOFF_MAX_MS, BACKOFF_MIN_MS * Math.pow(2, Math.min(n, 20)));
   }
+  // The same wait spread over its upper half (rand 0…1), under an optional lower
+  // ceiling: a hundred devices refused at the same moment do not all come back at
+  // the same moment, and a test waiting for its result is tried again within a minute.
+  function backoffSpreadMs(tries, rand, max) {
+    var ms = backoffMs(tries);
+    if (typeof max === 'number' && max > 0) ms = Math.min(ms, max);
+    return typeof rand === 'number' && rand >= 0 && rand <= 1 ? Math.round(ms * (0.5 + 0.5 * rand)) : ms;
+  }
+  function jitter() { try { var b = new Uint32Array(1); root.crypto.getRandomValues(b); return b[0] / 4294967296; } catch (e) { return Math.random(); } }
   /* What a delivery receipt means for the item it answers:
        'done'    the gate has it (or already had it): it may leave the outbox;
        'reseal'  its session was ended by a password reset or a switch-off:
@@ -267,6 +278,10 @@
     s.maintenanceMode = t.maintenanceMode === true;
     s.maintenanceMessage = t.maintenanceMode === true ? str(t.maintenanceMessage) : '';
     if (t.gateUrl) s.traineeGate = { url: str(t.gateUrl), enabled: true };
+    // The Centre's video servers (blank means the public defaults, as on a staff PC).
+    ['vcSignallingHost', 'vcTurnServers', 'vcLargeRoomBase', 'vcRoomPasswordSalt'].forEach(function (k) {
+      if (typeof t[k] === 'string') s[k] = t[k];
+    });
     return s;
   }
   function planApply(slice, local, ctx) {
@@ -449,7 +464,7 @@
         e.last = receipt ? copy(receipt) : null;
         if (act === 'reseal') { e.state = 'revoked'; e.nextAt = 0; }
         else if (act === 'refused') { e.state = 'refused'; e.reason = str(receipt && (receipt.reason || receipt.error)) || 'refused'; }
-        else { e.state = 'wait'; e.tries = (e.tries || 0) + 1; e.nextAt = now + backoffMs(e.tries); }
+        else { e.state = 'wait'; e.tries = (e.tries || 0) + 1; e.nextAt = now + backoffSpreadMs(e.tries, jitter(), e.kind === 'submit' ? SUBMIT_BACKOFF_MAX_MS : 0); }
         return Promise.resolve(backend.put(e)).then(function () { return act; });
       }
     };
@@ -1244,6 +1259,8 @@
     return tabLane;
   }
   function withLaneLock(fn) {
+    if (run.rotateLane) { run.rotateLane = false; tabLane = randomId(8).replace(/[^A-Za-z0-9]/g, 'x'); run.ownLane = true; }
+    if (run.ownLane) return fn(laneSuffix());
     try {
       if (root.navigator && root.navigator.locks && typeof root.navigator.locks.request === 'function') {
         return root.navigator.locks.request(LANE_LOCK, function () { return fn(null); });
@@ -1280,7 +1297,11 @@
                   out.sent += batch.length;
                   if (callAnswerRetries(res)) {
                     run.fails++;
-                    run.holdUntil = Date.now() + backoffMs(run.fails - 1);
+                    run.holdUntil = Date.now() + backoffSpreadMs(run.fails - 1, jitter(), batch.some(function (e) { return e.kind === 'submit'; }) ? SUBMIT_BACKOFF_MAX_MS : 0);
+                    // Not answered at all (a timeout): that request may still be running at the
+                    // gate. What is sent next goes into a lane of its own, so the two can never
+                    // write one lane file at the same time (one writer per lane).
+                    if (res && res.unreachable) run.rotateLane = true;
                     out.retry += batch.length;
                     return Promise.all(batch.map(function (e) { return ob.settle(e, { ok: false, retry: true, reason: res && res.error }, Date.now()); }));
                   }
@@ -1418,7 +1439,7 @@
     outbox: function () { return getOutbox().all(); },
     wire: wire, PULL_EVERY_MS: PULL_EVERY_MS,
     _pure: {
-      backoffMs: backoffMs, receiptAction: receiptAction, callAnswerRetries: callAnswerRetries, pickBase: pickBase, validAddress: validAddress,
+      backoffMs: backoffMs, backoffSpreadMs: backoffSpreadMs, receiptAction: receiptAction, callAnswerRetries: callAnswerRetries, pickBase: pickBase, validAddress: validAddress,
       parseGateFragment: parseGateFragment, stripGateFragment: stripGateFragment, coalesceKey: coalesceKey,
       planApply: planApply, mergeOwnList: mergeOwnList, mergeOwnMap: mergeOwnMap, mergeResults: mergeResults, mergeSettings: mergeSettings,
       mergeRoom: mergeRoom, ownedRecords: ownedRecords, diff: diff, baseFor: baseFor, makeOutbox: makeOutbox, memoryBackend: memoryBackend,

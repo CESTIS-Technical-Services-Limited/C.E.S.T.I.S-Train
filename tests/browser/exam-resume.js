@@ -733,7 +733,7 @@ const EXPECT = [0, true, [0, 1, 4], MATCH, 'Flashback arrestor', '1,000', null, 
     await setOffline(pc1, false);
     ok(await until(() => p1.evaluate(() => !currentExamSession), 40000, 1000), 'PC 1, back online, closes the test');
     const note = (await txt(p1, '#examResultNote')) || (await txt(p1, '#examListNote'));
-    ok(/This test was submitted on another device\. Your answers are kept with the result\./.test(note), 'and says so calmly: "' + note + '"');
+    ok(/This test was submitted on another device, with your newest answer to each question\./.test(note), 'and says so calmly: "' + note + '"');
     ok(await p1.isVisible('#studentExamResultView .exam-review'), 'showing that one result');
     await readable(p1, 'submitted-elsewhere note', [(await p1.$('#examResultNote')) ? '#examResultNote .exam-note-text' : '#examListNote .exam-note-text']);
     await shot(p1, '04-pc1-back-submitted-elsewhere-desktop');
@@ -779,13 +779,34 @@ const EXPECT = [0, true, [0, 1, 4], MATCH, 'Flashback arrestor', '1,000', null, 
     ok((await p2.inputValue('#examAns-8').catch(() => '')) === '20' || (await onScreen(p2)).page !== 2, 'PC 2\'s screen shows PC 1\'s answer to Q8');
     await readable(p1, 'continued-elsewhere note', ['#examElsewhereNote .exam-note-text', '#examElsewhereNote .btn']);
     await shot(p1, '10-both-pcs-at-once-note-desktop', '#examAttemptMain');
+    // A moment before PC 2 submits, PC 1 changes Q9: its share is up to 30
+    // seconds away, so the result PC 2 makes does not have it. That answer is
+    // kept for staff on the result (lateAnswers) — never marked — and PC 1 is
+    // told so (the owner: "keep such late answers aside for staff to see").
+    await p1.evaluate(() => { _examLastPublish = Date.now(); });
+    await navTo(p1, 9);
+    await p1.fill('#examAns-9', 'upright and chained');
+    await wait(400);
     await submitAll(p2);
+    const marked = (await resultsFor(p2, 'tameka'))[0];
     ok(await until(() => p1.evaluate(() => !currentExamSession), 40000, 1000), 'PC 2 submits; PC 1 closes the test once it hears');
+    const n1b = await txt(p1, '#examResultNote');
+    ok(/This test was submitted on another device\. Some answers you gave here were not in it; your instructor can see them\./.test(n1b), 'PC 1 is told the truth about its last answer: "' + n1b + '"');
+    await readable(p1, 'answers-not-in-it note', ['#examResultNote .exam-note-text']);
+    await shot(p1, '10b-late-answer-note-desktop', '#studentExamResultView');
     await p1.waitForTimeout(6000);
     await syncNow(p1); await syncNow(p2);
     ok(driveResults(drive, 'tameka').every(l => l.length === 1), 'one result in the shared copy');
     const r = driveResults(drive, 'tameka').find(l => l.length)[0];
     ok(resultAnswers(r)[6] === 2 && resultAnswers(r)[7] === '20', 'with the newest answer to each question (Q7 from PC 2, Q8 from PC 1)');
+    ok(resultAnswers(r)[8] === 'upright', 'Q9 is as PC 2 submitted it (' + resultAnswers(r)[8] + ')');
+    const lateQ9 = (r.lateAnswers || []).filter(e => e.questionId === 'Q9');
+    ok(lateQ9.length === 1 && lateQ9[0].answer === 'upright and chained' && lateQ9[0].index === 8 && lateQ9[0].answeredAt > 0,
+      'PC 1\'s later Q9 is kept on the shared result for staff (' + JSON.stringify(r.lateAnswers || []) + ')');
+    ok(!!marked && r.score === marked.score && r.earnedPoints === marked.earnedPoints && JSON.stringify(resultAnswers(r)) === JSON.stringify(resultAnswers(marked)),
+      'the mark and the answers are the submitted ones');
+    ok(await until(async () => { await syncNow(p2); return ((await resultsFor(p2, 'tameka'))[0].lateAnswers || []).some(e => e.questionId === 'Q9'); }, 30000, 2000),
+      'and every other copy of the result receives it (PC 2)');
     await pc1.close(); await pc2.close();
   }, { light: true });
 
@@ -897,7 +918,7 @@ const EXPECT = [0, true, [0, 1, 4], MATCH, 'Flashback arrestor', '1,000', null, 
       await setOffline(pc1, false);
       ok(await until(async () => { await p1.evaluate(() => CESTISPageCloud.loadNow().catch(() => {})); return p1.evaluate(() => !currentExamSession); }, 40000, 2000), 'PC 1, back on the network, closes the test');
       const note = (await txt(p1, '#examResultNote')) || (await txt(p1, '#examListNote'));
-      ok(/This test was submitted on another device\. Your answers are kept with the result\./.test(note), 'and says so: "' + note + '"');
+      ok(/This test was submitted on another device, with your newest answer to each question\./.test(note), 'and says so: "' + note + '"');
       await lanSyncNow(p1); await lanSyncNow(p2);
       ok(lan.results('tameka').length === 1, 'one result in the Centre\'s copy');
       const r = lan.results('tameka')[0];
@@ -995,7 +1016,7 @@ const EXPECT = [0, true, [0, 1, 4], MATCH, 'Flashback arrestor', '1,000', null, 
     await b.waitForTimeout(1200);
     ok(await b.evaluate(() => !currentExamSession), 'tab B closes the attempt when tab A submits');
     const tb = await txt(b, '#examResultNote');
-    ok(/This test was submitted in another window\. Your answers are kept with the result\./.test(tb), 'and says so: "' + tb + '"');
+    ok(/This test was submitted in another window, with your newest answer to each question\./.test(tb), 'and says so: "' + tb + '"');
     ok(await b.isVisible('#studentExamResultView .exam-review') && !(await b.$('#examListNote')), 'showing the result itself (it is stored before the attempt is closed, so the other tab finds it)');
     await readable(b, 'submitted-in-another-window note', ['#examResultNote .exam-note-text']);
     await shot(b, '16-two-tabs-submitted-in-other-window-desktop');

@@ -21,6 +21,8 @@ const { chromium } = require('playwright-core');
 const { FakeDrive } = require('./fake-drive');
 const { makeFakeGate, GATE_URL } = require('./fake-gate');
 const kit = require('./gate-kit');
+// The check page names the gate's own version (trainee-gate/Gate.gs), whatever it is now.
+const GATE_VERSION = require('fs').readFileSync(require('path').join(kit.ROOT, 'trainee-gate', 'Gate.gs'), 'utf8').match(/var GATE_VERSION = (\d+);/)[1];
 
 const EXE = process.env.CESTIS_CHROME || '/opt/pw-browsers/chromium';
 let passed = 0, failed = 0;
@@ -84,7 +86,7 @@ const FORBIDDEN = /\b(google|drive|cloud|server|gmail|internet|apps?\s*script)\b
     const page2 = await popup;
     if (page2) { await page2.waitForLoadState('load').catch(() => {}); }
     const text2 = page2 ? await page2.evaluate(() => document.body.innerText).catch(() => '') : '';
-    ok(page2 && /Trainee sign-in from anywhere — check/.test(text2) && /Version 3/.test(text2), 'the gate\'s own check page opens in a new tab');
+    ok(page2 && /Trainee sign-in from anywhere — check/.test(text2) && new RegExp('Version ' + GATE_VERSION + ' ').test(text2), 'the gate\'s own check page opens in a new tab');
     ok(/new tab/.test((await say('page') || {}).t || ''), 'and the card says what to look for');
     ok(Object.values(drive.files).some(f => f.name === 'CESTISSMOKE.name-check.json'), 'the check page made the name-search test file');
     await A.click('#gateCheckSearch');

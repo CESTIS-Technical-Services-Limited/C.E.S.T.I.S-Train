@@ -23,11 +23,17 @@
    and read back as it was sent, with its own type; a file's content
    replaced is kept as a revision (f.revisions: { version, size, md5,
    modifiedTime, keepForever } — keepForever: that content was sent with
-   keepRevisionForever=true, as Drive marks the new head revision). */
+   keepRevisionForever=true, as Drive marks the new head revision). The
+   revisions can be listed and read back (revisions.list, revisions.get
+   ?alt=media; the bytes of the last REV_BYTES_KEPT), as a page does to
+   recover a write another device's write overtook — without them, two PCs
+   saving in the same moment lost one PC's write until its next save, which
+   a test reading the shared copy at once took for lost data. */
 'use strict';
 function parse(v) { try { return JSON.parse(v); } catch (e) { return undefined; } }
 const isTextType = t => !t || /json|^text\/|charset/i.test(String(t));
 const bytesOf = f => (f._bytes ? f._bytes : Buffer.from(f.content || '', 'utf8'));
+const REV_BYTES_KEPT = 30;
 function FakeDrive() { this.files = {}; this.seq = 0; this.calls = 0; this.errors = []; this.quota = null; this.full = false; this.copyBroken = false; this.copies = 0; this.refused = 0; }
 // The answer the real one gives when the account has no room left.
 const QUOTA_REFUSAL = { error: { code: 403, message: "The user's Drive storage quota has been exceeded.",
@@ -105,8 +111,14 @@ FakeDrive.prototype.put = function (id, meta, content, opts) {
     // The content it had is kept as a revision (as Drive keeps one).
     if (f.version > 0 && (f.content || f._bytes)) {
       const old = bytesOf(f);
-      (f.revisions = f.revisions || []).push({ version: f.version, size: old.length, md5: require('crypto').createHash('md5').update(old).digest('hex'),
-        modifiedTime: f.modifiedTime, keepForever: !!f.headKeep });
+      const rev = { version: f.version, size: old.length, md5: require('crypto').createHash('md5').update(old).digest('hex'),
+        modifiedTime: f.modifiedTime, keepForever: !!f.headKeep };
+      // Its bytes too (not listed with it), so revisions.get can read it back.
+      Object.defineProperty(rev, 'bytes', { value: old, enumerable: false, writable: true });
+      (f.revisions = f.revisions || []).push(rev);
+      // Only the last REV_BYTES_KEPT revisions keep their bytes (memory).
+      const drop = f.revisions.length - REV_BYTES_KEPT;
+      if (drop > 0 && f.revisions[drop - 1].bytes) f.revisions[drop - 1].bytes = null;
     }
     if (Buffer.isBuffer(content)) { f._bytes = content; f.content = content.toString('latin1'); }
     else { delete f._bytes; f.content = content; }
@@ -206,6 +218,21 @@ FakeDrive.prototype.handle = async function (route) {
         return json({ files });
       }
       if (method === 'POST') { let meta = {}; try { meta = JSON.parse(body.toString('utf8') || '{}'); } catch (e) {} return json(this.meta(this.put(null, meta, ''))); }
+    }
+    // revisions.list (oldest first, the head last, as Drive lists them) and
+    // revisions.get ?alt=media — what a page reads to recover a write that
+    // another device's write overtook (recoverOvertakenWrite).
+    if ((m = /^\/drive\/v3\/files\/([^/]+)\/revisions(?:\/([^/]+))?$/.exec(p)) && method === 'GET') {
+      const f = this.files[m[1]];
+      if (!f) return json({ error: { code: 404, message: 'File not found: ' + m[1] } }, 404);
+      const revs = (f.revisions || []).map(r => ({ id: String(r.version), modifiedTime: r.modifiedTime, keepForever: !!r.keepForever, md5Checksum: r.md5, size: String(r.size), bytes: r.bytes }))
+        .concat([{ id: String(f.version), modifiedTime: f.modifiedTime, keepForever: !!f.headKeep, md5Checksum: require('crypto').createHash('md5').update(bytesOf(f)).digest('hex'), size: String(bytesOf(f).length), bytes: bytesOf(f) }]);
+      const strip = r => { const o = Object.assign({}, r); delete o.bytes; return o; };
+      if (!m[2]) return json({ revisions: revs.map(strip) });
+      const r = revs.find(x => x.id === m[2]);
+      if (!r || (url.searchParams.get('alt') === 'media' && !r.bytes)) return json({ error: { code: 404, message: 'Revision not found: ' + m[2] } }, 404);
+      if (url.searchParams.get('alt') === 'media') return route.fulfill({ status: 200, contentType: f.mimeType || 'application/octet-stream', headers: cors, body: r.bytes });
+      return json(strip(r));
     }
     if ((m = /^\/drive\/v3\/files\/([^/]+)(\/permissions)?$/.exec(p))) {
       const f = this.files[m[1]];

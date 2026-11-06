@@ -116,6 +116,14 @@ async function seedAccounts(PW) {
     await page.fill('#' + card + 'User', user);
     await page.fill('#' + card + 'Pass', pass);
     await page.press('#' + card + 'Pass', 'Enter');
+    // The password is checked by a deliberately slow hash: on a busy machine it
+    // took longer than a fixed pause. Wait for the card's answer (a message
+    // under it, the app, or another screen) before the usual pause.
+    await page.waitForFunction(c => {
+      const e = document.getElementById(c + 'LoginError'), p = document.getElementById('pendingApprovalScreen');
+      return (e && !e.hidden && e.innerText.trim() !== '') || document.getElementById('appShell').classList.contains('active') ||
+        !!p || !!document.querySelector('.modal-overlay.active');
+    }, card, { timeout: 15000 }).catch(() => {});
     await page.waitForTimeout(900);
   }
   const noSideways = page => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1);
