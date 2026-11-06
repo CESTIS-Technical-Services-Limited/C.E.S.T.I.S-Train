@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <script src="cestis-config.js?v=284ebb2a"></script>
-<script src="cestis-core.js?v=0c7279e3"></script>
+<script src="cestis-core.js?v=a6d7583a"></script>
 <script src="cestis-form-modal.js?v=74020c38" defer></script>
 <!-- Inert until a page registers: the CMC Board registers as a READ-ONLY reader
      so the operating pages' books reach its dashboards without anyone syncing. -->
@@ -3297,6 +3297,18 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 .gp-auto-row .gp-m { font-weight:700; white-space:nowrap; font-variant-numeric:tabular-nums; }
 .gp-auto-row.rq-correct .gp-m { color:var(--green); } .gp-auto-row.rq-incorrect .gp-m { color:var(--red-text); } .gp-auto-row.rq-partial .gp-m { color:var(--accent); }
 .rq-legend .rq-correct { color:var(--green); } .rq-legend .rq-incorrect { color:var(--red-text); } .rq-legend .rq-partial { color:var(--accent); }
+/* Answers given on another device that did not reach the result: shown to
+   staff for information, never marked (CESTISCore.exams.lateAnswersOf). */
+.gp-late { background:var(--blue-dim); border:1px solid var(--border-light); border-left:3px solid var(--blue); border-radius:var(--radius-sm); padding:12px 14px; margin-bottom:16px; }
+.gp-late-title { font-size:12px; font-weight:700; color:var(--info-text); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; }
+.gp-late-note { font-size:12.5px; color:var(--text-primary); line-height:1.5; margin-bottom:10px; }
+.gp-late-badge { color:var(--info-text); }
+.gp-late-list { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px; }
+.gp-late-row { background:var(--bg-card); border:1px solid var(--border-light); border-radius:var(--radius-sm); padding:8px 10px; font-size:12.5px; }
+.gp-late-row .gp-q { font-weight:700; margin-right:8px; color:var(--text-primary); }
+.gp-late-row .gp-t { color:var(--text-secondary); }
+.gp-late-ans { margin-top:4px; color:var(--text-primary); white-space:pre-wrap; overflow-wrap:anywhere; }
+.gp-late-when { margin-top:2px; font-size:12px; color:var(--text-muted); }
 /* ---- The exam on a phone ----
    The navigation panel becomes a strip pinned to the top: the time left is
    always in view and the question boxes open with one tap, in a row that
@@ -7444,7 +7456,11 @@ function syncCollections() {
     // transcript override reaches every device (CESTISCore.sync.mergeExamResults).
     // Removals are only ever written down deliberately: a trainee's device
     // holds just that trainee's rows, which is not a deletion of the rest.
-    { name: 'examResults',           get: function(){ return examResults; },           key: function(r){ return CESTISCore.sync.examResultKey(r); }, removals: false, genIds: true },
+    // Answers kept for staff that did not reach the result (lateAnswers) are
+    // not an edit of the result: every merge keeps both copies' lists
+    // (CESTISCore.exams.unionLateAnswers), and a trainee's copy re-dated by
+    // them must never win over a mark made since.
+    { name: 'examResults',           get: function(){ return examResults; },           key: function(r){ return CESTISCore.sync.examResultKey(r); }, removals: false, genIds: true, ignore: { lateAnswers: 1 } },
     // The invigilators' registers, one per sitting (its id names the exam and
     // day). A register is never deleted from this page, and a trainee's
     // sign-out empties this PC's copy — which must never read as a deletion.
@@ -30648,6 +30664,9 @@ function examResultsTableHtml(e, results) {
       statusBadge = '<span class="badge badge-red"><span class="badge-dot"></span>Failed</span>';
     }
     if(r.late) statusBadge += ' <span class="badge badge-amber" title="Submitted after the exam window closed">Late</span>';
+    // Answers given on another device that are not in the result (examLateAnswersHtml).
+    var lateN = Array.isArray(r.lateAnswers) ? r.lateAnswers.length : 0;
+    if(lateN) statusBadge += ' <span class="badge badge-blue gp-late-badge" title="Answers given on another device that are not in this result (not marked). Open Review to see them.">Extra answers (' + lateN + ')</span>';
     var scoreColor = hasReviewPending ? 'var(--accent)' : (r.passed ? 'var(--green)' : 'var(--red)');
     var actionBtn = hasReviewPending
       ? '<button class="btn btn-sm btn-primary" onclick="openGradingPanel('+jsArg(r.id)+')">Grade</button>'
@@ -30927,6 +30946,9 @@ function openGradingPanel(resultId) {
     '<div style="flex:1;text-align:center;"><div style="font-size:18px;font-weight:700;color:'+(pendingCount>0?'var(--accent)':'var(--green)')+';" id="gpPendingCount">'+pendingCount+'</div><div style="font-size:10px;color:var(--text-muted);">Pending</div></div>' +
     '</div>';
 
+  // Answers given on another device that did not reach this result.
+  bodyHtml += examLateAnswersHtml(result, exam);
+
   // Questions needing review
   if(pendingCount > 0) {
     bodyHtml += '<div style="font-size:12px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Needs Grading</div>';
@@ -31039,6 +31061,37 @@ function openGradingPanel(resultId) {
 
   panel.innerHTML = headerHtml + bodyHtml + footerHtml;
   document.body.appendChild(panel);
+}
+
+/* Answers the trainee gave on another device that are not in this result
+   (the test was submitted elsewhere first): kept for staff to see, never
+   marked (CESTISCore.exams.lateAnswersOf). Each with its question's number,
+   the answer in words and when it was given. '' when there are none. */
+function examLateAnswersHtml(result, exam) {
+  var late = result && Array.isArray(result.lateAnswers) ? result.lateAnswers.filter(function(e){ return e && e.questionId != null; }) : [];
+  if(!late.length) return '';
+  var answers = Array.isArray(result.answers) ? result.answers : [];
+  var qd = exam && Array.isArray(exam.questionData) ? exam.questionData : [];
+  var h = '<div class="gp-late" id="gpLateAnswers" role="note" aria-labelledby="gpLateTitle">' +
+    '<div class="gp-late-title" id="gpLateTitle">Answers given on another device that are not in this result (not marked)</div>' +
+    '<div class="gp-late-note">This test was submitted on one device while it was still open on another. The answers below were given on that other device and did not reach the submitted test. They do not change the mark.</div>' +
+    '<ul class="gp-late-list">';
+  late.forEach(function(e) {
+    var k = typeof e.index === 'number' && answers[e.index] && String(answers[e.index].questionId) === String(e.questionId) ? e.index : -1;
+    if(k < 0) for(var i = 0; i < answers.length; i++) if(answers[i] && String(answers[i].questionId) === String(e.questionId)) { k = i; break; }
+    var a = k >= 0 ? answers[k] : null;
+    var q = qd.filter(function(x){ return x && String(x.id) === String(e.questionId); })[0] || null;
+    var shown = Object.assign({ type: q ? q.type : '' }, a || {}, { studentAnswer: e.answer });
+    var text = '';
+    try { text = examAnswerText(shown, q); } catch(x) { text = ''; }
+    if(!text || /\[object /.test(text)) text = typeof e.answer === 'string' ? e.answer : JSON.stringify(e.answer);
+    var qt = String((a && a.questionText) || (q && q.text) || '');
+    var when = Number(e.answeredAt) > 0 ? examCentreDateTime(Number(e.answeredAt)) : '';
+    h += '<li class="gp-late-row"><span class="gp-q">' + (k >= 0 ? 'Q' + (k + 1) : 'Question') + '</span><span class="gp-t">' + escapeHtml(qt.substring(0, 90)) + (qt.length > 90 ? '...' : '') + '</span>' +
+      '<div class="gp-late-ans">Answer: <strong>' + escapeHtml(text) + '</strong></div>' +
+      (when ? '<div class="gp-late-when">Given ' + escapeHtml(when) + '</div>' : '') + '</li>';
+  });
+  return h + '</ul></div>';
 }
 
 /* A prepared assessment's essay (CESTISCore.assessments): the model answer
@@ -31369,7 +31422,7 @@ function examCurrentAttempt(studentId, examId) {
 function examRetireLocalDraft(d, list) {
   var X = CESTISCore.exams;
   var stub = (list || []).find(function(a) { return a && String(a.id) === String(d.id) && X.attemptIsRetired(a); }) || X.retireAttempt(d, null);
-  try { CESTISStore.setItem(X.draftKey(d.studentId, d.examId), JSON.stringify(stub)); } catch (e) {}
+  examCloseLocalCopy(d, stub);
 }
 // The attempt as a record: what is saved here and shared.
 function examAttemptRecord(s) {
@@ -31402,10 +31455,15 @@ function examAttemptsPersist() { examAttemptsUpsert([]); }
 function examAttemptsMergeIncoming(incoming) {
   if (!Array.isArray(incoming) || !window.CESTISCore || !CESTISCore.exams) return false;
   var X = CESTISCore.exams;
+  // An open copy from another device (or, through the trainee gate, from the
+  // trainee's own device) whose test was already submitted: the answers it
+  // holds that did not reach the result are kept on the result for staff,
+  // before the merge closes the copy (CESTISCore.exams.keepLateAnswers).
+  try { if (typeof X.keepLateAnswers === 'function' && X.keepLateAnswers(incoming, examResults, examStampNow())) examLateAnswersSave(); } catch (e) {}
   var r = X.mergeAttemptLists(Array.isArray(examAttempts) ? examAttempts : [], incoming);
   examAttempts = r.list;
   var settled = 0;
-  try { settled = X.settleAttempts(examAttempts, examResults); } catch (e) {}
+  try { settled = examSettleShared(); } catch (e) {}
   if (r.changed || settled) { try { saveCollection('voctrain_examAttempts', examAttempts); } catch (e) {} }
   try { examAttemptsArrived('device'); } catch (e) {}
   if (r.changed || settled) { try { if (typeof invigDataChanged === 'function') invigDataChanged(); } catch (e) {} }
@@ -31424,23 +31482,110 @@ function examAttemptsRestoreFromDrafts() {
     if (d) recs.push(d);
   });
   if (recs.length) examAttemptsUpsert(recs);
+  try { examResolveHeld(); } catch (e) {}
   try { examAttemptsArrived('device'); } catch (e) {}
 }
 // This PC's copies of attempts that are over (submitted here or anywhere, or
 // settled by a result) are retired, so nobody is ever offered them again.
+// (The attempt on this screen is closed by examAttemptEndedElsewhere, from
+// what the screen holds, which is newer than its saved copy.)
 function examRetireStaleDrafts() {
-  var X = CESTISCore.exams;
+  var X = CESTISCore.exams, s = currentExamSession;
   (CESTISStore.keys ? CESTISStore.keys() : []).forEach(function(k) {
     if (String(k).indexOf(X.DRAFT_PREFIX) !== 0) return;
     var raw = safeJsonParse(CESTISStore.getItem(k), null);
     if (!raw || X.attemptIsRetired(raw) || !raw.studentId || !raw.examId) return;
+    if (s && !_isExamPreviewMode && s.studentId === raw.studentId && s.examId === raw.examId) return;
     var d = examLoadDraft(raw.studentId, raw.examId);
     if (!d) return;
     var list = X.mergeAttemptLists(Array.isArray(examAttempts) ? examAttempts : [], [d]).list;
     try { X.settleAttempts(list, examResults); } catch (e) {}
     var mine = list.find(function(a) { return a && String(a.id) === String(d.id); });
-    if (mine && X.attemptIsRetired(mine)) { try { CESTISStore.setItem(k, JSON.stringify(mine)); } catch (e) {} }
+    if (mine && X.attemptIsRetired(mine)) examCloseLocalCopy(d, mine);
   });
+}
+// The open copies in the shared list that a result has answered are closed —
+// the answers each holds that did not reach the result kept on it first, for
+// staff. Returns how many were closed.
+function examSettleShared() {
+  var X = CESTISCore.exams, info = { late: 0, nowMs: examStampNow() };
+  var n = X.settleAttempts(examAttempts, examResults, info);
+  if (info.late) examLateAnswersSave();
+  return n;
+}
+function examLateAnswersSave() {
+  try { saveCollection('voctrain_examResults', examResults); } catch (e) {}
+  try { if (typeof scheduleDebouncedCloudSave === 'function') scheduleDebouncedCloudSave(); } catch (e) {}
+}
+
+/* ---- Answers that did not reach the result (the owner: "keep such late
+   answers aside for staff to see") ----
+   A test submitted on another device or in another window while this one
+   still held answers it had not shared: those answers are not in the result,
+   and the result is never changed — but they are not dropped either. They are
+   kept ON the result (result.lateAnswers, CESTISCore.exams.lateAnswersOf),
+   which goes wherever the result goes, and staff see them under the
+   trainee's answers, not marked. Returns { late: how many, waiting: the
+   result is not on this PC yet }. */
+function examKeepLateAnswers(d) {
+  var X = CESTISCore.exams, out = { late: 0, waiting: false };
+  if (!d || typeof X.lateAnswersOf !== 'function') return out;
+  var result = examResultFor(d.studentId, d.examId);
+  if (!result) out.waiting = true;
+  else {
+    var list = X.lateAnswersOf(d, result, examStampNow());
+    out.late = list.length;
+    if (list.length && X.addLateAnswers(result, list)) examLateAnswersSave();
+  }
+  // Through the trainee gate this device's copy of a result never travels:
+  // its copy of the attempt goes instead, and the staff computer that
+  // collects it keeps these answers on the result (examAttemptsMergeIncoming).
+  if (out.late || out.waiting) examGateSendAttempt(d);
+  return out;
+}
+// This PC's own copy of an attempt that is over elsewhere becomes the closed
+// record — and its answers that are not in the result are kept for staff;
+// with the result not here yet, they wait with the closed copy (held) until
+// it is (examResolveHeld).
+function examCloseLocalCopy(d, stub) {
+  var X = CESTISCore.exams;
+  var out = JSON.parse(JSON.stringify(stub));
+  delete out.held;
+  var kept = examKeepLateAnswers(d);
+  if (kept.waiting) out.held = examHeldCopy(d);
+  try { CESTISStore.setItem(X.draftKey(d.studentId, d.examId), JSON.stringify(out)); } catch (e) {}
+  return kept;
+}
+function examHeldCopy(d) {
+  return { id: d.id, examId: d.examId, studentId: d.studentId, startTime: d.startTime, savedAt: d.savedAt, updatedAt: d.updatedAt,
+    questions: (d.questions || []).map(function(q) { return { id: q && q.id, type: q && q.type }; }),
+    answers: JSON.parse(JSON.stringify(d.answers || [])), answeredAt: (d.answeredAt || []).slice() };
+}
+// Closed copies on this PC still holding answers for a result that had not
+// arrived: once it has, the answers that are not in it are kept on it.
+function examResolveHeld() {
+  var X = CESTISCore.exams;
+  if (typeof X.lateAnswersOf !== 'function') return;
+  (CESTISStore.keys ? CESTISStore.keys() : []).forEach(function(k) {
+    if (String(k).indexOf(X.DRAFT_PREFIX) !== 0) return;
+    var raw = safeJsonParse(CESTISStore.getItem(k), null);
+    if (!raw || !X.attemptIsRetired(raw) || !raw.held || typeof raw.held !== 'object') return;
+    var result = examResultFor(raw.studentId, raw.examId);
+    if (!result) return;
+    var list = X.lateAnswersOf(raw.held, result, examStampNow());
+    if (list.length && X.addLateAnswers(result, list)) examLateAnswersSave();
+    delete raw.held;
+    try { CESTISStore.setItem(k, JSON.stringify(raw)); } catch (e) {}
+  });
+}
+// Through the trainee gate: this device's copy of the attempt, open as the
+// gate takes it, to the trainee's own inbox there.
+function examGateSendAttempt(d) {
+  if (!(typeof cestisGateSession === 'function' && cestisGateSession()) || !window.CESTISGate || typeof CESTISGate.queue !== 'function') return;
+  if (!d || !Array.isArray(d.questions) || !Array.isArray(d.answers) || d.id == null) return;
+  var rec = JSON.parse(JSON.stringify(d));
+  rec.status = 'open'; delete rec.held;
+  try { var p = CESTISGate.queue('rec', { key: 'voctrain_examAttempts', rec: rec }); if (p && p.catch) p.catch(function() {}); } catch (e) {}
 }
 // Something about the attempts changed elsewhere: retire what is over, and
 // bring the attempt on this screen up to date (or close it, if it was
@@ -31448,8 +31593,9 @@ function examRetireStaleDrafts() {
 function examAttemptsArrived(where) {
   if (!window.CESTISCore || !CESTISCore.exams) return;
   var X = CESTISCore.exams;
-  try { if (X.settleAttempts(examAttempts, examResults)) saveCollection('voctrain_examAttempts', examAttempts); } catch (e) {}
+  try { if (examSettleShared()) saveCollection('voctrain_examAttempts', examAttempts); } catch (e) {}
   try { examRetireStaleDrafts(); } catch (e) {}
+  try { examResolveHeld(); } catch (e) {}
   var s = currentExamSession;
   if (!s || _isExamPreviewMode || !s.attemptId) return;
   var ids = s.alsoIds || [String(s.attemptId)];
@@ -31535,13 +31681,21 @@ function examAttemptEndedElsewhere(stub, where) {
   if (_examDraftTimer) { clearTimeout(_examDraftTimer); _examDraftTimer = null; }
   if (_examPublishTimer) { clearTimeout(_examPublishTimer); _examPublishTimer = null; }
   examCloseConfirm();
-  currentExamSession = null;
   var X = CESTISCore.exams;
+  // What this screen holds (with anything this PC saved since): the answers
+  // in it that the result does not have are kept for staff.
+  var mine = null;
+  try {
+    mine = examAttemptRecord(s);
+    var saved = examReadDraftRaw(s.studentId, s.examId);
+    if (saved && X.attemptIsOpen(saved) && saved.studentId === s.studentId && saved.examId === s.examId) mine = X.mergeAttempt(mine, saved);
+  } catch (e) {}
+  currentExamSession = null;
   var retired = X.attemptIsRetired(stub) ? stub : X.retireAttempt({ id: s.attemptId, examId: s.examId, studentId: s.studentId, startTime: s.startTime, deadline: s.deadline }, stub && stub.resultId, stub && stub.submittedAt);
-  try { CESTISStore.setItem(X.draftKey(s.studentId, s.examId), JSON.stringify(retired)); } catch (e) {}
-  var text = where === 'window'
-    ? 'This test was submitted in another window. Your answers are kept with the result.'
-    : 'This test was submitted on another device. Your answers are kept with the result.';
+  var kept = { late: 0, waiting: false };
+  if (mine) { try { kept = examCloseLocalCopy(mine, retired); } catch (e) { mine = null; } }
+  if (!mine) { try { CESTISStore.setItem(X.draftKey(s.studentId, s.examId), JSON.stringify(retired)); } catch (e) {} }
+  var text = examEndedElsewhereText(where, kept);
   var result = examResultFor(s.studentId, s.examId);
   var exam = (exams || []).find(function(x) { return x && x.id === s.examId; }) || null;
   if (result && currentStudent && currentStudent.id === s.studentId) { showExamResult(result, exam, text); return; }
@@ -31551,6 +31705,15 @@ function examAttemptEndedElsewhere(stub, where) {
   if (list) list.style.display = 'block';
   try { renderStudentExams(); } catch (e) {}
   examListNote(text + ' The result will show here as soon as it reaches this computer.');
+}
+// What the trainee is told when the test on her screen was submitted
+// elsewhere — the truth about the answers she gave here: all in the result,
+// some not in it (kept for her instructor), or not known yet.
+function examEndedElsewhereText(where, kept) {
+  var head = where === 'window' ? 'This test was submitted in another window' : 'This test was submitted on another device';
+  if (kept && kept.late) return head + '. Some answers you gave here were not in it; your instructor can see them.';
+  if (kept && kept.waiting) return head + '. If you gave any answers here that are not in it, your instructor will be able to see them.';
+  return head + ', with your newest answer to each question.';
 }
 // A note at the top of My Exams.
 function examListNote(text) {
@@ -32887,6 +33050,9 @@ function submitExam(auto, opts) {
   // whose key is missing is sent for manual marking — never guessed.
   var m = CESTISCore.exams.mark(s.questions, s.answers, exam ? exam.questionData : null);
   var gradedResults = m.gradedResults;
+  // When each answer was given: an answer another device gives after this is
+  // then known for what it is (CESTISCore.exams.lateAnswersOf).
+  if(!_isExamPreviewMode && typeof CESTISCore.exams.stampAnswers === 'function') CESTISCore.exams.stampAnswers(gradedResults, s);
   var totalPoints = m.totalPoints, earnedPoints = m.earnedPoints, correctCount = m.correctCount;
   var manualCount = m.manualCount;
   var needsReview = manualCount > 0;
@@ -43788,7 +43954,14 @@ function gateClientHooks() {
     pbkdf2: function(pw, saltHex, iter) { return _pbkdf2Hex(pw, _hexToBuf(saltHex), iter); },
     legacy: function(pw) { return hashPasswordLegacy(pw); },
     hashPassword: function(pw) { return hashPassword(pw); },
-    onResult: function(result) { if (cestisGateSession() && gateStoreResult(result)) gateResultArrived(result); },
+    onResult: function(result, receipt, entry) {
+      if (!cestisGateSession()) return;
+      var fresh = gateStoreResult(result);
+      // A submit the gate answered with a result made earlier on another
+      // device: the answers sent here that are not in it are kept for staff.
+      if (receipt && receipt.already && entry && entry.item && entry.item.attempt) { try { gateKeepLateAnswers(entry.item.attempt, result); } catch (e) {} }
+      if (fresh) gateResultArrived(result);
+    },
     onRetired: function() { try { examAttemptsArrived('device'); } catch (e) {} },
     onChange: function(st) { _gateT.status = st; try { refreshSyncChip(); } catch (e) {} },
     onSession: function(code) {
@@ -44024,6 +44197,21 @@ function gateStoreResult(r) {
   if (stub && X.attemptIsRetired(stub) && !stub.resultId) { stub.resultId = r.id; try { CESTISStore.setItem(X.draftKey(r.studentId, r.examId), JSON.stringify(stub)); } catch (e) {} }
   return !have;
 }
+// The answers in an attempt this device sent that are not in the result the
+// gate answered with (submitted earlier on another device): kept on this
+// device's copy, and the attempt goes to the gate as the trainee's own copy,
+// where the staff computer that collects it keeps them on the result
+// (examAttemptsMergeIncoming). Returns how many.
+function gateKeepLateAnswers(attempt, result) {
+  var X = CESTISCore.exams;
+  if (!attempt || !result || typeof X.lateAnswersOf !== 'function') return 0;
+  var mine = examResultFor(result.studentId, result.examId) || result;
+  var late = X.lateAnswersOf(attempt, mine, examStampNow());
+  if (!late.length) return 0;
+  if (X.addLateAnswers(mine, late)) examLateAnswersSave();
+  examGateSendAttempt(attempt);
+  return late.length;
+}
 // A result that came back later (the device was offline at the submit).
 function gateResultArrived(r) {
   try { renderStudentExams(); } catch (e) {}
@@ -44078,7 +44266,15 @@ function gateSubmitExam(s, auto, opts) {
     return Promise.race([CESTISGate.deliverNow(), sleep(20000)]);
   }).catch(function() {}).then(function() {
     var result = examResultFor(s.studentId, s.examId);
-    if (result) { examListNote(''); showExamResult(result, gateExamForDisplay(exam, result), away); return; }
+    if (result) {
+      // Submitted already on another device (the gate answers with that
+      // result): the answers given here that are not in it are kept for
+      // staff — this attempt goes to the gate as the trainee's own copy.
+      var late = 0;
+      try { late = gateKeepLateAnswers(attempt, result); } catch (e) { late = 0; }
+      var said = late ? examEndedElsewhereText('device', { late: late }) : '';
+      examListNote(''); showExamResult(result, gateExamForDisplay(exam, result), [away, said].filter(Boolean).join(' ')); return;
+    }
     try { renderStudentExams(); } catch (e) {}
     // Online but not answered yet (a whole room submitting at once): say so, not "offline".
     var online = !(typeof navigator !== 'undefined' && navigator.onLine === false);

@@ -1840,21 +1840,30 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
     }
     /* One attempt per exam: a live result for the trainee and exam (by
        whatever route it arrived) means every open attempt of theirs at it is
-       over. Retires them IN PLACE; returns how many. */
-    function settleAttempts(list, results) {
-      if (!Array.isArray(list)) return 0;
+       over. Retires them IN PLACE; returns how many.
+       info (optional): { late, nowMs } — before an open copy is retired, the
+       answers it holds that did not reach the result are kept on the result
+       (lateAnswersOf / addLateAnswers); info.late counts the new ones, so the
+       caller knows to save the results. */
+    function liveResults(results) {
       var live = {};
       (Array.isArray(results) ? results : []).forEach(function (r) {
         if (!r || r.archived || r.examId == null || r.studentId == null) return;
         var k = String(r.studentId) + '|' + String(r.examId);
         if (!live[k] || msOf(r.submittedAt) < msOf(live[k].submittedAt)) live[k] = r;
       });
+      return live;
+    }
+    function settleAttempts(list, results, info) {
+      if (!Array.isArray(list)) return 0;
+      var live = liveResults(results);
       var n = 0;
       for (var i = 0; i < list.length; i++) {
         var a = list[i];
         if (!attemptIsOpen(a)) continue;
         var r = live[String(a.studentId) + '|' + String(a.examId)];
         if (!r) continue;
+        if (info && typeof info === 'object') info.late = (Number(info.late) || 0) + addLateAnswers(r, lateAnswersOf(a, r, info.nowMs));
         list[i] = retireAttempt(a, r.id, r.submittedAt);
         n++;
       }
@@ -1881,9 +1890,131 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
         var r = results[i];
         if (!r || !r.attemptId || r.examId == null || r.studentId == null) continue;
         var f = first[String(r.studentId) + '|' + String(r.examId)];
-        if (f && f.r !== r) { dropped.unshift(r); results.splice(i, 1); }
+        // What the later copy holds that the first does not is kept on the
+        // first for staff (foldResult); its mark goes with it.
+        if (f && f.r !== r) { foldResult(f.r, r); dropped.unshift(r); results.splice(i, 1); }
       }
       return dropped;
+    }
+
+    /* ---- Answers that did not reach the result ---------------------------
+       The owner: "keep such late answers aside for staff to see". A trainee
+       answers on one device while the test is submitted on another (or in
+       another window): what that device typed in its last moments, before
+       its copy was shared, is not in the result. The result stands as it was
+       submitted — its answers and its mark are never changed. What the
+       device still holds is not thrown away either: each answer there that
+       is newer than the result's own copy of that question, and different
+       from it, is kept ON the result (result.lateAnswers) for staff to see,
+       never marked:
+         { questionId, index (its place in result.answers, or null),
+           answer, answeredAt (ms), foundAt (ISO), attemptId }
+       A result's answers carry when each was given (answeredAt, set at
+       submission by stampAnswers). A result from before that carries none:
+       an answer then counts as late only when it was given after the
+       submission. Every merge of two copies of a result keeps both copies'
+       lists (unionLateAnswers, in Core.sync.mergeExamResults).
+
+         stampAnswers(graded, attempt)          answeredAt onto each marked answer
+         lateAnswersOf(attempt, result, nowMs)  what the attempt holds that the result lacks
+         addLateAnswers(result, list)           kept on the result -> how many were new
+         unionLateAnswers(a, b)                 both lists, once each (by question and time)
+         keepLateAnswers(attempts, results, nowMs)  for each open attempt a live result answers
+         foldResult(kept, dropped)              a second result of one attempt, before it goes */
+    function stampAnswers(graded, attempt) {
+      if (!Array.isArray(graded) || !attempt || !Array.isArray(attempt.questions)) return graded;
+      var at = {};
+      attempt.questions.forEach(function (q, i) {
+        if (!q || q.id == null || at[String(q.id)] !== undefined) return;
+        var v = Array.isArray(attempt.answers) ? attempt.answers[i] : null;
+        at[String(q.id)] = changedAt(attempt, 'answeredAt', i, hasAnswerValue(v));
+      });
+      graded.forEach(function (g) {
+        if (g && typeof g === 'object' && g.questionId != null) g.answeredAt = at[String(g.questionId)] || 0;
+      });
+      return graded;
+    }
+    function sameAnswer(a, b) {
+      return JSON.stringify(a === undefined ? null : a) === JSON.stringify(b === undefined ? null : b);
+    }
+    function lateAnswersOf(attempt, result, nowMs) {
+      var out = [];
+      if (!attempt || typeof attempt !== 'object' || !Array.isArray(attempt.questions) || !Array.isArray(attempt.answers)) return out;
+      if (!result || typeof result !== 'object' || !Array.isArray(result.answers)) return out;
+      var sub = msOf(result.submittedAt);
+      // An attempt begun after the result was submitted is another attempt.
+      if (sub && Number(attempt.startTime) > sub) return out;
+      var stamped = result.answers.some(function (a) { return !!a && typeof a === 'object' && a.answeredAt !== undefined; });
+      var at = {};
+      result.answers.forEach(function (a, k) { if (a && a.questionId != null && at[String(a.questionId)] === undefined) at[String(a.questionId)] = k; });
+      var found = new Date(typeof nowMs === 'number' && nowMs > 0 ? nowMs : Date.now()).toISOString();
+      attempt.questions.forEach(function (q, i) {
+        if (!q || q.id == null || q.type === 'info') return;
+        var v = attempt.answers[i];
+        if (!hasAnswerValue(v)) return;
+        var t = changedAt(attempt, 'answeredAt', i, true);
+        if (!t) return;
+        var k = at[String(q.id)], ra = k === undefined ? null : result.answers[k];
+        if (ra && sameAnswer(ra.studentAnswer, v)) return;
+        var since = stamped ? (ra ? Number(ra.answeredAt) || 0 : 0) : sub;
+        if (t <= since) return;
+        var e = { questionId: q.id, index: k === undefined ? null : k, answer: copyJson(v), answeredAt: t, foundAt: found };
+        if (attempt.id != null) e.attemptId = String(attempt.id);
+        out.push(e);
+      });
+      return out;
+    }
+    function lateKey(e) { return String(e.questionId) + '|' + (Number(e.answeredAt) || 0); }
+    function unionLateAnswers(a, b) {
+      var all = (Array.isArray(a) ? a : []).concat(Array.isArray(b) ? b : []);
+      var at = {}, out = [];
+      all.forEach(function (e) {
+        if (!e || typeof e !== 'object' || e.questionId == null) return;
+        var k = lateKey(e), j = at[k];
+        if (j === undefined) { at[k] = out.length; out.push(copyJson(e)); return; }
+        // One answer found on two devices: one copy, the same whichever side merges.
+        if (JSON.stringify(e) < JSON.stringify(out[j])) out[j] = copyJson(e);
+      });
+      var place = function (e) { return typeof e.index === 'number' && e.index >= 0 ? e.index : Infinity; };
+      out.sort(function (x, y) {
+        var px = place(x), py = place(y);
+        if (px !== py) return px < py ? -1 : 1;
+        var tx = Number(x.answeredAt) || 0, ty = Number(y.answeredAt) || 0;
+        if (tx !== ty) return tx - ty;
+        return String(x.questionId) < String(y.questionId) ? -1 : String(x.questionId) > String(y.questionId) ? 1 : 0;
+      });
+      return out;
+    }
+    function addLateAnswers(result, list) {
+      if (!result || typeof result !== 'object' || !Array.isArray(list) || !list.length) return 0;
+      var had = Array.isArray(result.lateAnswers) ? result.lateAnswers : [];
+      var u = unionLateAnswers(had, list), n = u.length - unionLateAnswers(had, []).length;
+      if (n > 0) result.lateAnswers = u;
+      return Math.max(0, n);
+    }
+    function keepLateAnswers(attempts, results, nowMs) {
+      var live = liveResults(results), n = 0;
+      (Array.isArray(attempts) ? attempts : []).forEach(function (a) {
+        if (!attemptIsOpen(a)) return;
+        var r = live[String(a.studentId) + '|' + String(a.examId)];
+        if (r) n += addLateAnswers(r, lateAnswersOf(a, r, nowMs));
+      });
+      return n;
+    }
+    // A result read as the attempt it was made from: its answers, each with
+    // the time it was given (none on a result saved before answers had one).
+    function resultAsAttempt(r) {
+      var ans = Array.isArray(r && r.answers) ? r.answers : [];
+      return { id: r && r.attemptId != null ? r.attemptId : null,
+        questions: ans.map(function (a) { return { id: a ? a.questionId : null, type: a ? a.type : null }; }),
+        answers: ans.map(function (a) { return a ? copyJson(a.studentAnswer) : null; }),
+        answeredAt: ans.map(function (a) { return a ? Number(a.answeredAt) || 0 : 0; }) };
+    }
+    function foldResult(kept, dropped) {
+      if (!kept || !dropped || kept === dropped || typeof kept !== 'object' || typeof dropped !== 'object') return 0;
+      var list = (Array.isArray(dropped.lateAnswers) ? dropped.lateAnswers : [])
+        .concat(lateAnswersOf(resultAsAttempt(dropped), kept, msOf(dropped.submittedAt) || undefined));
+      return addLateAnswers(kept, list);
     }
 
     /* ---- What the invigilator sees: the attempt's activity ------------------
@@ -2372,6 +2503,8 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       attemptIsOpen: attemptIsOpen, attemptIsRetired: attemptIsRetired, mergeAttempt: mergeAttempt,
       mergeAttemptLists: mergeAttemptLists, attemptFor: attemptFor, retireAttempt: retireAttempt,
       settleAttempts: settleAttempts, oneResultPerAttempt: oneResultPerAttempt, ATTEMPT_KEEP_MS: ATTEMPT_KEEP_MS,
+      stampAnswers: stampAnswers, lateAnswersOf: lateAnswersOf, addLateAnswers: addLateAnswers, unionLateAnswers: unionLateAnswers,
+      keepLateAnswers: keepLateAnswers, foldResult: foldResult,
       activityOf: activityOf, activityLayout: activityLayout, activityNote: activityNote, activityMark: activityMark,
       mergeActivity: mergeActivity, activitySummary: activitySummary, compactActivity: compactActivity, activityIsFull: activityIsFull,
       hasAnswerValue: hasAnswerValue, ACTIVITY_KEEP_MS: ACTIVITY_KEEP_MS, ACTIVITY_EACH_MAX: ACT_EACH_MAX, ACTIVITY_LOG_MAX: ACT_LOG_MAX,
@@ -6132,6 +6265,9 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
         answers.push(null);
       });
       var m = Core.exams.mark(qs, answers, keyed);
+      // When each answer was given, so an answer another device gave later is
+      // known for what it is (Core.exams.lateAnswersOf).
+      if (Core.exams.stampAnswers) Core.exams.stampAnswers(m.gradedResults, attempt);
       var needsReview = m.manualCount > 0;
       var score = m.totalPoints > 0 ? Math.round(m.earnedPoints / m.totalPoints * 100) : 0;
       var passMark = Number(exam.passMark);

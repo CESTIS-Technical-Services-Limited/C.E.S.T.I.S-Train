@@ -99,7 +99,7 @@ function setup() {
   vm.createContext(ctx);
   vm.runInContext('var gradingResultId = null; var questionMarking = null;\n' +
     ['openGradingPanel', 'closeGradingPanel', 'setGradePoints', 'updateGradingPreview', 'submitGrading', 'notifyMarkingAudience', 'examTypeLabel',
-     'examGraderName', 'examRecordManualMarks', 'examMarkingGuideHtml']
+     'examGraderName', 'examRecordManualMarks', 'examMarkingGuideHtml', 'examLateAnswersHtml']
       .map(n => extractFunction(INDEX, n)).join('\n'), ctx);
   return { ctx, page };
 }
@@ -112,6 +112,23 @@ console.log('Opening the grading panel remembers which result it is for');
   assert(!!ctx.document.getElementById('gradingPanel'), 'the panel is on the page');
   vm.runInContext('openGradingPanel("RES-1")', ctx);
   assert(vm.runInContext('gradingResultId', ctx) === 'RES-1', 'opening it again (replacing the old panel) still knows its result');
+}
+
+console.log('Answers given on another device that are not in the result are shown, not marked');
+{
+  const { ctx } = setup();
+  vm.runInContext('function examAnswerText(a, q) { return String(a.studentAnswer); } function examCentreDateTime(ms) { return "20 Oct 2026, 9:28 AM"; }', ctx);
+  vm.runInContext('openGradingPanel("RES-1")', ctx);
+  assert(!/gpLateAnswers/.test(ctx.document.getElementById('gradingPanel').innerHTML), 'none: no block');
+  ctx.examResults[0].lateAnswers = [{ questionId: 'Q3', index: 2, answer: 'Salt corrodes <the> pipes.', answeredAt: Date.parse('2026-10-20T14:28:00Z'), foundAt: '2026-10-20T14:31:00.000Z' }];
+  ctx.examResults[0].answers[2].questionId = 'Q3';
+  vm.runInContext('openGradingPanel("RES-1")', ctx);
+  const html = ctx.document.getElementById('gradingPanel').innerHTML;
+  assert(/Answers given on another device that are not in this result \(not marked\)/.test(html), 'the block is labelled');
+  assert(/<span class="gp-q">Q3<\/span>/.test(html), 'with the question number');
+  assert(/Salt corrodes &lt;the&gt; pipes\./.test(html), 'the answer as text (escaped)');
+  assert(/Given 20 Oct 2026, 9:28 AM/.test(html), 'and when it was given');
+  assert(ctx.examResults[0].score === 33 && ctx.examResults[0].earnedPoints === 2, 'the mark is unchanged');
 }
 
 console.log('Awarding points moves the preview, and Save Grades marks the essay');

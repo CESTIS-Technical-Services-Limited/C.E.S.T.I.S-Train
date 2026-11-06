@@ -104,6 +104,7 @@ const PAGE_FNS = [
   'safeJsonParse', 'examStampNow', 'examReadDraftRaw', 'examCurrentAttempt', 'examRetireLocalDraft', 'examAttemptRecord',
   'examAttemptsUpsert', 'examAttemptsPersist', 'examAttemptsMergeIncoming', 'examAttemptsRestoreFromDrafts', 'examRetireStaleDrafts',
   'examAttemptsArrived', 'examAdoptAttempt', 'examRedrawKeepingFocus', 'examDismissNote', 'examAttemptEndedElsewhere', 'examListNote',
+  'examSettleShared', 'examLateAnswersSave', 'examKeepLateAnswers', 'examCloseLocalCopy', 'examHeldCopy', 'examResolveHeld', 'examGateSendAttempt', 'examEndedElsewhereText',
   'examResultFor', 'examPublishSoon', 'examPublishNow', 'examSaveOnLeaving', 'examPullBeforeStart', 'examCanAskCentre', 'examStartFresh',
   'examSaveDraftNow', 'examOpenAttemptsFor', 'examSubmitExpiredAttempts', 'examSubmittedHere', 'examAfterSignIn', 'examOutboxSendOnLan',
   // Her clock with any extra time (prepared assessments).

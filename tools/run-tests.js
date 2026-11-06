@@ -66,7 +66,7 @@ const SUITES = [
   'tests/ui-no-sync-source-wording.test.js', 'tests/exam-question-types.test.js', 'tests/theme-tokens.test.js', 'tests/email-signin-approval.test.js',
   'tests/backfill-stub-fold.test.js', 'tests/force-change-pw-focus.test.js', 'tests/ui-phone-search.test.js', 'tests/ui-phone-tables.test.js',
   'tests/ui-min-text-size.test.js', 'tests/ui-image-alt.test.js', 'tests/sign-in-feedback.test.js', 'tests/sync-health-chip.test.js',
-  'tests/form-modal.test.js', 'tests/theme-one-look.test.js', 'tests/exam-attempt-travel.test.js', 'tests/sign-in-merge-version.test.js',
+  'tests/form-modal.test.js', 'tests/theme-one-look.test.js', 'tests/exam-attempt-travel.test.js', 'tests/exam-late-answers.test.js', 'tests/sign-in-merge-version.test.js',
   'tests/gate-slice.test.js', 'tests/gate-validate.test.js', 'tests/gate-auth.test.js', 'tests/gate-exam.test.js',
   'tests/gate-collector.test.js', 'tests/gate-cleanup.test.js', 'tests/gate-appsscript-vm.test.js', 'tests/store-namespace.test.js',
   'tests/gate-lan.test.js', 'tests/gate-contract.test.js', 'tests/gate-publisher.test.js', 'tests/gate-card-ready.test.js',
