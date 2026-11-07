@@ -63,6 +63,47 @@ filler, no "In conclusion". `**bold**` for the few words that matter most.
 - Spread the correct answers: the page shuffles them, but write each set so
   that no option is a giveaway.
 
+## The pilot kits are the model
+
+The owner approved three pilot kits; read at least one of them before you
+write, and match their depth, tone and structure:
+`study-kits/welding-fabrication/memfab0111c.json`,
+`study-kits/electrical-installation/eemels0011b.json`,
+`study-kits/cosmetology/csbcos0031c.json`.
+
+Size: about 40–90 KB per kit. A trade unit with a lot of method (a welding
+process, an installation task, a salon service) sits at the top of that; a
+short general unit (time management, a computer application, customer
+service) at the bottom. Never pad.
+
+## Level 3 and Level 5 units
+
+- **Level 3** (Welding Level 3, Electrical Installation Level 3): the
+  trainee plans and leads work, reads and applies standards and
+  specifications, does the calculations, inspects and tests the work,
+  supervises others and writes the reports. Notes go deeper into why, and
+  into choosing the best method for a job; practice questions ask more
+  "why", "what if" and "which is best for this job". Language stays plain.
+  AWS units: refer to "the AWS code or procedure the Centre uses" and "the
+  welding procedure specification (WPS)"; no clause numbers; positions by
+  AWS names (1G–6G, 1F–4F).
+- **Level 5** (Business Administration (Management)): supervisors and
+  managers in Jamaican businesses, hotels, schools and public bodies.
+  Clear professional English; explain a term where it first matters.
+  Notes teach the models and tools (SWOT, PESTLE, KPIs, Gantt, budgets,
+  variance, risk registers…) with worked examples; questions are mostly
+  scenarios that ask what a manager should do or which option is best. Use
+  J$, GCT "at the current rate" (never a figure); refer to laws by their
+  purpose (employment law, the data protection law, procurement rules for
+  public bodies), never sections or penalties. Public-sector units (PSS,
+  PSA codes) are set in a ministry, agency or parish council. Work every
+  sum twice.
+- **Hospitality**: guests from Jamaica and abroad, J$ and US$, Team Jamaica
+  (TPDCo), Jamaican dishes and products where natural.
+- **General units** shared by several programmes (communication, maths,
+  computers, customer service, entrepreneurship, professionalism): write
+  them so any trainee can use them, with examples from several trades.
+
 ## Check your kit
 
     node tools/build-study-kit-index.js --file study-kits/<folder>/<unit>.json
