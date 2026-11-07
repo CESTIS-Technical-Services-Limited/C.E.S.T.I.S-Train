@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
 <script src="cestis-config.js?v=284ebb2a"></script>
-<script src="cestis-core.js?v=f860413e"></script>
+<script src="cestis-core.js?v=09be8752"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CESTIS - Student Progress</title>
 
@@ -1665,7 +1665,13 @@ function confirmDeleteStudent() {
   try {
     if (s.idCourse && window.CESTISCore) {
       var _nowSid = CESTISCore.stableStudentId({ name: s.name, course: s.course });
-      if (_nowSid && _nowSid !== sid) recordDeletedStudent(_nowSid);
+      // ...but never an id another trainee still on the roll holds or hashes
+      // to (a namesake kept separate on that programme): it would delete them.
+      var _heldByOther = (students || []).some(function (o) {
+        return o && o !== s && String(o.id) !== String(sid) &&
+          (String(o.id) === _nowSid || CESTISCore.stableStudentId(o) === _nowSid);
+      });
+      if (_nowSid && _nowSid !== sid && !_heldByOther) recordDeletedStudent(_nowSid);
     }
   } catch (e) {}
   closeModal('deleteStudentModal');

@@ -7143,6 +7143,16 @@
           var to = map[r.from];
           if (!to || (designsOf[norm(to)] || []).length) return;
           var own = (designsOf[r.from] || []).slice().sort(function (a, b) { return (spell(a).key ? 1 : 0) - (spell(b).key ? 1 : 0); });
+          // No design under the old spelling itself, but the old spelling was
+          // already mapped to one (e.g. 'Welding' -> 'Welding & Fabrication'):
+          // the new name takes that mapping over, so it keeps its design.
+          if (!own.length) {
+            Object.keys(cmap).forEach(function (mk) {
+              if (own.length || spell(mk).norm !== r.from) return;
+              var d = cmap[mk];
+              if (has(d) && Object.prototype.hasOwnProperty.call(tpl, d)) own = [d];
+            });
+          }
           if (!own.length || has(cmap[to])) return;
           var ch = { k: 'certTemplateCourseMap', m: 'set', key: to, a: own[0] };
           if (Object.prototype.hasOwnProperty.call(cmap, to)) ch.b = copy(cmap[to]); else ch.n = 1;
@@ -7185,6 +7195,9 @@
         if (ch.m === 'move') {
           if (!fs) { res.kept.push({ k: ch.k, what: ch.from }); continue; }
           if (!same(withoutStamp(fs[ch.to]), withoutStamp(ch.a))) { res.kept.push({ k: ch.k, what: ch.from }); continue; }
+          // A fee set again under the old name since the tidy is a later
+          // pricing decision: it stays, and the move is reported as kept.
+          if (Object.prototype.hasOwnProperty.call(fs, ch.from) && fs[ch.from] != null) { res.kept.push({ k: ch.k, what: ch.from }); continue; }
           var back = copy(ch.bf);
           if (isObj(back)) back.updatedAt = now;
           fs[ch.from] = back;

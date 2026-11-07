@@ -458,5 +458,40 @@ console.log('8. The page is the Administrator\'s; a centre renamed on its own ta
   assert(!!JSON.parse(store.data['cestis_pagecloud_stamps__CESTIS_School_Fees.json'] || '{}').cestiSchoolFeeStudents, 'and dated for School Fee\'s own copy, so it is sent rather than overwritten');
 }
 
+// ---- Found in review ------------------------------------------------------
+console.log('Review: a mapped design, a fee set again, a namesake not deleted');
+{
+  // 1. 'Welding' had no design of its own but was mapped to one: the new name keeps it.
+  const tpl = { 'Welding & Fabrication': { modules: [] } };
+  const cmap = { 'Welding': 'Welding & Fabrication' };
+  const bundle = { students: [{ id: 'S1', name: 'A', course: 'Welding' }], certTemplates: tpl, certTemplateCourseMap: cmap };
+  const inv = T.inventory(bundle, { today: '2026-11-07' });
+  const g = T.group(inv);
+  const grp = g.groups.find(x => x.members.some(m => m === 'welding' || (m && m.norm === 'welding')));
+  const pl = T.plan(inv, g, { keep: grp ? { [grp.id]: 'Welding Level 2' } : {} });
+  T.apply(bundle, pl.renames, { now: '2026-11-07T12:00:00.000Z' });
+  assertEq(Core.certs.templateKey('Welding Level 2', tpl, cmap), 'Welding & Fabrication', 'a name whose old spelling reached its design through the map keeps that design');
+}
+{
+  // 2. Undo leaves a fee set again under the old name since the tidy.
+  const fsx = { 'WELDING L2': { total: 120000, terms: [120000] } };
+  const bundle = { students: [{ id: 'S1', name: 'A', course: 'WELDING L2' }], centres: [{ id: 1, name: 'Welding and Fabrication Level 2' }], feeStructure: fsx, feeDeletedKeys: [] };
+  const inv = T.inventory(bundle, { today: '2026-11-07' });
+  const g = T.group(inv);
+  const pl = T.plan(inv, g, {});
+  const res = T.apply(bundle, pl.renames, { now: '2026-11-07T12:00:00.000Z' });
+  assert(!fsx['WELDING L2'] && fsx['Welding and Fabrication Level 2'], '(the fee moved with the programme)');
+  fsx['WELDING L2'] = { total: 180000, terms: [180000] };          // priced again after the tidy
+  const un = T.undo(bundle, res, { now: '2026-11-07T13:00:00.000Z' });
+  assertEq(fsx['WELDING L2'].total, 180000, 'undo keeps a fee set again under the old name after the tidy');
+  assert(un.kept.some(k => k.k === 'feeStructure' || /WELDING L2/i.test(String(k.what))), 'and reports that move as kept');
+}
+{
+  // 3. Deleting a renamed trainee never deletes a namesake who holds the id her current name gives.
+  const SP = require('fs').readFileSync(require('path').join(__dirname, '..', 'Student-Progress.html'), 'utf8');
+  assert(/_heldByOther/.test(SP) && /!_heldByOther\) recordDeletedStudent\(_nowSid\)/.test(SP),
+    'Student Progress writes down the second id only when no other trainee holds or hashes to it');
+}
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);
