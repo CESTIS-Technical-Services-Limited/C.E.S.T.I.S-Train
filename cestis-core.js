@@ -1838,6 +1838,8 @@
     'postLoginSyncCompleted', 'cloudSyncCompleted', 'cestisAutoSyncEnabled',
     // Which menu groups are open on THIS screen (the office's sidebar).
     'cestisNavOpen',
+    // Which year this screen's dashboard shows (Core.yearView).
+    'cestisDashYearView',
     // This computer's own letters on a receipt number (Core.receiptNumbers).
     'cestisReceiptDevice',
     // "this device holds work not yet uploaded" — true of THIS device only —
@@ -15878,6 +15880,304 @@
       fees: fees, feeAccountsSummary: feeAccountsSummary, feeBooks: feeBooks, feeYearOf: feeYearOf,
       moneyText: moneyText, earlierText: earlierText,
       programmeReturn: programmeReturn, genderOf: genderOf, ageBand: ageBand, AGE_BANDS: AGE_BANDS };
+  })();
+
+  /* ============ THE DASHBOARD'S YEAR: which trainees its figures count ============
+     The owner: "put a filter fiscal year for dashboard as well that ensure
+     only trainee to date are shown, not data for centres closed." The
+     administrator's dashboard counted every trainee the Centre ever had —
+     last year's groups and finished intakes in every total. It now has the
+     School Fee page's year bar, and this is the one rule behind it; every
+     figure on the dashboard asks it and nothing else. It is a view: it reads
+     the records and changes none of them.
+
+     A view is { mode, fy, q, closed }:
+       mode   'year' (the default) | 'quarter' | 'all'
+       fy     the financial year (April to March), '2026/2027'; default the
+              one today falls in
+       q      1–4, for 'quarter'
+       closed true to count the trainees of centres that have closed too
+              (off by default; it only matters in the present year)
+
+     WHERE A TRAINEE SITS. Their year is the financial year of their
+     enrolment date; with none, the year stamped on them at enrolment; with
+     none, the year of their training centre's dates (the centre record, or
+     the course dates stamped on them when the record is gone); with none,
+     the date their record was made. Their quarter is the quarter of the
+     first of their enrolment date, record date or centre start date that
+     falls inside that year. A trainee nothing places in any year is
+     "unplaced": never in a year's figures, always in All Years, and named in
+     a note — never silently dropped.
+
+     WHO A YEAR COUNTS: the trainees enrolled in it, and the trainees of an
+     earlier year whose intake was still running in it (their centre's end
+     date falls in or after the year). Without the second, every intake that
+     starts in September and ends in June would vanish from the present year
+     in April, while the whole group is still in training.
+       • The PRESENT year counts to date: a trainee whose enrolment date is
+         after today is not counted yet (named in a note). Centres that have
+         CLOSED are left out — a centre whose course has ended and that has
+         no reopening window: the rule that stops it enrolling anybody
+         (Core.enrolment.canEnrol's 'ended', School Fee's feeProgrammeClosed),
+         applied to the trainee's own intake. "Include closed centres" brings
+         them back.
+       • A PAST year counts everyone in it, closed centres included: by now
+         every intake of a past year has closed, so leaving them out would
+         leave nothing to see. A year AHEAD counts everyone in it too.
+       • A QUARTER narrows the year to the trainees ENROLLED in it — the
+         quarter of their date. A trainee carried in from an earlier year, or
+         one with no date inside the year, is in the Whole Year only (said so
+         in a note).
+       • ALL YEARS counts every trainee on the roll, as the dashboard always did. */
+  Core.yearView = (function () {
+    var STORE_KEY = 'cestisDashYearView';
+    var MODES = { year: 1, quarter: 1, all: 1 };
+    function list(a) { return (Array.isArray(a) ? a : []).filter(Boolean); }
+    function fyStart(fy) {
+      var m = /^(\d{4})\/(\d{4})$/.exec(String(fy || ''));
+      return m && +m[2] === +m[1] + 1 ? +m[1] : null;
+    }
+    function validFY(fy) { return fyStart(fy) != null; }
+    function shiftFY(fy, n) { var y = fyStart(fy); return y == null ? fy : (y + n) + '/' + (y + n + 1); }
+    function two(n) { return (n < 10 ? '0' : '') + n; }
+    // 'YYYY-MM-DD' from a date as records write them ('2026-09-07',
+    // '2026-09-07T14:00:00Z', 'October 16, 2026'); '' when there is none.
+    function dateOf(v) {
+      if (v == null || v === '') return '';
+      var s = String(v), m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+      if (m) return m[0];
+      var t = Date.parse(s);
+      if (isNaN(t)) return '';
+      var d = new Date(t);
+      return d.getFullYear() + '-' + two(d.getMonth() + 1) + '-' + two(d.getDate());
+    }
+    function fyOf(d) { var q = d ? Core.deriveQuarter(d) : null; return q ? q.fy : null; }
+    function todayOf(t) { return Core.courseDuration.todayStr(t); }
+    function presentFY(today) { return fyOf(todayOf(today)); }
+    function tense(fy, today) {
+      var p = presentFY(today);
+      if (!fy || fy === p) return 'present';
+      return fyStart(fy) < fyStart(p) ? 'past' : 'future';
+    }
+    function yearBounds(fy) { var y = fyStart(fy); return { from: y + '-04-01', to: (y + 1) + '-03-31' }; }
+    function quarterBounds(fy, q) {
+      var y = fyStart(fy), m = q === 4 ? 1 : 1 + q * 3, yr = q === 4 ? y + 1 : y;
+      var end = new Date(Date.UTC(yr, m + 2, 0)).getUTCDate();
+      return { from: yr + '-' + two(m) + '-01', to: yr + '-' + two(m + 2) + '-' + two(end) };
+    }
+
+    /* A choice made good: unknown modes, years and quarters fall back to the
+       present. One remembered with present:true follows the present into a
+       new financial year — "this year" stays this year after March. */
+    function normalise(raw, today) {
+      raw = raw && typeof raw === 'object' ? raw : {};
+      var now = Core.deriveQuarter(todayOf(today)) || {};
+      var q = parseInt(raw.q, 10);
+      return {
+        mode: MODES[raw.mode] ? raw.mode : 'year',
+        fy: (raw.present === true || !validFY(raw.fy)) ? now.fy : raw.fy,
+        q: q >= 1 && q <= 4 ? q : (now.q || 1),
+        closed: raw.closed === true
+      };
+    }
+    // What this device remembers (one person's choice, never shared).
+    function stored(view, today) {
+      var v = normalise(view, today);
+      return { mode: v.mode, fy: v.fy, q: v.q, closed: v.closed, present: v.fy === presentFY(today) };
+    }
+    function read(storage, today) {
+      var raw = null;
+      try { raw = JSON.parse((storage && storage.getItem(STORE_KEY)) || 'null'); } catch (e) { raw = null; }
+      return normalise(raw, today);
+    }
+    function write(storage, view, today) {
+      try { if (storage) storage.setItem(STORE_KEY, JSON.stringify(stored(view, today))); return true; } catch (e) { return false; }
+    }
+
+    /* The dates of a trainee's intake: the centre record's (with its
+       reopening windows), or those stamped on the trainee when it is gone. */
+    function intakeOf(s, centre) {
+      var N = Core.courseDuration.normDate;
+      if (centre) return { start: N(centre.startDate), end: N(centre.endDate), permissions: centre.instructorPermissions || [] };
+      return { start: N(s && s.courseStart), end: N(s && s.courseEnd), permissions: [] };
+    }
+    // Closed: the course has ended and no reopening window is open.
+    function intakeClosed(ik, today, nowMs) {
+      if (!ik || !ik.end) return false;
+      if (Core.courseDuration.status(ik.start, ik.end, todayOf(today)) !== 'ended') return false;
+      return !Core.courseDuration.permissionActiveAt(ik.permissions, typeof nowMs === 'number' ? nowMs : Date.now());
+    }
+    /* -> { fy, date, joined, how }. fy null: unplaced. `date` places them in
+       a quarter ('' when no date falls inside their year); `joined` is the
+       day they joined, for "to date". how: 'enrolled' | 'stamp' | 'centre' |
+       'created'. */
+    function placeOf(s, centre) {
+      var joined = dateOf(s && (s.enrolmentDate || s.enrollmentDate || s.enrollDate));
+      var created = dateOf(s && s.createdAt), ik = intakeOf(s, centre), fy = null, how = null;
+      if (joined) { fy = fyOf(joined); how = 'enrolled'; }
+      if (!fy && s && validFY(s.enrolmentFiscalYear)) { fy = s.enrolmentFiscalYear; how = 'stamp'; }
+      if (!fy && s && validFY(s.fiscalYear)) { fy = s.fiscalYear; how = 'stamp'; }
+      if (!fy) { fy = fyOf(ik.start) || fyOf(ik.end); if (fy) how = 'centre'; }
+      if (!fy && created) { fy = fyOf(created); how = 'created'; }
+      if (!fy) return { fy: null, date: '', joined: '', how: null };
+      var date = '';
+      [joined, created, ik.start].some(function (d) { if (d && fyOf(d) === fy) { date = d; return true; } return false; });
+      return { fy: fy, date: date, joined: joined || created, how: how };
+    }
+
+    /* scope(students, view, opts) — who the figures count.
+       opts: { today, nowMs, centreOf(trainee) -> their training centre or null }
+       -> { view, tense ('present' | 'past' | 'future' | 'all'), total,
+            roll: [in view], ids: { id: true }, enrolled, carried,
+            closedOut: [], later: [], unplaced: [], noQuarter: [],
+            carriedNotInQuarter, otherQuarters, otherYears }
+       Every trainee on the roll is in exactly one of: roll, closedOut,
+       later, unplaced, noQuarter, or one of the three counts. */
+    function scope(students, view, opts) {
+      opts = opts || {};
+      var today = todayOf(opts.today), nowMs = typeof opts.nowMs === 'number' ? opts.nowMs : Date.now();
+      var v = normalise(view, today), all = v.mode === 'all', t = tense(v.fy, today);
+      var centreOf = typeof opts.centreOf === 'function' ? opts.centreOf : function () { return null; };
+      var dropClosed = !all && t === 'present' && !v.closed, yb = yearBounds(v.fy);
+      var out = { view: v, tense: all ? 'all' : t, today: today, total: 0, roll: [], ids: {}, enrolled: 0, carried: 0,
+        closedOut: [], later: [], unplaced: [], noQuarter: [], carriedNotInQuarter: 0, otherQuarters: 0, otherYears: 0 };
+      function take(s, carried) {
+        out.roll.push(s);
+        if (s.id != null) out.ids[String(s.id)] = true;
+        if (carried) out.carried++; else out.enrolled++;
+      }
+      list(students).forEach(function (s) {
+        out.total++;
+        if (all) { take(s, false); return; }
+        var c = null;
+        try { c = centreOf(s) || null; } catch (e) { c = null; }
+        var p = placeOf(s, c), ik = intakeOf(s, c), carried = false;
+        if (!p.fy) { out.unplaced.push(s); return; }
+        if (p.fy !== v.fy) {
+          if (fyStart(p.fy) < fyStart(v.fy) && ik.end && ik.end >= yb.from) carried = true;
+          else { out.otherYears++; return; }
+        }
+        if (v.mode === 'quarter') {
+          if (carried) { out.carriedNotInQuarter++; return; }
+          if (!p.date) { out.noQuarter.push(s); return; }
+          if (Core.deriveQuarter(p.date).q !== v.q) { out.otherQuarters++; return; }
+        }
+        if (t === 'present' && p.joined && p.joined > today) { out.later.push(s); return; }
+        if (dropClosed && intakeClosed(ik, today, nowMs)) { out.closedOut.push(s); return; }
+        take(s, carried);
+      });
+      return out;
+    }
+
+    /* "FY 2026/2027", "Q3 · Oct–Dec 2026", "All years". */
+    function periodLabel(view, today) {
+      var v = normalise(view, today);
+      if (v.mode === 'all') return 'All years';
+      if (v.mode === 'quarter') return Core.quarterShortLabel(v.fy, v.q) + ' ' + Core.quarterCalendarYear(v.fy, v.q);
+      return 'FY ' + v.fy;
+    }
+    // What the bar says first: "FY 2026/2027 · open centres · 214 trainees".
+    function headline(sc) {
+      var v = sc.view, n = sc.roll.length;
+      var centres = sc.tense === 'present' ? (v.closed ? 'open and closed centres' : 'open centres') : 'every centre';
+      return periodLabel(v, sc.today) + ' · ' + centres + ' · ' + n.toLocaleString('en-US') + ' trainee' + (n === 1 ? '' : 's');
+    }
+
+    /* A dated record that is not a trainee's — an exam, a class: in view when
+       its date is in the period (an undated one counts with the present year
+       and quarter)
+       and, in the present year, it is not a closed centre's.
+       opts: { today, nowMs, centreOf(record) } */
+    function recordIn(rec, view, opts) {
+      opts = opts || {};
+      var today = todayOf(opts.today), v = normalise(view, today);
+      if (v.mode === 'all') return true;
+      var d = dateOf(rec && rec.date), t = tense(v.fy, today);
+      if (d) {
+        var q = Core.deriveQuarter(d);
+        if (q.fy !== v.fy || (v.mode === 'quarter' && q.q !== v.q)) return false;
+      } else if (t !== 'present' || (v.mode === 'quarter' && v.q !== (Core.deriveQuarter(today) || {}).q)) return false;
+      if (t !== 'present' || v.closed || typeof opts.centreOf !== 'function') return true;
+      var c = null;
+      try { c = opts.centreOf(rec) || null; } catch (e) { c = null; }
+      return !(c && intakeClosed(intakeOf(null, c), today, opts.nowMs));
+    }
+
+    /* The School Fees card. Fee accounts are placed by the School Fee page's
+       own rule (Core.centreFigures: the enrolment date, else the date the
+       account was made; an account with neither belongs to every year), so
+       with closed centres included the card is School Fee's own figures for
+       the year, to the dollar. From the view it takes the year, the quarter
+       (accounts enrolled in it, payments dated in it), All Years (every
+       account, every payment) and, in the present year, the closed-centre
+       rule: a closed centre's accounts, and their payments, are left out.
+       "Earlier years still owing" stays beside Outstanding, never in it.
+       opts: { today, nowMs, closedOf(account) -> true when its centre has closed }
+       -> { label, billed, collected, owed, accounts, debtors, unpriced, closedOut,
+            earlier: { owed, trainees } | null } */
+    function fees(accounts, payments, view, opts) {
+      opts = opts || {};
+      var today = todayOf(opts.today), v = normalise(view, today), all = v.mode === 'all';
+      var dropClosed = !all && tense(v.fy, today) === 'present' && !v.closed;
+      var closedOf = typeof opts.closedOf === 'function' ? opts.closedOf : function () { return false; };
+      var num = function (x) { var n = parseFloat(x); return isFinite(n) ? n : 0; };
+      var cents = function (n) { return Math.round(n * 100) / 100; };
+      var accts = list(accounts), pays = list(payments), paid = {}, byId = {}, out = {
+        label: periodLabel(v, today), billed: 0, collected: 0, owed: 0, accounts: 0, debtors: 0, unpriced: 0, closedOut: 0,
+        earlier: all ? null : { owed: 0, trainees: 0 } };
+      var closedMemo = {};
+      function isClosed(f) {
+        var k = String(f.id);
+        if (!(k in closedMemo)) { try { closedMemo[k] = !!closedOf(f); } catch (e) { closedMemo[k] = false; } }
+        return closedMemo[k];
+      }
+      pays.forEach(function (p) { var k = String(p.studentId); paid[k] = (paid[k] || 0) + num(p.amount); });
+      accts.forEach(function (f) {
+        if (f.id != null) byId[String(f.id)] = f;
+        var tuition = num(f.tuitionFee), got = paid[String(f.id)] || 0, bal = tuition - got;
+        var q = Core.deriveQuarter(f.enrollmentDate) || Core.deriveQuarter(f.createdAt);
+        var inView = all || !q || (q.fy === v.fy && (v.mode !== 'quarter' || q.q === v.q));
+        if (!inView) {
+          if (q && fyStart(q.fy) < fyStart(v.fy) && bal > 0) { out.earlier.owed += bal; out.earlier.trainees++; }
+          return;
+        }
+        if (dropClosed && isClosed(f)) { out.closedOut++; return; }
+        out.accounts++; out.billed += tuition; out.owed += bal;
+        if (bal > 0) out.debtors++;
+        if (tuition <= 0 && got <= 0) out.unpriced++;
+      });
+      pays.forEach(function (p) {
+        if (!all) {
+          var q = Core.deriveQuarter(p.date);
+          if (q && (q.fy !== v.fy || (v.mode === 'quarter' && q.q !== v.q))) return;
+        }
+        if (dropClosed) {
+          var owner = byId[String(p.studentId)];
+          if (owner ? isClosed(owner) : (typeof opts.paymentClosed === 'function' && opts.paymentClosed(p))) return;
+        }
+        out.collected += num(p.amount);
+      });
+      out.billed = cents(out.billed); out.collected = cents(out.collected); out.owed = cents(out.owed);
+      if (out.earlier) out.earlier.owed = cents(out.earlier.owed);
+      return out;
+    }
+
+    /* The six months the certificate chart shows: up to today, or — for a
+       past year — up to the last certificate of its trainees (a group is
+       certified after its year ends), or the year's end when there is none.
+       -> the date the window ends on, 'YYYY-MM-DD'. */
+    function chartEnd(sc, certDates) {
+      var today = sc.today, v = sc.view;
+      if (sc.tense !== 'past') return today;
+      var end = v.mode === 'quarter' ? quarterBounds(v.fy, v.q).to : yearBounds(v.fy).to;
+      list(certDates).forEach(function (d) { d = dateOf(d); if (d && d > end) end = d; });
+      return end > today ? today : end;
+    }
+
+    return { STORE_KEY: STORE_KEY, normalise: normalise, stored: stored, read: read, write: write,
+      presentFY: presentFY, tense: tense, shiftFY: shiftFY, fyStart: fyStart, yearBounds: yearBounds, quarterBounds: quarterBounds,
+      dateOf: dateOf, placeOf: placeOf, intakeOf: intakeOf, intakeClosed: intakeClosed,
+      scope: scope, periodLabel: periodLabel, headline: headline, recordIn: recordIn, fees: fees, chartEnd: chartEnd };
   })();
 
   // ===================== NEEDS ATTENTION: who is struggling, most urgent first =====================

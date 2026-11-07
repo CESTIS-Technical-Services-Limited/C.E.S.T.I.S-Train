@@ -305,7 +305,11 @@ console.log('The administrator\'s dashboard: School Fees, with the earlier years
 {
   const sb = { CESTISCore: Core, CESTISStore: { getItem: k => (k in STORE ? STORE[k] : null), setItem: () => { throw new Error('the dashboard wrote to the fee books'); } },
     escapeHtml: s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'),
-    document: { getElementById: () => null } };
+    document: { getElementById: () => null },
+    // The dashboard's year bar on this financial year (the default), and no
+    // centre of the fixture's this-year accounts closed.
+    dashYearView: () => ({ mode: 'year', fy: FY, q: 3, closed: false }),
+    dashFeeClosedRule: () => ({ account: () => false, payment: () => false }) };
   vm.createContext(sb);
   vm.runInContext(fnOf(INDEX, 'dashFeesCardInner'), sb);
   const html = sb.dashFeesCardInner();
@@ -318,8 +322,9 @@ console.log('The administrator\'s dashboard: School Fees, with the earlier years
   assert(/44 of 60 still owe/.test(html), 'how many owe, of how many (44 of 60)');
   const build = fnOf(INDEX, 'buildAdminPages');
   assert(/<div class="card dash-fees-card" id="dashFeesCard">\$\{dashFeesCardInner\(\)\}<\/div>/.test(build), 'drawn on the administrator\'s dashboard');
-  assert(/refreshDashboardFees\(\)/.test(fnOf(INDEX, 'refreshDashboardStudentTotals')) && /pageId === 'dashboard'[^\n]*refreshDashboardFees\(\)/.test(fnOf(INDEX, 'showPage')),
-    'and kept current: when the roll changes and whenever the dashboard is opened');
+  assert(/refreshDashboardFees\(\)/.test(fnOf(INDEX, 'refreshDashboardStudentTotals')) && /pageId === 'dashboard'[^\n]*refreshAdminDashboard\(\)/.test(fnOf(INDEX, 'showPage')) &&
+    /dashFill\('dashFeesCard', dashFeesCardInner\)/.test(fnOf(INDEX, 'refreshAdminDashboard')),
+    'and kept current: when the roll changes, whenever the dashboard is opened and when its year bar changes');
 }
 
 /* =====================================================================

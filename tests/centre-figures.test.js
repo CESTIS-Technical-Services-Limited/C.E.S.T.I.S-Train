@@ -109,7 +109,8 @@ vm.runInContext(['attendancePctByStudent', 'centreFigureSet', 'examPassFigure', 
   assert(row(W).avgAttendance === F.attendance(roll.filter(s => s.course === W)).rate && row(C).avgAttendance === '' && row(P).avgAttendance === '',
     'Export Report: average attendance over each programme\'s active trainees (blank where none is in training)');
   assertEq(sb.dashActiveLineText(), '7 active (in training) · 2 applicants', 'the dashboard\'s Total Enrolled card says how many are active, separately');
-  assert(/id="dashActiveLine"[^>]*>\$\{dashActiveLineText\(\)\}</.test(src), '(drawn under Total Enrolled Students)');
+  assert(/card\('dashTotalEnrolled', [^\n]*'Total Enrolled Students', escapeHtml\(dashActiveLineText\(roll\)\), 'dashActiveLine'\)/.test(fn('dashStatsHtml')),
+    '(drawn under Total Enrolled Students, over the trainees the dashboard\'s year bar shows)');
 }
 
 console.log('The board\'s screens use the same figures');

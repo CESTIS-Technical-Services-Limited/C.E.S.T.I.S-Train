@@ -218,8 +218,11 @@ for (const page of PAGES) {
   assertEq(jan[0].year + '-' + (jan[0].month + 1), '2025-9', w + ': the window runs back across January');
   assertEq(jan.filter(x => x.year === 2025 && x.month === 9)[0].count, 1, w + ': and finds last October there');
   assertEq(K.certifiedInYear(roll, 2026), 3, w + ': "Certified This Year" counts this year\'s certificates, not every graduate');
-  const dash = extractFunction(page.src, 'buildAdminPages', w);
-  assert(dash.indexOf("split('-')") === -1 && dash.indexOf('CESTISCore.certs.byMonth(students') !== -1 && dash.indexOf('CESTISCore.certs.certifiedInYear(students') !== -1, w + ': the dashboard uses them');
+  // Over the trainees the dashboard's year bar shows (dashScope); under All
+  // Years that is the whole roll, and "Certified This Year" is as it was.
+  const chart = extractFunction(page.src, 'dashCertMonthsHtml', w), cards = extractFunction(page.src, 'dashStatsHtml', w);
+  assert(chart.indexOf("split('-')") === -1 && /const sc = dashScope\(\), roll = sc\.roll;/.test(chart) && chart.indexOf('CESTISCore.certs.byMonth(roll') !== -1 &&
+    /var sc = dashScope\(\), roll = sc\.roll/.test(cards) && cards.indexOf('CESTISCore.certs.certifiedInYear(roll, new Date().getFullYear())') !== -1, w + ': the dashboard uses them');
   assert(extractFunction(page.src, 'exportReportCSV', w).indexOf('reportProgrammeRolls()') !== -1, w + ': the report export has a row per training centre, not per programme name');
   // The Dropout Rate's rule is CESTISCore.centreFigures.dropout (tests/centre-figures.test.js).
   assert(/const dropoutRate = fig\.dropout\.rate/.test(page.src) && require('../cestis-core.js').centreFigures.isDropout({ stage: 'training', enrolStatus: 'dropout' }),

@@ -101,8 +101,11 @@ vm.runInContext(['studentCourseworkSummary', 'studentEffectiveGpa', 'studentGpaF
   assert(students[0].gpa === '0.0', 'nothing stored is changed');
 }
 {
-  const dash = src.slice(src.indexOf('function buildAdminPages('), src.indexOf('<h3>Top Performers</h3>'));
-  assert(/const topPerformers = students\.map\(s => \{ const sum = studentCourseworkSummary\(s\); return \{ s: s, g: studentGpaFigure\(s, sum\)/.test(dash) && !/parseFloat\(b\.gpa\)-parseFloat\(a\.gpa\)/.test(dash),
+  // Top Performers is drawn by its own block now (the dashboard's year bar
+  // redraws it), over the trainees of the year the bar shows.
+  const dash = fn('dashTopPerformersHtml');
+  assert(/\$\{dashTopPerformersHtml\(\)\}/.test(fn('buildAdminPages')) && /const roll = dashRoll\(\);/.test(dash) &&
+    /const topPerformers = roll\.map\(s => \{ const sum = studentCourseworkSummary\(s\); return \{ s: s, g: studentGpaFigure\(s, sum\)/.test(dash) && !/parseFloat\(b\.gpa\)-parseFloat\(a\.gpa\)/.test(dash),
     'Top Performers ranks by the GPA the marks produce, not the hand-typed figure');
   assert(!/function isStudentPassed\(/.test(src) && !/isStudentPassed\)/.test(src), 'no pass rate is read from a hand-typed GPA any more');
   const cmc = fn('buildCmcPages');
