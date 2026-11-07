@@ -96,7 +96,7 @@ function dashboard(centres, opts) {
   };
   sb.window = sb;
   vm.createContext(sb);
-  vm.runInContext(['cestisGenId', 'findSkillAreaForCourse', 'instructorCourseMatch', 'createStudentDataForAccount',
+  vm.runInContext(['cestisGenId', 'findSkillAreaForCourse', 'instructorCourseMatch', 'createStudentDataForAccount', 'traineeIdForAccount',
     'syncStudentsFromLocalFeeSystem', 'rosterAwaitingSync', 'traineeRecordExistsElsewhere', 'backfillStudentFiscalYears', 'courseDurationRecord', 'studentCentreRecord',
     'studentCourseStatus', 'courseEndKeyFor', 'studentStampedElsewhere', 'courseEndTranscriptData', 'applyCourseEndStatuses', 'readArr', 'syncStudentsToSchoolFee']
     .map(n => extractFunction(INDEX, n)).join('\n\n'), sb);

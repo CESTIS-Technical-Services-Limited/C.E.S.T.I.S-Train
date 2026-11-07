@@ -299,6 +299,9 @@ td.sp-sel-cell { text-align:center; }
 .sp-bulk-row:last-child { border-bottom:none; }
 .sp-bulk-row .who { font-weight:600; }
 .sp-bulk-row .items { margin-top:3px; color:var(--text-muted); line-height:1.5; }
+.sp-pending-note { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px; padding:10px 14px; border-radius:var(--radius-sm, 8px);
+  background:rgba(52,152,219,0.12); border:1px solid rgba(52,152,219,0.35); color:var(--text-primary); font-size:13px; }
+.sp-pending-note[hidden] { display:none; }
 </style>
 </head>
 <body>
@@ -322,6 +325,7 @@ td.sp-sel-cell { text-align:center; }
   <input type="text" class="form-control" style="width:220px;" placeholder="Search by name, ID, or course..." id="studentSearch" onkeyup="filterStudents()">
 </div>
 
+<div id="spPendingNote" class="sp-pending-note" role="status" hidden></div>
 <div class="pipeline" style="margin-bottom:20px;">
   <div class="pipeline-stage s-test"><span class="count" id="pTest2">0</span>Testing</div>
   <div class="pipeline-stage s-interview"><span class="count" id="pInterview2">0</span>Interview</div>
@@ -1222,7 +1226,32 @@ function filterStudents() {
   renderStudents(filteredStudents());
 }
 
+/* Trainees who registered and are waiting for approval have no trainee record
+   yet, so they are not in the list below: say how many, and where they are. */
+function spRenderPendingNote() {
+  var el = document.getElementById('spPendingNote');
+  if (!el) return;
+  var queue = [];
+  try {
+    queue = (window.CESTISCore && CESTISCore.accountAccess && CESTISCore.accountAccess.reviewQueue)
+      ? CESTISCore.accountAccess.reviewQueue(userAccounts)
+      : (userAccounts || []).filter(function (u) { return u && String(u.status || '').toLowerCase() === 'pending'; });
+  } catch (e) { queue = []; }
+  queue = queue.filter(function (u) { return u && String(u.role || '').toLowerCase() === 'student'; });
+  if (!queue.length) { el.hidden = true; el.innerHTML = ''; return; }
+  var names = queue.slice(0, 3).map(function (u) { return spEscapeHtml(u.name || 'A trainee'); }).join(', ') + (queue.length > 3 ? ' and ' + (queue.length - 3) + ' more' : '');
+  var inDashboard = false;
+  try { inDashboard = !!(window.parent && window.parent !== window); } catch (e) {}
+  el.innerHTML = '<span><strong>' + queue.length + ' trainee' + (queue.length === 1 ? '' : 's') + ' waiting for approval</strong> (' + names + '). ' +
+    'They appear here once approved.</span>' +
+    (inDashboard ? ' <button class="btn btn-sm btn-secondary" onclick="spOpenVerifyUsers()">Open Verify Users</button>' : '');
+  el.hidden = false;
+}
+function spOpenVerifyUsers() {
+  try { window.parent.postMessage({ type: 'cestis-sp-verify-users' }, '*'); } catch (e) {}
+}
 function updatePipelineCounts() {
+  try { spRenderPendingNote(); } catch (e) {}
   var stagePipelineIds = {
     testing:'pTest2', interview:'pInterview2', training:'pTraining2',
     certified:'pCertified2', collected:'pCollected2', nyc:'pNyc2', incomplete:'pIncomplete2'

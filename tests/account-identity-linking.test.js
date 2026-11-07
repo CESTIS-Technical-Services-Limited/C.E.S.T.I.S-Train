@@ -85,7 +85,8 @@ console.log('Sign-in and the roster reconcile never hand one man the other\'s re
     updateSkillAreaCounts: function () {}, saveState: function () {} };
   sb2.window = sb2;
   vm.createContext(sb2);
-  vm.runInContext(extractFunction(SRC, 'reconcileStudentsFromAccounts'), sb2);
+  sb2.skillAreas = [];
+  vm.runInContext(['reconcileStudentsFromAccounts', 'createStudentDataForAccount', 'traineeIdForAccount', 'instructorCourseMatch'].map(function (n) { return extractFunction(SRC, n); }).join('\n'), sb2);
   vm.runInContext('reconcileStudentsFromAccounts()', sb2);
   assert(sb2.userAccounts[0].studentDataId !== 'STU-welder', 'the reconcile does not link the Plumbing account to the welder');
   const own = sb2.students.find(function (s) { return s.id === sb2.userAccounts[0].studentDataId; });

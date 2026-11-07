@@ -10817,16 +10817,18 @@ function reconcileStudentsFromAccounts() {
     // whether the account still points at its (stable) id or resolves to it by
     // name+programme. This closes the "deleted student resurrected via its
     // re-synced account" hole.
-    if (typeof isStudentDeleted === 'function') {
-      if (u.studentDataId && isStudentDeleted(u.studentDataId)) return;
-      if (window.CESTISCore && u.name) {
-        var _delSid = CESTISCore.stableStudentId({ name: u.name, course: u.programme || '' });
-        if (_delSid && isStudentDeleted(_delSid)) return;
-      }
-    }
+    // An account registered or approved AFTER the deletion is a new enrolment
+    // of the same person (studentAccountTombstoned): it gets its record. This
+    // returned for every account whose name and programme had ever been
+    // deleted, so a trainee who registered again never appeared anywhere.
+    if (typeof studentAccountTombstoned === 'function' ? studentAccountTombstoned(u) : false) return;
 
-    // Check if a student record already exists
-    if (u.studentDataId && studentIds[u.studentDataId]) return;
+    // Check if a student record already exists (and is this person's: a
+    // namesake's record holding the same id is not)
+    if (u.studentDataId && studentIds[u.studentDataId]) {
+      var _held = students.find(function(s) { return s && s.id === u.studentDataId; });
+      if (!(_held && CESTISCore.identityConflict && CESTISCore.identityConflict(_held, u))) return;
+    }
     var nameKey = u.name && u.programme
       ? CESTISCore.normName(u.name) + '|' + CESTISCore.normCourse(u.programme) : null;
     if (nameKey && studentNameCourse[nameKey]) {
@@ -10874,44 +10876,13 @@ function reconcileStudentsFromAccounts() {
       }
     }
 
-    // No matching student record — create one
-    var studentId = u.studentDataId || ('STU-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).substring(2,6).toUpperCase());
-    var course = u.programme || '';
-
-    // Find an instructor for this course
-    var assignedInstructor = '';
-    if (course) {
-      var matchedInstructor = instructorData.find(function(ins) {
-        if (!ins.course) return false;
-        if (ins.course.toLowerCase().trim() === course.toLowerCase().trim()) return true;
-        var insSk = findSkillAreaForCourse(ins.course);
-        var stuSk = findSkillAreaForCourse(course);
-        return insSk && stuSk && insSk.id && stuSk.id && insSk.id === stuSk.id;
-      });
-      if (matchedInstructor) assignedInstructor = matchedInstructor.name;
-    }
-
-    students.push({
-      id: studentId,
-      name: (u.name || '').trim(),
-      stage: 'training',
-      course: course.trim(),
-      score: '',
-      progress: 5,
-      certNo: null,
-      certDate: null,
-      certCollected: false,
-      attendance: 0,
-      assignments: 0,
-      assignmentsTotal: 10,
-      gpa: '0.0',
-      gender: '',
-      createdAt: u.createdAt || localDateStr(),
-      instructor: assignedInstructor
-    });
-
-    // Link the user account to this student record
-    if (!u.studentDataId) u.studentDataId = studentId;
+    // No matching student record — create one, through the one creation path
+    // (centre and fiscal-year stamp, the new-enrolment mark that keeps an
+    // earlier deletion from hiding it, contact details, its own id when a
+    // namesake holds the one its name gives). No save inside the loop.
+    var _made = createStudentDataForAccount(u, { noSave: true, programmeFallback: '' });
+    var studentId = _made.id;
+    if (u.createdAt && !_made.createdAt) _made.createdAt = u.createdAt;
 
     // Track for dedup
     studentIds[studentId] = true;
@@ -14301,12 +14272,15 @@ function closePendingScreen() {
 function findStudentRecordForAccount(account) {
   if (!account) return null;
   var match = null;
+  // (A record another person's details say is not this account's — a namesake
+  // whose email, TRN or date of birth differs — is never this account's record.)
+  var mine = function(s) { return !(CESTISCore.identityConflict && CESTISCore.identityConflict(s, account)); };
   if (account.studentDataId) {
-    match = students.find(function(s) { return s.id === account.studentDataId; });
+    match = students.find(function(s) { return s.id === account.studentDataId && mine(s); });
   }
   if (!match) {
     var sid = CESTISCore.stableStudentId({ name: account.name, course: account.programme || '' });
-    if (sid) match = students.find(function(s) { return s.id === sid; });
+    if (sid) match = students.find(function(s) { return s.id === sid && mine(s); });
   }
   if (!match) {
     // By name only when the programme agrees and the namesake is unique — the
@@ -14367,8 +14341,9 @@ function fillTraineeContactFromAccount(student, account) {
   } catch (e) { console.warn('[Accounts] could not fill the fee record\'s contact:', e); }
   return changed;
 }
-function createStudentDataForAccount(userAccount) {
-  var prog = userAccount.programme || 'Welding';
+function createStudentDataForAccount(userAccount, opts) {
+  opts = opts || {};
+  var prog = userAccount.programme || (Object.prototype.hasOwnProperty.call(opts, 'programmeFallback') ? opts.programmeFallback : 'Welding');
   var matchedInstructor = instructorData.find(function(ins){ return ins.course && instructorCourseMatch(prog, ins.course); });
   var assignedInstructor = matchedInstructor ? matchedInstructor.name : (instructorData.length > 0 ? instructorData[0].name : '');
   var newStudent = {
@@ -14404,6 +14379,11 @@ function createStudentDataForAccount(userAccount) {
     }
   } catch(e) {}
   if (window.CESTISCore) { var _sid = CESTISCore.stableStudentId(newStudent); if (_sid) newStudent.id = _sid; }
+  // The id a name and programme give is already another person's (a namesake
+  // whose email, TRN or date of birth differs): this trainee gets an id of
+  // their own, the same on every device (from the account), so neither is
+  // merged into the other.
+  newStudent.id = traineeIdForAccount(newStudent.id, userAccount);
   // The email and telephone given with the account (a fee record that does
   // not exist yet is created on save by the mirror, carrying them across).
   try { fillTraineeContactFromAccount(newStudent, userAccount); } catch (e) {}
@@ -14415,8 +14395,17 @@ function createStudentDataForAccount(userAccount) {
   attendanceRecords.push({studentId:newStudent.id, studentName:newStudent.name, course:newStudent.course, date:localDateStr(), days:{Mon:'absent',Tue:'absent',Wed:'absent',Thu:'absent',Fri:'absent'}});
   updateSkillAreaCounts();
   userAccount.studentDataId = newStudent.id;
-  saveState();
+  if (!opts.noSave) saveState();
   return newStudent;
+}
+/* The record id for a trainee being created for an account: the id their name
+   and programme give, unless a record already holds it for somebody else. */
+function traineeIdForAccount(id, account) {
+  if (!id || !account || !window.CESTISCore) return id;
+  var holder = (students || []).find(function(s) { return s && s.id === id; });
+  if (!holder || !CESTISCore.identityConflict(holder, account)) return id;
+  return 'STU-' + CESTISCore.hashString(CESTISCore.naturalKey({ name: account.name, course: account.programme || '' }) + '|account|' +
+    (String(account.email || '').trim().toLowerCase() || String(account.id || '')));
 }
 
 // The instructor record belonging to the account that just signed in.
@@ -14626,8 +14615,10 @@ function approveUser(userId) {
   user.approvedAt = localDateStr();
   stampReviewer(user);
   touchAccount(user);
-  // Ensure student data is created and linked when approving a student account
-  if (user.role === 'student' && !user.studentDataId) {
+  // Ensure student data is created and linked when approving a student account.
+  // A registration from home already names the id its record will have, so
+  // "has an id" is not "has a record": the record is looked for, and made.
+  if (user.role === 'student') {
     var existingStudent = findStudentRecordForAccount(user);
     if (existingStudent) {
       user.studentDataId = existingStudent.id;
@@ -14705,8 +14696,9 @@ function approveAllPending() {
     u.approvedAt = dateStr;
     stampReviewer(u);
     touchAccount(u);
-    // Create linked student/instructor data on approval
-    if (u.role === 'student' && !u.studentDataId) {
+    // Create linked student/instructor data on approval (see approveUser:
+    // a registration from home already names its record's id).
+    if (u.role === 'student') {
       var existingStudent = findStudentRecordForAccount(u);
       if (existingStudent) {
         u.studentDataId = existingStudent.id;
@@ -26151,6 +26143,13 @@ window.addEventListener('message', function(e) {
   }
   // Student Progress's "+ Add Student" (OF-7): the New trainee form — or,
   // for somebody who may manage the roll but not add accounts, its own form.
+  // Student Progress's "waiting for approval" note: Verify Users (or, for Admin
+  // Staff, their trainee accounts page).
+  if(e.data && e.data.type === 'cestis-sp-verify-users') {
+    if (!cestisMessageFromFrames(e, STUDENT_PROGRESS_FRAMES)) return;
+    if (currentRole === 'admin') showPage('verify-users');
+    else if (currentRole === 'adminstaff' && typeof pageAllowedForRole === 'function' && pageAllowedForRole('as-trainee-accounts')) showPage('as-trainee-accounts');
+  }
   if(e.data && e.data.type === 'cestis-new-trainee') {
     if (!cestisMessageFromFrames(e, STUDENT_PROGRESS_FRAMES)) return;
     if (officeMayAddTrainee()) openNewTrainee();
