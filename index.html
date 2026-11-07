@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <script src="cestis-config.js?v=284ebb2a"></script>
-<script src="cestis-core.js?v=f6140aa4"></script>
+<script src="cestis-core.js?v=33000641"></script>
 <script src="cestis-form-modal.js?v=74020c38" defer></script>
 <!-- Inert until a page registers: the CMC Board registers as a READ-ONLY reader
      so the operating pages' books reach its dashboards without anyone syncing. -->
@@ -10966,9 +10966,11 @@ function reconcileStudentsFromAccounts() {
     // (centre and fiscal-year stamp, the new-enrolment mark that keeps an
     // earlier deletion from hiding it, contact details, its own id when a
     // namesake holds the one its name gives). No save inside the loop.
-    var _made = createStudentDataForAccount(u, { noSave: true, programmeFallback: '' });
+    // Dated by the account (when it was approved, else made), not today: an
+    // account from an earlier financial year is not a new enrolment this year.
+    var _on = String(u.approvedAt || u.createdAt || '').slice(0, 10);
+    var _made = createStudentDataForAccount(u, { noSave: true, programmeFallback: '', on: /^\d{4}-\d{2}-\d{2}$/.test(_on) ? _on : '' });
     var studentId = _made.id;
-    if (u.createdAt && !_made.createdAt) _made.createdAt = u.createdAt;
 
     // Track for dedup
     studentIds[studentId] = true;
@@ -14456,7 +14458,7 @@ function createStudentDataForAccount(userAccount, opts) {
     assignmentsTotal: 10,
     gpa: '0.0',
     gender: '',
-    createdAt: localDateStr(),
+    createdAt: opts.on || localDateStr(),
     instructor: assignedInstructor
   };
   // Ground the trainee in their training centre's duration and fiscal year, so
@@ -14466,7 +14468,7 @@ function createStudentDataForAccount(userAccount, opts) {
   // in it for good (see CESTISCore.enrolment.findCentre, opts.exact).
   try {
     var _cs = CESTISCore.enrolment.enrolmentStamp(
-      CESTISCore.enrolment.findCentre(skillAreas, prog, { exact: true }), localDateStr());
+      CESTISCore.enrolment.findCentre(skillAreas, prog, { exact: true }), opts.on || localDateStr());
     if (_cs) {
       newStudent.centreId = _cs.centreId; newStudent.centreName = _cs.centreName;
       newStudent.courseStart = _cs.courseStart; newStudent.courseEnd = _cs.courseEnd;
@@ -14479,6 +14481,9 @@ function createStudentDataForAccount(userAccount, opts) {
   // their own, the same on every device (from the account), so neither is
   // merged into the other.
   newStudent.id = traineeIdForAccount(newStudent.id, userAccount);
+  // ...and pinned as its own person, so the id stabilisation at the next
+  // sign-in does not fold it back into that namesake (CESTISCore.pinIfNamesake).
+  try { CESTISCore.pinIfNamesake(newStudent, students); } catch (e) {}
   // The email and telephone given with the account (a fee record that does
   // not exist yet is created on save by the mirror, carrying them across).
   try { fillTraineeContactFromAccount(newStudent, userAccount); } catch (e) {}
@@ -26991,6 +26996,9 @@ function syncStudentsFromLocalFeeSystem(force) {
         }
       } catch(e) {}
       try { CESTISCore.markEnrolment(_newStudent, CESTISStore); _delStudentAtMemo = null; } catch(e) {}
+      // A namesake on the same programme (another person, as decided above):
+      // pinned, so the id stabilisation never folds the two together.
+      try { CESTISCore.pinIfNamesake(_newStudent, students); } catch(e) {}
       twins.add(_newStudent);
       existingIds[studentId] = true;
 

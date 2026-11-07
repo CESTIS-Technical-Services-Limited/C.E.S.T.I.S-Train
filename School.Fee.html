@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
 <script src="cestis-config.js?v=284ebb2a"></script>
-<script src="cestis-core.js?v=f6140aa4"></script>
+<script src="cestis-core.js?v=33000641"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CESTIS - School Fee Management System</title>
     
@@ -6986,6 +6986,8 @@
                     });
                     // A new enrolment: an earlier deletion of the same name does not hide it.
                     try { CESTISCore.markEnrolment(lmsStudents[lmsStudents.length - 1], CESTISStore); } catch (e) {}
+                    // Another person of the same name on the same programme: pinned as their own.
+                    try { CESTISCore.pinIfNamesake(lmsStudents[lmsStudents.length - 1], lmsStudents); } catch (e) {}
                     if (_lmsIdx) _lmsIdx.add(lmsStudents[lmsStudents.length - 1]);
                     changed = true;
                 });

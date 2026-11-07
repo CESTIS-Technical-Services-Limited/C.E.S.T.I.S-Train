@@ -53,6 +53,11 @@ console.log('1. A namesake on the roll is not taken for a different person');
   assert(t.action === 'create', 'a John Brown with another TRN: enrolled');
   t = target({ id: 'FEE-1', name: 'John Brown', skillArea: 'Plumbing' }, [Object.assign({}, WELDER)]);
   assert(t.action === 'link' && t.match.id === 'STU-jb-w', '(his own fee record, priced on another programme, still finds him and never enrols him twice)');
+  const twin = { id: 'SF-FEE-6', name: 'John Brown', course: 'Welding & Fabrication' };
+  const roll = [Object.assign({}, WELDER, { id: Core.stableStudentId(WELDER) })];
+  assert(Core.pinIfNamesake(twin, roll) && twin.keepSeparate === true, 'a second John Brown on Welding (another person): pinned as his own, so the id clean-up never folds them');
+  const plumber = { id: 'SF-FEE-7', name: 'John Brown', course: 'Plumbing' };
+  assert(!Core.pinIfNamesake(plumber, roll) && !plumber.keepSeparate, '(on another programme there is nothing to fold: not pinned)');
   t = target({ id: 'FEE-5', name: 'John Brown', skillArea: 'Plumbing' }, [Object.assign({}, WELDER, { schoolFeeId: '', email: '' })]);
   assert(t.action === 'link', '(a namesake with no fee record and nothing to tell them apart: still taken to be him, as before)');
 }

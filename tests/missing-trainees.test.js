@@ -68,6 +68,11 @@ console.log('1. A registration from home, approved: it gets its record');
   const rec = sb.students.find(s => s.id === sid);
   assert(!!rec && rec.name === 'Kerry-Ann Lewis', 'the reconcile makes her record under the id her registration named');
   assert(visible(sb, rec), 'and it is on the roll');
+  assert(rec.createdAt === '2026-11-02', 'dated by her approval, not by the day the record was made');
+  const older = { id: 'USR-old1', role: 'student', status: 'active', name: 'Odane Gayle', programme: 'Plumbing', approvedAt: '2025-10-01', createdAt: '2025-09-28T10:00:00.000Z' };
+  const sbo = world({ accounts: [older] });
+  vm.runInContext('reconcileStudentsFromAccounts()', sbo);
+  assert(sbo.students[0] && sbo.students[0].createdAt === '2025-10-01', 'an account from an earlier year: its record is dated in that year');
   const approve = extract(SRC, 'approveUser');
   assert(/if \(user\.role === 'student'\) \{\s*var existingStudent = findStudentRecordForAccount\(user\);/.test(approve), 'approving looks for her record, and makes one, even though her account already names an id');
   const all = extract(SRC, 'approveAllPending');
@@ -106,6 +111,16 @@ console.log('3. A namesake on the same programme is another person');
   assert(mine && mine.stage === 'training' && !mine.certNo, 'in training, with no certificate');
   const theirs = sb.students.find(x => x.id === sid);
   assert(theirs.stage === 'certified' && theirs.certNo === 'WF-2026-1234-AB', 'the certified trainee is untouched');
+  assert(mine && mine.keepSeparate === true, 'his record is pinned as its own person');
+  // What runs at the next sign-in (cestisSettleRoster -> cestisStabilizeStudentIds,
+  // and the same-name collapse): the two are never folded together.
+  const bundle = { students: sb.students, userAccounts: sb.userAccounts, attendanceRecords: [], examResults: [], certDownloadApprovals: [] };
+  Core.migrateToStableIds(bundle);
+  const after = bundle.students;
+  const col = Core.collapseSameNameStudents(after).students;
+  const hisNow = col.find(x => x.id === sb.userAccounts[0].studentDataId);
+  assert(col.length === 2 && !!hisNow && hisNow.stage === 'training' && !hisNow.certNo, 'after the sign-in clean-up: still two people, and his account still points at his own record');
+  assert(col.find(x => x.id === sid).certNo === 'WF-2026-1234-AB', 'and the certified trainee keeps his certificate');
   const sb2 = world({ students: [Object.assign({}, certified)], accounts: [Object.assign({}, acct)] });
   vm.runInContext('reconcileStudentsFromAccounts()', sb2);
   assert(sb2.userAccounts[0].studentDataId === acct.studentDataId, 'another office PC gives him the same id');

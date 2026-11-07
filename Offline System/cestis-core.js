@@ -958,6 +958,22 @@
   Core.keepsOwnId = function (s) {
     return Core.isKeptSeparate(s) || Core.isReEnrolment(s);
   };
+  /* A NEW record whose name and programme give the same stable id as a record
+     already on the roll is another person of that name (the callers have
+     already decided it is not that record): pinned as its own person
+     (keepSeparate), so the id stabilisation and the duplicate clean-ups —
+     which all respect the pin — never fold it into the namesake or move it
+     onto their id. Returns whether it was pinned. */
+  Core.pinIfNamesake = function (rec, roll) {
+    if (!rec || Core.isKeptSeparate(rec)) return false;
+    var sid = Core.stableStudentId(rec);
+    if (!sid) return false;
+    var other = (Array.isArray(roll) ? roll : []).some(function (s) {
+      return s && s !== rec && String(s.id) !== String(rec.id) && (String(s.id) === sid || Core.stableStudentId(s) === sid);
+    });
+    if (other) rec.keepSeparate = true;
+    return other;
+  };
   /* The id a new enrolment should get. Normally the stable id; when that id
      is tombstoned (the person — or a namesake — was deleted from this
      programme before), an id of its own plus the re-enrolment marker.
