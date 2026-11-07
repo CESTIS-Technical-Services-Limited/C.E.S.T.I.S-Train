@@ -27117,11 +27117,14 @@ function refreshStudentDependentViews() {
     // as it stands — 329 trainees against 220, from the same array.
     'refreshReportsAnalytics'
   ];
-  fns.forEach(function(name){
-    try {
-      var fn = window[name];
-      if(typeof fn === 'function') fn();
-    } catch(e) { /* one bad render shouldn't block the others */ }
+  // What somebody is typing survives the redraw (cestisKeepTyping).
+  cestisKeepTyping(function() {
+    fns.forEach(function(name){
+      try {
+        var fn = window[name];
+        if(typeof fn === 'function') fn();
+      } catch(e) { /* one bad render shouldn't block the others */ }
+    });
   });
 }
 
@@ -27129,6 +27132,53 @@ function refreshStudentDependentViews() {
 // pages, so a change made in one place is reflected everywhere without a reload.
 // Every listed render function guards on its own missing DOM (or is wrapped in
 // try/catch here), so calling one whose page isn't mounted is a safe no-op.
+/* A background sync redraws the views (refreshContentDependentViews,
+   refreshStudentDependentViews) while somebody may be typing in them. The
+   redraw replaced the boxes with fresh empty ones, so a mark and a comment an
+   instructor had typed — but not yet saved — vanished as another device's
+   save arrived, and pressing Save then saved nothing. What was typed into a
+   box the redraw replaced is put back (same id), with the cursor where it
+   was; an edit panel it sat in is opened again. Nothing is saved here. */
+function cestisKeepTyping(run) {
+  var kept = [], focus = null;
+  try {
+    document.querySelectorAll('input[id], textarea[id], select[id]').forEach(function(el) {
+      var t = String(el.type || '').toLowerCase();
+      if (t === 'hidden' || t === 'file' || t === 'password' || t === 'button' || t === 'submit') return;
+      var dirty = el.tagName === 'SELECT' ? false
+        : (t === 'checkbox' || t === 'radio') ? el.checked !== el.defaultChecked
+        : el.value !== el.defaultValue;
+      if (dirty) kept.push({ id: el.id, node: el, value: el.value, checked: el.checked, box: t === 'checkbox' || t === 'radio' });
+    });
+    var a = document.activeElement;
+    if (a && a.id && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA')) {
+      var st = null, en = null;
+      try { st = a.selectionStart; en = a.selectionEnd; } catch (e) {}
+      focus = { id: a.id, node: a, st: st, en: en };
+    }
+  } catch (e) { kept = []; focus = null; }
+  try { run(); }
+  finally {
+    kept.forEach(function(k) {
+      try {
+        var now = document.getElementById(k.id);
+        if (!now || now === k.node || now.tagName !== k.node.tagName) return;
+        if (k.box) now.checked = k.checked; else now.value = k.value;
+        var ed = now.closest ? now.closest('.gb-editor') : null;
+        if (ed && ed.hidden) ed.hidden = false;
+      } catch (e) {}
+    });
+    if (focus) {
+      try {
+        var f = document.getElementById(focus.id);
+        if (f && f !== focus.node && document.activeElement !== f) {
+          f.focus({ preventScroll: true });
+          if (focus.st != null && typeof f.setSelectionRange === 'function') f.setSelectionRange(focus.st, focus.en);
+        }
+      } catch (e) {}
+    }
+  }
+}
 function refreshContentDependentViews() {
   var fns = [
     'renderExams','renderInstructorExams','renderStudentExams',
@@ -27145,11 +27195,14 @@ function refreshContentDependentViews() {
     'filterCerts','renderCertStats','renderCertDownloadMgmt',
     'refreshAttentionViews'
   ];
-  fns.forEach(function(name){
-    try {
-      var fn = window[name];
-      if(typeof fn === 'function') fn();
-    } catch(e) { /* one bad render shouldn't block the others */ }
+  // What somebody is typing survives the redraw (cestisKeepTyping).
+  cestisKeepTyping(function() {
+    fns.forEach(function(name){
+      try {
+        var fn = window[name];
+        if(typeof fn === 'function') fn();
+      } catch(e) { /* one bad render shouldn't block the others */ }
+    });
   });
 }
 
