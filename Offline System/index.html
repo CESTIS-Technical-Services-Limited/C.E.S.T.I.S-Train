@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <script src="cestis-config.js?v=284ebb2a"></script>
-<script src="cestis-core.js?v=cf7169e6"></script>
+<script src="cestis-core.js?v=06ea93fc"></script>
 <script src="cestis-form-modal.js?v=74020c38" defer></script>
 <!-- Inert until a page registers: the CMC Board registers as a READ-ONLY reader
      so the operating pages' books reach its dashboards without anyone syncing. -->
@@ -10820,13 +10820,17 @@ function reconcileStudentsFromAccounts() {
       ? CESTISCore.normName(u.name) + '|' + CESTISCore.normCourse(u.programme) : null;
     if (nameKey && studentNameCourse[nameKey]) {
       // Re-link account to the existing student's ID if it was pointing at a removed duplicate
+      // (never to a namesake whose email, TRN or date of birth says it is another person).
       var matchedStu = students.find(function(s) {
         return CESTISCore.sameName(s.name, u.name) &&
                s.course && u.programme &&
-               CESTISCore.normCourse(s.course) === CESTISCore.normCourse(u.programme);
+               CESTISCore.normCourse(s.course) === CESTISCore.normCourse(u.programme) &&
+               !(CESTISCore.identityConflict && CESTISCore.identityConflict(s, u));
       });
-      if (matchedStu && u.studentDataId !== matchedStu.id) u.studentDataId = matchedStu.id;
-      return;
+      if (matchedStu) {
+        if (u.studentDataId !== matchedStu.id) u.studentDataId = matchedStu.id;
+        return;
+      }
     }
     // Match by name ALONE — not only when the account has no programme.
     //
@@ -16753,7 +16757,9 @@ function renderStudentCertificate(){
   var el = document.getElementById('studentCertContent');
   if(!el || !s) return;
   var html;
-  if(s.certNo){
+  // Only once the Centre has marked the course finished (Certified or
+  // Collected): a number left on an unfinished trainee's record is not a certificate.
+  if(CESTISCore.certs.isIssued(s)){
     var collectStatus = s.certCollected
       ? '<span class="badge badge-green" style="font-size:14px;padding:8px 20px;"><span class="badge-dot"></span>Certificate Collected ✓</span>'
       : '<span class="badge badge-amber" style="font-size:14px;padding:8px 20px;"><span class="badge-dot"></span>Awaiting Collection — Visit your centre</span>';
@@ -26164,7 +26170,9 @@ function ctrNotifyTrainee(r, status) {
 // Mark Collected does), without asking again.
 function ctrCertificateCollected(studentId) {
   var s = (students || []).find(function(x) { return x && String(x.id) === String(studentId); });
-  if(!s || s.certCollected || !(s.certNo || s.stage === 'certified' || s.stage === 'collected')) return false;
+  // Only a trainee the Centre has already marked Certified: handing over a
+  // request never makes an unfinished trainee certified.
+  if(!s || s.certCollected || s.stage !== 'certified') return false;
   s.certCollected = true; s.stage = 'collected'; s.progress = 100;
   try { markStageSetByUser(s); } catch(e) {}
   try { filterCerts(); updatePipelineCounts(); renderCertStats(); } catch(e) {}
@@ -38634,16 +38642,19 @@ async function mergeFromCloud() {
       // A detail edited here and not saved yet is stamped first (studentFieldsStamp).
       if (typeof studentFieldsStamp === 'function') studentFieldsStamp();
       var _fsF = (CESTISCore.sync && CESTISCore.sync.fields) || null, _fsR = CESTISCore.STUDENT_FIELD_RULES || null;
+      var _mfIds = {};
+      backupData.data.students.forEach(function(cs) { if (cs && cs.id != null) _mfIds[String(cs.id)] = 1; });
       backupData.data.students.forEach(cloudStudent => {
         if (cestisIsStudentTombstoned(cloudStudent)) return; // Honor tombstone (id + stable id)
         if (_demoStudentIds[cloudStudent.id]) return; // Skip legacy demo data
-        var localMatch = students.find(function(s) {
-          if (s.id === cloudStudent.id) return true;
-          return s.name && cloudStudent.name &&
-            s.name.trim().toLowerCase() === cloudStudent.name.trim().toLowerCase() &&
-            s.course && cloudStudent.course &&
-            s.course.trim().toLowerCase() === cloudStudent.course.trim().toLowerCase();
-        });
+        var localMatch = students.find(function(s) { return s.id === cloudStudent.id; }) ||
+          students.find(function(s) {
+            return s.name && cloudStudent.name &&
+              s.name.trim().toLowerCase() === cloudStudent.name.trim().toLowerCase() &&
+              s.course && cloudStudent.course &&
+              s.course.trim().toLowerCase() === cloudStudent.course.trim().toLowerCase() &&
+              cloudNamesakeIsSame(s, cloudStudent, _mfIds);
+          });
         if (localMatch) {
           // Timestamp-based merge: cloud wins if it has a newer lastModified, or if local has none
           var cloudMod = cloudStudent.lastModified ? new Date(cloudStudent.lastModified).getTime() : 0;
@@ -40635,21 +40646,36 @@ var _mergeBackupFailed = false;
      - a blank never replaces a detail, a certificate number once issued
        never changes, and a withdrawn certificate is not filled back in.
    `skip` holds the legacy demo ids. Returns true when anything changed. */
+/* May a cloud record that does not share this record's id be merged into it
+   because the name and programme match? Only on a staff device (a trainee's
+   device holds her own record, never a namesake's), only when this record is
+   not itself a separate record in the same cloud list (two ids there are two
+   people), and only when no email, TRN or date of birth says otherwise. */
+function cloudNamesakeIsSame(local, cloudStudent, cloudIds) {
+  if (!local || !cloudStudent) return false;
+  if (typeof currentRole !== 'undefined' && currentRole === 'student') return false;
+  if (cloudIds && local.id != null && cloudIds[String(local.id)]) return false;
+  if (window.CESTISCore && CESTISCore.identityConflict && CESTISCore.identityConflict(local, cloudStudent)) return false;
+  return true;
+}
 function mergeCloudStudents(cloudList, skip) {
   var changed = false;
+  var _cloudIds = {};
+  (Array.isArray(cloudList) ? cloudList : []).forEach(function(cs) { if (cs && cs.id != null) _cloudIds[String(cs.id)] = 1; });
   var F = (window.CESTISCore && CESTISCore.sync && CESTISCore.sync.fields) || null;
   var R = (window.CESTISCore && CESTISCore.STUDENT_FIELD_RULES) || null;
   (Array.isArray(cloudList) ? cloudList : []).forEach(function(cloudStudent) {
     if (!cloudStudent || typeof cloudStudent !== 'object') return;
     if (cestisIsStudentTombstoned(cloudStudent)) return; // Honor tombstone (id + stable id)
     if (skip && skip[cloudStudent.id]) return;
-    var localMatch = students.find(function(s) {
-      if (s.id === cloudStudent.id) return true;
-      return s.name && cloudStudent.name &&
-        s.name.trim().toLowerCase() === cloudStudent.name.trim().toLowerCase() &&
-        s.course && cloudStudent.course &&
-        s.course.trim().toLowerCase() === cloudStudent.course.trim().toLowerCase();
-    });
+    var localMatch = students.find(function(s) { return s.id === cloudStudent.id; }) ||
+      students.find(function(s) {
+        return s.name && cloudStudent.name &&
+          s.name.trim().toLowerCase() === cloudStudent.name.trim().toLowerCase() &&
+          s.course && cloudStudent.course &&
+          s.course.trim().toLowerCase() === cloudStudent.course.trim().toLowerCase() &&
+          cloudNamesakeIsSame(s, cloudStudent, _cloudIds);
+      });
     if (localMatch) {
       // Timestamp-based merge: cloud wins if it has a newer lastModified, or if local has none
       var cloudMod = cloudStudent.lastModified ? new Date(cloudStudent.lastModified).getTime() : 0;
@@ -46147,13 +46173,11 @@ async function studentRefreshCertData() {
     var cloudCertTemplates = _bd.certTemplates || {};
     var updated = false;
 
-    // Find this student in cloud data: by id, else the same name on the same
-    // programme — never just a namesake on another course.
-    var cloudStudent = cloudStudents.find(function(cs) { return cs && cs.id === currentStudent.id; }) ||
-      cloudStudents.find(function(cs) {
-        return cs && CESTISCore.sameName(cs.name, currentStudent.name) &&
-          CESTISCore.normCourse(String(cs.course || '').replace(/^\s*\d+\.\s*/, '')) === CESTISCore.normCourse(String(currentStudent.course || '').replace(/^\s*\d+\.\s*/, ''));
-      });
+    // Find this student in cloud data by their own id ONLY. A namesake on the
+    // same programme is another person as often as not: matching by name
+    // merged a certified trainee's record into a newly registered one of the
+    // same name and gave him that man's stage and certificate.
+    var cloudStudent = cloudStudents.find(function(cs) { return cs && cs.id === currentStudent.id; });
 
     if (cloudStudent) {
       // Merge, don't replace: "Refresh from Cloud" used to overwrite the
@@ -53737,6 +53761,8 @@ function certDownloadAllowed(student) {
   // number back on the record.
   if (student && typeof CESTISCore !== 'undefined' && CESTISCore.certs && CESTISCore.certs.isRevoked(student)) return { allowed: false, reason: 'This certificate has been withdrawn. Please contact the administration office.' };
   if (!student || !student.certNo) return { allowed: false, reason: 'No certificate has been issued yet.' };
+  // Only a trainee who has finished: the Centre marked them Certified or Collected.
+  if (!CESTISCore.certs.isIssued(student)) return { allowed: false, reason: 'No certificate has been issued yet. It becomes available once the course is completed and the Centre marks you as certified.' };
   var approval = (typeof certDownloadApprovals !== 'undefined' ? certDownloadApprovals : []).find(function (d) { return d && d.studentId === student.id; });
   var home = typeof cestisGateSession === 'function' && cestisGateSession();
   if (!(approval && approval.approved)) return home ? { allowed: false, collect: true, reason: 'Its download has not been approved yet.' } : { allowed: false, reason: 'Certificate download has not been approved yet. Please contact the administration office.' };
@@ -53997,8 +54023,8 @@ function certPortalPreview() {
       '<p style="font-size:13px;color:var(--text-muted);">Enter the Student Number of the person named on this certificate.</p></div>';
     return;
   }
-  if (!student.certNo) {
-    var stageLabel = {testing:'Assessment Stage',interview:'Interview Stage',training:'In Training',incomplete:'Incomplete'}[student.stage] || student.stage;
+  if (!CESTISCore.certs.isIssued(student)) {
+    var stageLabel = {testing:'Assessment Stage',interview:'Interview Stage',training:'In Training',incomplete:'Incomplete',nyc:'Not Yet Competent'}[student.stage] || student.stage;
     out.innerHTML = '<div class="cert-result-card pending">' +
       '<div class="cert-result-header"><div class="cert-result-icon" style="background:rgba(240,165,0,0.15);color:var(--accent);">&#9203;</div>' +
       '<div><div style="font-size:16px;font-weight:700;color:var(--accent);">Certificate Not Yet Issued</div>' +
@@ -54364,14 +54390,25 @@ function reconcileCertifiedFromApprovals() {
     if(!isApproved) return;
     // Match by studentId first, then fall back to name+course (case-insensitive).
     var stu = students.find(function(s){ return s && s.id === a.studentId; });
+    var byName = false;
     if(!stu) {
       var an = (a.name||'').toLowerCase().trim();
       var ac = (a.course||'').toLowerCase().trim();
       stu = students.find(function(s){
         return s && (s.name||'').toLowerCase().trim() === an && (s.course||'').toLowerCase().trim() === ac;
       });
+      byName = !!stu;
     }
     if(!stu) return;
+    // Found by name only: the approval moves to this record only on a staff
+    // device, only when nothing says it is another person, and only when this
+    // record already carries the approved certificate's number — a re-IDed
+    // copy of the same trainee. Never to certify anybody.
+    if(byName) {
+      var _sameCert = a.certNo && stu.certNo && CESTISCore.certs.numberKey(a.certNo) === CESTISCore.certs.numberKey(stu.certNo);
+      if(currentRole === 'student' || !_sameCert || !(stu.stage === 'certified' || stu.stage === 'collected') ||
+         (CESTISCore.identityConflict && CESTISCore.identityConflict(stu, a))) return;
+    }
     if(stu.stage === 'certified' || stu.stage === 'collected') {
       // Already certified; just keep the approval's studentId in sync if dedup re-IDed.
       if(stu.id !== a.studentId) { a.studentId = stu.id; changed = true; }
@@ -54382,6 +54419,12 @@ function reconcileCertifiedFromApprovals() {
     // A withdrawal decided after this approval stands: an approval that is
     // older than the withdrawal is stale, not a reason to re-certify.
     if(CESTISCore.certs.isRevoked(stu) && (Date.parse(stu.certRevokedAt) || 0) >= CESTISCore.certs.decidedAt(a)) return;
+    // A stage a person set after this approval (Update Stage, Student
+    // Progress) is the Centre's later decision: the approval does not
+    // overrule it.
+    var _stageAt = 0;
+    try { var _fsS = stu._fs && stu._fs.stage; if (_fsS) _stageAt = parseInt(String(_fsS).split('~')[0], 36) || 0; } catch(e) {}
+    if(stu.stageSetByUser && _stageAt && _stageAt > CESTISCore.certs.decidedAt(a)) return;
     // Restore certified status. An approval decided after a withdrawal is a
     // later decision to issue, so it re-certifies (stamped like Update Stage).
     if(CESTISCore.certs.isRevoked(stu)) stu.certReinstatedAt = new Date(CESTISCore.certs.decidedAt(a)).toISOString();
@@ -54542,6 +54585,8 @@ function _certHasCloudToken() {
 function generateCertificatePDF(studentId) {
   var student = students.find(function(s){ return s.id === studentId; });
   if(!student || !student.certNo) { showToast('Certificate not found'); _certDownloadStatus('Certificate not found.', true); return; }
+  // Never for a trainee who has not finished (not Certified or Collected), whatever called this.
+  if(!CESTISCore.certs.isIssued(student)) { showToast('No certificate has been issued yet.'); _certDownloadStatus('No certificate has been issued yet.', true); return; }
   // Her own certificate, at home (T4): its background through the gate.
   if (typeof cestisGateSession === 'function' && cestisGateSession() && window.CESTISGate) { homeCertDownload(student); return; }
 

@@ -376,6 +376,25 @@
     return !!x && x === y;
   };
 
+  /* Two records that share a name but cannot be the same person: both carry
+     an email, a TRN or a date of birth, and it differs. A name match alone
+     merged a newly registered "Steve Barrett" into a certified namesake on the
+     same programme and handed him that man's stage and certificate. Where
+     either side lacks the detail, nothing is decided here (false). */
+  Core.identityConflict = function (a, b) {
+    if (!a || !b) return false;
+    var email = function (r) { return String(r.email || '').trim().toLowerCase(); };
+    var trn = function (r) { return String(r.trn || r.nationalId || '').replace(/[^0-9a-z]/gi, '').toLowerCase(); };
+    var dob = function (r) {
+      var v = String(r.dob || r.dateOfBirth || '').trim();
+      if (!v) return '';
+      var t = Date.parse(v);
+      return isFinite(t) ? new Date(t).toISOString().slice(0, 10) : v.toLowerCase();
+    };
+    var differ = function (f) { var x = f(a), y = f(b); return !!x && !!y && x !== y; };
+    return differ(email) || differ(trn) || differ(dob);
+  };
+
   /* The natural key is the person plus the programme they are on — but the
      programme taken WITHOUT its intake key, exactly as dedupeStudents groups
      them (Core.programmeIdentity below).
@@ -1014,6 +1033,8 @@
       var bucket = slots[n] || (slots[n] = []);
       var written = courseOf(s);
       for (var i = 0; i < bucket.length; i++) {
+        // Same name, but a different email, TRN or date of birth: another person.
+        if (Core.identityConflict(bucket[i].rec, s)) continue;
         var fits = true;
         for (var j = 0; j < bucket[i].courses.length; j++) {
           if (!agree(bucket[i].courses[j], written)) { fits = false; break; }
@@ -4797,6 +4818,13 @@
       var r = t(student.certRevokedAt);
       return r > 0 && r > t(student.certReinstatedAt);
     }
+    /* Has this trainee been issued a certificate? Only a trainee the Centre
+       has marked Certified or Collected — a number left on a record whose
+       trainee is still in training (an old copy, an approval, a re-enrolment)
+       is not a certificate, and is never shown or downloaded as one. */
+    function isIssued(student) {
+      return !!(student && student.certNo && ISSUED[student.stage] && !isRevoked(student));
+    }
     function pushHistory(student, entry) {
       if (!Array.isArray(student.certHistory)) student.certHistory = [];
       student.certHistory.push(entry);
@@ -5545,7 +5573,7 @@
       numberKey: numberKey, numberPrefix: numberPrefix, rememberAlias: rememberAlias,
       previousNumber: previousNumber, approvalOf: approvalOf, approvedNumber: approvedNumber,
       hasNumber: hasNumber, numberSeed: numberSeed, generateNumber: generateNumber,
-      ensureNumber: ensureNumber, isRevoked: isRevoked, revoke: revoke, applyStage: applyStage,
+      ensureNumber: ensureNumber, isRevoked: isRevoked, isIssued: isIssued, revoke: revoke, applyStage: applyStage,
       mergeState: mergeState, mergeLifecycle: mergeLifecycle, resolve: resolve, status: status,
       decidedAt: decidedAt, mergeApprovals: mergeApprovals, recordDownload: recordDownload,
       eligibility: eligibility, templateKey: templateKey, keepTemplateProvenance: keepTemplateProvenance,
@@ -8980,6 +9008,7 @@
       var E = Core.enrolment;
       var agree = list.filter(function (s) {
         if (!s || Core.normName(s.name) !== want) return false;
+        if (Core.identityConflict(account, s)) return false;
         if (!prog || !s.course) return true;
         if (E && typeof E.programmesAgree === 'function') { try { return E.programmesAgree(prog, s.course); } catch (e) {} }
         return Core.normCourse(prog) === Core.normCourse(s.course);

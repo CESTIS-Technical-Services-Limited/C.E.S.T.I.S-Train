@@ -81,12 +81,12 @@ function forgotPage(opts) {
   // "Collect your certificate at the Centre".)
   function certPage(gate, kind, approved) {
     const sb = { console: console, certDownloadApprovals: [{ studentId: 'STU-1', approved: approved !== false }], certSyncDone: () => false,
-      cestisGateSession: () => gate, CESTISCore: { certs: { isRevoked: () => false } } };
+      cestisGateSession: () => gate, CESTISCore: { certs: { isRevoked: () => false, isIssued: s => !!(s && s.certNo && (s.stage === 'certified' || s.stage === 'collected')) } } };
     sb.CESTISGate = { session: () => (gate ? { base: { kind: kind || 'online' } } : null) };
     sb.window = { CESTISGate: sb.CESTISGate };
     vm.createContext(sb);
     vm.runInContext(extractFunction('homeCertLan') + '\n' + extractFunction('certDownloadAllowed'), sb);
-    return sb.certDownloadAllowed({ id: 'STU-1', certNo: 'C-1' });
+    return sb.certDownloadAllowed({ id: 'STU-1', certNo: 'C-1', stage: 'certified' });
   }
   const home = certPage(true), homeLan = certPage(true, 'lan'), homeNotYet = certPage(true, 'online', false), lab = certPage(false);
   assert(home.allowed === true, 'at home: issued and approved — she downloads it there (' + JSON.stringify(home) + ')');
