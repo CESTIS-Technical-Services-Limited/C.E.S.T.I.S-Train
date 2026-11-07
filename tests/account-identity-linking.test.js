@@ -110,7 +110,7 @@ console.log('A trainee cannot rename herself into somebody else');
     syncProfileToLmsChat: function () {}, saveState: function () {}, closeModal: function () {}, updateSidebarAvatar: function () {},
     buildStudentPages: function () {}, showPage: function () {} };
   vm.createContext(sb);
-  vm.runInContext(extractFunction(SRC, 'saveStudentProfile') + '\nsaveStudentProfile();', sb);
+  vm.runInContext(extractFunction(SRC, 'profileNowIso') + '\n' + extractFunction(SRC, 'saveStudentProfile') + '\nsaveStudentProfile();', sb);
   assertEq(alicia.name, 'Alicia Grant', 'the trainee record keeps her name');
   assertEq(sb.userAccounts[0].name, 'Alicia Grant', 'and so does her login');
   assertEq(sb.studentProfiles['STU-ali'].name, 'Alicia Grant', 'the profile (applied at every sign-in) keeps it too');

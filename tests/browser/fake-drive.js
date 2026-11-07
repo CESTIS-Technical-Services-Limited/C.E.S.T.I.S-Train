@@ -151,7 +151,9 @@ function parseMultipart(buf, ctype) {
     if (!out.meta && (/name="metadata"/i.test(head) || (/application\/json/i.test(head) && /^\s*\{/.test(body) && /"(name|parents|mimeType)"/.test(body) && body.length < 4000 && out.content === null && !/name="file"/i.test(head)))) {
       try { out.meta = JSON.parse(body); return; } catch (e) {}
     }
-    out.content = body;
+    // A part that is not text (a photo sent with FormData) is kept byte for byte.
+    const ptype = (/content-type:\s*([^\r\n;]+)/i.exec(head) || [])[1] || '';
+    out.content = /^(image|video|audio)\/|^application\/pdf$/i.test(ptype) ? Buffer.from(p.slice(i + 4).replace(/\r\n$/, ''), 'latin1') : body;
   });
   return out;
 }

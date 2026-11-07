@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <script src="cestis-config.js?v=284ebb2a"></script>
-<script src="cestis-core.js?v=06ea93fc"></script>
+<script src="cestis-core.js?v=d66b5c5c"></script>
 <script src="cestis-form-modal.js?v=74020c38" defer></script>
 <!-- Inert until a page registers: the CMC Board registers as a READ-ONLY reader
      so the operating pages' books reach its dashboards without anyone syncing. -->
@@ -8273,7 +8273,7 @@ function exportDataBackup() {
     'voctrain_systemSettings','voctrain_examResults','voctrain_examAttempts','voctrain_examRegisters','voctrain_assessmentWork','voctrain_calendarEvents','voctrain_adrTasks',
     'voctrain_adrStaffMeta','voctrain_adminStaffAccess','voctrain_instructorData','voctrain_certDownloadApprovals',
     'voctrain_skillAreas','voctrain_certTemplates','voctrain_chatRooms','voctrain_chatMessages',
-    'voctrain_chatProfiles','voctrain_chatFollows',
+    'voctrain_chatProfiles','voctrain_chatPictures','voctrain_chatFollows',
     // Travels with the centres it belongs to: restore the roster without the
     // record of what was deleted and every deleted training centre comes back.
     'voctrain_deletedCentreIds','voctrain_deletedStudentIds','voctrain_deletedUserIds',
@@ -8789,7 +8789,11 @@ function initLmsChatData() {
     if(cr) lmsChatRooms = JSON.parse(cr);
     lmsChatCleanRooms();   // a room's icon and colour are drawn: keep them plain (CESTISCore.chat.cleanRoom)
     if(cm) lmsChatMessages = JSON.parse(cm);
-    if(cp) lmsChatProfiles = JSON.parse(cp);
+    // Merged into what this page holds (each detail by its stamp), then the
+    // pictures kept apart put back: replacing the profiles with the stored
+    // copy dropped every picture and anything this page had newer.
+    if(cp) { var _cpStored = JSON.parse(cp); if(_cpStored && typeof _cpStored === 'object' && !Array.isArray(_cpStored)) CESTISCore.profiles.mergeMap(lmsChatProfiles, _cpStored, { name: 'chatProfiles' }); }
+    lmsChatAttachPictures();
     if(cf) lmsChatFollows = JSON.parse(cf);
     var cfl = CESTISStore.getItem('voctrain_chatFollowLog');
     if(cfl) { var _cfl = JSON.parse(cfl); if(_cfl && typeof _cfl === 'object' && !Array.isArray(_cfl)) lmsChatFollowLog = _cfl; }
@@ -8864,9 +8868,10 @@ function lmsChatReloadFromStore() {
     if (CESTISCore.chatSync.mergeRooms(lmsChatMessages, cm)) moved = true;
   }
   if (cp && typeof cp === 'object') {
-    var _cp = CESTISCore.sync.mergeMap(lmsChatProfiles, cp, {});
+    var _cp = CESTISCore.profiles.mergeMap(lmsChatProfiles, cp, { name: 'chatProfiles' });
     if (_cp && (_cp.added || _cp.updated)) moved = true;
   }
+  if (lmsChatAttachPictures()) moved = true;
   if (cf || cfl) {
     if (!lmsChatFollowLog || typeof lmsChatFollowLog !== 'object') lmsChatFollowLog = {};
     if (CESTISCore.chatSync.mergeFollows(lmsChatFollows, lmsChatFollowLog, cf || {}, (cfl && typeof cfl === 'object' && !Array.isArray(cfl)) ? cfl : {})) moved = true;
@@ -9197,6 +9202,28 @@ function lmsChatKeepStoredRooms() {
   return dropped.length;
 }
 
+/* The chat profiles as this device keeps them: the profiles without their
+   pictures (voctrain_chatProfiles), and the pictures apart
+   (voctrain_chatPictures), each with the stamp of the picture it holds —
+   written only when a picture changed. The pictures used to be dropped here
+   ("kept in memory and on Drive"), so after a reload or a sign-out the
+   device held its people without them, and its next copy (newer, since
+   presence dates a profile) deleted them everywhere. */
+function lmsChatStoreProfiles() {
+  CESTISStore.setItem('voctrain_chatProfiles', JSON.stringify(CESTISCore.profiles.stripPictures(lmsChatProfiles)));
+  var stored = safeJsonParse(CESTISStore.getItem('voctrain_chatPictures'), null);
+  var pics = (stored && typeof stored === 'object' && !Array.isArray(stored)) ? stored : {};
+  if (CESTISCore.profiles.mergePictures(pics, CESTISCore.profiles.picturesOf(lmsChatProfiles)) && Object.keys(pics).length) {
+    CESTISStore.setItem('voctrain_chatPictures', JSON.stringify(pics));
+  }
+}
+/* ...and back: the kept pictures onto the profiles in memory (each by its
+   stamp: one changed or taken off since is never put back). */
+function lmsChatAttachPictures() {
+  var pics = safeJsonParse(CESTISStore.getItem('voctrain_chatPictures'), null);
+  if (!pics || typeof pics !== 'object' || Array.isArray(pics)) return 0;
+  try { return CESTISCore.profiles.attachPictures(lmsChatProfiles, pics); } catch (e) { return 0; }
+}
 function saveLmsChatData() {
   if (!lmsChatStoreReady()) return;
   trimLmsChatHistory();
@@ -9217,13 +9244,7 @@ function saveLmsChatData() {
       });
     });
     CESTISStore.setItem('voctrain_chatMessages', JSON.stringify(msgCopy));
-    // Strip profile pics from localStorage (keep in memory + Drive)
-    var profCopy = {};
-    Object.keys(lmsChatProfiles).forEach(function(uid) {
-      profCopy[uid] = Object.assign({}, lmsChatProfiles[uid]);
-      delete profCopy[uid].profilePic;
-    });
-    CESTISStore.setItem('voctrain_chatProfiles', JSON.stringify(profCopy));
+    lmsChatStoreProfiles();
     CESTISStore.setItem('voctrain_chatFollows', JSON.stringify(lmsChatFollows));
     CESTISStore.setItem('voctrain_chatFollowLog', JSON.stringify(lmsChatFollowLog || {}));
   } catch(e) { console.warn('saveLmsChatData: storage error', e); }
@@ -9634,10 +9655,14 @@ function clearSensitiveStudentData() {
     CESTISStore.setItem('voctrain_assessmentWork', JSON.stringify(myWork));
   } catch(e) {}
 
-  // 4. Keep only this student's profile
+  // 4. Keep only this student's profile. It is filed under her student ID
+  // (Edit Profile writes studentProfiles[<student ID>]); keeping only the
+  // account id's entry threw her own phone, e-mail and emergency contact
+  // away at every sign-out — for good when they had not been sent yet.
   try {
     var myProfile = {};
     if(userId && studentProfiles[userId]) { myProfile[userId] = studentProfiles[userId]; }
+    if(studentId && studentProfiles[studentId]) { myProfile[studentId] = studentProfiles[studentId]; }
     studentProfiles = myProfile;
     CESTISStore.setItem('voctrain_studentProfiles', JSON.stringify(myProfile));
   } catch(e) { studentProfiles = {}; CESTISStore.removeItem('voctrain_studentProfiles'); }
@@ -9714,8 +9739,24 @@ function clearSensitiveStudentData() {
   // 7. Remove chat messages (may contain sensitive conversations)
   CESTISStore.removeItem('voctrain_chatMessages');
   lmsChatMessages = {};
-  CESTISStore.removeItem('voctrain_chatProfiles');
-  lmsChatProfiles = {};
+  // Her own chat profile (picture, status, status message, about) stays: it
+  // is hers, and it may be the only copy of a change not sent yet. Everyone
+  // else's goes.
+  try {
+    var myChat = {}, myPics = {};
+    var _allPics = safeJsonParse(CESTISStore.getItem('voctrain_chatPictures'), null) || {};
+    if(userId && lmsChatProfiles[userId]) {
+      myChat[userId] = lmsChatProfiles[userId];
+      var _ownPics = {}; _ownPics[userId] = lmsChatProfiles[userId];
+      var _mine = CESTISCore.profiles.picturesOf(_ownPics);
+      if(_allPics[userId]) myPics[userId] = _allPics[userId];
+      if(_mine[userId]) { var _pm = {}; _pm[userId] = myPics[userId]; CESTISCore.profiles.mergePictures(_pm, _mine); myPics[userId] = _pm[userId]; }
+    } else if(userId && _allPics[userId]) myPics[userId] = _allPics[userId];
+    lmsChatProfiles = myChat;
+    CESTISStore.setItem('voctrain_chatProfiles', JSON.stringify(CESTISCore.profiles.stripPictures(myChat)));
+    if(Object.keys(myPics).length) CESTISStore.setItem('voctrain_chatPictures', JSON.stringify(myPics));
+    else CESTISStore.removeItem('voctrain_chatPictures');
+  } catch(e) { CESTISStore.removeItem('voctrain_chatProfiles'); lmsChatProfiles = {}; }
   CESTISStore.removeItem('voctrain_chatFollows');
   lmsChatFollows = {};
   CESTISStore.removeItem('voctrain_chatFollowLog');
@@ -9759,6 +9800,12 @@ function clearSensitiveStudentData() {
   //   chatRooms (room list only, messages removed), systemSettings,
   //   classSessions, notifications
   // These are non-sensitive, read-only data that helps the student experience on next login.
+
+  // What is left is the baseline from here: the other trainees' records that
+  // just left this device were not deleted (a later save must never write
+  // them down as removed — her own profile now stays, so the list is no
+  // longer simply empty).
+  try { syncRebaselineAll(); } catch(e) {}
 
   console.log('[Session] Sensitive student data cleared from localStorage and memory. Own progress preserved.');
 }
@@ -10092,17 +10139,20 @@ function loadPerUserLocalData() {
     var nt = safeJsonParse(CESTISStore.getItem(prefix + 'notifications'), null);
     // Merge per-user data (don't overwrite if already loaded from cloud)
     if (cm) { Object.keys(cm).forEach(function(k) { if (!lmsChatMessages[k] || lmsChatMessages[k].length === 0) lmsChatMessages[k] = cm[k]; }); }
-    if (cp) { Object.keys(cp).forEach(function(k) { if (!lmsChatProfiles[k]) lmsChatProfiles[k] = cp[k]; }); }
+    // Profiles detail by detail (CESTISCore.profiles): this copy is the only
+    // one with the pictures when the shared one lacks them, and a profile
+    // the sign-in had already started (presence) used to shut it out whole.
+    if (cp && typeof cp === 'object') { try { CESTISCore.profiles.mergeMap(lmsChatProfiles, cp, { name: 'chatProfiles' }); } catch(e) {} }
     if (cf) { Object.keys(cf).forEach(function(k) { if (!lmsChatFollows[k]) lmsChatFollows[k] = cf[k]; }); }
     // (A room or notice deleted since this copy was kept stays deleted.)
     var _gone = function(col, r) { try { return CESTISCore.sync.deletedAfter(syncTombsFor(col), r && r.id != null ? String(r.id) : '', r); } catch(e) { return false; } };
     if (cr) { cr.forEach(function(room) { if (room && !_gone('chatRooms', room) && !lmsChatRooms.some(function(r) { return r.id === room.id; })) lmsChatRooms.push(room); }); }
     if (currentRole === 'student') {
       var sp = safeJsonParse(CESTISStore.getItem(prefix + 'studentProfiles'), null);
-      if (sp) { Object.keys(sp).forEach(function(k) { if (!studentProfiles[k]) studentProfiles[k] = sp[k]; }); }
+      if (sp && typeof sp === 'object') { try { CESTISCore.profiles.mergeMap(studentProfiles, sp, { name: 'studentProfiles', tombs: syncTombsFor('studentProfiles') }); } catch(e) {} }
     } else if (currentRole === 'instructor') {
       var ip = safeJsonParse(CESTISStore.getItem(prefix + 'instructorProfiles'), null);
-      if (ip) { Object.keys(ip).forEach(function(k) { if (!instructorProfiles[k]) instructorProfiles[k] = ip[k]; }); }
+      if (ip && typeof ip === 'object') { try { CESTISCore.profiles.mergeMap(instructorProfiles, ip, { name: 'instructorProfiles', tombs: syncTombsFor('instructorProfiles') }); } catch(e) {} }
     }
     if (nt && Array.isArray(nt)) { nt.forEach(function(n) { if (n && !_gone('notifications', n) && !notifications.some(function(l) { return l.id === n.id; })) notifications.push(n); }); }
     console.log('[PerUser] Loaded per-user local data for ' + userId);
@@ -13810,7 +13860,15 @@ function updateTopbarWho() {
   document.getElementById('topbarWhoName').textContent = name;
   document.getElementById('topbarWhoRole').textContent = role;
   var av = document.getElementById('topbarWhoAvatar');
-  if(av) { av.textContent = initials || '?'; var sa = document.getElementById('sidebarAvatar'); if(sa && sa.style.background) av.style.background = sa.style.background; }
+  if(av) {
+    var sa = document.getElementById('sidebarAvatar'); if(sa && sa.style.background) av.style.background = sa.style.background;
+    // Their own picture when they have set one (on a phone this is the only
+    // place it shows outside the chat), else their initials.
+    var _own = (currentLoggedInUser && typeof lmsChatProfiles !== 'undefined') ? lmsChatProfiles[currentLoggedInUser.id] : null;
+    var _pic = _own && _own.profilePic ? safeUrl(_own.profilePic) : '';
+    if(_pic) { av.innerHTML = '<img src="' + escapeAttr(_pic) + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">'; av.style.overflow = 'hidden'; }
+    else av.textContent = initials || '?';
+  }
   box.title = 'Signed in as ' + name + (role ? ' (' + role + ')' : '');
   box.setAttribute('aria-label', box.title + ' — account menu');
   var head = document.getElementById('topbarAccountWho');
@@ -13960,13 +14018,7 @@ function enterApp(role) {
     }
 
     // Show profile picture in sidebar if user has one in LMS Chat
-    if(currentLoggedInUser && typeof lmsChatProfiles !== 'undefined') {
-      var cp = lmsChatProfiles[currentLoggedInUser.id];
-      if(cp && cp.profilePic) {
-        var sa = document.getElementById('sidebarAvatar');
-        if(sa && safeUrl(cp.profilePic)) { sa.innerHTML = '<img src="'+escapeAttr(safeUrl(cp.profilePic))+'" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">'; sa.style.overflow = 'hidden'; }
-      }
-    }
+    profileShowOwnPicture();
 
     // Set session expiry and start periodic check
     setSessionExpiry();
@@ -13975,6 +14027,9 @@ function enterApp(role) {
 
     // Load per-user local data (chat, profiles) for this specific user
     loadPerUserLocalData();
+    // ...a trainee at home: her own picture and status, from her own record.
+    try { if (typeof cestisGateSession === 'function' && cestisGateSession()) profilesTakeTraineeChat(); } catch(e) {}
+    profileShowOwnPicture();
 
     // Bring up the realtime data-channel peer for the whole session so live
     // notifications, announcements, assignments and assigned tasks arrive
@@ -17672,7 +17727,7 @@ function buildInstructorPages() {
         <div class="info-row"><span class="info-label">Joined</span><span class="info-value">${escapeHtml(ins.joinedYear || (Number(ins.yearsExp) >= 0 ? new Date().getFullYear() - Number(ins.yearsExp) : '—'))}</span></div>
       </div>
     </div>
-    ${(instructorProfiles[ins.id]?.bio) ? '<div class="info-section" style="margin-top:20px;"><h4>About</h4><p style="color:var(--text-secondary);line-height:1.6;padding:12px 0;">' + instructorProfiles[ins.id].bio + '</p></div>' : ''}
+    ${(instructorProfiles[ins.id]?.bio) ? '<div class="info-section" style="margin-top:20px;"><h4>About</h4><p style="color:var(--text-secondary);line-height:1.6;padding:12px 0;">' + escapeHtml(instructorProfiles[ins.id].bio) + '</p></div>' : ''}
   </section>
 
   <!-- C.E.S.T.I.S LMS CHAT PAGE (INSTRUCTOR) -->
@@ -25006,18 +25061,40 @@ function renderStudentDriveResources() {
 // ============================== SHARED PROFILE PIC HELPERS ==============================
 var _pendingProfilePics = { student: null, instructor: null, account: null };
 
-function profilePicPreview(input, previewId, type) {
-  var file = input.files[0];
+/* A chosen photo, made a 256-pixel JPEG before it is kept: it travels with
+   the person's profile to every device (and, for a trainee at home, inside
+   her profile record, which the trainee gate takes only up to a size). A
+   phone camera's 4 MB original used to be kept as it was. done(dataUrl) —
+   or nothing, with a message, when the file is not a picture. */
+function profilePicPrepare(file, done) {
   if(!file) return;
-  if(file.size > 2 * 1024 * 1024) { showToast('Image must be under 2 MB'); return; }
+  if(file.size > 15 * 1024 * 1024) { showToast('That photo is too large. Please choose a smaller picture.', 'warning'); return; }
   var reader = new FileReader();
   reader.onload = function(e) {
-    var preview = document.getElementById(previewId);
-    if(preview) preview.innerHTML = '<img src="'+e.target.result+'" alt="New profile picture (preview)">';
-    _pendingProfilePics[type] = e.target.result;
+    var src = e.target.result;
+    var img = new Image();
+    img.onload = function() {
+      try {
+        var s = Math.min(1, 256 / Math.max(img.width, img.height));
+        var c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(img.width * s)); c.height = Math.max(1, Math.round(img.height * s));
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        done(c.toDataURL('image/jpeg', 0.85));
+      } catch(err) { if(String(src).length < 300000 && CESTISCore.profiles.isPicture(src)) done(src); else showToast('That photo could not be prepared. Please choose a smaller picture.', 'warning'); }
+    };
+    img.onerror = function() { showToast('That file is not a picture this browser can read.', 'warning'); };
+    img.src = src;
   };
   reader.readAsDataURL(file);
+}
+function profilePicPreview(input, previewId, type) {
+  var file = input.files[0];
   input.value = '';
+  profilePicPrepare(file, function(url) {
+    var preview = document.getElementById(previewId);
+    if(preview) preview.innerHTML = '<img src="'+escapeAttr(safeUrl(url, {data:true}))+'" alt="New profile picture (preview)">';
+    _pendingProfilePics[type] = url;
+  });
 }
 
 function profilePicRemove(previewId, type) {
@@ -25038,7 +25115,99 @@ function profilePicLoadPreview(previewId, userId, name) {
   }
 }
 
-// Sync profile pic and status to lmsChatProfiles so other users see it in LMS Chat
+/* ---- A person's own profile: picture, status, status message, about ----
+   Every change is stamped detail by detail (CESTISCore.profiles.touch), so an
+   older copy of the profile — another device's, the Centre's backup, a copy
+   kept from before the last sign-out — can never put the old value back, and
+   a detail another copy simply lacks (a picture kept apart) is never taken
+   as removed. The chosen status is the person's own (statusChoice);
+   presence only shows it while they are about. */
+function profileNowIso() {
+  try { if (window.CESTISPageCloud && typeof CESTISPageCloud.now === 'function') return CESTISPageCloud.now(); } catch(e) {}
+  return CESTISCore.sync.nowIso();
+}
+function profileChatApply(userId, changes) {
+  if(typeof lmsChatProfiles === 'undefined' || !userId) return [];
+  if(!lmsChatProfiles[userId]) lmsChatProfiles[userId] = {};
+  var cp = lmsChatProfiles[userId];
+  var changed = [];
+  Object.keys(changes || {}).forEach(function(f) {
+    var v = changes[f];
+    if(v === undefined || cp[f] === v) return;
+    cp[f] = v;
+    changed.push(f);
+  });
+  if(changed.length) { try { CESTISCore.profiles.touch(cp, changed, profileNowIso(), 'chatProfiles'); } catch(e) { console.warn('[Profile] stamp failed', e); } }
+  // Presence shows the choice straight away.
+  if(changes && changes.statusChoice !== undefined) { cp.status = CESTISCore.profiles.chosenStatus(cp); cp.lastSeen = new Date().toISOString(); }
+  try { profileMirrorOwnChat(userId); } catch(e) {}
+  return changed;
+}
+/* A trainee at home (a trainee-gate session): her own chat details go inside
+   her profile record (preferences.chat), the one record of hers the gate
+   takes — that is how they reach the Centre, and how her published records
+   bring them back to the next device she signs in on. */
+function profileMirrorOwnChat(userId) {
+  if(!(typeof cestisGateSession === 'function' && cestisGateSession())) return false;
+  if(currentRole !== 'student' || !currentStudent || !currentLoggedInUser || currentLoggedInUser.id !== userId) return false;
+  var part = CESTISCore.profiles.chatPart(lmsChatProfiles[userId]);
+  if(!part) return false;
+  var sid = currentStudent.id;
+  var sp = studentProfiles[sid] || (studentProfiles[sid] = {});
+  var prefs = (sp.preferences && typeof sp.preferences === 'object' && !Array.isArray(sp.preferences)) ? sp.preferences : {};
+  var both = CESTISCore.profiles.mergeChatParts(prefs.chat, part);
+  if(JSON.stringify(both) === JSON.stringify(prefs.chat)) return false;
+  prefs.chat = both;
+  sp.preferences = prefs;
+  CESTISCore.profiles.touch(sp, ['preferences'], profileNowIso(), 'studentProfiles');
+  return true;
+}
+/* The trainee's account for a profile record's key (her account id, or her
+   student ID). Only a trainee's: nobody's record sets a member of staff's
+   picture. */
+function profileTraineeAccountFor(key) {
+  if(key == null || key === '') return null;
+  var list = Array.isArray(userAccounts) ? userAccounts : [];
+  var u = list.find(function(a) { return a && a.id === key && a.role === 'student'; });
+  if(!u) u = list.find(function(a) { return a && a.role === 'student' && a.studentDataId === key; });
+  return u ? u.id : null;
+}
+/* Trainees' own chat details that came inside their profile records (from
+   home, through the trainee gate — or her own record published back to her)
+   into the chat profiles everyone sees, each detail by its stamp; and a
+   gender she changed at home onto her trainee record, unless the office
+   changed it since. Returns how many changed. */
+function profilesTakeTraineeChat() {
+  var n = 0;
+  if(!studentProfiles || typeof studentProfiles !== 'object' || typeof lmsChatProfiles === 'undefined') return 0;
+  Object.keys(studentProfiles).forEach(function(k) {
+    var sp = studentProfiles[k];
+    var prefs = sp && sp.preferences;
+    if(!prefs || typeof prefs !== 'object') return;
+    var acct = profileTraineeAccountFor(k);
+    if(!acct) return;
+    if(prefs.chat && typeof prefs.chat === 'object') {
+      if(!lmsChatProfiles[acct]) lmsChatProfiles[acct] = {};
+      if(CESTISCore.profiles.takeChatPart(lmsChatProfiles[acct], prefs.chat)) { n++; profileFolderWanted(acct); }
+    }
+    if(typeof prefs.gender === 'string' && prefs.genderAt && !(typeof cestisGateSession === 'function' && cestisGateSession())) {
+      var account = userAccounts.find(function(a) { return a && a.id === acct; });
+      var stu = account ? findStudentRecordForAccount(account) : null;
+      if(stu && (stu.gender || '') !== prefs.gender && /^(Male|Female|)$/.test(prefs.gender)) {
+        var F = CESTISCore.sync.fields, R = CESTISCore.STUDENT_FIELD_RULES;
+        var since = F.stampFor(stu, 'gender') || F.floorOf(stu, { stamp: R.stamp, skip: R.skip });
+        if((Date.parse(prefs.genderAt) || 0) > since) {
+          stu.gender = prefs.gender;
+          stu.lastModified = CESTISCore.sync.laterStamp(profileNowIso(), stu.lastModified);
+          n++;
+        }
+      }
+    }
+  });
+  return n;
+}
+
+// The edit forms' picture and status, into the person's chat profile.
 function syncProfileToLmsChat(userId, name, role, programme, picType) {
   if(typeof lmsChatProfiles === 'undefined') return;
   if(!lmsChatProfiles[userId]) lmsChatProfiles[userId] = {};
@@ -25047,13 +25216,12 @@ function syncProfileToLmsChat(userId, name, role, programme, picType) {
   cp.role = role;
   cp.programme = programme || '';
 
-  // Handle profile picture
+  var changes = {};
+  // A picture taken off is kept as '' (a dated removal), never a missing
+  // value: a missing value is what a copy without the picture looks like.
   var pendingPic = _pendingProfilePics[picType];
-  if(pendingPic === '__remove__') {
-    delete cp.profilePic;
-  } else if(pendingPic) {
-    cp.profilePic = pendingPic;
-  }
+  if(pendingPic === '__remove__') changes.profilePic = '';
+  else if(pendingPic) changes.profilePic = pendingPic;
   _pendingProfilePics[picType] = null;
 
   // Read status fields based on type
@@ -25061,14 +25229,27 @@ function syncProfileToLmsChat(userId, name, role, programme, picType) {
   var statusMsgId = picType === 'student' ? 'editStuStatusMsg' : picType === 'instructor' ? 'editInsStatusMsg' : 'editAcctStatusMsg';
   var statusEl = document.getElementById(statusId);
   var statusMsgEl = document.getElementById(statusMsgId);
-  if(statusEl) cp.status = statusEl.value;
-  if(statusMsgEl) cp.statusMsg = statusMsgEl.value.trim();
+  if(statusEl && statusEl.value) changes.statusChoice = statusEl.value;
+  if(statusMsgEl) changes.statusMsg = statusMsgEl.value.trim();
+  profileChatApply(userId, changes);
 
-  // Save and sync
-  if(typeof saveLmsChatData === 'function') saveLmsChatData();
-  if(typeof lmsChatSyncToDrive === 'function') lmsChatSyncToDrive();
+  // Saved by the caller (saveState, which stamps and keeps it, then sends it).
+  if(typeof lmsChatScheduleDriveSync === 'function') lmsChatScheduleDriveSync();
 }
 
+// The signed-in person's own picture in the sidebar, once it has arrived
+// (after a sign-in's sync, or from their own folder).
+function profileShowOwnPicture() {
+  try {
+    if(!currentLoggedInUser || typeof lmsChatProfiles === 'undefined') return;
+    var cp = lmsChatProfiles[currentLoggedInUser.id];
+    var sa = document.getElementById('sidebarAvatar');
+    try { updateTopbarWho(); } catch(e) {}
+    if(!sa || !cp || !cp.profilePic || !safeUrl(cp.profilePic)) return;
+    sa.innerHTML = '<img src="'+escapeAttr(safeUrl(cp.profilePic))+'" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
+    sa.style.overflow = 'hidden';
+  } catch(e) {}
+}
 // Update sidebar avatar to show profile picture if available
 function updateSidebarAvatar(userId, name) {
   var el = document.getElementById('sidebarUserName');
@@ -25109,7 +25290,7 @@ function openEditStudentProfile() {
   profilePicLoadPreview('editStuPicPreview', currentLoggedInUser?.id, s.name);
   var statusSel = document.getElementById('editStuStatus');
   var statusMsg = document.getElementById('editStuStatusMsg');
-  if(statusSel) statusSel.value = chatProfile.status || 'online';
+  if(statusSel) statusSel.value = CESTISCore.profiles.chosenStatus(chatProfile);
   if(statusMsg) statusMsg.value = chatProfile.statusMsg || '';
 
   openModal('editStudentProfileModal');
@@ -25133,11 +25314,14 @@ function saveStudentProfile() {
   if(!newName) { showToast('Please enter your name'); return; }
   if(!email) { showToast('Please enter an email address'); return; }
 
-  // Update gender on the student record
+  // Update gender on the student record — dated, so the change travels (a
+  // trainee record's details are stamped only when its date moves).
   var newGender = (document.getElementById('editProfileGender')?.value || '').trim();
   var stu = students.find(function(st){ return st.id === s.id; });
+  var genderChanged = (s.gender || '') !== newGender;
   if(stu) stu.gender = newGender;
   s.gender = newGender;
+  if(genderChanged && stu) stu.lastModified = CESTISCore.sync.laterStamp(profileNowIso(), stu.lastModified);
 
   // A trainee cannot change their own legal name — they ASK, and the office
   // applies it (Student Progress → Edit, which also knows about namesakes).
@@ -25161,15 +25345,33 @@ function saveStudentProfile() {
     }
   }
 
-  studentProfiles[s.id] = {
+  // Changed in place, detail by detail, each change stamped: the record used
+  // to be replaced whole, which dropped whatever else it held (what the
+  // office keeps there, her picture and status from home) and let an older
+  // copy with a newer date put every detail back.
+  var sp = studentProfiles[s.id] || (studentProfiles[s.id] = {});
+  var spNext = {
     name: s.name,
     requestedName: nameRequest || (_prevProfile.requestedName && _prevProfile.requestedName !== s.name ? _prevProfile.requestedName : undefined),
     email: email,
     phone: phone,
     emergencyName: emergencyName,
-    emergencyPhone: emergencyPhone,
-    updatedAt: new Date().toISOString()
+    emergencyPhone: emergencyPhone
   };
+  var spChanged = [];
+  Object.keys(spNext).forEach(function(f) {
+    var v = spNext[f];
+    if(v === undefined) { if(f in sp) { delete sp[f]; spChanged.push(f); } return; }
+    if(sp[f] !== v) { sp[f] = v; spChanged.push(f); }
+  });
+  // At home her gender goes with her profile record (the one the trainee
+  // gate takes); the office puts it on her record unless it changed it since.
+  if(genderChanged && typeof cestisGateSession === 'function' && cestisGateSession()) {
+    var _prefs = (sp.preferences && typeof sp.preferences === 'object' && !Array.isArray(sp.preferences)) ? sp.preferences : {};
+    _prefs.gender = newGender; _prefs.genderAt = profileNowIso();
+    sp.preferences = _prefs; spChanged.push('preferences');
+  }
+  if(spChanged.length || !sp.updatedAt) CESTISCore.profiles.touch(sp, spChanged, profileNowIso(), 'studentProfiles');
 
   // Keep School Fee Management showing the same name as Student Progress.
   if(wasIdentity && stu) {
@@ -25214,7 +25416,7 @@ function openEditInstructorProfile() {
   profilePicLoadPreview('editInsPicPreview', currentLoggedInUser?.id, ins.name);
   var statusSel = document.getElementById('editInsStatus');
   var statusMsg = document.getElementById('editInsStatusMsg');
-  if(statusSel) statusSel.value = chatProfile.status || 'online';
+  if(statusSel) statusSel.value = CESTISCore.profiles.chosenStatus(chatProfile);
   if(statusMsg) statusMsg.value = chatProfile.statusMsg || '';
 
   openModal('editInstructorProfileModal');
@@ -25233,22 +25435,24 @@ function saveInstructorProfile() {
   if(!newName) { showToast('Please enter your name'); return; }
   if(!email) { showToast('Please enter an email address'); return; }
 
-  // Update name in instructor data, userAccounts, and instructorData array
+  // Update name in instructor data, userAccounts, and instructorData array.
+  // The account is dated (touchAccount): undated, the next sync took the
+  // older copy of the account back and the old name with it.
+  var _acctTouched = false;
   if(newName !== ins.name) {
     ins.name = newName;
     if(currentLoggedInUser) currentLoggedInUser.name = newName;
     var acct = userAccounts.find(function(u){ return u.id === currentLoggedInUser.id; });
-    if(acct) acct.name = newName;
+    if(acct) { acct.name = newName; touchAccount(acct); _acctTouched = true; }
   }
 
-  instructorProfiles[ins.id] = {
-    name: newName,
-    email: email,
-    phone: phone,
-    specialization: specialization,
-    bio: bio,
-    updatedAt: new Date().toISOString()
-  };
+  // Changed in place, each change stamped (see saveStudentProfile).
+  var ip = instructorProfiles[ins.id] || (instructorProfiles[ins.id] = {});
+  var ipNext = { name: newName, email: email, phone: phone, specialization: specialization, bio: bio };
+  var ipChanged = [];
+  Object.keys(ipNext).forEach(function(f) { if(ip[f] !== ipNext[f]) { ip[f] = ipNext[f]; ipChanged.push(f); } });
+  if(ipChanged.length || !ip.updatedAt) CESTISCore.profiles.touch(ip, ipChanged, profileNowIso(), 'instructorProfiles');
+  if(_acctTouched) { try { saveUserAccounts(); } catch(e) {} }
 
   // Also update the instructor data object so changes reflect everywhere
   ins.email = email;
@@ -25326,7 +25530,7 @@ function openAccountProfileEdit() {
   profilePicLoadPreview('editAcctPicPreview', user.id, user.name);
   var statusSel = document.getElementById('editAcctStatus');
   var statusMsg = document.getElementById('editAcctStatusMsg');
-  if(statusSel) statusSel.value = chatProfile.status || 'online';
+  if(statusSel) statusSel.value = CESTISCore.profiles.chosenStatus(chatProfile);
   if(statusMsg) statusMsg.value = chatProfile.statusMsg || '';
 
   openModal('editAccountProfileModal');
@@ -25342,16 +25546,24 @@ function saveAccountProfile() {
 
   if(!newName) { showToast('Please enter your name'); return; }
 
-  // Update the userAccounts entry
+  // Update the userAccounts entry — dated (touchAccount) and written to the
+  // accounts list at once (saveUserAccounts). Undated, the next sync judged
+  // the Centre's older copy of the account the newer one and the name and
+  // e-mail went back; the phone number never left this computer at all.
   var acct = userAccounts.find(function(u){ return u.id === user.id; });
-  if(acct) {
-    acct.name = newName;
-    if(email) acct.email = email;
-    if(phone) acct.phone = phone;
+  var acctChanged = false;
+  [acct, user].forEach(function(a) {
+    if(!a) return;
+    if(a.name !== newName) { a.name = newName; acctChanged = true; }
+    if(email && a.email !== email) { a.email = email; acctChanged = true; }
+    if(phone !== undefined && (a.phone || '') !== phone) { a.phone = phone; acctChanged = true; }
+  });
+  if(acctChanged) {
+    var _t = CESTISCore.sync.laterStamp(profileNowIso(), (acct || user).updatedAt);
+    if(acct) acct.updatedAt = _t;
+    user.updatedAt = _t;
+    try { saveUserAccounts(); } catch(e) {}
   }
-  user.name = newName;
-  if(email) user.email = email;
-  if(phone) user.phone = phone;
 
   // Sync profile pic and status to LMS Chat
   syncProfileToLmsChat(user.id, newName, user.role, user.programme || '', 'account');
@@ -26357,7 +26569,7 @@ var CESTIS_SHARED_COLLECTIONS = {
   // Another tab's or the Centre's network's copy: its details' stamps came
   // with it, and nothing in it was edited in THIS window.
   voctrain_students:            function(v){ students = v; cestisRepointSessionRecords(); if (typeof studentFieldsRebaseline === 'function') studentFieldsRebaseline(); },
-  voctrain_studentProfiles:     function(v){ studentProfiles = v; },
+  voctrain_studentProfiles:     function(v){ studentProfiles = v; try { if (typeof profilesTakeTraineeChat === 'function') profilesTakeTraineeChat(); } catch(e) {} },
   voctrain_instructorData:      function(v){ instructorData = v; cestisRepointSessionRecords(); },
   voctrain_instructorProfiles:  function(v){ instructorProfiles = v; },
   // Merged, never adopted wholesale (see mergeIncomingAttendance).
@@ -38801,11 +39013,10 @@ async function mergeFromCloud() {
         lmsChatMessages[roomId].sort(function(a,b){ return new Date(a.timestamp) - new Date(b.timestamp); });
       });
     }
-    if (backupData.data.chatProfiles) {
-      Object.keys(backupData.data.chatProfiles).forEach(function(uid) {
-        if (!lmsChatProfiles[uid]) lmsChatProfiles[uid] = {};
-        Object.assign(lmsChatProfiles[uid], backupData.data.chatProfiles[uid]);
-      });
+    if (backupData.data.chatProfiles && typeof backupData.data.chatProfiles === 'object') {
+      // Detail by detail: a backup's older picture or status never replaces
+      // one changed since (CESTISCore.profiles).
+      CESTISCore.profiles.mergeMap(lmsChatProfiles, backupData.data.chatProfiles, { name: 'chatProfiles' });
     }
     if (backupData.data.driveResources) {
       backupData.data.driveResources.forEach(function(cr) {
@@ -40263,7 +40474,12 @@ async function syncUserLoginFolderToDrive(account, opts) {
   if (!account || !isCloudConnected || !googleAccessToken) return false;
   var _rec = buildUserLoginRecord(account);
   var _recKey = JSON.stringify(_rec.account);
-  if (opts && opts.ifChanged && _userLoginLastSent[account.id] === _recKey) return true;
+  var _acctDue = !(opts && opts.ifChanged && _userLoginLastSent[account.id] === _recKey);
+  // Their own profile too (opts.profile): written when it changed.
+  var _prof = null;
+  try { _prof = (opts && opts.profile) ? ownProfileForFolder(account) : null; } catch (e) { _prof = null; }
+  var _profDue = !!(_prof && _ownProfileLastSent[account.id] !== _prof.key);
+  if (!_acctDue && !_profDue) return true;
   try {
     if (!_userLoginRootFolderId) {
       _userLoginRootFolderId = await driveFindOrCreateFolder(USER_LOGIN_FOLDER_NAME, GOOGLE_DRIVE_CONFIG.FOLDER_ID, googleAccessToken);
@@ -40275,13 +40491,236 @@ async function syncUserLoginFolderToDrive(account, opts) {
       if (subId) _userLoginSubfolderIds[account.id] = subId;
     }
     if (!subId) return false;
-    var _sent = await driveUploadJsonToFolder('account.json', _rec, subId, googleAccessToken);
-    if (_sent) _userLoginLastSent[account.id] = _recKey;
+    if (_acctDue) {
+      var _sent = await driveUploadJsonToFolder('account.json', _rec, subId, googleAccessToken);
+      if (_sent) _userLoginLastSent[account.id] = _recKey;
+    }
+    if (_profDue) {
+      if (await ownProfileWrite(account, _prof, subId, googleAccessToken)) delete _ownProfileWanted[account.id];
+    }
     return true;
   } catch (e) {
     console.warn('[UserLogin] Could not sync folder for account ' + (account && account.id) + ':', e);
     return false;
   }
+}
+
+/* ---- Each person's own folder: their profile, and their picture as a file ----
+   The folder above ("User Login/<name> (<id>)/") also holds profile.json —
+   what the person changed about themselves (picture, status, status message,
+   about; a trainee's e-mail, phone and emergency contact; an instructor's
+   specialisation; a member of staff's phone), each detail with its stamp —
+   and the picture itself beside it as a file. The picture goes first and the
+   profile names it after, so the profile never names a picture the folder
+   does not hold; an older picture is only ever replaced by a newer one that
+   arrived whole. At every sign-in it is read back and merged detail by
+   detail (loadOwnProfileFromFolder), so what a person set comes back on any
+   computer — after a sign-out emptied this one, or when a shared copy lost
+   it — and never over something changed since. */
+var OWN_PROFILE_FILE = 'profile.json';
+var _ownProfileLastSent = {};      // account id -> the profile this page last wrote there
+var _ownPictureLastSent = {};      // account id -> the hash of the picture this page last wrote there
+var _ownProfileWanted = {};        // trainees whose change arrived from home: their folder is written next
+function profileFolderWanted(acct) { if (acct) _ownProfileWanted[acct] = true; }
+function ownPictureFileName(dataUrl) {
+  var m = /^data:image\/(png|jpe?g|gif|webp);/i.exec(String(dataUrl || ''));
+  var ext = m ? m[1].toLowerCase().replace('jpeg', 'jpg') : 'jpg';
+  return 'profile-picture.' + ext;
+}
+// The trainee's student ID for her account (where her profile is filed).
+function ownProfileStudentId(account) {
+  if (!account || account.role !== 'student') return null;
+  var s = null;
+  try { s = (currentLoggedInUser && currentLoggedInUser.id === account.id && currentStudent) ? currentStudent : findStudentRecordForAccount(account); } catch (e) { s = null; }
+  return (s && s.id) || account.studentDataId || null;
+}
+function ownProfileInstructorId(account) {
+  if (!account || account.role !== 'instructor') return null;
+  if (currentLoggedInUser && currentLoggedInUser.id === account.id && currentInstructor) return currentInstructor.id;
+  var em = String(account.email || '').trim().toLowerCase();
+  var ins = em ? (instructorData || []).find(function(i) { return i && String(i.email || '').trim().toLowerCase() === em; }) : null;
+  return ins ? ins.id : null;
+}
+/* What goes in the folder: { key, json, pic } — json without the picture's
+   bytes (it names the file and the picture's hash), pic the picture itself. */
+function ownProfileForFolder(account) {
+  if (!account || !account.id || typeof lmsChatProfiles === 'undefined') return null;
+  var out = { version: '1.0', kind: 'cestis-profile', accountId: account.id, role: account.role || '',
+    account: { name: account.name || '', email: account.email || '', phone: account.phone || '', updatedAt: account.updatedAt || '' } };
+  var chat = lmsChatProfiles[account.id] ? CESTISCore.profiles.chatPart(lmsChatProfiles[account.id]) : null;
+  var pic = null;
+  if (chat) {
+    if (typeof chat.profilePic === 'string' && chat.profilePic) {
+      pic = chat.profilePic;
+      chat.picture = { file: ownPictureFileName(pic), hash: String(CESTISCore.hashString(pic)) };
+      delete chat.profilePic;
+    }
+    out.chat = chat;
+  }
+  var sid = ownProfileStudentId(account);
+  if (sid && studentProfiles[sid]) {
+    var sp = JSON.parse(JSON.stringify(studentProfiles[sid]));
+    if (sp.preferences && sp.preferences.chat) delete sp.preferences.chat;   // (the chat details are above)
+    out.studentId = sid; out.studentProfile = sp;
+  }
+  var iid = ownProfileInstructorId(account);
+  if (iid && instructorProfiles[iid]) { out.instructorId = iid; out.instructorProfile = JSON.parse(JSON.stringify(instructorProfiles[iid])); }
+  if (!out.chat && !out.studentProfile && !out.instructorProfile && !out.account.phone) return null;
+  return { key: JSON.stringify(out), json: out, pic: pic };
+}
+function dataUrlToBlob(dataUrl) {
+  var m = /^data:([^;,]+);base64,(.*)$/.exec(String(dataUrl || ''));
+  if (!m) return null;
+  var bin = atob(m[2]), bytes = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new Blob([bytes], { type: m[1] });
+}
+async function driveFindInFolder(name, folderId, token, folders) {
+  var q = "name='" + String(name).replace(/'/g, "\\'") + "' and '" + folderId + "' in parents and trashed=false" +
+    (folders ? " and mimeType='application/vnd.google-apps.folder'" : '');
+  var r = await fetch('https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(q) + '&fields=files(id,name)', { headers: { 'Authorization': 'Bearer ' + token } });
+  if (!r.ok) throw new Error('lookup ' + r.status);
+  var d = await r.json();
+  return (d.files && d.files.length) ? d.files[0].id : null;
+}
+async function driveUploadBlobToFolder(fileName, blob, mime, folderId, token) {
+  var existingId = await driveFindInFolder(fileName, folderId, token, false);
+  if (existingId) {
+    var pr = await fetch('https://www.googleapis.com/upload/drive/v3/files/' + existingId + '?uploadType=media', {
+      method: 'PATCH', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': mime }, body: blob
+    });
+    return !!(pr && pr.ok);
+  }
+  var form = new FormData();
+  form.append('metadata', new Blob([JSON.stringify({ name: fileName, parents: [folderId], mimeType: mime })], { type: 'application/json' }));
+  form.append('file', blob);
+  var cr = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
+    method: 'POST', headers: { 'Authorization': 'Bearer ' + token }, body: form
+  });
+  return !!(cr && cr.ok);
+}
+async function ownProfileWrite(account, prof, subId, token) {
+  if (!prof) return true;
+  if (prof.pic) {
+    var h = prof.json.chat.picture.hash;
+    if (_ownPictureLastSent[account.id] !== h) {
+      var blob = dataUrlToBlob(prof.pic);
+      if (!blob) return false;
+      // The picture first: the profile names it only once it is there whole.
+      if (!(await driveUploadBlobToFolder(prof.json.chat.picture.file, blob, blob.type || 'image/jpeg', subId, token))) return false;
+      _ownPictureLastSent[account.id] = h;
+    }
+  }
+  var body = JSON.parse(JSON.stringify(prof.json));
+  body.savedAt = new Date().toISOString();
+  var ok = await driveUploadJsonToFolder(OWN_PROFILE_FILE, body, subId, token);
+  if (ok) _ownProfileLastSent[account.id] = prof.key;
+  return ok;
+}
+// Trainees whose change arrived from home: their folders, a few each turn.
+async function ownProfileWriteWanted() {
+  var ids = Object.keys(_ownProfileWanted).slice(0, 3);
+  for (var i = 0; i < ids.length; i++) {
+    var acct = (userAccounts || []).find(function(a) { return a && a.id === ids[i]; });
+    if (!acct) { delete _ownProfileWanted[ids[i]]; continue; }
+    await syncUserLoginFolderToDrive(acct, { ifChanged: true, profile: true });
+  }
+}
+/* At sign-in: the profile in the person's own folder, merged in (each detail
+   by its stamp — an older one never replaces a newer one here). Returns
+   whether anything changed. Never creates a folder, never touches a
+   password, a role or a status; a trainee's name stays the office's. */
+async function loadOwnProfileFromFolder() {
+  var account = currentLoggedInUser;
+  if (!account || !isCloudConnected || !googleAccessToken) return false;
+  if (typeof cestisGateSession === 'function' && cestisGateSession()) return false;
+  var token = googleAccessToken;
+  var root = _userLoginRootFolderId || await driveFindInFolder(USER_LOGIN_FOLDER_NAME, GOOGLE_DRIVE_CONFIG.FOLDER_ID, token, true);
+  if (!root) return false;
+  _userLoginRootFolderId = root;
+  var sub = _userLoginSubfolderIds[account.id] || await driveFindInFolder(userLoginFolderName(account), root, token, true);
+  if (!sub) return false;
+  _userLoginSubfolderIds[account.id] = sub;
+  var fid = await driveFindInFolder(OWN_PROFILE_FILE, sub, token, false);
+  if (!fid) return false;
+  var r = await fetch('https://www.googleapis.com/drive/v3/files/' + fid + '?alt=media', { headers: { 'Authorization': 'Bearer ' + token } });
+  if (!r.ok) return false;
+  var snap = null;
+  try { snap = await r.json(); } catch (e) { snap = null; }
+  if (!snap || snap.kind !== 'cestis-profile' || snap.accountId !== account.id) return false;
+  var changed = false;
+  if (snap.chat && typeof snap.chat === 'object') {
+    var part = JSON.parse(JSON.stringify(snap.chat));
+    var ref = part.picture; delete part.picture;
+    var cur = lmsChatProfiles[account.id];
+    if (ref && ref.file && ref.hash) {
+      if (cur && cur.profilePic && String(CESTISCore.hashString(cur.profilePic)) === ref.hash) part.profilePic = cur.profilePic;
+      else {
+        try {
+          var pid = await driveFindInFolder(ref.file, sub, token, false);
+          if (pid) {
+            var pr = await fetch('https://www.googleapis.com/drive/v3/files/' + pid + '?alt=media', { headers: { 'Authorization': 'Bearer ' + token } });
+            if (pr.ok) {
+              var url = await new Promise(function(res) { pr.blob().then(function(b) { var fr = new FileReader(); fr.onload = function() { res(fr.result); }; fr.onerror = function() { res(null); }; fr.readAsDataURL(b); }, function() { res(null); }); });
+              // Only the very picture the profile names (its stamp describes it).
+              if (url && String(CESTISCore.hashString(url)) === ref.hash) part.profilePic = url;
+              else if (url && typeof url === 'string') {
+                var fixed = url.replace(/^data:[^;,]*;/, 'data:image/' + (ref.file.split('.').pop() === 'jpg' ? 'jpeg' : ref.file.split('.').pop()) + ';');
+                if (String(CESTISCore.hashString(fixed)) === ref.hash) part.profilePic = fixed;
+              }
+            }
+          }
+        } catch (e) {}
+      }
+    }
+    if (!lmsChatProfiles[account.id]) lmsChatProfiles[account.id] = {};
+    if (CESTISCore.profiles.takeChatPart(lmsChatProfiles[account.id], part)) changed = true;
+  }
+  var sid = ownProfileStudentId(account);
+  if (sid && snap.studentId === sid && snap.studentProfile && typeof snap.studentProfile === 'object') {
+    var one = {}; one[sid] = snap.studentProfile;
+    var o1 = CESTISCore.profiles.mergeMap(studentProfiles, one, { name: 'studentProfiles', tombs: syncTombsFor('studentProfiles') });
+    if (o1.added || o1.updated) changed = true;
+  }
+  var iid = ownProfileInstructorId(account);
+  if (iid && snap.instructorId === iid && snap.instructorProfile && typeof snap.instructorProfile === 'object') {
+    var two = {}; two[iid] = snap.instructorProfile;
+    var o2 = CESTISCore.profiles.mergeMap(instructorProfiles, two, { name: 'instructorProfiles', tombs: syncTombsFor('instructorProfiles') });
+    if (o2.added || o2.updated) changed = true;
+    var ip = instructorProfiles[iid];
+    if (ip && currentInstructor && currentInstructor.id === iid) {
+      ['email', 'phone', 'specialization'].forEach(function(f) { if (ip[f] && currentInstructor[f] !== ip[f]) { currentInstructor[f] = ip[f]; changed = true; } });
+    }
+  }
+  // A member of staff's own name, e-mail and phone, when this copy is newer
+  // than the account this computer holds.
+  var a = snap.account;
+  if (a && account.role !== 'student' && (Date.parse(a.updatedAt || '') || 0) > (Date.parse(account.updatedAt || '') || 0)) {
+    var acct = userAccounts.find(function(u) { return u && u.id === account.id; });
+    var did = false;
+    [acct, account].forEach(function(x) {
+      if (!x) return;
+      if (a.name && x.name !== a.name && !/[<>]/.test(a.name)) { x.name = a.name; did = true; }
+      if (a.email && x.email !== a.email) { x.email = a.email; did = true; }
+      if (typeof a.phone === 'string' && (x.phone || '') !== a.phone) { x.phone = a.phone; did = true; }
+      x.updatedAt = a.updatedAt;
+    });
+    if (did) { changed = true; try { saveUserAccounts(); } catch (e) {} }
+  }
+  if (changed) profileRefreshOwnViews();
+  return changed;
+}
+// The person's own details on screen, after they arrived.
+function profileRefreshOwnViews() {
+  try {
+    profileShowOwnPicture();
+    if (currentRole === 'student' && currentStudent) {
+      var sp = studentProfiles[currentStudent.id] || {};
+      var ph = document.getElementById('sProfilePhone'); if (ph && sp.phone) ph.textContent = sp.phone;
+      var em = document.getElementById('sProfileEmail'); if (em && sp.email) em.textContent = sp.email;
+    }
+    if (currentLoggedInUser) { var n = document.getElementById('sidebarUserName'); if (n && currentRole !== 'student' && currentRole !== 'instructor') n.textContent = currentLoggedInUser.name; }
+  } catch (e) {}
 }
 
 // Backfill a named sub-folder for EVERY account (admin action). Sequential to
@@ -40491,6 +40930,9 @@ function mergeCloudAccounts(cloudAccounts, opts) {
       }
       if (cloudUser.name && cloudUser.name !== localMatch.name) { localMatch.name = cloudUser.name; changed++; }
       if (cloudUser.email && cloudUser.email !== localMatch.email) { localMatch.email = cloudUser.email; changed++; }
+      // The telephone number its owner gave in Edit Profile travels too (it
+      // used to stay on the computer it was typed on).
+      if (typeof cloudUser.phone === 'string' && cloudUser.phone !== (localMatch.phone || '')) { localMatch.phone = cloudUser.phone; changed++; }
       if (cloudUser.programme !== undefined && cloudUser.programme !== localMatch.programme) { localMatch.programme = cloudUser.programme; changed++; }
       if (cloudUser.role && cloudUser.role !== localMatch.role) { localMatch.role = cloudUser.role; changed++; }
       if (cloudUser.cmcChair !== undefined && !!cloudUser.cmcChair !== !!localMatch.cmcChair) { localMatch.cmcChair = cloudUser.cmcChair === true; changed++; }
@@ -40933,7 +41375,7 @@ async function mergeBackupData(backupData) {
     // Merge chat profiles — newest wins (this used to let any cloud copy
     // overwrite the local one, and never saved the result).
     if (backupData.data.chatProfiles && typeof backupData.data.chatProfiles === 'object') {
-      var _cpOut = CESTISCore.sync.mergeMap(lmsChatProfiles, backupData.data.chatProfiles, {});
+      var _cpOut = CESTISCore.profiles.mergeMap(lmsChatProfiles, backupData.data.chatProfiles, { name: 'chatProfiles' });
       if (_cpOut.added || _cpOut.updated) changed = true;
     }
 
@@ -41004,16 +41446,19 @@ async function mergeBackupData(backupData) {
     }
 
 
-    // Merge student profiles — an edited profile now reaches every device
+    // Merge student profiles — an edited profile now reaches every device,
+    // detail by detail (CESTISCore.profiles). A trainee's picture and status
+    // sent from home ride inside her record; they go into the chat profiles.
     if (backupData.data.studentProfiles && typeof backupData.data.studentProfiles === 'object') {
-      var _spOut = CESTISCore.sync.mergeMap(studentProfiles, backupData.data.studentProfiles, { tombs: syncTombsFor('studentProfiles') });
+      var _spOut = CESTISCore.profiles.mergeMap(studentProfiles, backupData.data.studentProfiles, { name: 'studentProfiles', tombs: syncTombsFor('studentProfiles') });
       if (_spOut.added || _spOut.updated || _spOut.removed) changed = true;
+      try { if (profilesTakeTraineeChat()) changed = true; } catch (e) { console.warn('[Merge] trainee profile details:', e); }
     }
 
 
     // Merge instructor profiles
     if (backupData.data.instructorProfiles && typeof backupData.data.instructorProfiles === 'object') {
-      var _ipOut = CESTISCore.sync.mergeMap(instructorProfiles, backupData.data.instructorProfiles, { tombs: syncTombsFor('instructorProfiles') });
+      var _ipOut = CESTISCore.profiles.mergeMap(instructorProfiles, backupData.data.instructorProfiles, { name: 'instructorProfiles', tombs: syncTombsFor('instructorProfiles') });
       if (_ipOut.added || _ipOut.updated || _ipOut.removed) changed = true;
     }
 
@@ -41260,6 +41705,15 @@ async function autoSyncOnLogin() {
       if (userChanged) anyChanged = true;
     } catch (e) {
       console.warn('[AutoSync] Per-user backup sync error:', e);
+    }
+    // 1c. What this person changed about themselves, from their own folder
+    // (picture, status, phone, …): back on this computer whatever the shared
+    // copies hold, each detail by its stamp.
+    try {
+      if (await loadOwnProfileFromFolder()) { anyChanged = true; saveState(); }
+      profileShowOwnPicture();
+    } catch (e) {
+      console.warn('[AutoSync] Own profile folder read error:', e);
     }
 
     // 2. Also sync chat-specific data from the chat Drive folder
@@ -42079,7 +42533,10 @@ async function autoSaveToAllFolders() {
     // Keep this user's named "User Login" sub-folder (in the main Drive backup
     // folder) up to date with their current hashed account record.
     try {
-      if (currentLoggedInUser) await syncUserLoginFolderToDrive(currentLoggedInUser, { ifChanged: true });
+      // ...and their own profile (picture, status, phone, …) in the same folder.
+      if (currentLoggedInUser) await syncUserLoginFolderToDrive(currentLoggedInUser, { ifChanged: true, profile: true });
+      // Trainees whose change was collected from home: theirs too.
+      if (Object.keys(_ownProfileWanted).length) await ownProfileWriteWanted();
     } catch (e) {
       console.warn('[AutoSave] User Login folder sync error:', e);
     }
@@ -42208,6 +42665,8 @@ var GATE_STORE_KEYS = ['voctrain_users', 'voctrain_deletedUserIds', 'voctrain_st
   'voctrain_certDownloadApprovals', 'voctrain_support_messages', 'voctrain_chatRooms', 'voctrain_chatMessages',
   'voctrain_skillAreas', 'voctrain_instructorData', 'voctrain_transcriptProfiles', 'voctrain_studentProfiles',
   'voctrain_certTemplates',
+  // Her own picture and status, to go inside her profile record (CESTISCore.profiles, ownChatPart).
+  'voctrain_chatProfiles', 'voctrain_chatPictures',
   // Prepared assessments: her photos, sign-offs, results and filed papers, and her group (CESTISCore.assessments).
   'voctrain_assessmentWork',
   // Her fees at home (CESTISCore.gate.home.buildFees): read only, and only on a PC that holds the fee roll.
@@ -44164,6 +44623,8 @@ function gateAfterApply(r) {
   if (stu) currentStudent = stu;
   var acct = (userAccounts || []).find(function(u) { return u && u.id === uid; });
   if (acct) { acct.role = 'student'; currentLoggedInUser = acct; }
+  // Her picture and status as her own record now carries them.
+  try { if (profilesTakeTraineeChat()) { lmsChatStoreProfiles(); profileShowOwnPicture(); } } catch (e) {}
   try { examAttemptsArrived('device'); } catch (e) {}
   try { refreshContentDependentViews(); } catch (e) {}
   try { if (typeof renderStudentDashboard === 'function') renderStudentDashboard(); } catch (e) {}
@@ -47235,6 +47696,8 @@ function lmsChatOpenProfileModal() {
 
   var myFollowersCount  = lmsChatGetFollowersOf(user.id).length;
   var myFollowingCount  = (lmsChatFollows[user.id] || []).length;
+  // The status they chose (never what presence last wrote).
+  var _myStatus = CESTISCore.profiles.chosenStatus(profile);
 
   modal.innerHTML = '<div class="profile-modal-content">' +
     '<h3 style="margin-bottom:6px;">My Chat Profile</h3>' +
@@ -47257,9 +47720,9 @@ function lmsChatOpenProfileModal() {
     '<div style="text-align:left;margin-bottom:12px;">' +
       '<label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:6px;">Status</label>' +
       '<select class="profile-status-select" id="lmsChatStatusSelect">' +
-        '<option value="online"'+(profile.status==='online'?' selected':'')+'>Online</option>' +
-        '<option value="away"'+(profile.status==='away'?' selected':'')+'>Away</option>' +
-        '<option value="offline"'+(!profile.status||profile.status==='offline'?' selected':'')+'>Offline</option>' +
+        '<option value="online"'+(_myStatus==='online'?' selected':'')+'>Online</option>' +
+        '<option value="away"'+(_myStatus==='away'?' selected':'')+'>Away</option>' +
+        '<option value="offline"'+(_myStatus==='offline'?' selected':'')+'>Offline</option>' +
       '</select>' +
     '</div>' +
     '<div style="text-align:left;margin-bottom:12px;">' +
@@ -47343,18 +47806,25 @@ function lmsChatSaveProfile() {
   profile.role = user.role;
   profile.programme = user.programme || '';
 
+  // Each change stamped (profileChatApply): an older copy never puts the
+  // old picture, status or message back.
   var statusSel = document.getElementById('lmsChatStatusSelect');
   var statusMsg = document.getElementById('lmsChatStatusMsg');
   var bioInput  = document.getElementById('lmsChatBioInput');
-  if(statusSel) profile.status = statusSel.value;
-  if(statusMsg) profile.statusMsg = statusMsg.value.trim();
-  if(bioInput)  profile.bio = bioInput.value.trim();
+  var changes = {};
+  if(statusSel && statusSel.value) changes.statusChoice = statusSel.value;
+  if(statusMsg) changes.statusMsg = statusMsg.value.trim();
+  if(bioInput)  changes.bio = bioInput.value.trim();
   if(lmsChatPendingProfilePic) {
-    profile.profilePic = lmsChatPendingProfilePic;
+    changes.profilePic = lmsChatPendingProfilePic;
     lmsChatPendingProfilePic = null;
   }
+  profileChatApply(user.id, changes);
 
-  saveLmsChatData();
+  // saveState: stamped, kept on this device and sent (a trainee at home's
+  // goes inside her profile record — profileMirrorOwnChat).
+  try { saveState(); } catch(e) { saveLmsChatData(); }
+  try { updateSidebarAvatar(user.id, user.name); } catch(e) {}
   lmsChatCloseProfileModal();
   showToast('Profile saved and syncing...');
 
@@ -49062,9 +49532,11 @@ function lmsChatOnPageShow(prefix) {
 
   // Set my status to online, with a heartbeat time: "online" means seen in
   // the last few minutes (CESTISCore.chat.isOnline), not "ever opened chat".
+  // The status shown is the one the person chose (CESTISCore.profiles.chosenStatus):
+  // presence used to write "online" over their choice at every visit.
   var user = lmsChatGetCurrentUser();
   if(!lmsChatProfiles[user.id]) lmsChatProfiles[user.id] = {};
-  lmsChatProfiles[user.id].status = 'online';
+  lmsChatProfiles[user.id].status = CESTISCore.profiles.chosenStatus(lmsChatProfiles[user.id]);
   lmsChatProfiles[user.id].lastSeen = new Date().toISOString();
 
   // Auto-fetch latest chat data from Google Drive
@@ -49088,9 +49560,7 @@ function lmsChatOnPageShow(prefix) {
   lmsChatSchedulePoll(1500);
 
   // Save status (but skip the Drive sync timer — we just fetched)
-  try {
-    CESTISStore.setItem('voctrain_chatProfiles', JSON.stringify(lmsChatProfiles));
-  } catch(e) {}
+  try { lmsChatStoreProfiles(); } catch(e) {}
 
   // Bring up the realtime data-channel peer for sub-second message delivery.
   // Idempotent: reuses the existing peer if one is already open.
@@ -49163,8 +49633,9 @@ function lmsChatHeartbeat() {
     if (!me || !me.id) return;
     var p = lmsChatProfiles[me.id] || (lmsChatProfiles[me.id] = {});
     var last = Date.parse(p.lastSeen || '') || 0;
-    if (Date.now() - last < 4 * 60 * 1000 && p.status !== 'offline') return;
-    p.status = 'online'; p.lastSeen = new Date().toISOString();
+    var want = CESTISCore.profiles.chosenStatus(p);
+    if (Date.now() - last < 4 * 60 * 1000 && p.status === want) return;
+    p.status = want; p.lastSeen = new Date().toISOString();
     saveLmsChatData();
   } catch(e) {}
 }
@@ -49436,7 +49907,7 @@ async function lmsChatSyncFromDrive() {
 
     // Profiles: the newer edit of each (it used to be whichever the cloud had).
     if(data.chatProfiles && typeof data.chatProfiles === 'object') {
-      var _cp = CESTISCore.sync.mergeMap(lmsChatProfiles, data.chatProfiles, {});
+      var _cp = CESTISCore.profiles.mergeMap(lmsChatProfiles, data.chatProfiles, { name: 'chatProfiles' });
       if(_cp.added || _cp.updated) _chatMoved = true;
     }
 
@@ -49465,7 +49936,7 @@ async function lmsChatSyncFromDrive() {
       });
       CESTISStore.setItem('voctrain_chatRooms', JSON.stringify(lmsChatRooms));
       CESTISStore.setItem('voctrain_chatMessages', JSON.stringify(msgCopy));
-      CESTISStore.setItem('voctrain_chatProfiles', JSON.stringify(lmsChatProfiles));
+      lmsChatStoreProfiles();
       CESTISStore.setItem('voctrain_chatFollows', JSON.stringify(lmsChatFollows));
       CESTISStore.setItem('voctrain_chatFollowLog', JSON.stringify(lmsChatFollowLog || {}));
     } catch(e) {}
@@ -65187,6 +65658,11 @@ function ttRefreshOnShow(){
     voctrain_documentHubFiles: function (v) { documentHubFiles = v; },
     voctrain_chatRooms:        function (v) { lmsChatRooms = v; },
     voctrain_chatMessages:     function (v) { lmsChatMessages = v; },
+    // People's pictures and statuses: merged into this page's, detail by
+    // detail (CESTISCore.profiles) — never adopted whole, and never left out
+    // (a page that was open kept its old copy and saved it back).
+    voctrain_chatProfiles:     function (v) { CESTISCore.profiles.mergeMap(lmsChatProfiles, v, { name: 'chatProfiles' }); lmsChatAttachPictures(); profileShowOwnPicture(); },
+    voctrain_chatPictures:     function (v) { CESTISCore.profiles.attachPictures(lmsChatProfiles, v); profileShowOwnPicture(); },
     voctrain_vcSessions:       function (v) { vcSessions = v; },
     voctrain_syncTombstones:   function (v) { syncTombstones = v; },
     // The certificate designs. Without this a device that was already open

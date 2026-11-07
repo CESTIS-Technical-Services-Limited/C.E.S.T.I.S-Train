@@ -226,7 +226,8 @@ for (const page of PAGES) {
     assert(/if \(_sentKey === _assignmentsLastSent\) return;/.test(asg) && /_assignmentsLastSent = _sentKey;/.test(asg), w + ': the assignments file is sent only when its content changed');
     const ul = extractFunction(page.src, 'syncUserLoginFolderToDrive', w);
     assert(/opts\.ifChanged && _userLoginLastSent\[account\.id\] === _recKey/.test(ul), w + ': the person\'s account record only when it changed');
-    assert(/syncUserLoginFolderToDrive\(currentLoggedInUser, \{ ifChanged: true \}\)/.test(extractFunction(page.src, 'autoSaveToAllFolders', w)), w + ': (the 5-second save asks for that)');
+    assert(/syncUserLoginFolderToDrive\(currentLoggedInUser, \{ ifChanged: true(, profile: true)? \}\)/.test(extractFunction(page.src, 'autoSaveToAllFolders', w)), w + ': (the 5-second save asks for that)');
+    assert(/_ownProfileLastSent\[account\.id\] !== _prof\.key/.test(ul), w + ': the person\'s own profile only when it changed');
     assert(/_copiesFlushRequested = true;[\s\S]{0,200}autoSaveToAllFolders\(\)/.test(extractFunction(page.src, 'finalCloudSaveBeforeLogout', w)), w + ': the sign-out\'s final save writes the copies that are behind');
     assert(/_copiesUrgent = true/.test(extractFunction(page.src, 'recoverOvertakenWrite', w)), w + ': an overtaken write that cannot be recovered sends the copies at once');
   }
