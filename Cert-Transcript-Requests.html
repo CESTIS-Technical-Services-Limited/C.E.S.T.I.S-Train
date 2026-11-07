@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <script src="cestis-config.js?v=284ebb2a"></script>
-<script src="cestis-core.js?v=cf7169e6"></script>
+<script src="cestis-core.js?v=06ea93fc"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Certificate / Transcript Requests — C.E.S.T.I.S</title>
 <style>
@@ -95,7 +95,7 @@
   <div>
     <h1>Certificate / Transcript Requests</h1>
     <p><span class="cr-live-dot"></span>Requests raised by trainees from their Transcript/Grades page arrive here in real time, oldest first.
-    Open the trainee's transcript, certify them, or mark the request collected from its row; the trainee is told each time it moves on.</p>
+    Open the trainee's transcript or (Administrator) their certificate, certify them, or mark the request collected from its row; the trainee is told each time it moves on.</p>
   </div>
 </div>
 
@@ -232,8 +232,12 @@ function render() {
     var wait = open && OT ? '<div class="cr-wait' + (days >= 7 ? ' long' : '') + '">' + esc(OT.waitingText(days)) + '</div>' : '';
     var cert = T ? T.wantsCertificate(r) : (r.type === 'certificate' || r.type === 'both');
     var st = stages[String(r.studentId)] || {};
-    var certified = !!(st.certNo || st.stage === 'certified' || st.stage === 'collected');
+    // Certified means marked Certified or Collected, with a number: a number
+    // left on an unfinished trainee's record is not a certificate.
+    var certified = !!(st.certNo && (st.stage === 'certified' || st.stage === 'collected'));
     var acts = '<button class="cr-btn" onclick="crOpen(\'transcript\',' + crJsArg(r.studentId) + ')">Open transcript</button>';
+    // The certificate itself: the Administrator only.
+    if (cert && certified && VIEWER.role === 'admin') acts += '<button class="cr-btn" onclick="crOpen(\'certificate\',' + crJsArg(r.studentId) + ')">Open certificate</button>';
     if (cert && !certified && open) acts += '<button class="cr-btn" onclick="crOpen(\'certify\',' + crJsArg(r.studentId) + ')"' +
       (crMayCertify() ? '' : ' disabled title="Certifying needs Student Progress and Student Progress — manage. Ask the Administrator."') + '>Certify</button>';
     if (open) acts += '<button class="cr-btn go" onclick="crCollected(' + crJsArg(r.id) + ')"' +
@@ -293,7 +297,7 @@ function crCollected(id) {
   if (!r) { toast('That request is no longer in the queue'); render(); return; }
   if (T && T.wantsCertificate(r)) {
     var st = crStages()[String(r.studentId)] || {};
-    if (!(st.certNo || st.stage === 'certified' || st.stage === 'collected')) { toast('Certify ' + (r.studentName || 'the trainee') + ' first'); return; }
+    if (!(st.certNo && (st.stage === 'certified' || st.stage === 'collected'))) { toast('Certify ' + (r.studentName || 'the trainee') + ' first'); return; }
   }
   setStatus(id, 'collected');
 }

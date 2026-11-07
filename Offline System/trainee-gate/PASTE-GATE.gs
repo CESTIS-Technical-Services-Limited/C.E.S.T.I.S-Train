@@ -785,6 +785,7 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       var E = Core.enrolment;
       var agree = list.filter(function (s) {
         if (!s || Core.normName(s.name) !== want) return false;
+        if (Core.identityConflict(account, s)) return false;
         if (!prog || !s.course) return true;
         if (E && typeof E.programmesAgree === 'function') { try { return E.programmesAgree(prog, s.course); } catch (e) {} }
         return Core.normCourse(prog) === Core.normCourse(s.course);
@@ -6880,7 +6881,7 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
      The rules above name them only on the staff side (building slices,
      collecting inboxes), which the gate never runs. Touching one throws,
      so a rule that starts to need it fails loudly instead of quietly. */
-  ["Transcript","certs","chat","chatSync","comms","courseDuration","coursework","deriveQuarter","dropTombstonedStudents","feeRecordRank","feeTwinIndex","isSnapshotableKey","keepsOwnId","migrateToStableIds","notify","pageCloud","pendingUpload","relinkDependentData","sync"].forEach(function (name) {
+  ["Transcript","certs","chat","chatSync","comms","courseDuration","coursework","deriveQuarter","dropTombstonedStudents","feeRecordRank","feeTwinIndex","identityConflict","isSnapshotableKey","keepsOwnId","migrateToStableIds","notify","pageCloud","pendingUpload","relinkDependentData","sync"].forEach(function (name) {
     Object.defineProperty(Core, name, { configurable: true, enumerable: false, get: function () {
       throw new Error('Core.' + name + ' is not in the gate\'s paste: rebuild it with node trainee-gate/build-paste.js --full');
     } });
@@ -8215,6 +8216,8 @@ function gateCertTemplate(G, req) {
   var stu = (d.voctrain_students || []).filter(function (x) { return x && gateStr(x.id) === me.stu; })[0];
   var appr = (d.voctrain_certDownloadApprovals || []).filter(function (x) { return x && gateStr(x.studentId) === me.stu; })[0];
   if (!stu || !stu.certNo || G.gate.home.certRevoked(stu) || !appr || appr.approved !== true) return { ok: false, error: 'not-yours' };
+  // Only once her course is finished: the Centre marked her Certified or Collected.
+  if (stu.stage !== 'certified' && stu.stage !== 'collected') return { ok: false, error: 'not-yours' };
   var tpls = d.voctrain_certTemplates && typeof d.voctrain_certTemplates === 'object' ? d.voctrain_certTemplates : {};
   if (!key || !Object.prototype.hasOwnProperty.call(tpls, key)) return { ok: false, error: 'not-found' };
   var name = 'cert_template_' + key.replace(/[^a-zA-Z0-9]/g, '_') + '_' + page + '.txt';

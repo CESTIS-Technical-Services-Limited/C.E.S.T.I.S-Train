@@ -187,7 +187,7 @@ function fnSrc(name) {
     vm.runInContext(fnSrc('homeCertLan') + '\n' + fnSrc('certDownloadAllowed') + '\nthis.out = certDownloadAllowed(' + JSON.stringify(o.student) + ');', ctx);
     return ctx.out;
   };
-  const kem = { id: 'STU-K', certNo: 'WF-2026-4821-QX' };
+  const kem = { id: 'STU-K', certNo: 'WF-2026-4821-QX', stage: 'certified' };
   const ok = [{ studentId: 'STU-K', approved: true }];
   eq(run({ student: kem, approvals: ok, gate: 'online' }), { allowed: true, reason: '' }, 'at home, issued and approved: the Download button works (no "sync first")');
   eq(run({ student: kem, approvals: ok, gate: 'lan' }), { allowed: false, collect: true, reason: '' }, 'signed in on the Centre\'s own network: collected there');

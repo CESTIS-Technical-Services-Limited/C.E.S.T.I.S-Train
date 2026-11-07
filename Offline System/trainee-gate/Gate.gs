@@ -1323,6 +1323,8 @@ function gateCertTemplate(G, req) {
   var stu = (d.voctrain_students || []).filter(function (x) { return x && gateStr(x.id) === me.stu; })[0];
   var appr = (d.voctrain_certDownloadApprovals || []).filter(function (x) { return x && gateStr(x.studentId) === me.stu; })[0];
   if (!stu || !stu.certNo || G.gate.home.certRevoked(stu) || !appr || appr.approved !== true) return { ok: false, error: 'not-yours' };
+  // Only once her course is finished: the Centre marked her Certified or Collected.
+  if (stu.stage !== 'certified' && stu.stage !== 'collected') return { ok: false, error: 'not-yours' };
   var tpls = d.voctrain_certTemplates && typeof d.voctrain_certTemplates === 'object' ? d.voctrain_certTemplates : {};
   if (!key || !Object.prototype.hasOwnProperty.call(tpls, key)) return { ok: false, error: 'not-found' };
   var name = 'cert_template_' + key.replace(/[^a-zA-Z0-9]/g, '_') + '_' + page + '.txt';

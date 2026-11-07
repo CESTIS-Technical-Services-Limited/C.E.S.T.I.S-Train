@@ -321,16 +321,22 @@ PAGES.forEach(function (page) {
   assertEq(vm.runInContext("certPortalCertNoFromAddress('')", sb), null, w + ': and so does a bare one');
 
   // The one rule the Download button follows, in the portal and in My Certificate.
-  const sb2 = { certDownloadApprovals: [{ studentId: 'STU-1', approved: true }], _synced: false, certSyncDone: function () { return sb2._synced; } };
+  const sb2 = { certDownloadApprovals: [{ studentId: 'STU-1', approved: true }], _synced: false, certSyncDone: function () { return sb2._synced; }, CESTISCore: require('../cestis-core.js') };
   vm.createContext(sb2);
   vm.runInContext(extractFunction(src, 'certDownloadAllowed', w), sb2);
-  let v = vm.runInContext("certDownloadAllowed({ id: 'STU-1', certNo: 'PH-1' })", sb2);
+  let v = vm.runInContext("certDownloadAllowed({ id: 'STU-1', certNo: 'PH-1', stage: 'certified' })", sb2);
   assert(v.allowed === false && /Sync first/.test(v.reason) && !/cloud/i.test(v.reason), w + ': approved but not synced — greyed out, and it says why');
   sb2._synced = true;
-  v = vm.runInContext("certDownloadAllowed({ id: 'STU-1', certNo: 'PH-1' })", sb2);
+  v = vm.runInContext("certDownloadAllowed({ id: 'STU-1', certNo: 'PH-1', stage: 'certified' })", sb2);
   assert(v.allowed === true, w + ': approved and synced — allowed');
-  v = vm.runInContext("certDownloadAllowed({ id: 'STU-2', certNo: 'PH-2' })", sb2);
+  v = vm.runInContext("certDownloadAllowed({ id: 'STU-2', certNo: 'PH-2', stage: 'certified' })", sb2);
   assert(v.allowed === false && /not been approved/.test(v.reason), w + ': synced but not approved — greyed out');
+  v = vm.runInContext("certDownloadAllowed({ id: 'STU-1', certNo: 'PH-1', stage: 'training' })", sb2);
+  assert(v.allowed === false && /No certificate has been issued/.test(v.reason), w + ': approved and synced, but the trainee is still in training (a number left on the record) — never');
+  ['testing', 'interview', 'nyc', 'incomplete'].forEach(function (st) {
+    assert(vm.runInContext("certDownloadAllowed({ id: 'STU-1', certNo: 'PH-1', stage: '" + st + "' }).allowed", sb2) === false, w + ': not finished (' + st + ') — never');
+  });
+  assert(vm.runInContext("certDownloadAllowed({ id: 'STU-1', certNo: 'PH-1', stage: 'collected' }).allowed", sb2) === true, w + ': collected — allowed');
   v = vm.runInContext("certDownloadAllowed({ id: 'STU-1' })", sb2);
   assert(v.allowed === false && /No certificate/.test(v.reason), w + ': no certificate — greyed out');
 
