@@ -2303,7 +2303,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
   background:rgba(52,152,219,0.05); pointer-events:none;
 }
 .profile-header .profile-avatar {
-  width:88px; height:88px; border-radius:50%; flex-shrink:0;
+  width:88px; height:88px; border-radius:50%; flex-shrink:0; overflow:hidden;
   display:flex; align-items:center; justify-content:center;
   font-size:36px; font-weight:800; color:var(--on-accent);
   box-shadow:0 6px 24px rgba(0,0,0,0.3);
@@ -17101,7 +17101,7 @@ function buildStudentPages() {
 
   <section class="page" id="page-s-profile">
     <div class="profile-header">
-      <div class="profile-avatar" style="background:linear-gradient(135deg,var(--blue),var(--teal));">${escapeHtml(s.name.split(' ').map(n=>n[0]).join(''))}</div>
+      <div class="profile-avatar" data-own-avatar style="background:linear-gradient(135deg,var(--blue),var(--teal));">${ownAvatarInner(s.name.split(' ').map(n=>n[0]).join(''))}</div>
       <div class="profile-details">
         <h2>${escapeHtml(s.name)}</h2>
         <div class="profile-subtitle">${escapeHtml(s.course)} Programme</div>
@@ -17702,7 +17702,7 @@ function buildInstructorPages() {
   <!-- INSTRUCTOR PROFILE -->
   <section class="page" id="page-i-profile">
     <div class="profile-header">
-      <div class="profile-avatar" style="background:linear-gradient(135deg,var(--green),var(--teal));">${escapeHtml(ins.name.split(' ').map(n=>n[0]).join('').replace('.',''))}</div>
+      <div class="profile-avatar" data-own-avatar style="background:linear-gradient(135deg,var(--green),var(--teal));">${ownAvatarInner(ins.name.split(' ').map(n=>n[0]).join('').replace('.',''))}</div>
       <div class="profile-details">
         <h2>${escapeHtml(ins.name)}</h2>
         <div class="profile-subtitle">${escapeHtml(ins.course)} Instructor</div>
@@ -25248,12 +25248,30 @@ function syncProfileToLmsChat(userId, name, role, programme, picType) {
 
 // The signed-in person's own picture in the sidebar, once it has arrived
 // (after a sign-in's sync, or from their own folder).
+/* The big circle on My Profile: the person's own picture when they have set
+   one, else their initials (escaped). */
+function ownAvatarInner(initials) {
+  try {
+    var cp = (currentLoggedInUser && typeof lmsChatProfiles !== 'undefined') ? lmsChatProfiles[currentLoggedInUser.id] : null;
+    var pic = cp && cp.profilePic ? safeUrl(cp.profilePic) : '';
+    if (pic) return '<img src="' + escapeAttr(pic) + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
+  } catch (e) {}
+  return escapeHtml(initials || '');
+}
 function profileShowOwnPicture() {
   try {
     if(!currentLoggedInUser || typeof lmsChatProfiles === 'undefined') return;
     var cp = lmsChatProfiles[currentLoggedInUser.id];
     var sa = document.getElementById('sidebarAvatar');
     try { updateTopbarWho(); } catch(e) {}
+    // My Profile's big circle, if it is on the page.
+    try {
+      var _pic = cp && cp.profilePic ? safeUrl(cp.profilePic) : '';
+      if (_pic) document.querySelectorAll('[data-own-avatar]').forEach(function(el) {
+        el.innerHTML = '<img src="' + escapeAttr(_pic) + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
+        el.style.overflow = 'hidden';
+      });
+    } catch(e) {}
     if(!sa || !cp || !cp.profilePic || !safeUrl(cp.profilePic)) return;
     sa.innerHTML = '<img src="'+escapeAttr(safeUrl(cp.profilePic))+'" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
     sa.style.overflow = 'hidden';
