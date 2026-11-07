@@ -137,9 +137,10 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
     if (!student) return '';
     var n = Core.normName(student.name);
     if (!n) return ''; // no usable identity — caller should keep the existing id
-    var c;
-    try { c = Core.programmeIdentity(student, 'course').bare; }
-    catch (e) { c = Core.normCourse(student.course); }
+    var c, from = student;
+    if (student.idCourse != null && String(student.idCourse).trim() !== '') from = { course: student.idCourse };
+    try { c = Core.programmeIdentity(from, 'course').bare; }
+    catch (e) { c = Core.normCourse(from.course); }
     return n + '|' + c;
   };
 

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <script src="cestis-config.js?v=284ebb2a"></script>
-<script src="cestis-core.js?v=33000641"></script>
+<script src="cestis-core.js?v=09be8752"></script>
 <script src="cestis-form-modal.js?v=74020c38" defer></script>
 <!-- Inert until a page registers: the CMC Board registers as a READ-ONLY reader
      so the operating pages' books reach its dashboards without anyone syncing. -->
@@ -5464,6 +5464,52 @@ html.gate-ns .tam-gate-only { display:flex; }
   body.vc-show-sidepanel:not(.vc-fullscreen-mode) .vc-sidepanel-close { display:block !important; }
   body.vc-show-sidepanel:not(.vc-fullscreen-mode) .vc-sidepanel-close .btn { min-height:44px; }
   #vc-host-bar .vc-host-btn { min-height:44px; }
+}
+
+/* Tidy Programme Names (Administration): one programme written several ways.
+   Lists, not tables, so it reads at phone width with no sideways scroll. */
+.tidy-prog .tidy-lead { font-size:14px; color:var(--text-secondary); line-height:1.6; margin:0 0 12px; max-width:880px; }
+.tidy-stats { display:flex; flex-wrap:wrap; gap:8px; }
+.tidy-group { border:1px solid var(--border-light); border-radius:var(--radius-sm); padding:14px; margin-bottom:12px; background:var(--bg-secondary); }
+.tidy-group-head { display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; margin-bottom:6px; }
+.tidy-group-head label { font-size:13px; font-weight:600; color:var(--text-secondary); }
+.tidy-group-head select, .tidy-group-head input { flex:1 1 220px; max-width:420px; min-width:0; }
+.tidy-sp { display:flex; align-items:flex-start; gap:10px; padding:9px 0; border-top:1px solid var(--border); }
+.tidy-sp input[type="checkbox"] { width:20px; height:20px; margin:2px 0 0; flex-shrink:0; accent-color:var(--accent); cursor:pointer; }
+.tidy-sp .tidy-kept-mark { width:20px; flex-shrink:0; text-align:center; color:var(--green); font-weight:700; font-size:14px; }
+.tidy-sp-main { min-width:0; flex:1; }
+.tidy-sp-name, .tidy-sp-what, .tidy-sp-to { display:block; }
+.tidy-sp-name { font-weight:700; color:var(--text-primary); font-size:14px; overflow-wrap:anywhere; }
+.tidy-sp-what { font-size:13px; color:var(--text-secondary); margin-top:2px; overflow-wrap:anywhere; }
+.tidy-sp-to { font-size:13px; color:var(--accent); margin-top:3px; overflow-wrap:anywhere; }
+.tidy-sp-same { font-size:12px; color:var(--green); font-weight:700; margin-left:6px; }
+.tidy-intakes { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+.tidy-intake { font-size:12px; padding:3px 9px; border-radius:12px; background:var(--w-06); color:var(--text-secondary); }
+.tidy-intake.open { background:var(--green-dim); color:var(--green); }
+.tidy-row { display:flex; flex-wrap:wrap; gap:8px 12px; align-items:center; padding:12px 0; border-top:1px solid var(--border); }
+.tidy-row:first-child { border-top:0; }
+.tidy-row .tidy-sp-main { flex:1 1 260px; }
+.tidy-row select, .tidy-row input { flex:1 1 240px; max-width:440px; min-width:0; }
+.tidy-actions { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-top:14px; }
+.tidy-actions .btn { min-height:44px; }
+.tidy-note { font-size:13px; color:var(--text-secondary); line-height:1.55; margin:6px 0; }
+.tidy-box { border-left:4px solid var(--accent); background:var(--accent-dim); padding:10px 14px; border-radius:var(--radius-sm); font-size:13px; color:var(--text-primary); margin:10px 0; line-height:1.55; overflow-wrap:anywhere; }
+.tidy-box.stop { border-left-color:var(--red); background:var(--red-dim); }
+.tidy-box.done { border-left-color:var(--green); background:var(--green-dim); }
+.tidy-box ul { margin:6px 0 0; padding-left:20px; }
+.tidy-line { padding:10px 0; border-top:1px solid var(--border); }
+.tidy-line:first-child { border-top:0; }
+.tidy-line-to { font-weight:700; color:var(--text-primary); font-size:14px; overflow-wrap:anywhere; }
+.tidy-line ul { margin:6px 0 0; padding-left:20px; }
+.tidy-line li { font-size:13px; color:var(--text-secondary); margin:4px 0; overflow-wrap:anywhere; }
+.tidy-log-entry { padding:12px 0; border-top:1px solid var(--border); }
+.tidy-log-entry:first-child { border-top:0; }
+.tidy-log-head { display:flex; flex-wrap:wrap; gap:6px 12px; align-items:center; font-size:13px; color:var(--text-secondary); }
+.tidy-log-head strong { color:var(--text-primary); font-size:14px; }
+details.tidy-more > summary { cursor:pointer; font-weight:600; color:var(--text-primary); font-size:14px; padding:8px 0; }
+@media (max-width:600px) {
+  .tidy-group { padding:12px 10px; }
+  .tidy-actions .btn { flex:1 1 100%; justify-content:center; }
 }
 
 /* Minimum readable text (12px). Many sizes in this page's templates are set
@@ -15210,6 +15256,8 @@ function buildAdminSidebar() {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/><line x1="5" y1="15" x2="9" y2="15"/></svg>Payments/Invoices</div>
     <div class="nav-item" data-page="document-hub" onclick="showPage('document-hub')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6"/><path d="M9 15l3 3 3-3"/></svg>Document Hub</div>
+    <div class="nav-item" data-page="tidy-programmes" onclick="showPage('tidy-programmes')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><polyline points="3 6 4 7 6 5"/><polyline points="3 12 4 13 6 11"/><polyline points="3 18 4 19 6 17"/></svg>Tidy Programme Names</div>
     <div class="nav-item" data-page="megadata-admin" onclick="showPage('megadata-admin')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>Record Book Setup</div>
     <div class="nav-item" data-page="megadata-adjq" onclick="showPage('megadata-adjq')">
@@ -15532,6 +15580,12 @@ var cestisFeatureConfig = {
       cestisSafe('fillSystemSettingsForm');
       cestisSafe('renderUserAccountsTable');
     }
+  },
+  // Tidy Programme Names (the Administrator only): one programme written
+  // several ways, renamed to one name (CESTISCore.programmeTidy).
+  'tidy-programmes': {
+    file: 'Pages/Tidy-Programmes.html',
+    onMount: function() { cestisSafe('tidyProgOnShow'); }
   },
   'admin-duty-register': {
     file: 'Pages/Admin-Duty-Register.html',
@@ -15868,6 +15922,7 @@ function showPage(pageId) {
     'transcript-grades':'Transcript / Grades','s-transcript-grades':'Transcript / Grades','as-transcript-grades':'Transcript / Grades','i-trainee-grades':'Trainee Grades',
     'cert-transcript-requests':'Certificate / Transcript Requests','as-cert-transcript-requests':'Certificate / Transcript Requests',
     'ctr-certificate':'Requested Certificate',
+    'tidy-programmes':'Tidy Programme Names',
     'cmc-dashboard':'CMC Analytics Dashboard','cmc-financial':'Financial Overview','cmc-virements':'Virement Approvals','cmc-staff':'Staff & HR','cmc-academic':'Academic Performance','cmc-profile':'My Profile',
     'tms-system':'TMS System','as-tms-system':'TMS System','nqs-system':'NQS System','as-nqs-system':'NQS System',
     'needs-attention':'Needs Attention','as-needs-attention':'Needs Attention','i-needs-attention':'Needs Attention'
@@ -16455,6 +16510,10 @@ function buildAdminPages() {
 
   <section class="page" id="page-settings">
     <div class="cestis-mount" data-feature="settings" data-prefix="admin"></div>
+  </section>
+
+  <section class="page" id="page-tidy-programmes">
+    <div class="cestis-mount" data-feature="tidy-programmes" data-prefix="admin"></div>
   </section>
 
   <!-- ADMIN DUTY REGISTER PAGE -->
@@ -24763,10 +24822,12 @@ function renderAdminResources() {
   const filterType = document.getElementById('arFilterType')?.value || 'all';
   const searchTerm = (document.getElementById('arSearch')?.value || '').toLowerCase().trim();
 
+  var _arFiled = (filterCourse !== 'all' && typeof programmeFilterFiler === 'function') ? programmeFilterFiler() : null;
   let filtered = driveResources.filter(function(r) {
     if (filterCourse !== 'all') {
       if(!r.course) return false;
       var match = r.course === filterCourse || r.course.toLowerCase().trim() === filterCourse.toLowerCase().trim();
+      if(!match && _arFiled) match = _arFiled.matches(r.course, filterCourse);
       if(!match && typeof instructorCourseMatch === 'function') match = instructorCourseMatch(r.course, filterCourse);
       if(!match) return false;
     }
@@ -28175,8 +28236,21 @@ function populateCourseDropdowns() {
   // archived names: without them the trainees recorded under a deleted centre
   // could not be listed at all.
   var filterLabels = {arFilterCourse:'All Programmes'};
-  var archivedFilterHtml = archived.length
-    ? '<optgroup label="Archived — no training centre">' + archived.map(function(c) {
+  // A FILTER lists each programme once: a leftover spelling that agrees with
+  // exactly one live programme at the same level ("WELDING L2" under
+  // "Welding and Fabrication Level 2") is filed under it, and the filter finds
+  // its trainees there (CESTISCore.catalogue.filer). Only what agrees with no
+  // single programme stays archived. The edit and enrolment lists above are
+  // unchanged.
+  var archivedForFilters = archived;
+  try {
+    var _fv = [];
+    if (students) students.forEach(function(s) { if (s && s.course) _fv.push(s.course); });
+    if (userAccounts) userAccounts.forEach(function(u) { if (u && u.programme) _fv.push(u.programme); });
+    archivedForFilters = CESTISCore.catalogue.filterOptions(skillAreas, _fv, CESTISStore).archived;
+  } catch (e) { archivedForFilters = archived; }
+  var archivedFilterHtml = archivedForFilters.length
+    ? '<optgroup label="Archived — no training centre">' + archivedForFilters.map(function(c) {
         return '<option value="' + escapeAttr(c) + '">' + escapeHtml(c) + '</option>';
       }).join('') + '</optgroup>'
     : '';
@@ -29963,6 +30037,9 @@ function saveTrainingCentre() {
   // they can still be matched to it (see propagateCourseNameChange).
   var _scope = (oldName !== newName) ? courseRenameScope(centre) : null;
   centre.name = newName;
+  // Stamped, so a computer that has not heard of the rename cannot put the
+  // old name back (CESTISCore.cloudMerge.applySkillAreas).
+  if (oldName !== newName) centre.nameModified = (CESTISCore.sync && CESTISCore.sync.nowIso) ? CESTISCore.sync.nowIso() : new Date().toISOString();
   centre.icon = document.getElementById('editCentreIcon').value.trim() || centre.icon;
   centre.color = document.getElementById('editCentreColor').value || centre.color;
   centre.desc = document.getElementById('editCentreDesc').value.trim();
@@ -30006,6 +30083,48 @@ function courseRenameScope(centre) {
   return { centre: centre, studentIds: ids };
 }
 
+/* School Fee's side of a training-centre rename: the fee records and
+   payments written under the old name, and — when the whole programme is
+   renamed, not one intake of a shared name — its fee. Through the same rules
+   as Tidy Programme Names (CESTISCore.programmeTidy.apply): fee ids never
+   move, an intake key written in front is kept, everything changed is
+   stamped. One intake of a shared name: only that intake's trainees' fee
+   records (by their link) and their payments. Returns how many changed. */
+function propagateCourseNameChangeToFee(oldName, newName, scope) {
+  try {
+    if (!window.CESTISCore || !CESTISCore.programmeTidy || !window.CESTISStore) return 0;
+    var T = CESTISCore.programmeTidy;
+    var from = T.spell(oldName).norm;
+    if (!from || from === T.spell(newName).norm) return 0;
+    var read = function (k, d) { var v = safeJsonParse(CESTISStore.getItem(k), null); return v == null ? d : v; };
+    var fee = read('cestiSchoolFeeStudents', []), pay = read('cestiSchoolFeePayments', []);
+    if (!Array.isArray(fee) || !fee.length) return 0;
+    if (!Array.isArray(pay)) pay = [];
+    var b = { feeStudents: fee, feePayments: pay };
+    if (scope && scope.studentIds) {
+      var mine = {};
+      (typeof students !== 'undefined' && Array.isArray(students) ? students : []).forEach(function (s) {
+        if (s && scope.studentIds[String(s.id)] && s.schoolFeeId) mine[String(s.schoolFeeId)] = true;
+      });
+      fee.forEach(function (f) { if (f && f.lmsId != null && scope.studentIds[String(f.lmsId)]) mine[String(f.id)] = true; });
+      b.feeStudents = fee.filter(function (f) { return f && mine[String(f.id)]; });
+      b.feePayments = pay.filter(function (p) { return p && mine[String(p.studentId)]; });
+    } else {
+      var fs = read('cestiFeeStructure', {});
+      if (fs && typeof fs === 'object' && !Array.isArray(fs)) { b.feeStructure = fs; b.feeDeletedKeys = read('cestiSchoolFeeDeletedFeeKeys', []); }
+      if (!Array.isArray(b.feeDeletedKeys)) b.feeDeletedKeys = [];
+    }
+    var res = T.apply(b, [{ from: from, to: newName }], { now: (CESTISCore.sync && CESTISCore.sync.nowIso) ? CESTISCore.sync.nowIso() : new Date().toISOString() });
+    if (!res.changes.length) return 0;
+    var put = function (k, v) { CESTISCore.pageCloud.guardedSet(CESTISStore, k, JSON.stringify(v)); };
+    put('cestiSchoolFeeStudents', fee);
+    put('cestiSchoolFeePayments', pay);
+    if (b.feeStructure) { put('cestiFeeStructure', b.feeStructure); put('cestiSchoolFeeDeletedFeeKeys', b.feeDeletedKeys); }
+    if (typeof tidyProgTouchFeeFile === 'function') tidyProgTouchFeeFile(b.feeStructure ? ['cestiSchoolFeeStudents', 'cestiSchoolFeePayments', 'cestiFeeStructure', 'cestiSchoolFeeDeletedFeeKeys'] : ['cestiSchoolFeeStudents', 'cestiSchoolFeePayments']);
+    return res.changes.length;
+  } catch (e) { console.warn('[Rename] School Fee did not follow the rename:', e); return 0; }
+}
+
 // Propagate a course/skill area name change across all data structures.
 // `scope` (courseRenameScope) limits it to one intake's records when another
 // intake shares the old name: then only records tied to those trainees move,
@@ -30019,10 +30138,19 @@ function propagateCourseNameChange(oldName, newName, scope) {
   var programmeWide = !scope;
 
   // 1. Update students — stamped, so every other device adopts the new name
-  // instead of keeping the old one by newer-wins.
+  // instead of keeping the old one by newer-wins. The programme the record's
+  // id was made from is kept with it (idCourse, CESTISCore.naturalKey), so a
+  // rename never moves a trainee's id — and with it their sign-in, marks,
+  // attendance, fee link and certificate approval.
   students.forEach(function(s) {
-    if(s.course && s.course.toLowerCase().trim() === oldLower && inScope(s.id)) { s.course = newName; s.lastModified = now; count++; }
+    if(s.course && s.course.toLowerCase().trim() === oldLower && inScope(s.id)) {
+      if (s.idCourse == null || String(s.idCourse).trim() === '') s.idCourse = s.course;
+      s.course = newName; s.lastModified = now; count++;
+    }
   });
+  // School Fee follows: its trainee records, their payments and (for the
+  // whole programme) its fee, under the new name.
+  if (typeof propagateCourseNameChangeToFee === 'function') count += propagateCourseNameChangeToFee(oldName, newName, scope);
 
   // 2. Update user accounts (programme field)
   userAccounts.forEach(function(u) {
@@ -30134,6 +30262,493 @@ function propagateCourseNameChange(oldName, newName, scope) {
   }
 }
 
+/* ============================== TIDY PROGRAMME NAMES ==============================
+   The Administrator's page for a programme written several ways — the owner:
+   "Electrical Installation Level two shows up as 'Electrical Installation'
+   and also 'Electrical Installation Level 2', Welding show up as 'Welding and
+   Fabrication Level 2' and 'Welding & Fabrication'". Every rule (what is one
+   programme, what a choice renames, what is never touched, the undo) is
+   CESTISCore.programmeTidy; this is the page around it:
+     - the choices, kept in memory while the page is used;
+     - "Show what will change": the plan, and a dry run of it on a copy, so
+       the preview says exactly what Rename will do;
+     - "Rename now" (the confirm step, on the page itself): the latest records
+       are read in first, a copy of every key the tidy can change is kept on
+       this computer (TIDY_PROG_BACKUP, never sent anywhere), the renames are
+       applied and saved — stamped, so they win the merge on every other
+       computer — the roll is settled as at every sign-in, School Fee's own
+       copy is sent, and the log entry is written (it travels with the rest);
+     - "Undo last tidy": exactly what that tidy changed, put back (its list
+       of changes is kept on the computer that made it, TIDY_PROG_UNDO). */
+var TIDY_PROG_KEYS = ['voctrain_skillAreas', 'voctrain_students', 'voctrain_users', 'voctrain_instructorData', 'voctrain_exams',
+  'voctrain_assignments', 'voctrain_submissions', 'voctrain_resources', 'voctrain_driveResources', 'voctrain_classSessions',
+  'voctrain_calendarEvents', 'voctrain_announcements', 'voctrain_certTemplateCourseMap', 'voctrain_unitCatalogs',
+  'cestiSchoolFeeStudents', 'cestiSchoolFeePayments', 'cestiFeeStructure', 'cestiSchoolFeeDeletedFeeKeys', 'cestiSchoolFeeCarryDeclined'];
+var TIDY_PROG_BACKUP = 'cestisThisPc_programmeTidyBackup';
+var TIDY_PROG_UNDO = 'cestisThisPc_programmeTidyUndo';
+var _tidyProg = { decisions: { keep: {}, skip: {}, choose: {} }, typing: {}, stage: 'choose', busy: false, note: '', last: null, view: null, previewed: '' };
+
+function tidyProgAllowed() { return currentRole === 'admin' && !!currentLoggedInUser; }
+function tidyProgWho() { var u = currentLoggedInUser || {}; return String(u.name || u.username || 'Administrator'); }
+function tidyProgRead(key, fallback) { var v = safeJsonParse(CESTISStore.getItem(key), null); return v == null ? fallback : v; }
+function tidyProgWhen(iso) {
+  var t = Date.parse(iso || '');
+  if (isNaN(t)) return '';
+  try { return new Date(t).toLocaleString('en-JM', { day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit' }); }
+  catch (e) { return new Date(t).toLocaleString(); }
+}
+
+/* The Centre's records that carry a programme's name, as this computer holds
+   them. The dashboard's own collections are passed as they are (renamed in
+   place, then saved by saveState); School Fee's and the unit lists are read
+   from the store and written back. Certificate designs: only their names. */
+function tidyProgBundle() {
+  var list = function (v) { return Array.isArray(v) ? v : []; };
+  var map = function (v) { return (v && typeof v === 'object' && !Array.isArray(v)) ? v : {}; };
+  var designs = {};
+  Object.keys(certTemplates || {}).forEach(function (k) { designs[k] = true; });
+  return {
+    centres: CESTISCore.catalogue.liveCentres(skillAreas, CESTISStore),
+    students: list(students), accounts: list(userAccounts), instructors: list(instructorData), exams: list(exams),
+    assignments: list(instructorAssignments), submissions: list(assignmentSubmissions), resources: list(instructorResources),
+    driveResources: list(driveResources), classSessions: list(classSessions), calendarEvents: list(calendarEvents),
+    announcements: list(announcements), chatRooms: list(lmsChatRooms),
+    certTemplates: designs, certTemplateCourseMap: map(certTemplateCourseMap),
+    feeStudents: list(tidyProgRead('cestiSchoolFeeStudents', [])), feePayments: list(tidyProgRead('cestiSchoolFeePayments', [])),
+    feeStructure: map(tidyProgRead('cestiFeeStructure', {})), feeDeletedKeys: list(tidyProgRead('cestiSchoolFeeDeletedFeeKeys', [])),
+    feeCarryDeclined: list(tidyProgRead('cestiSchoolFeeCarryDeclined', [])), unitCatalogs: list(tidyProgRead('voctrain_unitCatalogs', []))
+  };
+}
+function tidyProgCompute() {
+  var T = CESTISCore.programmeTidy;
+  var bundle = tidyProgBundle();
+  var inv = T.inventory(bundle);
+  var grp = T.group(inv);
+  var plan = T.plan(inv, grp, _tidyProg.decisions);
+  _tidyProg.view = { bundle: bundle, inv: inv, grp: grp, plan: plan };
+  return _tidyProg.view;
+}
+/* What the records the store holds now look like, once the tidy changed them. */
+function tidyProgWriteBack(b) {
+  var put = function (key, value) { try { CESTISCore.pageCloud.guardedSet(CESTISStore, key, JSON.stringify(value)); } catch (e) {} };
+  put('cestiSchoolFeeStudents', b.feeStudents);
+  put('cestiSchoolFeePayments', b.feePayments);
+  put('cestiFeeStructure', b.feeStructure);
+  put('cestiSchoolFeeDeletedFeeKeys', b.feeDeletedKeys);
+  if (b.feeCarryDeclined.length) put('cestiSchoolFeeCarryDeclined', b.feeCarryDeclined);
+  put('voctrain_unitCatalogs', b.unitCatalogs);
+  tidyProgTouchFeeFile(['cestiSchoolFeeStudents', 'cestiSchoolFeePayments', 'cestiFeeStructure', 'cestiSchoolFeeDeletedFeeKeys', 'cestiSchoolFeeCarryDeclined']);
+  saveState();
+}
+/* School Fee sends its own records to the other computers, and decides what
+   is new by when each key was last written on this computer. A write made
+   here (not on the School Fee page) is dated the same way, so School Fee
+   sends it rather than taking an older copy over it. */
+function tidyProgTouchFeeFile(keys) {
+  try {
+    var k = 'cestis_pagecloud_stamps__CESTIS_School_Fees.json';
+    var st = safeJsonParse(CESTISStore.getItem(k), {});
+    if (!st || typeof st !== 'object' || Array.isArray(st)) st = {};
+    var now = (window.CESTISPageCloud && typeof CESTISPageCloud.now === 'function') ? CESTISPageCloud.now() : new Date().toISOString();
+    keys.forEach(function (x) { st[x] = now; });
+    CESTISStore.setItem(k, JSON.stringify(st));
+  } catch (e) {}
+}
+function tidyProgReadLog() { var v = tidyProgRead(CESTISCore.programmeTidy.LOG_KEY, []); return Array.isArray(v) ? v : []; }
+function tidyProgWriteLog(entries) {
+  var merged = CESTISCore.programmeTidy.mergeLogs(tidyProgReadLog(), entries);
+  try { CESTISCore.pageCloud.guardedSet(CESTISStore, CESTISCore.programmeTidy.LOG_KEY, JSON.stringify(merged)); } catch (e) {}
+}
+/* The log arriving from another computer (mergeBackupData): entry by entry,
+   an undo made anywhere standing. */
+function tidyProgMergeLog(incoming) {
+  if (!Array.isArray(incoming) || !incoming.length || !window.CESTISCore || !CESTISCore.programmeTidy) return false;
+  var before = JSON.stringify(tidyProgReadLog());
+  var merged = CESTISCore.programmeTidy.mergeLogs(tidyProgReadLog(), incoming);
+  if (JSON.stringify(merged) === before) return false;
+  try { CESTISCore.pageCloud.guardedSet(CESTISStore, CESTISCore.programmeTidy.LOG_KEY, JSON.stringify(merged)); } catch (e) { return false; }
+  try { if (document.querySelector('#page-tidy-programmes.active')) tidyProgRenderLog(); } catch (e) {}
+  return true;
+}
+
+function tidyProgOnShow() {
+  var root = document.getElementById('tidyProgRoot');
+  if (!root) return;
+  if (!tidyProgAllowed()) {
+    root.innerHTML = '<div class="card"><p class="tidy-note">Only the Administrator can tidy programme names.</p></div>';
+    return;
+  }
+  if (!root.getAttribute('data-wired')) {
+    root.setAttribute('data-wired', '1');
+    root.addEventListener('change', tidyProgOnChange);
+    root.addEventListener('input', tidyProgOnInput);
+    root.addEventListener('click', tidyProgOnClick);
+  }
+  if (!_tidyProg.busy && (_tidyProg.stage === 'preview' || _tidyProg.stage === 'undo-ask')) _tidyProg.stage = 'choose';
+  tidyProgRender();
+}
+function tidyProgOnChange(e) {
+  var el = e.target, d = _tidyProg.decisions;
+  if (!el || !el.getAttribute) return;
+  var g = el.getAttribute('data-tidy-keep');
+  if (g != null) {
+    if (el.value === '\u0001new') { _tidyProg.typing[g] = true; d.keep[g] = ''; }
+    else { _tidyProg.typing[g] = false; d.keep[g] = el.value; }
+    tidyProgRender();
+    if (_tidyProg.typing[g]) { var inp = document.querySelector('#tidyProgRoot input[data-tidy-typed="' + CSS.escape(g) + '"]'); if (inp) inp.focus(); }
+    return;
+  }
+  var t = el.getAttribute('data-tidy-typed');
+  if (t != null) { d.keep[t] = el.value; tidyProgRender(); return; }
+  var sp = el.getAttribute('data-tidy-sp');
+  if (sp != null) { if (el.checked) delete d.skip[sp]; else d.skip[sp] = true; tidyProgRender(); return; }
+  var ch = el.getAttribute('data-tidy-choose');
+  if (ch != null) { if (el.value) d.choose[ch] = el.value; else delete d.choose[ch]; tidyProgRender(); return; }
+}
+// Typing a new name: the "Will read" lines follow as it is typed.
+function tidyProgOnInput(e) {
+  var el = e.target;
+  var t = el && el.getAttribute && el.getAttribute('data-tidy-typed');
+  if (t == null) return;
+  _tidyProg.decisions.keep[t] = el.value;
+  var g = _tidyProg.view && _tidyProg.view.grp.groups.find(function (x) { return x.id === t; });
+  var name = String(el.value || '').trim().replace(/\s+/g, ' ') || (g ? g.keep : '');
+  document.querySelectorAll('#tidyProgRoot [data-tidy-to="' + CSS.escape(t) + '"]').forEach(function (x) { x.textContent = 'Will read: ' + name; });
+}
+function tidyProgOnClick(e) {
+  var btn = e.target && e.target.closest ? e.target.closest('[data-tidy-act]') : null;
+  if (!btn || btn.disabled) return;
+  var act = btn.getAttribute('data-tidy-act');
+  if (act === 'preview') { _tidyProg.stage = 'preview'; tidyProgRender(); tidyProgTop(); }
+  else if (act === 'back' || act === 'again') { _tidyProg.stage = 'choose'; _tidyProg.last = null; tidyProgRender(); tidyProgTop(); }
+  else if (act === 'apply') tidyProgApply();
+  else if (act === 'backup') { try { exportDataBackup(); } catch (err) { showToast('The backup file could not be made just now.', 'warning'); } }
+  else if (act === 'undo-ask') { _tidyProg.stage = 'undo-ask'; tidyProgRender(); tidyProgTop(); }
+  else if (act === 'undo-go') tidyProgUndo();
+  else if (act === 'undo-cancel') { _tidyProg.stage = 'choose'; tidyProgRender(); }
+  else if (act === 'copy') tidyProgDownloadCopy();
+  else if (act === 'reset') { _tidyProg.decisions = { keep: {}, skip: {}, choose: {} }; _tidyProg.typing = {}; tidyProgRender(); }
+}
+function tidyProgTop() { try { var r = document.getElementById('tidyProgRoot'); if (r && r.scrollIntoView) r.scrollIntoView({ block: 'start' }); } catch (e) {} }
+
+function tidyProgIntakes(sp) {
+  if (!sp.centres || !sp.centres.length) return '';
+  return '<span class="tidy-intakes">' + sp.centres.map(function (c) {
+    var when = (c.startDate || c.endDate) ? ' · ' + (c.startDate || '…') + ' to ' + (c.endDate || '…') : '';
+    var state = c.status === 'ended' ? 'finished' : c.status === 'not-started' ? 'starts later' : c.status === 'no-dates' ? 'no dates set' : 'running';
+    return '<span class="tidy-intake' + (c.status === 'ended' ? '' : ' open') + '">Intake ' + escapeHtml(c.key || '—') + when + ' · ' + state + '</span>';
+  }).join('') + '</span>';
+}
+function tidyProgTargetOf(g) {
+  var t = _tidyProg.decisions.keep[g.id];
+  t = (t != null && String(t).trim()) ? CESTISCore.programmeTidy.spell(t).bare : '';
+  return t || g.keep;
+}
+function tidyProgSpellingHtml(sp, tail) {
+  return '<span class="tidy-sp-name">' + escapeHtml(sp.label) + (tail || '') + '</span>' +
+    '<span class="tidy-sp-what">' + escapeHtml(CESTISCore.programmeTidy.describe(sp.counts) || 'not used on any record') + '</span>' + tidyProgIntakes(sp);
+}
+function tidyProgGroupHtml(g) {
+  var T = CESTISCore.programmeTidy, d = _tidyProg.decisions;
+  var target = tidyProgTargetOf(g);
+  var typing = !!_tidyProg.typing[g.id] || (d.keep[g.id] != null && String(d.keep[g.id]).trim() !== '' && !g.members.some(function (m) { return m.label === d.keep[g.id]; }));
+  var sel = 'tidyKeep-' + g.id.replace(/[^a-z0-9]+/gi, '-');
+  var opts = g.members.map(function (m) {
+    return '<option value="' + escapeAttr(m.label) + '"' + (!typing && T.spell(m.label).norm === T.spell(target).norm ? ' selected' : '') + '>' + escapeHtml(m.label) + '</option>';
+  }).join('') + '<option value="\u0001new"' + (typing ? ' selected' : '') + '>A new name…</option>';
+  var head = '<div class="tidy-group-head"><label for="' + sel + '">Keep the name</label>' +
+    '<select class="form-control" id="' + sel + '" data-tidy-keep="' + escapeAttr(g.id) + '">' + opts + '</select>' +
+    (typing ? '<input class="form-control" type="text" maxlength="120" data-tidy-typed="' + escapeAttr(g.id) + '" value="' + escapeAttr(d.keep[g.id] || '') + '" placeholder="Type the programme’s name" aria-label="The name to keep for this programme">' : '') + '</div>';
+  var tn = T.spell(target).norm;
+  var members = g.members.slice().sort(function (a, b) { return (b.norm === tn ? 1 : 0) - (a.norm === tn ? 1 : 0); });   // the name kept first
+  var rows = members.map(function (m) {
+    if (tn === m.norm) {
+      return '<div class="tidy-sp"><span class="tidy-kept-mark" aria-hidden="true">✓</span><span class="tidy-sp-main">' +
+        tidyProgSpellingHtml(m, '<span class="tidy-sp-same">the name kept</span>') + '</span></div>';
+    }
+    var on = !d.skip[m.norm];
+    return '<label class="tidy-sp"><input type="checkbox" data-tidy-sp="' + escapeAttr(m.norm) + '"' + (on ? ' checked' : '') +
+      ' aria-label="Rename ' + escapeAttr(m.label) + '"><span class="tidy-sp-main">' + tidyProgSpellingHtml(m) +
+      '<span class="tidy-sp-to"' + (on ? ' data-tidy-to="' + escapeAttr(g.id) + '">Will read: ' + escapeHtml(target) : '>Left as it is') + '</span></span></label>';
+  }).join('');
+  return '<div class="tidy-group">' + head + rows + '</div>';
+}
+function tidyProgCountsText(counts) {
+  var T = CESTISCore.programmeTidy, out = [], words = {}, order = [];
+  T.KINDS.forEach(function (K) {
+    var n = (counts || {})[K.kind];
+    if (!n) return;
+    if (!words[K.many]) { words[K.many] = { n: 0, one: K.one, many: K.many }; order.push(K.many); }
+    words[K.many].n += n;
+  });
+  order.forEach(function (w) { var x = words[w]; out.push(x.n.toLocaleString('en-US') + ' ' + (x.n === 1 ? x.one : x.many)); });
+  return out.length ? out.join(', ') : 'nothing';
+}
+
+function tidyProgRender() {
+  var root = document.getElementById('tidyProgRoot');
+  if (!root || !tidyProgAllowed()) return;
+  var stats = document.getElementById('tidyProgStats'), body = document.getElementById('tidyProgBody');
+  if (!stats || !body) return;
+  var view;
+  try { view = tidyProgCompute(); }
+  catch (e) { console.warn('[TidyProgrammes] could not read the records', e); body.innerHTML = '<div class="card"><p class="tidy-note">The programme names could not be read just now. Reload the page and try again.</p></div>'; return; }
+  var groups = view.grp.groups, multi = groups.filter(function (g) { return g.members.length > 1; });
+  var loners = groups.filter(function (g) { return g.members.length === 1 && !g.live; });
+  var singles = groups.filter(function (g) { return g.members.length === 1 && g.live; });
+  stats.innerHTML = '<span class="badge badge-blue">' + view.inv.spellings.length + ' programme name' + (view.inv.spellings.length === 1 ? '' : 's') + ' in use</span>' +
+    '<span class="badge badge-amber">' + multi.length + ' programme' + (multi.length === 1 ? '' : 's') + ' written more than one way</span>' +
+    (view.grp.choices.length ? '<span class="badge badge-red">' + view.grp.choices.length + ' need' + (view.grp.choices.length === 1 ? 's' : '') + ' your choice</span>' : '');
+  var html = '';
+  if (_tidyProg.busy) {
+    html = '<div class="card"><div class="tidy-box">' + escapeHtml(_tidyProg.note || 'Working…') + '</div></div>';
+  } else if (_tidyProg.stage === 'preview') {
+    html = tidyProgPreviewHtml(view);
+  } else if (_tidyProg.stage === 'done' || _tidyProg.stage === 'undone') {
+    html = tidyProgResultHtml();
+  } else if (_tidyProg.stage === 'undo-ask') {
+    html = tidyProgUndoAskHtml();
+  } else {
+    var targets = groups.map(function (g) { return { id: g.id, to: tidyProgTargetOf(g) }; }).sort(function (a, b) { return a.to.localeCompare(b.to); });
+    var byId = {}; groups.forEach(function (g) { byId[g.id] = g; });
+    html += '<div class="card"><div class="card-header"><h3>Programmes written more than one way</h3></div>';
+    html += multi.length ? '<p class="tidy-note">Ticked names are renamed to the name kept. Untick one to leave it exactly as it is.</p>' + multi.map(tidyProgGroupHtml).join('')
+      : '<p class="tidy-note">None — every programme is written one way.</p>';
+    html += '</div>';
+    if (view.grp.choices.length) {
+      html += '<div class="card"><div class="card-header"><h3>Needs your choice</h3></div>' +
+        '<p class="tidy-note">Each of these could be more than one programme (it does not say which level), so it is not guessed. Say which it is, or leave it as it is.</p>' +
+        view.grp.choices.map(function (c) {
+          var cur = _tidyProg.decisions.choose[c.spelling.norm] || '';
+          return '<div class="tidy-row"><span class="tidy-sp-main">' + tidyProgSpellingHtml(c.spelling) + '</span>' +
+            '<select class="form-control" data-tidy-choose="' + escapeAttr(c.spelling.norm) + '" aria-label="Which programme is ' + escapeAttr(c.spelling.label) + '?">' +
+            '<option value="">Leave as it is</option>' + c.candidates.map(function (gid) {
+              var g = byId[gid];
+              return g ? '<option value="' + escapeAttr(gid) + '"' + (cur === gid ? ' selected' : '') + '>It is ' + escapeHtml(tidyProgTargetOf(g)) + '</option>' : '';
+            }).join('') + '</select></div>';
+        }).join('') + '</div>';
+    }
+    if (loners.length) {
+      html += '<div class="card"><div class="card-header"><h3>Names no training centre uses</h3></div>' +
+        '<p class="tidy-note">These are written on records but match no programme the Centre runs. If one is really another programme, say which; otherwise leave it.</p>' +
+        loners.map(function (g) {
+          var m = g.members[0], cur = _tidyProg.decisions.choose[m.norm] || '';
+          return '<div class="tidy-row"><span class="tidy-sp-main">' + tidyProgSpellingHtml(m) + '</span>' +
+            '<select class="form-control" data-tidy-choose="' + escapeAttr(m.norm) + '" aria-label="Which programme is ' + escapeAttr(m.label) + '?">' +
+            '<option value="">Leave as it is</option>' + targets.filter(function (t) { return t.id !== g.id; }).map(function (t) {
+              return '<option value="' + escapeAttr(t.id) + '"' + (cur === t.id ? ' selected' : '') + '>It is ' + escapeHtml(t.to) + '</option>';
+            }).join('') + '</select></div>';
+        }).join('') + '</div>';
+    }
+    if (singles.length) {
+      html += '<div class="card"><details class="tidy-more"' + (singles.some(function (g) { return _tidyProg.decisions.keep[g.id]; }) ? ' open' : '') + '>' +
+        '<summary>Programmes with one name (' + singles.length + ')</summary>' +
+        '<p class="tidy-note">Already written one way. To rename one everywhere, type its new name.</p>' +
+        singles.map(function (g) {
+          return '<div class="tidy-row"><span class="tidy-sp-main">' + tidyProgSpellingHtml(g.members[0]) + '</span>' +
+            '<input class="form-control" type="text" maxlength="120" data-tidy-typed="' + escapeAttr(g.id) + '" value="' + escapeAttr(_tidyProg.decisions.keep[g.id] || '') +
+            '" placeholder="New name (leave empty to keep it)" aria-label="New name for ' + escapeAttr(g.members[0].label) + '"></div>';
+        }).join('') + '</details></div>';
+    }
+    var n = view.plan.renames.length;
+    html += '<div class="card"><div class="tidy-actions">' +
+      '<button class="btn btn-primary" data-tidy-act="preview"' + (n ? '' : ' disabled') + '>Show what will change' + (n ? ' (' + n + ' name' + (n === 1 ? '' : 's') + ')' : '') + '</button>' +
+      '<button class="btn btn-secondary" data-tidy-act="reset">Start the choices again</button></div>' +
+      (n ? '' : '<p class="tidy-note">Nothing is chosen to rename yet.</p>') + '</div>';
+  }
+  body.innerHTML = html;
+  tidyProgRenderLog();
+}
+
+function tidyProgPreviewHtml(view) {
+  var T = CESTISCore.programmeTidy, plan = view.plan;
+  var dry = null;
+  try { dry = T.apply(JSON.parse(JSON.stringify(view.bundle)), plan.renames, { now: CESTISCore.sync.nowIso(), nowMs: Date.now() }); } catch (e) { dry = null; }
+  _tidyProg.previewed = JSON.stringify(plan.renames.map(function (r) { return [r.from, r.to]; }));
+  var blocking = plan.problems.filter(function (p) { return p.blocking; });
+  var html = '<div class="card"><div class="card-header"><h3>What will change</h3></div>';
+  html += plan.lines.map(function (l) {
+    return '<div class="tidy-line"><div class="tidy-line-to">→ ' + escapeHtml(l.to) + '</div><ul>' + l.items.map(function (x) {
+      return '<li><strong>' + escapeHtml(x.label) + '</strong> (' + escapeHtml(x.what || 'not used on any record') + ') → ' + escapeHtml(l.to) + '</li>';
+    }).join('') + '</ul></div>';
+  }).join('');
+  if (dry) html += '<p class="tidy-note"><strong>In all:</strong> ' + escapeHtml(tidyProgCountsText(dry.counts)) + ' renamed.</p>';
+  plan.problems.forEach(function (p) { html += '<div class="tidy-box' + (p.blocking ? ' stop' : '') + '">' + escapeHtml(p.text) + '</div>'; });
+  if (dry && dry.pinned.length) {
+    html += '<div class="tidy-box"><strong>Kept as different people.</strong> These share a name and come from different spellings. Each keeps their own record, marked “kept separate”, so they are never joined:<ul>' +
+      dry.pinned.map(function (p) { return '<li>' + escapeHtml(p.name) + ' (' + escapeHtml(p.from.join(', ')) + ')' + (p.kind === 'feeStudents' ? ' — fee records' : '') + '</li>'; }).join('') + '</ul></div>';
+  }
+  if (dry && dry.bound) html += '<p class="tidy-note">' + dry.bound + ' record' + (dry.bound === 1 ? '' : 's') + ' that only named a programme ' + (dry.bound === 1 ? 'is' : 'are') + ' first tied to the intake ' + (dry.bound === 1 ? 'it is' : 'they are') + ' in now, so nobody moves intake when two intakes share a name.</p>';
+  if (dry && dry.designs.length) html += dry.designs.map(function (x) { return '<p class="tidy-note">Certificates for ' + escapeHtml(x.to) + ' use the certificate design made for ' + escapeHtml(x.design) + ' (unchanged).</p>'; }).join('');
+  if (dry && dry.skipped.length) html += dry.skipped.map(function (x) { return '<p class="tidy-note">Left as it is: the unit list “' + escapeHtml(x.title) + '” (it is for another level).</p>'; }).join('');
+  html += '<div class="tidy-box">Nothing is deleted, and nobody’s record, sign-in, marks, attendance, fees or certificate changes — only the programme names. ' +
+    'Exam results, attendance and certificate approvals keep the name they were recorded under. Before anything changes, the latest records are read in and a copy of everything this changes is kept, so the tidy can be undone. You can also download a backup file first.</div>';
+  html += '<div class="tidy-actions"><button class="btn btn-primary" data-tidy-act="apply"' + (blocking.length || !plan.renames.length ? ' disabled' : '') + '>Rename now</button>' +
+    '<button class="btn btn-secondary" data-tidy-act="backup">Download a backup file first</button>' +
+    '<button class="btn btn-secondary" data-tidy-act="back">Back to the choices</button></div></div>';
+  return html;
+}
+function tidyProgResultHtml() {
+  var r = _tidyProg.last || {};
+  if (_tidyProg.stage === 'undone') {
+    return '<div class="card"><div class="tidy-box done"><strong>The old names are back.</strong> ' + (r.restored || 0) + ' change' + (r.restored === 1 ? '' : 's') + ' put back' +
+      (r.counts ? ' (' + escapeHtml(tidyProgCountsText(r.counts)) + ')' : '') + '.' +
+      (r.kept ? ' ' + r.kept + ' had been changed since the tidy and ' + (r.kept === 1 ? 'was' : 'were') + ' left as ' + (r.kept === 1 ? 'it is' : 'they are') + ' now.' : '') + '</div>' +
+      '<div class="tidy-actions"><button class="btn btn-secondary" data-tidy-act="again">Back to the programmes</button></div></div>';
+  }
+  var e = r.entry || {};
+  return '<div class="card"><div class="tidy-box done"><strong>Renamed.</strong> ' + escapeHtml(tidyProgCountsText(e.counts)) + '. The course menus now show one entry for each programme.' +
+    (e.pinned && e.pinned.length ? ' People who share a name and came from different spellings are kept as separate records: ' + e.pinned.map(function (p) { return escapeHtml(p.name); }).join(', ') + '.' : '') + '</div>' +
+    '<div class="tidy-actions"><button class="btn btn-secondary" data-tidy-act="undo-ask">Undo this tidy</button>' +
+    '<button class="btn btn-secondary" data-tidy-act="again">Back to the programmes</button></div></div>';
+}
+function tidyProgUndoAskHtml() {
+  var u = cestisThisPcRead(TIDY_PROG_UNDO, null);
+  var entry = u && tidyProgReadLog().filter(function (x) { return x.id === u.id; })[0];
+  if (!u || !entry || entry.undoneAt) {
+    return '<div class="card"><p class="tidy-note">There is no tidy to undo on this computer.</p><div class="tidy-actions"><button class="btn btn-secondary" data-tidy-act="undo-cancel">Back</button></div></div>';
+  }
+  return '<div class="card"><div class="card-header"><h3>Undo the last tidy?</h3></div>' +
+    '<div class="tidy-box">This puts back exactly what the tidy of ' + escapeHtml(tidyProgWhen(entry.at)) + ' changed (' + (u.changes || []).length + ' change' + ((u.changes || []).length === 1 ? '' : 's') + '): ' +
+    (entry.lines || []).map(function (l) { return escapeHtml(l.from.map(function (f) { return f.label; }).join(', ')) + ' → ' + escapeHtml(l.to); }).join('; ') +
+    '. Anything changed since is left as it is now.</div>' +
+    '<div class="tidy-actions"><button class="btn btn-primary" data-tidy-act="undo-go">Put the old names back</button>' +
+    '<button class="btn btn-secondary" data-tidy-act="undo-cancel">Keep the new names</button></div></div>';
+}
+function tidyProgRenderLog() {
+  var el = document.getElementById('tidyProgLog');
+  if (!el) return;
+  var log = tidyProgReadLog();
+  if (!log.length) { el.innerHTML = '<p class="tidy-note">No programme names have been tidied yet.</p>'; return; }
+  var u = cestisThisPcRead(TIDY_PROG_UNDO, null);
+  el.innerHTML = log.map(function (e, i) {
+    var mine = !!(u && u.id === e.id);
+    var canUndo = i === 0 && mine && !e.undoneAt && !_tidyProg.busy;
+    return '<div class="tidy-log-entry"><div class="tidy-log-head"><strong>' + escapeHtml(tidyProgWhen(e.at)) + '</strong><span>by ' + escapeHtml(e.by || 'the Administrator') + '</span>' +
+      '<span>' + escapeHtml(tidyProgCountsText(e.counts)) + '</span>' +
+      (e.undoneAt ? '<span class="badge badge-purple">Undone ' + escapeHtml(tidyProgWhen(e.undoneAt)) + (e.undoneBy ? ' by ' + escapeHtml(e.undoneBy) : '') + '</span>' : '') + '</div>' +
+      '<div class="tidy-line"><ul>' + (e.lines || []).map(function (l) {
+        return '<li>' + l.from.map(function (f) { return '<strong>' + escapeHtml(f.label) + '</strong>' + (f.what ? ' (' + escapeHtml(f.what) + ')' : ''); }).join(', ') + ' → <strong>' + escapeHtml(l.to) + '</strong></li>';
+      }).join('') + '</ul></div>' +
+      (e.pinned && e.pinned.length ? '<p class="tidy-note">Kept as different people: ' + e.pinned.map(function (p) { return escapeHtml(p.name); }).join(', ') + '.</p>' : '') +
+      (canUndo ? '<div class="tidy-actions"><button class="btn btn-sm btn-secondary" data-tidy-act="undo-ask">Undo last tidy</button>' +
+        (u.backupAt ? '<button class="btn btn-sm btn-secondary" data-tidy-act="copy">Download the copy taken before it</button>' : '') + '</div>'
+        : (i === 0 && !e.undoneAt && !mine ? '<p class="tidy-note">It can be undone on the computer it was made on.</p>' : '')) +
+      '</div>';
+  }).join('');
+}
+
+/* Every view that shows a programme follows: the menus, the class chat rooms
+   (renamed with their centres), Student Progress and School Fee (they reload
+   what they show), and School Fee's own copy for the other computers — its
+   page is opened in the background if it has not been yet, as a visit
+   would, so the renamed fee records go out now. */
+function tidyProgAfterChange() {
+  try { populateCourseDropdowns(); } catch (e) {}
+  try { if (typeof lmsChatEnsureMembership === 'function') lmsChatEnsureMembership(); } catch (e) {}
+  try { updateSkillAreaCounts(); } catch (e) {}
+  try { refreshStudentDependentViews(); } catch (e) {}
+  try { refreshContentDependentViews(); } catch (e) {}
+  ['studentProgressFrame', 'asStudentProgressFrame'].forEach(function (id) {
+    var f = document.getElementById(id);
+    try { if (f && f.contentWindow) f.contentWindow.postMessage({ type: 'refresh-students' }, '*'); } catch (e) {}
+  });
+  try { if (typeof broadcastStudentsToFeeFrames === 'function') broadcastStudentsToFeeFrames(); } catch (e) {}
+  var fee = document.getElementById('feeManagementFrame');
+  if (fee && !fee.getAttribute('data-src-loaded')) {
+    try { fee.src = 'School.Fee.html'; fee.setAttribute('data-src-loaded', '1'); } catch (e) {}
+  }
+}
+/* Read the Centre's latest records in before a tidy or its undo, so an edit
+   made on another computer a moment ago is renamed too, not overwritten. */
+async function tidyProgPullFirst() {
+  if (!isCloudConnected || !googleAccessToken || typeof cestisPullAndRefresh !== 'function') return;
+  try { await Promise.race([cestisPullAndRefresh(), new Promise(function (r) { setTimeout(r, 20000); })]); } catch (e) {}
+}
+async function tidyProgApply() {
+  if (!tidyProgAllowed() || _tidyProg.busy) return;
+  var T = CESTISCore.programmeTidy;
+  _tidyProg.busy = true; _tidyProg.note = 'Reading the latest records first…'; tidyProgRender();
+  try {
+    await tidyProgPullFirst();
+    _tidyProg.note = 'Renaming…'; tidyProgRender();
+    saveState();
+    var view = tidyProgCompute();
+    var now = JSON.stringify(view.plan.renames.map(function (r) { return [r.from, r.to]; }));
+    if (now !== _tidyProg.previewed || view.plan.problems.some(function (p) { return p.blocking; }) || !view.plan.renames.length) {
+      _tidyProg.busy = false; _tidyProg.stage = 'preview'; tidyProgRender();
+      showToast('The records changed while you were looking. Check what will change, then press Rename now again.', 'warning');
+      return;
+    }
+    var at = CESTISCore.sync.nowIso(), who = tidyProgWho();
+    // A copy of everything the tidy can change, as it was (this computer only).
+    var copy = {};
+    TIDY_PROG_KEYS.forEach(function (k) { var v = CESTISStore.getItem(k); if (v != null) copy[k] = v; });
+    cestisThisPcWrite(TIDY_PROG_BACKUP, { at: at, by: who, keys: copy });
+    var res = T.apply(view.bundle, view.plan.renames, { now: at, nowMs: Date.now() });
+    tidyProgWriteBack(view.bundle);
+    var entry = T.logEntry(view.plan, res, { at: at, by: who });
+    cestisThisPcWrite(TIDY_PROG_UNDO, { id: entry.id, at: at, backupAt: at, changes: res.changes });
+    tidyProgWriteLog([entry]);
+    // The roll settled as at every sign-in — it finds nothing to change.
+    try { cestisSettleRoster('programme names tidied'); } catch (e) {}
+    try { addNotification('Programme names tidied: ' + view.plan.lines.map(function (l) { return l.to; }).join(', '), 'system', null, ['admin']); } catch (e) {}
+    tidyProgAfterChange();
+    _tidyProg.last = { entry: entry, res: res };
+    _tidyProg.stage = 'done';
+    _tidyProg.decisions = { keep: {}, skip: {}, choose: {} }; _tidyProg.typing = {};
+    showToast('Programme names tidied.', 'success');
+  } catch (e) {
+    console.error('[TidyProgrammes] the tidy did not finish', e);
+    showToast('The tidy could not be finished. Nothing was deleted; check the programmes and try again.', 'warning');
+    _tidyProg.stage = 'choose';
+  }
+  _tidyProg.busy = false;
+  tidyProgRender();
+  tidyProgTop();
+}
+async function tidyProgUndo() {
+  if (!tidyProgAllowed() || _tidyProg.busy) return;
+  var u = cestisThisPcRead(TIDY_PROG_UNDO, null);
+  var entry = u && tidyProgReadLog().filter(function (x) { return x.id === u.id; })[0];
+  if (!u || !entry || entry.undoneAt) { _tidyProg.stage = 'choose'; tidyProgRender(); return; }
+  _tidyProg.busy = true; _tidyProg.note = 'Reading the latest records first…'; tidyProgRender();
+  try {
+    await tidyProgPullFirst();
+    _tidyProg.note = 'Putting the old names back…'; tidyProgRender();
+    saveState();
+    var bundle = tidyProgBundle(), at = CESTISCore.sync.nowIso(), who = tidyProgWho();
+    var res = CESTISCore.programmeTidy.undo(bundle, u, { now: at });
+    tidyProgWriteBack(bundle);
+    tidyProgWriteLog([Object.assign({}, entry, { undoneAt: at, undoneBy: who })]);
+    cestisThisPcWrite(TIDY_PROG_UNDO, null);
+    try { cestisSettleRoster('programme tidy undone'); } catch (e) {}
+    tidyProgAfterChange();
+    _tidyProg.last = { restored: res.restored, kept: res.kept.length, counts: res.counts };
+    _tidyProg.stage = 'undone';
+    showToast('The old programme names are back.', 'success');
+  } catch (e) {
+    console.error('[TidyProgrammes] the undo did not finish', e);
+    showToast('The undo could not be finished. Try again.', 'warning');
+    _tidyProg.stage = 'choose';
+  }
+  _tidyProg.busy = false;
+  tidyProgRender();
+  tidyProgTop();
+}
+/* The copy taken before the last tidy, as a backup file (Settings → Import
+   Backup reads it). */
+function tidyProgDownloadCopy() {
+  var b = cestisThisPcRead(TIDY_PROG_BACKUP, null);
+  if (!b || !b.keys) { showToast('There is no copy from before a tidy on this computer.', 'info'); return; }
+  var file = { version: '2.0', exportedAt: b.at, note: 'Copy taken before tidying programme names', data: {} };
+  Object.keys(b.keys).forEach(function (k) { var v = safeJsonParse(b.keys[k], undefined); if (v !== undefined && v !== null) file.data[k] = v; });
+  var url = URL.createObjectURL(new Blob([JSON.stringify(file, null, 2)], { type: 'application/json' }));
+  var a = document.createElement('a');
+  a.href = url; a.download = 'CESTIS_Before_Tidy_' + String(b.at || '').slice(0, 10) + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 function openDeleteCentre(id) {
   if(currentRole !== 'admin') { alert('Only administrators can delete training centres.'); return; }
@@ -36183,11 +36798,19 @@ function attendanceRoster(dates, filterFn) {
 function attendanceCourseFilterFn(courseFilter) {
   if (!courseFilter || courseFilter === 'all') return null;
   var want = String(courseFilter).toLowerCase().trim();
+  var filed = (typeof programmeFilterFiler === 'function') ? programmeFilterFiler() : null;
   return function (s) {
     if (!s.course) return false;
     if (s.course === courseFilter || s.course.toLowerCase().trim() === want) return true;
+    if (filed && filed.matches(s.course, courseFilter)) return true;
     return typeof instructorCourseMatch === 'function' && instructorCourseMatch(s.course, courseFilter);
   };
+}
+/* The filter menus' filing rule (CESTISCore.catalogue.filer): a record
+   written under a leftover spelling is found under the one live programme it
+   is filed under. null when the rule cannot be read. */
+function programmeFilterFiler() {
+  try { return CESTISCore.catalogue.filer(skillAreas, CESTISStore); } catch (e) { return null; }
 }
 function attendanceCellTitle(r) {
   if (!r) return 'Not marked';
@@ -39318,7 +39941,10 @@ async function mergeFromCloud() {
           // 'stageSetByUser' travels with the stage: without it the other
           // devices still believe the course-end rule owns this trainee, and
           // would undo the Centre's decision the next time the course reopens.
-          var fieldsToMerge = ['stage','stageSetByUser','progress','name','course','instructor','certCollected','certNo','certDate','score','gpa','attendance','email','phone','status','address','dob','enrollDate','completionDate','nqfLevel','notes','enrolStatus','gender','trn','nqs'];
+          // idCourse (the programme a renamed record's id was made from), the
+          // intake stamps and "kept separate" travel with the programme, or a
+          // rename made elsewhere would move this copy's id.
+          var fieldsToMerge = ['stage','stageSetByUser','progress','name','course','idCourse','centreKey','centreId','keepSeparate','instructor','certCollected','certNo','certDate','score','gpa','attendance','email','phone','status','address','dob','enrollDate','completionDate','nqfLevel','notes','enrolStatus','gender','trn','nqs'];
           fieldsToMerge.forEach(function(field) {
             if (field === 'certNo' && localMatch.certNo) return;   // a number, once issued, never changes
             if (cloudStudent[field] !== undefined && cloudStudent[field] !== null && cloudStudent[field] !== '') {
@@ -41577,7 +42203,12 @@ function mergeCloudStudents(cloudList, skip) {
       // would undo the Centre's decision the next time the course reopens.
       // enrolledAt says this record is a NEW enrolment of a person deleted
       // earlier; without it the copy here would be hidden by the old tombstone.
-      var fieldsToMerge = ['stage','stageSetByUser','progress','name','course','instructor','certCollected','certNo','certDate','score','gpa','attendance','email','phone','status','address','dob','enrollDate','completionDate','nqfLevel','notes','enrolledAt','enrolStatus','gender','trn','nqs'];
+      // idCourse — the programme a renamed record's id was made from
+      // (CESTISCore.naturalKey) — travels with the programme, as do the intake
+      // it is stamped with and "kept separate": a programme renamed on another
+      // computer (Tidy Programme Names, a training centre renamed) arrived
+      // here without them, and this copy's id then moved off every link.
+      var fieldsToMerge = ['stage','stageSetByUser','progress','name','course','idCourse','centreKey','centreId','keepSeparate','instructor','certCollected','certNo','certDate','score','gpa','attendance','email','phone','status','address','dob','enrollDate','completionDate','nqfLevel','notes','enrolledAt','enrolStatus','gender','trn','nqs'];
       // A certificate withdrawn on either copy (the newest decision) is not
       // filled back in from the copy that still holds it.
       var _withdrawn = !!(CESTISCore.certs && CESTISCore.certs.isRevoked(localMatch));
@@ -41652,6 +42283,8 @@ async function mergeBackupData(backupData) {
     // Each staff computer's last save, newest per computer (OPS-10): noted,
     // not a change to anybody's records.
     try { if (typeof cestisMergeDeviceSaves === 'function') cestisMergeDeviceSaves(backupData.data.deviceSaves); } catch (e) {}
+    // The Tidy Programme Names log, entry by entry (an undo made anywhere stands).
+    try { if (typeof tidyProgMergeLog === 'function') tidyProgMergeLog(backupData.data.programmeTidyLog); } catch (e) {}
 
 
     // Legacy demo data IDs and titles to exclude from merges
@@ -42819,6 +43452,9 @@ async function autoSaveToAllFolders() {
         deletedCentreIds: safeJsonParse(CESTISStore.getItem('voctrain_deletedCentreIds'), []),
         deletedUserIds: safeJsonParse(CESTISStore.getItem('voctrain_deletedUserIds'), []),
         chatFollowLog: lmsChatFollowLog,
+        // Who tidied which programme names, and when (Tidy Programme Names):
+        // every computer sends the log it holds; each merges by entry.
+        programmeTidyLog: (typeof tidyProgReadLog === 'function' && tidyProgReadLog().length) ? tidyProgReadLog() : undefined,
         // Each staff computer's last save (the System health card, OPS-10).
         deviceSaves: (typeof cestisDeviceSavesRead === 'function') ? cestisDeviceSavesRead() : undefined
       }
@@ -52091,6 +52727,7 @@ function buildAdminStaffPages() {
 function asFilterStudents() {
   var search = (document.getElementById('asStudentSearch')?.value || '').toLowerCase().trim();
   var course = document.getElementById('asStudentCourse')?.value || 'all';
+  var _asFiled = (course !== 'all' && typeof programmeFilterFiler === 'function') ? programmeFilterFiler() : null;
   var rows = document.querySelectorAll('#asStudentTableBody tr');
   rows.forEach(function(row) {
     var name = row.getAttribute('data-name') || '';
@@ -52101,6 +52738,7 @@ function asFilterStudents() {
     if(!matchCourse && c && course) {
       // Try flexible matching
       matchCourse = c.toLowerCase().trim() === course.toLowerCase().trim();
+      if(!matchCourse && _asFiled) matchCourse = _asFiled.matches(c, course);
       if(!matchCourse && typeof instructorCourseMatch === 'function') matchCourse = instructorCourseMatch(c, course);
     }
     row.style.display = (matchSearch && matchCourse) ? '' : 'none';
@@ -55162,7 +55800,11 @@ async function fetchCertDataFromDrive() {
           if (_take('stage') && cloudStudent.stage !== undefined) existing.stage = cloudStudent.stage;
           if (_take('progress') && cloudStudent.progress !== undefined) existing.progress = cloudStudent.progress;
           if (_take('name') && cloudStudent.name) existing.name = cloudStudent.name;
-          if (_take('course') && cloudStudent.course) existing.course = cloudStudent.course;
+          if (_take('course') && cloudStudent.course) {
+            existing.course = cloudStudent.course;
+            // The programme its id was made from travels with it (CESTISCore.naturalKey).
+            if (cloudStudent.idCourse) existing.idCourse = cloudStudent.idCourse;
+          }
           if (_cloudNewer) existing.lastModified = cloudStudent.lastModified;
           if (_fsOn) _fsF.settle(existing, _lb, cloudStudent, _fsRules);
         } else {

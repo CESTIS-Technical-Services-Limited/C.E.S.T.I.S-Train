@@ -1,0 +1,29 @@
+<!--
+  ============================================================================
+  Pages/Tidy-Programmes.html  —  Tidy Programme Names (Administrator) UI fragment
+  ----------------------------------------------------------------------------
+  Fetched by index.html and injected into the mount slot
+  (<div class="cestis-mount" data-feature="tidy-programmes" data-prefix="admin">).
+  Filled on mount by tidyProgOnShow() in index.html; every rule is in
+  CESTISCore.programmeTidy (cestis-core.js).
+  Keep ids tidyProgRoot / tidyProgStats / tidyProgBody / tidyProgLog.
+  All JS and CSS remain in index.html. Injected via innerHTML — <script> won't run.
+  ============================================================================
+-->
+<div class="tidy-prog" id="tidyProgRoot">
+  <div class="card">
+    <div class="card-header"><h3>One name for each programme</h3></div>
+    <p class="tidy-lead">The same programme can be written several ways — on training centres, trainee and fee records,
+      sign-in accounts, exams and more — so it shows up more than once in the course menus. Pick the one name to keep
+      for each programme, and every record written another way is renamed to it.</p>
+    <p class="tidy-lead">Nothing is deleted. Training centres stay as they are, each with its own dates and intake number;
+      two intakes of one programme simply share its name. Every trainee keeps their record, sign-in, marks, attendance,
+      fees and certificate. You see exactly what will change before anything does, and you can undo it afterwards.</p>
+    <div class="tidy-stats" id="tidyProgStats"></div>
+  </div>
+  <div id="tidyProgBody"></div>
+  <div class="card" id="tidyProgLogCard">
+    <div class="card-header"><h3>Tidy log</h3></div>
+    <div id="tidyProgLog"><p class="tidy-note">No programme names have been tidied yet.</p></div>
+  </div>
+</div>
