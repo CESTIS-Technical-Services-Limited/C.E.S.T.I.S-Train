@@ -8993,23 +8993,52 @@
       return { list: list, request: hit };
     };
 
+    /* Deleting a request (the Administrator): the request is kept, marked
+       deleted, with who and when, and dated like any other change — so the
+       deletion wins every merge against an older copy (a trainee's device,
+       another office PC), nothing is lost, and it can be restored. Every
+       list, count and check leaves a deleted request out. A copy that does
+       not say (no `deleted` field) never undoes a deletion: the merge fills
+       that blank from the deleted copy; a restore says deleted: false.
+       Returns { list, request } — request null when there is no such request. */
+    T.isDeletedRequest = function (r) { return !!r && r.deleted === true; };
+    T.liveRequests = function (requests) { return (Array.isArray(requests) ? requests : []).filter(function (r) { return r && r.deleted !== true; }); };
+    T.deleteRequest = function (requests, id, actor, nowIso) {
+      var now = nowIso || new Date().toISOString(), hit = null;
+      var list = (Array.isArray(requests) ? requests : []).map(function (r) {
+        if (!r || r.id !== id) return r;
+        hit = Object.assign({}, r, { deleted: true, deletedAt: now, deletedBy: actor || '', updatedAt: now });
+        return hit;
+      });
+      return { list: list, request: hit };
+    };
+    T.restoreRequest = function (requests, id, actor, nowIso) {
+      var now = nowIso || new Date().toISOString(), hit = null;
+      var list = (Array.isArray(requests) ? requests : []).map(function (r) {
+        if (!r || r.id !== id) return r;
+        hit = Object.assign({}, r, { deleted: false, restoredAt: now, restoredBy: actor || '', updatedAt: now });
+        return hit;
+      });
+      return { list: list, request: hit };
+    };
+
     // A trainee may have at most one OPEN (pending/processing/ready) request
     // per document type; further clicks are ignored instead of piling up.
     T.hasOpenRequest = function (requests, studentId, type) {
       return (requests || []).some(function (r) {
-        return r && r.studentId === studentId &&
+        return r && r.deleted !== true && r.studentId === studentId &&
           (r.type === type || r.type === 'both' || type === 'both') &&
           (r.status === 'pending' || r.status === 'processing' || r.status === 'ready');
       });
     };
 
     T.pendingRequestCount = function (requests) {
-      return (requests || []).filter(function (r) { return r && (r.status === 'pending' || r.status === 'processing') ; }).length;
+      return (requests || []).filter(function (r) { return r && r.deleted !== true && (r.status === 'pending' || r.status === 'processing') ; }).length;
     };
 
     /* ---- Requests that run themselves (office audit OF-9, management M12) ---- */
     // A request that still asks for the office's work, or the trainee's visit.
-    T.isOpenRequest = function (r) { return !!r && (r.status === 'pending' || r.status === 'processing' || r.status === 'ready'); };
+    T.isOpenRequest = function (r) { return !!r && r.deleted !== true && (r.status === 'pending' || r.status === 'processing' || r.status === 'ready'); };
     // Does it include a certificate?
     T.wantsCertificate = function (r) { return !!r && (r.type === 'certificate' || r.type === 'both'); };
     /* What the trainee is told in her bell when her request moves on (none
@@ -17690,7 +17719,7 @@
        rule as the menu's count), oldest first. -> { count, oldestDays, oldest } */
     function openRequests(requests, nowMs) {
       var open = (Array.isArray(requests) ? requests : []).filter(function (r) {
-        return r && (r.status === 'pending' || r.status === 'processing');
+        return r && r.deleted !== true && (r.status === 'pending' || r.status === 'processing');
       }).sort(function (a, b) { return msOf(a.requestedAt) - msOf(b.requestedAt); });
       return { count: open.length, oldest: open[0] || null, oldestDays: open.length ? daysWaiting(open[0].requestedAt, nowMs) : 0, list: open };
     }
@@ -20948,6 +20977,8 @@
           // Checked again from an inbox: the gatekeeper held the slice then.
           if (rec.status !== 'pending' && rec.status !== 'cancelled') return verdict(item, false, { reason: 'not-pending' });
         } else if (known) {
+          // A request the office deleted stays deleted, whatever her device still holds.
+          if (known.deleted === true) return verdict(item, true, { key: key, known: true });
           // The trainee may only withdraw a request still waiting.
           if (known.status !== 'pending') return verdict(item, false, { reason: 'not-pending' });
           if (rec.status !== 'cancelled' && rec.status !== 'pending') return verdict(item, false, { reason: 'not-pending' });

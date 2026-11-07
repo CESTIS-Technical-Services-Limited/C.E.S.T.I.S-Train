@@ -1,0 +1,531 @@
+{
+  "format": "cestis-study-kit",
+  "version": 1,
+  "status": "to-check",
+  "written": "2026-11-07",
+  "programme": "Electrical Installation",
+  "qualification": { "id": "QUAL-EIM-L2", "title": "ELECTRICAL INSTALLATION AND MAINTENANCE LEVEL 2", "code": "EEM20723" },
+  "level": 2,
+  "unit": { "code": "EEMELS0011B", "title": "Apply basic electrical safety" },
+  "summary": "This unit teaches you to work safely with electricity on Jamaican job sites and in the Centre's workshop. You will learn how current harms the body, how to isolate, lock off and prove a circuit dead, and how to check PPE, tools, leads and protective devices. You will also learn what to do in an electrical emergency: rescue, first aid, fire and reporting.",
+  "sections": [
+    {
+      "title": "Unit overview",
+      "blocks": [
+        { "p": "This unit is the safety foundation for everything else in Electrical Installation and Maintenance. It is for Level 2 trainees and new workers who will wire, repair and test circuits under supervision. Every later unit expects you to do what is listed here, every time, without being reminded." },
+        { "h": "What you must be able to do" },
+        { "table": { "head": ["Task", "What it looks like on the job"], "rows": [
+          ["Recognise electrical hazards", "Spot damaged leads, overloaded outlets, exposed live parts, water near equipment and overhead lines, and say why each is dangerous."],
+          ["Explain how electricity harms people", "Describe shock, burns and arc flash, and what makes a shock worse: more current, a path across the heart, a longer time and wet skin."],
+          ["Plan safe work", "Take part in a risk assessment and choose controls before the job starts, with working dead as the first choice."],
+          ["Choose and check PPE and insulated tools", "Wear the right PPE for the task, check it before use, and take damaged items out of use."],
+          ["Isolate a circuit safely", "Switch off, lock off and tag, then prove dead with a tester that you prove works before and after the test."],
+          ["Use protective devices and grounding (earthing) correctly", "Explain what fuses, breakers and GFCIs/RCDs do, test a GFCI or RCD with its button, and never bypass a protective device."],
+          ["Check portable tools and leads", "Inspect tools, plugs and extension leads before use, use them correctly, and tag and report faulty ones."],
+          ["Work safely in wet places, on ladders and near overhead lines", "Use GFCI protection and keep leads dry, use non-conductive ladders, and keep yourself and long objects well clear of JPS lines."],
+          ["Act in an electrical emergency", "Rescue a shock casualty without becoming a second casualty, call for help on the right number, give basic first aid and deal safely with an electrical fire."],
+          ["Report hazards and incidents", "Report accidents, near misses and unsafe conditions promptly and accurately on the right form."]
+        ] } },
+        { "h": "Electricity in Jamaica: what you need to know" },
+        { "ul": [
+          "JPS (Jamaica Public Service) supplies homes and most businesses at **110 V and 220 V, single-phase, 50 Hz**. Lights and ordinary outlets are usually 110 V. Water heaters, cookers, air-conditioners and some pumps are often 220 V. Larger buildings may also have a three-phase supply.",
+          "The electrical code used in Jamaica is based on the US **National Electrical Code (NEC, NFPA 70)**. So you will hear US terms such as grounding, GFCI and equipment grounding conductor, as well as British terms such as earthing and RCD. This kit gives both.",
+          "A new or altered installation, or one that has been disconnected for a long time, must be inspected and certified before JPS will connect it. This is overseen by the **Government Electrical Regulator (GER)**, which replaced the old Government Electrical Inspectorate. The inspection itself is done by a licensed electrical inspector.",
+          "JPS owns the poles, the overhead lines, the service drop to the building and the meter. Only JPS works on them. Keep well clear of them and follow JPS's instructions."
+        ] },
+        { "note": "**110 V is not a 'safe' voltage.** It is lower than 220 V, but it can still drive enough current through your body to stop your heart, especially when your skin is wet. Treat every circuit the same way: isolate it and prove it dead before you touch it.", "label": "Jamaica" },
+        { "h": "How to use this kit" },
+        { "p": "Read the sections in order: they follow a real job, from planning to reporting. Then try the practice test. Each answer has an explanation; read it even when you get the question right. Your instructor will add the Centre's own rules and show you the equipment you will use." }
+      ]
+    },
+    {
+      "title": "How electricity harms you",
+      "blocks": [
+        { "p": "To stay safe you need to understand why electricity hurts people. It comes down to three quantities and one simple rule." },
+        { "table": { "head": ["Quantity", "Unit", "What it means"], "rows": [
+          ["Voltage", "volt (V)", "The electrical 'push'. The higher the voltage, the harder it pushes current through anything connected across it, including you."],
+          ["Current", "ampere or amp (A); 1 milliamp (mA) = 1/1000 A", "The flow of electricity. **Current through the body is what does the harm.**"],
+          ["Resistance", "ohm", "How strongly a material opposes the flow of current. Low resistance lets more current flow."]
+        ] } },
+        { "p": "The rule is **Ohm's law: current = voltage ÷ resistance (I = V ÷ R)**. At the same voltage, the lower the resistance of your body and its path to ground, the bigger the current." },
+        { "h": "Conductors and insulators" },
+        { "table": { "head": ["Type", "Examples", "Watch out"], "rows": [
+          ["**Conductor**: lets current flow easily", ["Copper and aluminium (cables)", "Steel frames, pipes, ladders, scaffold and tools", "Water, especially dirty or salty water", "Damp ground and wet concrete", "The human body"], "Any of these can carry current to you, or from you to the ground."],
+          ["**Insulator**: does not let current flow easily", ["Rubber and PVC", "Dry wood", "Fibreglass", "Glass, porcelain and ceramic", "Dry air"], "An insulator can fail when it is wet, dirty, cracked or damaged, or when the voltage is too high for it."]
+        ] } },
+        { "h": "How a person becomes part of a circuit" },
+        { "p": "Current flows only round a complete path back to its source. In Jamaican supplies the neutral is connected to the ground (earth) at the transformer and at the building's service, so the ground under your feet is part of a return path. You get a shock when your body bridges two points at different voltages:" },
+        { "ul": [
+          "**Line to ground (earth)**: you touch a live part while your feet, knees or other hand touch the ground, a wet floor, a metal pipe or a grounded metal case. This is the most common shock.",
+          "**Line to neutral, or line to line**: you touch two conductors at once, for example one with each hand. A GFCI or RCD may not detect this, because no current leaks to ground.",
+          "**A metal case that has become live**: a fault inside an appliance makes its case live, and you touch it while grounded. Grounding and protective devices are there to stop this."
+        ] },
+        { "p": "**Example.** You touch a 110 V line with sweaty hands while kneeling on damp concrete. The resistance of the whole path might be about 1,000 ohms. I = 110 ÷ 1,000 = 0.11 A = **110 mA**: enough to stop the heart. With dry hands, dry boots and a dry floor the resistance might be 100,000 ohms or more: I = 110 ÷ 100,000 = 1.1 mA, which you would just feel. The voltage was the same; only the resistance changed. (These resistances are typical figures; real ones vary a great deal.)" },
+        { "h": "Effects of current on the body" },
+        { "table": { "head": ["Current through the body (approximate)", "Usual effect"], "rows": [
+          ["About 1 mA", "Just felt: a faint tingle."],
+          ["About 5 mA", "An unpleasant shock. Most people can still let go. A GFCI for protecting people trips at about this level."],
+          ["About 10 to 30 mA", "Painful. The muscles clench, so the person may not be able to let go of the conductor. Breathing becomes difficult."],
+          ["About 50 to 150 mA", "Extreme pain and strong muscle contractions. Breathing may stop. The heart may go into **ventricular fibrillation**: it quivers instead of pumping. Death is possible."],
+          ["About 1 A (1,000 mA) and above", "Fibrillation or cardiac arrest is likely, with deep burns and nerve damage. Death is likely."]
+        ] } },
+        { "note": "These figures are approximate. The real effect depends on the person, the path the current takes, how long it flows, and whether the supply is AC or DC. Mains AC at 50 Hz is especially dangerous because it makes muscles clench and can upset the heart's rhythm. Treat every shock as serious.", "label": "Remember" },
+        { "h": "What makes a shock worse" },
+        { "table": { "head": ["Factor", "Why it matters"], "rows": [
+          ["Amount of current", "More current does more harm. Current rises when the voltage is higher or the resistance is lower."],
+          ["Path through the body", "A path across the chest, such as hand to hand or hand to foot, passes through the **heart** and lungs. It is the most dangerous path."],
+          ["Time", "The longer the current flows, the more damage it does. A person who cannot let go is in great danger. This is why fast-acting GFCIs and RCDs save lives."],
+          ["Body resistance", "Wet or sweaty skin, cuts, bare feet, wet clothes and standing in water all lower resistance and raise the current. Jamaica's heat makes sweaty skin common."],
+          ["Voltage", "A higher voltage pushes more current and can break down the skin's resistance. At very high voltages, such as on JPS lines, current can jump through the air to you before you touch anything."]
+        ] } },
+        { "h": "Injuries from electricity" },
+        { "table": { "head": ["Injury", "What happens"], "rows": [
+          ["Electric shock", "Current through the body makes muscles clench, can stop breathing and can upset or stop the heart. Heart-rhythm problems can appear hours later."],
+          ["Electrical burns", "Current heats the tissue it passes through. Burns are worst where the current enters and leaves the body, and can be deep inside even when the skin shows only a small mark."],
+          ["Arc flash", "A flash of intense heat and light when current jumps through the air between conductors, usually after a short circuit. The arc can reach about 20,000 °C, hotter than the surface of the sun. It causes severe burns, sets clothing alight and can damage the eyes."],
+          ["Arc blast", "The pressure wave from an arc flash. It can throw a person, burst eardrums and blow out molten metal and pieces of equipment."],
+          ["Secondary injuries", "Falls from ladders and roofs after even a small shock, cuts from jerking away, and injuries from machines that start without warning."],
+          ["Fire", "Overloaded, damaged or loose wiring can overheat and set fire to a building."]
+        ] } },
+        { "note": "**Arc flash is often started by people.** Common causes: a tool or loose screw dropped into a live panel, a meter set to the wrong range (such as amps) and connected across a supply, test probes slipping and touching two conductors, and dust, damp or corrosion inside switchgear. Keep panels closed, use the right tester and work dead.", "label": "Safety" }
+      ]
+    },
+    {
+      "title": "Spotting hazards and planning safe work",
+      "blocks": [
+        { "p": "A **hazard** is anything that could cause harm. A **risk** is how likely the harm is, and how serious it would be. Your job is to spot hazards before work starts and to control them." },
+        { "h": "Common electrical hazards" },
+        { "table": { "head": ["Hazard", "Why it is dangerous", "How to control it"], "rows": [
+          ["Damaged cords, plugs and outlets: cracks, cuts, bare wire, burn marks", "Live parts can be touched; arcing can start a fire.", "Check before use; take damaged items out of use, tag them and report them."],
+          ["Overloaded outlets and power strips; adaptors plugged into adaptors", "Too much current makes plugs, outlets and leads overheat, which can start a fire.", "One high-power appliance per outlet; never plug one power strip into another; ask for more outlets to be installed."],
+          ["Exposed live parts: panel covers off, missing outlet plates, open junction boxes", "Anyone can touch a live part by accident.", "Keep covers on and panels closed; barrier and sign the area if a cover must be off; isolate before work."],
+          ["Water near electricity: roof leaks, mopped floors, rain, pumps", "Water lowers resistance and can carry current.", "Keep equipment dry; use GFCI/RCD protection; switch off and report leaks near equipment."],
+          ["A circuit switched on while someone works on it", "The worker is shocked or burned without warning.", "Safe isolation: lock out, tag out and prove dead."],
+          ["Overhead and buried cables", "Ladders, poles, trucks and tools can touch overhead lines; digging can cut buried cables.", "Look up before setting up; check drawings and use a cable locator before digging; keep well clear of JPS lines."],
+          ["Faulty or missing grounding", "A fault can leave a metal case live without tripping the breaker.", "Never remove the grounding pin from a plug; report missing or damaged grounding for repair."],
+          ["Other supplies: generators, solar PV, UPS units", "A circuit you switched off can still be fed from another source.", "Find and isolate every source of supply before work."]
+        ] } },
+        { "h": "Signs of overheating" },
+        { "ul": [
+          "A burning or hot-plastic smell",
+          "Brown or black marks on outlets, plugs, switches or breakers",
+          "Plugs, leads or outlet plates that feel hot",
+          "Crackling or buzzing sounds, sparks or flickering lights",
+          "Melted or softened insulation"
+        ] },
+        { "p": "If you notice any of these, stop using the item, unplug it or switch it off at the breaker if it is safe to do so, and report it." },
+        { "h": "Risk assessment" },
+        { "p": "A **risk assessment** (also called a job safety analysis, JSA) is a written check done before a job starts. It lists the hazards of the task and how each one will be controlled. Your supervisor leads it; you take part and follow it." },
+        { "flow": ["Look at the job and the site", "List the hazards", "Decide who could be harmed, and how", "Choose the controls", "Write it down and brief the team", "Review it if anything changes"] },
+        { "h": "Hierarchy of control" },
+        { "p": "Choose controls from the top of this list down. PPE is the last line of defence, never the first." },
+        { "table": { "head": ["Level", "Electrical example"], "rows": [
+          ["1. Eliminate the hazard", "Work dead: isolate, lock off and prove dead, so there is no live part to touch."],
+          ["2. Substitute something less dangerous", "Use battery tools instead of mains tools outdoors and in wet places."],
+          ["3. Engineering controls", "GFCI/RCD protection, guards, barriers, panel covers and insulating shrouds."],
+          ["4. Administrative controls", "Safe isolation procedures, lock out/tag out, permits, warning signs, training and supervision."],
+          ["5. Personal protective equipment (PPE)", "Safety boots with insulating soles, safety glasses, gloves and flame-resistant clothing."]
+        ] } },
+        { "note": "**Never work on live equipment.** At Level 2 you work only on circuits that have been isolated and proved dead, and only under supervision. Live testing and live fault finding are done only by qualified, authorised people with the right equipment and PPE.", "label": "Remember" }
+      ]
+    },
+    {
+      "title": "PPE and insulated tools",
+      "blocks": [
+        { "p": "Personal protective equipment (PPE) protects you if something goes wrong. It does not make live work safe. Check every item before you use it." },
+        { "table": { "head": ["PPE", "Protects against", "Check before use"], "rows": [
+          ["Safety boots with insulating soles (for example, marked EH for electrical hazard)", "Crushed toes and sharp objects, and current passing through the feet to ground", "Soles not worn through, cut or holed; no metal studs or nails. Keep them dry: wet or damaged soles give little protection."],
+          ["Safety glasses or goggles", "Dust when drilling, flying wire ends when cutting, and the flash of an arc", "Clean, not scratched or cracked, side protection in place."],
+          ["Hard hat of a type rated for electrical work", "Falling objects, and bumping your head in ceilings and roof spaces", "No cracks, dents or deep scratches; harness in good order; not past the maker's replacement date. Never drill holes in it."],
+          ["Work gloves (leather or similar)", "Cuts and scrapes from cable, metal boxes and tools", "No holes or tears. Ordinary work gloves are **not** insulating gloves."],
+          ["Rubber insulating gloves, rated by class (for example Class 00 up to 500 V AC, Class 0 up to 1,000 V AC)", "Accidental contact with live parts during authorised work only", "Roll the cuff to trap air, then look and listen for leaks; check the date of the last electrical test; wear leather protectors over them. Trainees use them only when the instructor says so."],
+          ["Long sleeves and trousers in cotton or flame-resistant (FR) fabric", "Burns from sparks, arcs and hot surfaces", "Fits well, with no loose ends to catch. Avoid nylon and polyester: they melt onto the skin in a flash or fire."],
+          ["Hearing protection and dust mask", "Noise and dust when drilling and cutting chases in walls", "Clean and fitting properly."]
+        ] } },
+        { "h": "Jewellery and loose items" },
+        { "p": "Remove rings, watches with metal straps, chains, bracelets and earrings before electrical work. Metal conducts: a ring that touches a live part and a grounded part can heat up in seconds and burn the finger badly. Tie back long hair, and do not keep metal pens, keys or rulers in top pockets where they can fall into a panel." },
+        { "h": "Insulated hand tools" },
+        { "p": "Insulated screwdrivers, pliers, cutters and spanners have a tough insulating cover on the handle and most of the metal. Tools made for electrical work are tested and marked with a voltage rating, usually **1000 V**, and a **double triangle** symbol." },
+        { "table": { "head": ["Check", "Fault to look for"], "rows": [
+          ["Handle and shaft insulation", "Cracks, cuts, nicks, holes, burn marks, or insulation pulled back from the metal"],
+          ["Markings", "Voltage rating and symbol worn away, so you cannot tell that the tool is rated"],
+          ["Metal parts", "Tips that are chipped, loose or badly worn, so they slip off screws"],
+          ["Cleanliness", "Grease, paint or metal dust on the insulation that could carry current; clean it before use"]
+        ] } },
+        { "p": "A damaged insulated tool must be taken out of use and replaced. Do not repair it with tape or paint: that does not restore its rating. Store insulated tools dry, in a tool roll or case, away from sharp tools that could cut the insulation." },
+        { "note": "**Insulated tools and PPE are your last line of defence, not permission to work live.** Insulation can be damaged without you noticing, and a slip can bring your wrist or arm onto a live part. The safe way is always to isolate, lock off, tag and prove dead first.", "label": "Safety" }
+      ]
+    },
+    {
+      "title": "Safe isolation: lock out, tag out, prove dead",
+      "blocks": [
+        { "p": "**Safe isolation** means disconnecting a circuit or piece of equipment from every source of supply, making sure it cannot be switched back on while you work, and proving that it is dead. You do it every time, on every circuit, however small the job." },
+        { "h": "What you need" },
+        { "ul": [
+          "A **two-pole voltage tester** (voltage indicator) made for proving dead, with shrouded or finger-guarded probes and leads in good condition, and rated for the voltage and measurement category (CAT rating) of the system.",
+          "A **proving unit** made for your tester, or a known live source, to show that the tester works.",
+          "A **lockout device** that fits the breaker or isolator, a **multi-lock hasp** if more than one person will work, and your own **personal padlock** with its only key.",
+          "A **danger tag** and a pen."
+        ] },
+        { "h": "The safe isolation procedure" },
+        { "flow": [
+          "Identify the circuit: check the drawings and the panel schedule, but do not trust labels alone",
+          "Tell everyone affected that the supply is going off",
+          "Switch off (isolate) at the breaker, isolator or disconnect; on a 220 V circuit make sure both poles are off",
+          "Lock off with a lockout device and your own padlock; keep the key on you",
+          "Fix a danger tag: your name, the date, the work being done and how to reach you",
+          "Prove your tester works on the proving unit or a known live source",
+          "Test at the point of work between every pair of conductors and see no voltage",
+          "Prove the tester again on the proving unit",
+          "Only now treat the circuit as dead and start work"
+        ] },
+        { "note": "Remember the order: **isolate, lock, tag, prove the tester, prove dead, prove the tester again.** The second tester check matters: if your tester failed during the test, your 'dead' reading means nothing, and you must repeat the whole test with a working tester.", "label": "Tip" },
+        { "h": "Which conductors to test" },
+        { "table": { "head": ["Circuit", "Test between"], "rows": [
+          ["110 V circuit: line, neutral and equipment grounding conductor", ["Line and neutral", "Line and ground (earth)", "Neutral and ground (earth)"]],
+          ["220 V circuit with two lines and a ground but no neutral (for example a water heater or air-conditioner)", ["Line 1 and line 2", "Line 1 and ground", "Line 2 and ground"]],
+          ["110/220 V circuit with two lines, a neutral and a ground (for example an electric cooker or dryer)", ["Line 1 and line 2", "Each line and neutral", "Each line and ground", "Neutral and ground"]]
+        ] } },
+        { "p": "In a Jamaican 110/220 V supply, each line is about 110 V to neutral and to ground, and the two lines are about 220 V to each other. A 220 V circuit is fed through a **two-pole breaker**, which switches both lines together." },
+        { "h": "Choosing a tester" },
+        { "table": { "head": ["Device", "Use it to prove dead?", "Why"], "rows": [
+          ["Two-pole voltage tester with its proving unit", "Yes", "Made for the job. It shows the voltage between two points and can be proved before and after the test."],
+          ["Multimeter", "Only if it is suitable and you have been trained to use it", "If it is left on the current (amps) range it acts as a short circuit across the supply and can cause an arc flash. On the wrong range, or with a blown internal fuse, it can read zero on a live circuit."],
+          ["Non-contact voltage detector ('volt stick')", "No", "Useful as a quick first warning, but it can miss voltage, for example with a weak battery or on some cables. It cannot prove dead."],
+          ["Neon test screwdriver", "No", "It relies on a tiny current through your body. It may not light in bright light, through insulating boots or with a faulty lamp, so it can show 'dead' on a live circuit."],
+          ["A lamp or appliance plugged in", "No", "The lamp may be faulty or switched off, and it does not test line to ground."]
+        ] } },
+        { "h": "Lock out and tag out (LOTO)" },
+        { "ul": [
+          "Use your **own** padlock, with the only key kept on you. A lock that someone else can open does not protect you.",
+          "When several people work on the same equipment, fit a **multi-lock hasp**. Each person adds their own lock, and the supply cannot be switched on until the last lock is removed.",
+          "**Only the person who fitted a lock removes it**, when their own work is finished and everyone is clear.",
+          "If a lock is left on and its owner cannot be found, do not cut it off yourself. Tell the supervisor, who follows the Centre's or company's procedure for removing it.",
+          "The tag warns and informs, but it cannot stop anyone. That is why a lock is needed as well.",
+          "If a breaker or isolator cannot be locked, tell your supervisor. Never rely on a tag or a piece of tape alone."
+        ] },
+        { "h": "Other sources of supply" },
+        { "p": "Switching off one breaker does not always make a circuit dead. Before you start, check for:" },
+        { "ul": [
+          "**Standby generators.** Many Jamaican homes and businesses have one. An automatic transfer switch starts the generator when the JPS supply is lost, so switching off the JPS main can make the generator start. A generator connected without a proper transfer switch can feed power back into the building and even into JPS's lines, where it can kill line workers.",
+          "**Solar PV systems and battery inverters.** These can keep circuits live during a JPS outage. Follow the system's shutdown procedure.",
+          "**UPS units.** They keep computers and other equipment powered from a battery.",
+          "**Wrong labels and mixed-up circuits.** A circuit may be labelled wrongly or fed from another board. That is why you test at the point of work.",
+          "**Capacitors.** In motors, air-conditioners and some lights they can hold a charge after the supply is off. Discharge them only as the maker's instructions say, under supervision."
+        ] },
+        { "note": "If at any time you are not sure that the circuit is dead, **stop and ask**. A few minutes of checking costs nothing; a mistake can cost a life.", "label": "Safety" }
+      ]
+    },
+    {
+      "title": "Protective devices and grounding (earthing)",
+      "blocks": [
+        { "p": "Protective devices cut off the supply when something goes wrong. Grounding gives fault current a safe path so that the devices can work. Together they protect people from shock and buildings from fire." },
+        { "h": "British and US terms" },
+        { "p": "You will meet both sets of words in Jamaica. The NEC uses the US terms." },
+        { "table": { "head": ["British term", "US (NEC) term", "Meaning"], "rows": [
+          ["Earth, earthing", "Ground, grounding", "Connection to the general mass of the earth."],
+          ["Earth electrode", "Grounding electrode (ground rod)", "A metal rod, usually copper-clad steel about 2.4 m long, driven into the ground at the building's service."],
+          ["Protective conductor, earth wire, CPC", "Equipment grounding conductor (EGC): green, green with yellow stripes, or bare", "Connects the exposed metal parts of equipment back to the panel."],
+          ["Neutral", "Grounded conductor (neutral): white or grey", "Carries current back to the source; it is connected to ground at the service."],
+          ["Live, line, phase", "Ungrounded conductor, 'hot': usually black or red", "Is at full voltage to ground."],
+          ["Consumer unit, distribution board", "Panelboard, panel, load centre", "The board that holds the breakers."],
+          ["Residual current device (RCD)", "Ground-fault circuit interrupter (GFCI)", "Trips when current leaks to ground."],
+          ["Equipotential bonding", "Bonding", "Joining metal parts so that they stay at the same voltage."]
+        ] } },
+        { "note": "Never trust colours alone. Old or badly wired installations may use the wrong colours. Test to find out.", "label": "Remember" },
+        { "h": "Fuses and circuit breakers" },
+        { "p": "A **fuse** has a thin wire that melts and breaks the circuit when too much current flows; it must be replaced with one of the same rating. A **circuit breaker** is a switch that trips open by itself: its thermal part trips on an overload, and its magnetic part trips almost at once on a short circuit. A breaker can be reset once the fault is found and cleared." },
+        { "table": { "head": ["Fault", "What it is", "What acts"], "rows": [
+          ["**Overload**", "A circuit carries more current than it was designed for, for example too many appliances on one circuit. The cable slowly overheats.", "Fuse or breaker (thermal trip), after a delay that depends on how big the overload is."],
+          ["**Short circuit**", "Line touches neutral or another line directly, and a very large current flows.", "Fuse or breaker (magnetic trip), almost at once."],
+          ["**Ground fault** (earth fault)", "Line touches grounded metal such as a metal case or conduit, or current leaks through a person to ground.", "The breaker or fuse, if the fault current through the EGC is large; a GFCI/RCD for small leakage currents, such as through a person."]
+        ] } },
+        { "note": "**A breaker or fuse protects the cable and the building, not you.** A 20 A breaker needs many amps to trip it, but less than a tenth of an amp (100 mA) across your chest can kill you. That is why GFCIs and RCDs are needed.", "label": "Remember" },
+        { "h": "GFCI and RCD" },
+        { "p": "A GFCI (ground-fault circuit interrupter) or RCD (residual current device) compares the current going out on the line with the current coming back on the neutral. Normally they are equal. If some current leaks to ground, for example through a person, the device senses the difference and trips within a fraction of a second." },
+        { "table": { "head": ["Device", "Typical trip level", "Where you find it"], "rows": [
+          ["GFCI for protecting people (US type, used with the NEC)", "About 5 mA of leakage (between 4 and 6 mA)", "GFCI outlets with TEST and RESET buttons, GFCI breakers and portable plug-in GFCIs. The NEC requires GFCI protection in places such as bathrooms, kitchens, outdoors, garages and near sinks."],
+          ["RCD (British/European type)", "Usually 30 mA of leakage for protecting people", "RCD breakers, RCD outlets and plug-in RCDs, mainly on equipment and boards made to British or European standards."]
+        ] } },
+        { "ul": [
+          "Test a GFCI or RCD with its **TEST button** regularly (many makers say monthly). It should trip at once. Reset it (press RESET, or switch an RCD back on) to restore the supply.",
+          "If it does **not** trip when tested, it may not protect anyone. Stop using that outlet or circuit and report it for replacement.",
+          "If it trips again and again, there is a fault or leakage on the circuit or on something plugged into it. Unplug items and report it. Never bypass it.",
+          "A GFCI does not protect against a shock between line and neutral, such as one hand on each, because no current leaks to ground. It reduces the risk; it does not remove it.",
+          "You may also meet **AFCIs** (arc-fault circuit interrupters). They trip when they detect the arcing that comes from damaged or loose wiring, to prevent fires."
+        ] },
+        { "h": "How grounding protects you" },
+        { "flow": [
+          "A loose line wire touches the metal case of an appliance",
+          "Fault current flows through the equipment grounding conductor back to the panel, not through you",
+          "The current is large, because this path has a very low resistance",
+          "The breaker or fuse trips quickly",
+          "The case is no longer live"
+        ] },
+        { "p": "Without the equipment grounding conductor the case would stay live at full voltage, the breaker would not trip, and the next person to touch the case and a grounded object would get a shock. That is why you **never cut off the round grounding pin** of a plug, and never use an adaptor that leaves the ground unconnected." },
+        { "p": "**Bonding** joins metal parts such as water pipes, gas pipes and steel frames with a conductor, so that they stay at the same voltage and no shock can pass between them. The **grounding electrode** connects the whole system to the earth, which limits the voltages caused by lightning and by faults on the supply." },
+        { "note": "The fault current that trips the breaker returns mainly through the **equipment grounding conductor**, not through the soil. Soil has a much higher resistance than a copper conductor, so a ground rod on its own usually cannot carry enough fault current to trip a breaker. Both are needed.", "label": "Remember" },
+        { "h": "Never defeat a protective device" },
+        { "ul": [
+          "Do not fit a bigger fuse or breaker to stop it tripping. The cable is sized for the original rating and would overheat.",
+          "Do not replace a fuse with wire, foil or a nail.",
+          "Do not tape, wedge or hold a breaker in the ON position.",
+          "If a breaker trips every time one appliance is switched on, stop using that appliance and report it for checking.",
+          "Do not reset a breaker or GFCI again and again. Find out why it tripped, or report it."
+        ] }
+      ]
+    },
+    {
+      "title": "Portable tools and extension leads",
+      "blocks": [
+        { "p": "Many electrical accidents involve portable tools and leads, because they are moved, dropped, dragged and run over. A quick check before every use catches most faults." },
+        { "h": "Check before every use" },
+        { "table": { "head": ["Part", "Look for"], "rows": [
+          ["Plug", ["Cracked or broken body", "Bent, loose or burnt pins", "A missing round grounding pin on a three-pin plug", "Burn or heat marks"]],
+          ["Cord", ["Cuts, splits, crushing or kinks along the whole length", "Tape repairs or joins", "Outer sheath pulled out of the plug or tool, so the inner wires show", "Melted or hardened sections"]],
+          ["Tool body", ["Cracked or broken casing", "Missing screws or guards", "A switch that sticks or does not switch off", "Signs of overheating or a burning smell"]],
+          ["Rating plate", ["The voltage matches the outlet: a 110–120 V tool must never go on a 220 V supply", "A double-insulated symbol, or a grounding pin on the plug"]],
+          ["Inspection label", "Where the Centre or company uses them: the tool has been inspected and tested by a competent person and the next test date has not passed."]
+        ] } },
+        { "h": "Double-insulated tools" },
+        { "p": "A tool marked with a **square inside a square** is double-insulated. Its live parts have two layers of insulation, or one reinforced layer, so the case should not become live even if one layer fails. It does not need an equipment grounding conductor, which is why it has a two-pin plug. A tool with a metal case and a three-pin plug **depends on its grounding pin** to make the breaker trip if a fault makes the case live." },
+        { "h": "Extension leads and power strips" },
+        { "ul": [
+          "Use a lead rated for the current of the tool. A thin lead on a heavy tool overheats. On leads sold in Jamaica the wire size is often marked in AWG: the **lower** the AWG number, the **thicker** the wire (12 AWG is thicker than 16 AWG). Check the tool's current and the lead's rating.",
+          "**Unwind a cable drum (reel) fully** before using it for a heavy load. A coiled lead cannot lose its heat and can melt.",
+          "Run leads where they will not be tripped over, run over, shut in doors or pulled across sharp edges. Keep them off wet ground.",
+          "Do not plug one extension lead or power strip into another ('daisy-chaining').",
+          "Use leads made for outdoor use when you work outside."
+        ] },
+        { "h": "Using tools safely" },
+        { "ul": [
+          "Unplug by holding the **plug**, never by pulling the cord.",
+          "Check that the tool is switched off before you plug it in, and unplug it before changing bits, blades or discs.",
+          "Never carry a tool by its cord.",
+          "Keep cords away from the cutting edge of saws and grinders, and away from heat and oil.",
+          "Use battery tools where you can, especially outdoors and in wet places."
+        ] },
+        { "h": "If you find a fault" },
+        { "flow": ["Stop: do not use it", "Switch the tool off and unplug it", "Tag it 'DO NOT USE' with the fault, the date and your name", "Put it where nobody will pick it up", "Report it to your instructor or supervisor"] },
+        { "note": "**Never repair a damaged cord with tape.** A taped joint can pull apart and expose live wires. Repairs and new plugs are fitted only by someone trained and authorised to do it.", "label": "Safety" },
+        { "note": "Many Jamaican buildings have both 110 V and 220 V outlets. In a correctly wired building the 220 V outlets have a different shape, so a 110 V plug will not fit. Never defeat this with a 'universal' adaptor: a 110 V tool on 220 V gets twice its rated voltage and can burn out or catch fire. Some older buildings still have two-slot outlets with no ground. Do not cut off a grounding pin or use a 'cheater' adaptor to fit them: report the outlet so a grounded one can be installed.", "label": "Jamaica" }
+      ]
+    },
+    {
+      "title": "Outdoors: wet conditions, ladders and overhead lines",
+      "blocks": [
+        { "h": "Wet conditions" },
+        { "p": "Water and electricity are a deadly mix. Wet skin, wet clothes, puddles and damp ground lower your resistance, so the same voltage drives a much larger current through you. Jamaica's rainy seasons (roughly May to June and September to November) and the hurricane season make this a regular hazard." },
+        { "ul": [
+          "Do not use mains-powered tools in the rain. Wait, move under cover or use battery tools.",
+          "Where you must use mains power outdoors or in damp places, use **GFCI (RCD) protection**. If the outlet has none, plug a **portable GFCI** into the outlet first, so that it protects the whole lead and the tool. Press its TEST button before you start.",
+          "Keep plugs, connectors and leads off wet ground and out of puddles. Raise connections on a dry block or use a weatherproof connector box.",
+          "Use equipment, leads and outlets made for wet or outdoor locations, with weatherproof covers.",
+          "Keep your hands, gloves and boots dry. Change wet gloves.",
+          "If water gets into a tool, lead or outlet, stop, switch off at the supply, unplug, and have it checked before it is used again.",
+          "Never switch on, plug in or touch equipment that has been under flood water. After a flood or hurricane, have the installation checked before the supply is switched back on, and follow JPS's instructions."
+        ] },
+        { "h": "Ladders near electricity" },
+        { "table": { "head": ["Ladder", "Near electricity?"], "rows": [
+          ["Fibreglass", "**The right choice.** Fibreglass rails do not conduct when they are clean and dry. Keep the ladder clean, and check it for cracks, chips and loose fibres showing on the surface."],
+          ["Aluminium or steel", "**Never** for electrical work or near overhead lines. Metal conducts: if the ladder touches a live part, you become part of the circuit."],
+          ["Wood", "Not recommended. Wood conducts when it is wet or dirty, and some wooden ladders have metal reinforcing wires."]
+        ] } },
+        { "ul": [
+          "Inspect the ladder before use: rails, rungs, feet, locks, ropes and labels. Do not use a damaged ladder: tag it and report it.",
+          "Stand it on firm, level ground at about **75°: 1 m out at the foot for every 4 m of height** (the 1-in-4 rule).",
+          "When an extension ladder is used to reach a roof or platform, it should stick up about 1 m above the landing point.",
+          "Tie it, or have someone foot it. Keep **three points of contact**: two feet and a hand, or two hands and a foot.",
+          "Do not over-reach: keep your belt buckle between the rails. Climb down and move the ladder instead.",
+          "Do not stand on the top cap or top step of a stepladder.",
+          "Before you raise a ladder, **look up**. Carry it flat and low, with a partner for long ladders, and keep it well away from lines."
+        ] },
+        { "h": "Overhead power lines" },
+        { "p": "The high lines on JPS poles carry thousands of volts. At these voltages current can **jump through the air** to a ladder, pole or person that comes too close, without any touch. The service drop that runs from the pole to a building carries 110/220 V, but its covering is only weather protection, and the neutral is often bare. Treat every overhead line as **live and dangerous**." },
+        { "ul": [
+          "**Look up and live**: check for overhead lines before you set up a ladder, scaffold or long tool, and before a truck or crane moves.",
+          "Keep yourself and anything you hold or carry well clear. A common rule, used in the US by OSHA, is at least **3 m (10 ft)** from lines up to 50,000 V, and more for higher voltages. Your supervisor or JPS may set a larger distance: follow it.",
+          "Carry ladders, scaffold poles and lengths of conduit or pipe flat and low.",
+          "Never climb a JPS pole, and never touch, move or connect to a JPS line, service drop or meter. If a line is in the way, your supervisor must arrange with JPS to cover or disconnect it.",
+          "Never make or use an illegal connection to JPS lines. As well as being a crime, it has killed many people.",
+          "Branches touching a line can be live. Do not trim trees near lines: report them to JPS."
+        ] },
+        { "h": "Fallen lines" },
+        { "flow": ["Assume the line is live, even if it is not sparking", "Keep well back (at least 10 m is common advice) and keep other people away", "Report it to JPS at once, and call 110 if anyone is hurt or there is a fire", "Wait for JPS to make it safe"] },
+        { "note": "The ground around a fallen line can be live. If you find yourself close to one, do not run: **shuffle away with small steps, keeping your feet together and on the ground**, so that your two feet are never at very different voltages. If your vehicle touches a line, stay inside until JPS says it is safe, unless the vehicle is on fire. If you must get out, jump clear with your feet together, without touching the vehicle and the ground at the same time, then shuffle away.", "label": "Safety" }
+      ]
+    },
+    {
+      "title": "Emergencies: rescue, first aid, fire and reporting",
+      "blocks": [
+        { "h": "Rescuing a person from an electric shock" },
+        { "note": "**Do not touch the casualty while they may still be in contact with the supply.** The current will pass through you too, and there will be two casualties instead of one.", "label": "Safety" },
+        { "flow": [
+          "Check for danger: look for the source, live leads, water and metal",
+          "Shout for help",
+          "Cut the supply: pull out the plug, or switch off at the switch, isolator or breaker, if you can reach it quickly",
+          "If you cannot switch off, stand on something dry and insulating, such as a dry wooden board, a rubber mat or a thick pile of dry newspaper",
+          "Push or pull the casualty or the cable clear with a dry non-conducting object, such as a wooden broom handle or a wooden chair",
+          "Once the casualty is clear, call for medical help and start first aid"
+        ] },
+        { "p": "That method is for low-voltage supplies such as 110 V and 220 V. **High voltage is different.** If a person is in contact with a JPS line or other high-voltage equipment, do not go near: dry wood and rubber give no protection at those voltages. Keep well back (at least 10 m), keep others back, call 110 and JPS, and wait until JPS confirms that the supply is off." },
+        { "h": "Calling for help in Jamaica" },
+        { "table": { "head": ["Number", "Service"], "rows": [
+          ["110", "Ambulance and fire brigade"],
+          ["119", "Police"],
+          ["The Centre's or site's first-aider", "Know who the trained first-aiders are, and where the first-aid kit and any AED (defibrillator) are kept."]
+        ] } },
+        { "note": "In Jamaica, **110** is for ambulance and fire, and **119** is for police. Give the exact address and a landmark, say that it is an electric shock, and say whether the person is breathing. Send someone to meet the ambulance at the gate.", "label": "Jamaica" },
+        { "h": "First aid after an electric shock" },
+        { "p": "Start first aid only when the casualty is clear of the supply. Follow your first-aid training. If they fell, they may have other injuries: do not move them more than you must." },
+        { "flow": ["Danger: is it safe to approach?", "Response: speak loudly and tap their shoulders", "Send for help: call 110", "Airway: tilt the head back and lift the chin", "Breathing: look, listen and feel for up to 10 seconds", "CPR if not breathing normally; recovery position if breathing"] },
+        { "table": { "head": ["What you find", "What to do"], "rows": [
+          ["Responsive and breathing", "Keep them still and calm, treat any burns, and make sure they see a doctor. Watch them closely."],
+          ["Unresponsive but breathing normally", "Put them in the **recovery position**: on their side, top leg bent at the knee to stop them rolling, head tilted back so the airway stays open. Keep checking their breathing until help arrives."],
+          ["Unresponsive and not breathing normally (no breathing, or only occasional gasps)", "Make sure 110 has been called and an AED sent for, if there is one. Start **CPR** at once and keep going until help arrives, the person starts breathing normally, or you are too exhausted to continue."]
+        ] } },
+        { "p": "**CPR (cardiopulmonary resuscitation)** keeps blood moving to the brain when the heart has stopped. For an adult: kneel beside the person, put the heel of one hand on the centre of the chest with your other hand on top, and push straight down hard and fast, **about 5 to 6 cm deep, 100 to 120 times a minute**, letting the chest come back up each time. A trained first-aider gives **30 compressions, then 2 rescue breaths**, and repeats. If you are not trained in rescue breaths, give continuous chest compressions (hands-only CPR). If an AED arrives, switch it on and follow its spoken instructions." },
+        { "h": "Burns" },
+        { "ul": [
+          "Once the casualty is clear of the supply, cool the burn under cool, gently running water for about 20 minutes. Do not use ice.",
+          "Remove rings, watches and tight clothing near the burn before it swells, unless they are stuck to the skin.",
+          "Cover the burn with a clean, dry, non-fluffy dressing (or cling film). Do not put on butter, oil, toothpaste or creams, and do not burst blisters.",
+          "Look for both an entry and an exit burn. Electrical burns are often deeper than they look."
+        ] },
+        { "note": "**Everyone who has had an electric shock must be checked by a doctor**, even if they say they feel fine. The current may have upset the heart's rhythm or burned tissue inside the body, and problems can appear hours later.", "label": "Remember" },
+        { "h": "Electrical fires" },
+        { "p": "Most electrical fires start from overloaded outlets and leads, loose connections, damaged cords, the wrong size of breaker or cable, and equipment placed too close to things that burn. Prevent them: do not overload, keep paper, rags and cardboard away from panels, lamps and equipment, and report faults at once." },
+        { "table": { "head": ["Extinguisher (read the label)", "On live electrical equipment?", "Notes"], "rows": [
+          ["Carbon dioxide (CO2)", "Yes", "Leaves no residue, so it is good for panels and electronics. The horn gets extremely cold: hold the handle, not the horn. It does little cooling, so watch for the fire starting again. In a small room the gas can make breathing difficult."],
+          ["Dry powder (dry chemical, ABC or BC)", "Yes", "Knocks down electrical, liquid and (ABC type) ordinary fires quickly. It leaves a dusty mess, makes it hard to see and can damage electronics."],
+          ["Water", "**Never**", "Water conducts: current can travel back up the stream to you. Use water only on wood and paper fires once the electricity is off."],
+          ["Foam", "No", "Foam is water-based and conducts."],
+          ["Wet chemical (Class K)", "No", "For cooking-oil fires in kitchens."]
+        ] } },
+        { "p": "**Class letters.** On extinguishers made to US standards, which are common in Jamaica, the label shows the classes of fire the extinguisher is for: **A** ordinary materials such as wood, paper and cloth; **B** flammable liquids and gases; **C** energised (live) electrical equipment; **D** burning metals; **K** cooking oils. For an electrical fire, look for **C**. British and European extinguishers have no electrical class: look for the electrical symbol instead." },
+        { "flow": [
+          "Raise the alarm and get people moving out",
+          "Switch off the supply at the breaker or main switch, if you can do it safely",
+          "Call 110 for the fire brigade",
+          "Only if the fire is small, you are trained and your escape route is behind you: use a CO2 or dry powder extinguisher",
+          "If the fire grows or smoke builds up, get out, close the doors behind you and do not go back in"
+        ] },
+        { "p": "Use an extinguisher the **PASS** way: **P**ull the pin, **A**im at the base of the fire, **S**queeze the handle, **S**weep from side to side. Start from the distance shown on the label and move closer as the fire dies down. After the fire, keep the equipment isolated and locked off until a competent person has checked it." },
+        { "h": "Reporting accidents, near misses and hazards" },
+        { "p": "Report every electrical accident, every shock however small, every near miss and every unsafe condition to your instructor or supervisor **as soon as possible**, and fill in the Centre's or company's report form." },
+        { "table": { "head": ["Report", "Examples"], "rows": [
+          ["Accident or incident", "Someone gets a shock, a burn or any other injury; equipment catches fire."],
+          ["**Near miss**: an event that could have caused injury or damage but did not", "A drill bit hits a hidden live cable and trips the breaker; a ladder slips but nobody falls; someone switches on a circuit that a worker thought was off."],
+          ["Unsafe condition (hazard)", "A missing panel cover, a damaged outlet, a leaking roof above a panel, a low or damaged JPS line."]
+        ] } },
+        { "ul": [
+          "Reporting lets the cause be found and fixed before someone else is hurt.",
+          "A near miss is a free warning: next time the same fault may kill.",
+          "The injured person gets proper care, and there is a true record for the Centre, its insurers and, after a serious event, the authorities.",
+          "Hiding an accident or near miss puts everyone at risk."
+        ] },
+        { "p": "A good report gives: the date, time and exact place; the names of the people involved and of any witnesses; what happened, in order, as facts (what you saw and did, not guesses or blame); any injury and the first aid given; the equipment involved, such as the tool and its number or the circuit; and what was done to make the area safe." },
+        { "note": "Write the report while it is fresh, and stick to facts. 'The outer sheath of the cord was split 30 cm from the plug' helps to find the cause; 'he never takes care' does not.", "label": "Tip" }
+      ]
+    },
+    {
+      "title": "Revision",
+      "blocks": [
+        { "h": "Checklist" },
+        { "p": "Tick each statement only when you can do it without looking at the notes." },
+        { "ul": [
+          "I can explain how a person becomes part of an electrical circuit, and why current through the body is what causes harm.",
+          "I can state the approximate effects of different currents on the body and the factors that make a shock worse.",
+          "I can use Ohm's law to show why 110 V can kill when the skin is wet.",
+          "I can describe electric shock, electrical burns, arc flash and arc blast.",
+          "I can name common electrical hazards, say why each is dangerous and suggest a control.",
+          "I can take part in a risk assessment and use the hierarchy of control.",
+          "I can choose, check and wear the right PPE, and explain why PPE and insulated tools do not make live work safe.",
+          "I can check insulated tools and take damaged ones out of use.",
+          "I can carry out safe isolation: isolate, lock off, tag, prove the tester, prove dead between every pair of conductors, and prove the tester again.",
+          "I can explain why a neon screwdriver, a non-contact detector or a plugged-in lamp must not be used to prove dead.",
+          "I can find and isolate other sources of supply, such as generators, solar PV and UPS units.",
+          "I can explain what fuses, breakers, GFCIs and RCDs do, and how grounding and bonding protect people.",
+          "I can test a GFCI or RCD with its test button and say what to do if it does not trip.",
+          "I can check a portable tool and extension lead before use, and tag and report a faulty one.",
+          "I can work safely in wet conditions and connect a portable GFCI correctly.",
+          "I can choose and set up a ladder for electrical work and keep clear of overhead lines.",
+          "I can rescue a person from a low-voltage shock without touching them, and explain why a high-voltage rescue is different.",
+          "I can call for help on the right number in Jamaica and give basic first aid, including the recovery position and when CPR is needed.",
+          "I can choose the right extinguisher for an electrical fire, and say when to leave instead.",
+          "I can report an accident, near miss or hazard with the right details."
+        ] },
+        { "h": "Numbers to remember" },
+        { "table": { "head": ["Figure", "What it is"], "rows": [
+          ["110 V and 220 V, 50 Hz", "The JPS supply to homes and most businesses"],
+          ["About 5 mA", "Trip level of a GFCI for protecting people"],
+          ["About 30 mA", "Usual trip level of an RCD for protecting people"],
+          ["About 50 to 100 mA", "A current across the chest that can stop the heart pumping properly"],
+          ["1 in 4 (about 75°)", "Ladder angle: 1 m out for every 4 m up"],
+          ["At least 3 m (10 ft)", "A common minimum distance from overhead lines up to 50,000 V; follow JPS and your supervisor"],
+          ["At least 10 m", "Common advice for keeping back from a fallen line or a high-voltage casualty"],
+          ["110 / 119", "Ambulance and fire / police in Jamaica"],
+          ["30 : 2, 5 to 6 cm, 100 to 120 a minute", "CPR for an adult: compressions to breaths, depth and rate"],
+          ["About 20 minutes", "Time to cool a burn under running water"]
+        ] } },
+        { "h": "Key terms" },
+        { "terms": [
+          ["Arc flash", "A flash of intense heat and light when current jumps through the air between conductors, usually after a short circuit."],
+          ["Bonding", "Joining metal parts with a conductor so that they stay at the same voltage."],
+          ["Competent person", "Someone with the training, knowledge and experience to do a task safely."],
+          ["Conductor", "A material that lets current flow easily, such as copper, steel, water and the human body."],
+          ["CPR", "Cardiopulmonary resuscitation: chest compressions, with rescue breaths if trained, to keep blood flowing when the heart has stopped."],
+          ["Current", "The flow of electricity, measured in amps (A) or milliamps (mA). Current through the body is what causes harm."],
+          ["Double insulation", "Two layers of insulation, shown by a square inside a square, so that a tool needs no grounding conductor."],
+          ["Equipment grounding conductor (EGC)", "The green, green-and-yellow or bare conductor that connects the metal parts of equipment back to the panel; the earth wire or protective conductor in British terms."],
+          ["GFCI / RCD", "A device that trips when it senses current leaking to ground, for example through a person. GFCI is the US name; RCD is the British name."],
+          ["Grounding (earthing)", "Connecting the electrical system and exposed metal parts to the earth and to the equipment grounding conductor, so that fault current has a safe path."],
+          ["Hazard", "Anything that could cause harm."],
+          ["Insulator", "A material that does not let current flow easily, such as rubber, PVC, fibreglass and dry wood."],
+          ["Isolator (disconnect)", "A switch that cuts off all supply to a circuit or machine so that work can be done safely."],
+          ["Lock out/tag out (LOTO)", "Locking an isolator off with a personal padlock and fixing a danger tag, so that nobody can switch it on while you work."],
+          ["Near miss", "An event that could have caused injury or damage but did not. It must still be reported."],
+          ["Outlet", "A socket outlet (British term) or receptacle (NEC term) that a plug fits into."],
+          ["Overload", "More current flowing in a circuit than it was designed to carry."],
+          ["Proving unit", "A small device that gives a known voltage, so that you can check that a tester works."],
+          ["Recovery position", "Lying an unconscious, breathing casualty on their side so that the airway stays open."],
+          ["Risk", "How likely it is that a hazard will cause harm, and how serious the harm would be."],
+          ["Risk assessment", "A written check, done before a job, of its hazards and how to control them; also called a job safety analysis (JSA)."],
+          ["Safe isolation", "Disconnecting a circuit from every supply, securing it off and proving it dead before work."],
+          ["Service drop", "The overhead line from the JPS pole to a building. It belongs to JPS and is always live."],
+          ["Short circuit", "A fault in which line touches neutral or another line directly, so that a very large current flows."],
+          ["Voltage", "The electrical 'push' that drives current, measured in volts (V)."]
+        ] }
+      ]
+    }
+  ],
+  "cases": {
+    "c1": { "title": "Replacing an outlet in a May Pen hardware store", "text": "Shanice, a Level 2 trainee, is working with electrician Mr Desmond Clarke at a hardware store in May Pen, Clarendon. They must replace a scorched 220 V outlet used by the store's air compressor. The circuit has two line conductors and an equipment grounding conductor, and no neutral. The panel schedule has faded, and the compressor breaker is labelled only in pencil. The store also has a standby generator: its automatic transfer switch starts the generator and switches the store's panel over to it whenever the JPS supply is lost." },
+    "c2": { "title": "Patio lights at a Portmore townhouse", "text": "Dwayne, a trainee, and his supervisor Ms Paulette Grant are fitting new lights on the patio of a townhouse in Portmore, St Catherine. It rained earlier and the grass and patio tiles are still wet. The only outlets near the patio are a 110 V outlet with no GFCI and a 220 V outlet for the clothes dryer. Their power tools are all rated 110–120 V. Dwayne's hammer drill has a metal case and a three-pin plug, but its round grounding pin has been cut off." },
+    "c3": { "title": "Security light on a Mandeville house", "text": "Kimoy, a trainee, and electrician Mr Garfield Bailey are fitting a security light high on the front wall of a house in Mandeville, Manchester. The JPS service drop runs from the pole to a bracket on the same wall, about 1.5 m from where the light must go. The van carries an aluminium extension ladder and a fibreglass extension ladder. Kimoy has come to work in a polyester sports shirt and a watch with a metal strap." },
+    "c4": { "title": "A shock in the Linstead training workshop", "text": "In a training workshop in Linstead, St Catherine, trainee Orville is using a bench grinder whose lead was crushed under a cabinet. He gets a shock, falls back and lies on the floor, no longer touching the grinder. The grinder is still plugged into an outlet on the wall above the bench, and its damaged lead lies in a small puddle near his hand. His classmate Tashana reaches him first. The instructor, Miss Henry, is a trained first-aider and is in the next room." },
+    "c5": { "title": "A tripping breaker in a Spanish Town office", "text": "Ms Fraser manages a small office in Spanish Town. The 20 A breaker that feeds the staff kitchen keeps tripping when the microwave, kettle and coffee maker run together from one power strip. She asks the Centre's maintenance team, including trainee Jermaine, to fit a 40 A breaker 'so it stops'. After the breaker is reset, Jermaine presses the TEST button on the GFCI outlet beside the kitchen sink. It does not trip, and the outlet stays live." }
+  },
+  "questions": [
+    { "id": "P-01", "c": "c1", "q": "The compressor breaker is labelled in pencil. What is the safest way for Shanice to be sure she has isolated the right circuit?", "o": ["Trust the label, since the owner wrote it when the outlet was first installed", "Ask the owner to confirm which breaker it is, then switch it off and begin", "Switch it off and lock it, then prove dead at the outlet with a proven tester", "Switch it off, then pass a non-contact detector over the outlet to check it"], "a": 2, "why": "Labels can be wrong or out of date, and a non-contact detector can miss a live conductor, so neither proves anything. The only proof is a test at the point of work, after locking off, with a tester proved working before and after." },
+    { "id": "P-02", "c": "c1", "q": "The compressor circuit has two line conductors, a grounding conductor and no neutral. Which tests must Shanice make at the outlet to prove it dead?", "o": ["Line 1 to line 2, line 1 to ground, and line 2 to ground", "Line 1 to line 2 only, because that is where the 220 V is found", "Line 1 to ground and line 2 to ground, but not line to line", "Each line to the metal outlet box, since there is no neutral"], "a": 0, "why": "Each line is about 110 V to ground and the two lines are about 220 V to each other. A fault or a wrong connection can leave voltage between any pair, so every pair is tested. The metal box is not a reliable test point, because its grounding may be faulty." },
+    { "id": "P-03", "c": "c1", "q": "Shanice's tests at the outlet all show no voltage. When she checks her tester on the proving unit afterwards, it shows nothing at all. What should she do?", "o": ["Start work, since the tests at the outlet showed that the circuit was dead", "Fit a new battery, check the tester on the proving unit, then start work", "Confirm with a neon screwdriver on each terminal, then start the work", "Treat the circuit as live, get a working tester and repeat every test"], "a": 3, "why": "A tester that fails afterwards may have failed before or during the test, so its 'no voltage' readings prove nothing. Get a working tester, prove it, repeat every test at the outlet, then prove the tester again." },
+    { "id": "P-04", "c": "c1", "q": "The owner suggests switching off the main disconnect beside the JPS meter instead of finding the right breaker. Why is that a dangerous plan in this store?", "o": ["It would trip every GFCI in the store, and they would all need replacing", "The generator would start and make the panel live again within seconds", "Only JPS may switch off the main disconnect on a customer's premises", "A main disconnect switches off the 110 V circuits but not the 220 V ones"], "a": 1, "why": "Losing the JPS supply is exactly what makes an automatic transfer switch start the generator, so the panel could become live while Shanice works. Isolate and lock off the circuit's own breaker, and check for every other source of supply, such as generators, solar PV and UPS units." },
+    { "id": "P-05", "c": "c1", "q": "The owner offers his own multimeter, still set to the current (amps) range from an earlier job. What could happen if it were connected across live outlet terminals on that setting?", "o": ["It would measure the current and show whether the outlet is dead", "It would safely read zero, because the amps range ignores voltage", "It would act as a short circuit and could cause an arc flash", "It would trip the GFCI, which proves that the circuit is protected"], "a": 2, "why": "On the current range a meter has almost no resistance, so across a live supply it becomes a short circuit, and the meter can blow apart in an arc flash in the user's face. Prove dead with a two-pole voltage tester, and always check a meter's range and leads before connecting it." },
+    { "id": "P-06", "c": "c2", "q": "Why is it dangerous for Dwayne to use the hammer drill now that its grounding pin has been cut off?", "o": ["A fault could make its metal case live without tripping the breaker", "The drill will draw more current and overload the patio outlet circuit", "The plug can work loose in the outlet and spark, which may start a fire", "It is only a hazard when wet; on a dry day the drill is safe to use"], "a": 0, "why": "A metal-cased tool depends on its grounding pin: if a live wire touches the case, fault current flows back through the equipment grounding conductor and trips the breaker. Without it the case can stay live and the user becomes the path to ground. Tag the drill and take it out of use until the plug is properly replaced." },
+    { "id": "P-07", "c": "c2", "q": "The patio outlet has no GFCI, so Ms Grant brings a portable plug-in GFCI. Where should it be connected?", "o": ["At the far end of the extension lead, beside where Dwayne is working", "Halfway along the extension lead, so both halves of it are protected", "Into the 220 V dryer outlet, since that circuit has a larger breaker", "Into the 110 V outlet, with the extension lead plugged into the GFCI"], "a": 3, "why": "A GFCI protects only what is connected after it. Plugged into the outlet, it covers the whole extension lead and the tool, including any damage to the lead lying on the wet grass. Press its TEST button before use to check that it trips." },
+    { "id": "P-08", "c": "c2", "q": "Dwayne's angle grinder is rated 110–120 V. Its plug will not fit the dryer's 220 V outlet, but a 'universal' adaptor in the van would make it fit. What should he do?", "o": ["Use the adaptor, but run the grinder in short bursts to keep it cool", "Leave the adaptor and power the grinder only from a 110 V supply", "Use the adaptor, since a GFCI would trip if the voltage were too high", "Use the adaptor, as long as the grinder is switched off as he plugs in"], "a": 1, "why": "On 220 V a 110–120 V tool gets about twice its rated voltage, so it can overheat, burn out or catch fire almost at once. Outlets of different voltages have different shapes to stop this mistake; never defeat them with an adaptor. A GFCI senses leakage to ground, not the wrong voltage." },
+    { "id": "P-09", "c": "c3", "q": "Mr Bailey sets up the fibreglass ladder with its top resting 4 m up the wall. About how far from the wall should its foot be?", "o": ["About 2 m", "About 0.5 m", "About 1 m", "About 3 m"], "a": 2, "why": "Use the 1-in-4 rule: 1 m out at the foot for every 4 m up, which gives an angle of about 75°. Too close to the wall and the ladder can tip backwards; too far out and the foot can slide away." },
+    { "id": "P-10", "c": "c3", "q": "The service drop passes about 1.5 m from where Kimoy must fix the light, and the light cannot go anywhere else. What is the right way to deal with the line?", "o": ["Ask Mr Bailey to arrange with JPS to cover or disconnect it first", "Work carefully, since the service drop is insulated and only 110/220 V", "Push the line aside with a dry wooden pole and tie it out of the way", "Wear rubber gloves and keep one hand on the ladder when near the line"], "a": 0, "why": "The service drop belongs to JPS and is always live. Its covering is weather protection, not insulation you can rely on, and the neutral is often bare. Only JPS may cover, move or disconnect it, so Mr Bailey must arrange this with JPS before the work starts." },
+    { "id": "P-11", "c": "c3", "q": "Before Kimoy climbs, which change to her clothing and jewellery matters most for electrical safety?", "o": ["Keep the watch on to time the job, but roll her sleeves up to stay cool", "Keep the polyester shirt on, as synthetic cloth is a good insulator", "Remove the watch but keep the polyester shirt, as it dries quickly", "Remove the metal watch and change into a cotton long-sleeved shirt"], "a": 3, "why": "Metal conducts: a watch strap that bridges a live part and ground can heat up and burn the wrist badly. Polyester and nylon melt and stick to the skin in an arc flash or fire, so cotton or flame-resistant clothing with long sleeves is safer." },
+    { "id": "P-12", "c": "c4", "q": "What should Tashana do before she kneels beside Orville?", "o": ["Pull him away from the puddle by his feet, which are furthest from the lead", "Pull the grinder's plug out of the wall outlet, keeping clear of the puddle", "Check his breathing first, since he is no longer touching the grinder itself", "Lift the lead out of the puddle by hand so that nobody else gets a shock"], "a": 1, "why": "The damaged lead is lying in water, so the puddle and anything touching it may be live. Cutting off the supply removes the danger for both of them; only then is it safe to touch Orville. Never become a second casualty." },
+    { "id": "P-13", "c": "c4", "q": "Once the supply is off, Orville does not respond and is only gasping now and then. What should happen next?", "o": ["Call 110 for an ambulance, get Miss Henry and start CPR straight away", "Put him in the recovery position and wait for him to start breathing", "Call 119 for the police, then wait for them before starting first aid", "Raise his legs and loosen his clothing, then wait for him to come round"], "a": 0, "why": "Occasional gasps are not normal breathing; they are a sign that the heart has stopped. Call 110 (ambulance and fire in Jamaica; 119 is the police), send for an AED if there is one, and start CPR at once. The recovery position is only for a casualty who is breathing normally." },
+    { "id": "P-14", "c": "c4", "q": "Miss Henry takes over and gives Orville chest compressions. Which describes correct compressions for an adult?", "o": ["Left side of the chest, over the heart, 5–6 cm deep, 100 to 120 a minute", "Centre of the chest, about 2–3 cm deep, 60 to 80 times a minute", "Centre of the chest, about 5–6 cm deep, 100 to 120 times a minute", "Centre of the chest, about 10 cm deep, as fast as she can manage"], "a": 2, "why": "Push on the centre of the chest (the lower half of the breastbone), hard and fast: about 5–6 cm deep at 100 to 120 a minute, letting the chest come back up each time. Shallow or slow pushes do not move enough blood to the brain. A trained first-aider gives 2 rescue breaths after every 30 compressions." },
+    { "id": "P-15", "c": "c4", "q": "Orville recovers in hospital. Which sentence belongs in the incident report?", "o": ["Orville is careless and should have noticed the damage to the grinder lead", "The grinder was probably fine, so Orville must have touched something", "No further details are needed, as Orville was not badly hurt in the end", "At 10:40 a.m. the lead of grinder 2 was found split where it was crushed"], "a": 3, "why": "A report records facts: the time, place and equipment, what was seen and done, the injuries and the first aid given. Blame and guesses do not help find the cause, and every shock must be reported, even when the injury seems small." },
+    { "id": "P-16", "c": "c5", "q": "Why must Jermaine's team refuse to fit the 40 A breaker that Ms Fraser wants?", "o": ["A 40 A breaker would raise the voltage and damage the appliances", "The cable is sized for 20 A, so it could overheat and start a fire", "A 40 A breaker trips more often, so the problem would only get worse", "Only JPS may change the size of a breaker inside a customer's panel"], "a": 1, "why": "A breaker is sized to protect its cable. With 40 A on a cable made for 20 A, the cable could carry twice its safe current without tripping and overheat inside the wall. The cure is to spread the load, giving the kettle, microwave and coffee maker separate outlets on suitable circuits." },
+    { "id": "P-17", "c": "c5", "q": "The GFCI beside the sink did not trip when Jermaine pressed TEST, although the outlet has power. What does this tell him?", "o": ["It may not trip on a ground fault, so it must be reported and replaced", "It is working well, as a healthy GFCI should stay on when it is tested", "It is normal, as the button works only when an appliance is plugged in", "It is faulty, so he should swap it for an ordinary outlet to save time"], "a": 0, "why": "Pressing TEST makes a small leak to ground on purpose, and a working GFCI trips at once. If it does not, it may not protect anyone from a shock. Stop using the outlet, report it and have it replaced with a new GFCI, because an outlet beside a sink needs GFCI protection." },
+    { "id": "P-18", "c": "c5", "q": "Ms Fraser says the 20 A breaker would protect anyone who got a shock at the kitchen sink. Why is she wrong?", "o": ["A breaker works only on 220 V circuits, and these outlets are 110 V", "A breaker trips on a short circuit but never on any kind of ground fault", "A shock current far below 20 A, under 0.1 A, can kill and never trip it", "A breaker protects the appliances plugged in, not the cable or people"], "a": 2, "why": "A 20 A breaker needs many amps to trip, but about 50 to 100 mA across the chest can stop the heart. Fuses and breakers protect cables against overloads and short circuits; a GFCI, which trips at about 5 mA of leakage, is what protects people." },
+    { "id": "P-19", "c": null, "q": "A worker with sweaty hands, kneeling on damp concrete, touches a 110 V line. The total resistance from his hand to the ground is about 1,000 ohms. About how much current flows, and what could it do?", "o": ["About 1 mA, which he would feel only as a faint tingle in his hand", "About 11 A, which would trip the breaker before he came to any harm", "About 0.11 mA, too small to feel, because 110 V is a low voltage", "About 110 mA, which is enough to stop his heart pumping properly"], "a": 3, "why": "Current = voltage ÷ resistance: 110 ÷ 1,000 = 0.11 A, which is 110 mA. That is in the range that can send the heart into fibrillation. Wet skin and damp floors lower resistance, which is why 110 V can kill." },
+    { "id": "P-20", "c": null, "q": "A power strip under a reception desk catches fire while it is still plugged in. Which class letter must be on the label of the extinguisher you use?", "o": ["Class A", "Class C", "Class B", "Class K"], "a": 1, "why": "On extinguishers made to US standards, Class C means safe on energised (live) electrical equipment; CO2 and BC or ABC dry chemical extinguishers carry it. Water and foam conduct, so they are not marked C. Switch off the supply too, if you can do it safely." }
+  ]
+}

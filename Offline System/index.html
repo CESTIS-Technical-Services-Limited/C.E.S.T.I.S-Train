@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <script src="cestis-config.js?v=284ebb2a"></script>
-<script src="cestis-core.js?v=89f482e3"></script>
+<script src="cestis-core.js?v=bc7740cf"></script>
 <script src="cestis-form-modal.js?v=74020c38" defer></script>
 <!-- Inert until a page registers: the CMC Board registers as a READ-ONLY reader
      so the operating pages' books reach its dashboards without anyone syncing. -->
@@ -1609,8 +1609,8 @@ textarea.form-control { resize:vertical; min-height:80px; }
 .kit-row { cursor:default; }
 .kit-row .material-icon { background:var(--blue-dim); color:var(--blue); }
 .kit-unit { font-size:13.5px; line-height:1.35; }
-.kit-code { display:inline-block; font-family:monospace; font-size:11px; font-weight:700; color:var(--blue); background:var(--blue-dim); padding:1px 6px; border-radius:8px; margin-right:6px; }
-.kit-meta { font-size:11.5px; color:var(--text-muted); margin-top:2px; }
+.kit-code { display:inline-block; font-family:monospace; font-size:12px; font-weight:700; color:var(--blue); background:var(--blue-dim); padding:1px 6px; border-radius:8px; margin-right:6px; }
+.kit-meta { font-size:12px; color:var(--text-muted); margin-top:2px; }
 .kit-best { color:var(--green); font-weight:600; }
 .kit-check { color:var(--orange); font-weight:600; }
 .kit-acts { display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
@@ -16167,6 +16167,7 @@ function buildAdminPages() {
   resolveExamStatuses();
   setTimeout(renderVerifyUsersPage, 200);
   setTimeout(function() { try { renderOfficeToday(); } catch(e) {} }, 250);
+  try { ctrStartQueueReader(); } catch(e) {}
   // Every figure below counts the trainees of the year chosen on the
   // dashboard's year bar (dashScope — CESTISCore.yearView): each block is
   // drawn by its own function, so a change of year redraws them all.
@@ -26767,9 +26768,10 @@ window.addEventListener('message', function(e) {
   }
   // The requests page (OF-9): a request moved on, or "Open transcript" /
   // "Certify" pressed on its row.
-  if(e.data && (e.data.type === 'cestis-ctr-status' || e.data.type === 'cestis-ctr-open')) {
+  if(e.data && (e.data.type === 'cestis-ctr-status' || e.data.type === 'cestis-ctr-open' || e.data.type === 'cestis-ctr-deleted')) {
     if (!cestisMessageFromFrames(e, CTR_REQUEST_FRAMES)) return;
     if (e.data.type === 'cestis-ctr-status') ctrRequestMovedOn(String(e.data.requestId || ''), String(e.data.status || ''), String(e.data.was || ''));
+    else if (e.data.type === 'cestis-ctr-deleted') ctrRequestDeleted(String(e.data.requestId || ''));
     else ctrOpenFor(String(e.data.what || ''), String(e.data.studentId || ''));
   }
 });
@@ -26780,17 +26782,99 @@ window.addEventListener('message', function(e) {
    either side; and the trainee is told in her own bell (hers alone —
    forUsers) each time her request moves on. */
 var CTR_REQUEST_FRAMES = ['ctrRequestsFrame', 'asCtrRequestsFrame'];
+/* The request queue on EVERY office computer, whether or not its requests
+   page has been opened. The queue lives in the requests page's own file
+   (CESTIS_Transcript_Requests.json); only that page, while open, used to read
+   and write it. So a request reached an office computer only when somebody
+   opened the page there; a request collected from the Certificates page, or
+   one a trainee sent from home, stayed on the one computer that took it in;
+   and the computers that hand trainees at home their records sent them
+   whatever queue they last happened to hold — a status changed elsewhere
+   never reached her. Now each office computer reads the queue every minute
+   (record by record, CESTISCore.Transcript.mergeRequestLists) and sends its
+   own changes to it at once (ctrPushQueue). */
+function ctrStartQueueReader() {
+  if (window.__ctrQueueReader || !window.CESTISPageCloud) return;
+  if (currentRole !== 'admin' && currentRole !== 'adminstaff') return;
+  try {
+    // The queue's own file, kept exactly as the requests page keeps it: merged
+    // request by request (records), so two computers' copies both stand.
+    window.__ctrQueueReader = window.CESTISPageCloud.init({
+      page: 'Certificate / Transcript Requests',
+      file: 'CESTIS_Transcript_Requests.json',
+      keys: ['voctrain_certTranscriptRequests'],
+      records: true,
+      onRestore: function() {
+        try { updateCtrRequestsBadge(); renderOfficeToday(); } catch(e) {}
+        CTR_REQUEST_FRAMES.forEach(function(id) { var f = document.getElementById(id); try { if(f && f.contentWindow) f.contentWindow.postMessage({ type: 'transcript-refresh' }, '*'); } catch(e) {} });
+      }
+    }) || null;
+  } catch(e) { console.warn('[Requests] the office queue reader did not start: ' + e.message); }
+  // Once, after its first read: whatever of the queue only this computer
+  // holds (a request taken in or collected here before every computer kept
+  // the queue) is sent too — merged request by request, so an older copy
+  // never undoes a newer change.
+  var pg = window.__ctrQueueReader;
+  if (pg && typeof pg.touch === 'function' && ctrReadRequests().length) {
+    setTimeout(function() { try { pg.touch(['voctrain_certTranscriptRequests']); ctrPushQueue(); } catch(e) {} }, 20000);
+  }
+}
+// This computer changed the queue outside the requests page: send it now.
+function ctrPushQueue() {
+  try {
+    var pg = window.__ctrQueueReader;
+    if (pg && typeof pg.push === 'function') {
+      clearTimeout(pg._timer);
+      pg.push().catch(function(e) { console.warn('[Requests] queue not sent yet: ' + (e && e.message)); });
+    }
+  } catch(e) {}
+}
 function ctrReadRequests() {
   try { var v = JSON.parse(CESTISStore.getItem('voctrain_certTranscriptRequests') || '[]'); return Array.isArray(v) ? v : []; } catch(e) { return []; }
 }
-// Tell the trainee, once per request and status (the same notice raised on two
-// office computers is one: its id is fixed).
+/* The trainee's account for a request: the account that points at her
+   record, else the account whose own record this is (as sign-in finds it —
+   an older account, a record re-numbered since), else the one with her
+   email. A notice used to go nowhere when the account did not name the
+   record's id exactly. */
+function ctrTraineeUserId(studentId) {
+  var id = typeof examTraineeUserId === 'function' ? examTraineeUserId(studentId) : null;
+  if (id) return id;
+  var acct = (userAccounts || []).find(function(a) {
+    if (!a || a.role !== 'student' || a.status === 'disabled' || a.status === 'rejected') return false;
+    try { var rec = typeof findStudentRecordForAccount === 'function' ? findStudentRecordForAccount(a) : null; return !!rec && String(rec.id) === String(studentId); } catch (e) { return false; }
+  });
+  if (acct) return acct.id;
+  return typeof traineeChatUserId === 'function' ? traineeChatUserId(studentId) : null;
+}
+/* Her notices about one request: only the latest stays. The ones before it
+   (Processing, then Ready…) are taken down everywhere — the deletion is
+   recorded, so another PC or her own device does not bring them back.
+   keepId: the notice just raised. Returns how many went. */
+function ctrRetireNotices(requestId, keepId) {
+  if (!requestId) return 0;
+  var prefix = 'CTR-' + requestId + '-';
+  var before = (notifications || []).slice();
+  notifications = before.filter(function(n) { return !(n && String(n.id || '').indexOf(prefix) === 0 && n.id !== keepId); });
+  var gone = before.length - notifications.length;
+  if (gone) {
+    try { syncTombstoneRemoved('notifications', before, notifications); } catch (e) {}
+    try { saveNotifications(); updateNotificationDot(); } catch (e) {}
+  }
+  return gone;
+}
+// Tell the trainee, once per request and change (the same change seen on two
+// office computers is one notice: its id is the request, the status and the
+// time of the change), and take down what she was told before about it.
 function ctrNotifyTrainee(r, status) {
   if(!r) return null;
   var text = CESTISCore.Transcript.requestNotice(r, status);
-  var uid = typeof examTraineeUserId === 'function' ? examTraineeUserId(r.studentId) : null;
+  var uid = ctrTraineeUserId(r.studentId);
+  var when = String(r.updatedAt || r.handledAt || '').replace(/[^0-9]/g, '').slice(0, 14);
+  var nid = 'CTR-' + r.id + '-' + status + (when ? '-' + when : '');
+  ctrRetireNotices(r.id, nid);
   if(!text || !uid) return null;
-  return addNotificationForUser(text, status === 'declined' ? 'warning' : 'success', '\uD83C\uDF93', uid, 'student', 'CTR-' + r.id + '-' + status);
+  return addNotificationForUser(text, status === 'declined' ? 'warning' : 'success', '\uD83C\uDF93', uid, 'student', nid);
 }
 // A certificate handed over: the trainee's record says so (as Certificates →
 // Mark Collected does), without asking again.
@@ -26804,6 +26888,17 @@ function ctrCertificateCollected(studentId) {
   try { filterCerts(); updatePipelineCounts(); renderCertStats(); } catch(e) {}
   try { refreshStudentDependentViews(); } catch(e) {}
   return true;
+}
+/* A request the Administrator deleted (Certificate / Transcript Requests →
+   Delete): the request itself stays on file, marked deleted
+   (CESTISCore.Transcript.deleteRequest); here her notices about it go. */
+function ctrRequestDeleted(requestId) {
+  if(currentRole !== 'admin') return;
+  var r = ctrReadRequests().find(function(x) { return x && x.id === requestId; });
+  if(!r || r.deleted !== true) return;
+  ctrRetireNotices(requestId, null);
+  try { updateCtrRequestsBadge(); renderOfficeToday(); } catch(e) {}
+  saveState();
 }
 function ctrRequestMovedOn(requestId, status, was) {
   if(currentRole !== 'admin' && currentRole !== 'adminstaff') return;
@@ -35969,6 +36064,7 @@ function ctrCollectRequestsFor(studentId) {
   var merged = CESTISCore.Transcript.mergeRequestLists(ctrReadRequests(), res.list);
   CESTISStore.setItem('voctrain_certTranscriptRequests', JSON.stringify(merged));
   res.changed.forEach(function(r) { ctrNotifyTrainee(r, 'collected'); });
+  if (typeof ctrPushQueue === 'function') ctrPushQueue();
   try { updateCtrRequestsBadge(); renderOfficeToday(); } catch(e) {}
   // The requests page, if it is open, shows it at once.
   CTR_REQUEST_FRAMES.forEach(function(id) { var f = document.getElementById(id); try { if(f && f.contentWindow) f.contentWindow.postMessage({ type: 'transcript-refresh' }, '*'); } catch(e) {} });
@@ -44953,6 +45049,7 @@ function gateMergeRequests(incoming) {
   if (JSON.stringify(merged) === JSON.stringify(cur)) return false;
   CESTISStore.setItem(key, JSON.stringify(merged));
   try { if (typeof updateCtrRequestsBadge === 'function') updateCtrRequestsBadge(); } catch (e) {}
+  try { if (typeof ctrPushQueue === 'function') ctrPushQueue(); } catch (e) {}
   return true;
 }
 // Read marks, cleared notices, chat follows and spent backup codes, each the
@@ -53080,6 +53177,7 @@ function buildAdminStaffPages() {
   loadSupportMessages();
   updateSupportBadge();
   setTimeout(function() { try { renderOfficeToday(); } catch(e) {} }, 250);
+  try { ctrStartQueueReader(); } catch(e) {}
 }
 
 // ---- Admin Staff Student Filter ----

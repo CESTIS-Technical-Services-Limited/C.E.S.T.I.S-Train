@@ -159,6 +159,8 @@ function dash(role, opts) {
     addNotification(text) { sb.adminNotes.push(text); }, saveState() { sb.saves++; }, showToast(m) { sb.toasts.push(m); },
     showPage(p) { sb.pages.push(p); }, pageAllowedForRole: () => true, markStageSetByUser() {}, filterCerts() {}, updatePipelineCounts() {}, renderCertStats() {}, refreshStudentDependentViews() {},
     updateCtrRequestsBadge() {}, renderOfficeToday() {}, studentProgressManageAllowed: () => !!opts.manage, staffSectionRefused: () => false,
+    tombs: [], syncTombstoneRemoved(c, before, after) { const have = new Set(after.map(n => n.id)); before.forEach(n => { if (!have.has(n.id)) sb.tombs.push(c + ':' + n.id); }); },
+    saveNotifications() {}, updateNotificationDot() {},
     document: { getElementById: id => sb.frames[id] || null }
   };
   ['ctrRequestsFrame', 'asCtrRequestsFrame', 'transcriptGradesFrame', 'asTranscriptGradesFrame', 'studentProgressFrame', 'asStudentProgressFrame'].forEach(id => {
@@ -168,7 +170,7 @@ function dash(role, opts) {
   sb.store = store;
   vm.createContext(sb);
   vm.runInContext("var CTR_REQUEST_FRAMES = ['ctrRequestsFrame', 'asCtrRequestsFrame'];\n" +
-    ['examTraineeUserId', 'ctrReadRequests', 'ctrNotifyTrainee', 'ctrCertificateCollected', 'ctrRequestMovedOn', 'ctrOpenFor', 'ctrCollectRequestsFor', 'markCollected'].map(n => extractFrom(PAGE, n)).join('\n'), sb);
+    ['examTraineeUserId', 'ctrTraineeUserId', 'ctrRetireNotices', 'ctrRequestDeleted', 'ctrReadRequests', 'ctrNotifyTrainee', 'ctrCertificateCollected', 'ctrRequestMovedOn', 'ctrOpenFor', 'ctrCollectRequestsFor', 'markCollected'].map(n => extractFrom(PAGE, n)).join('\n'), sb);
   return sb;
 }
 console.log('\n[index.html] The trainee is told, in her own bell, once per status');
@@ -201,7 +203,7 @@ console.log('[index.html] ONE collected mark: Certificates page → request');
   sb.markCollected('S1');
   const stored = JSON.parse(sb.store.voctrain_certTranscriptRequests);
   assertEq(stored.map(r => r.status), ['collected', 'ready'], 'her certificate request is collected; her transcript request is not');
-  assert(sb.notifications.some(n => n.id === 'CTR-R1-collected' && n.forUsers[0] === 'USR-akeem'), 'she is told');
+  assert(sb.notifications.some(n => /^CTR-R1-collected-\d{14}$/.test(n.id) && n.forUsers[0] === 'USR-akeem'), 'she is told');
   assert(sb.frames.ctrRequestsFrame.got.some(m => m.type === 'transcript-refresh'), 'an open requests page shows it at once');
   assert(sb.saves === 1, 'saved once');
 }
@@ -246,5 +248,90 @@ console.log('\n[Student-Progress.html / Transcript-Grades.html] Opened on the tr
   assert(/var pick = param\('select'\);\s*if \(pick\) tgSelectFromOffice\(pick\);/.test(TG), 'it reads the trainee from its address on first load');
 }
 
+console.log('[index.html] Her bell holds only the latest notice about a request (owner, Nov 2026)');
+{
+  const sb = dash('admin', { requests: [{ id: 'R1', studentId: 'S1', studentName: 'Akeem Williams', type: 'transcript', status: 'processing', updatedAt: '2026-11-01T10:00:00.000Z' }] });
+  // Notices raised by an older build: fixed ids, one per status.
+  sb.notifications.push({ id: 'CTR-R1-pending', text: 'old', forUsers: ['USR-akeem'] }, { id: 'NOTIF-other', text: 'keep me', forUsers: ['USR-akeem'] });
+  sb.ctrRequestMovedOn('R1', 'processing', 'pending');
+  assertEq(sb.notifications.filter(n => /^CTR-R1-/.test(n.id)).map(n => n.text), ['Your transcript request is being prepared by the office.'], 'Processing: one notice about it');
+  const store = JSON.parse(sb.store.voctrain_certTranscriptRequests);
+  store[0].status = 'ready'; store[0].updatedAt = '2026-11-02T10:00:00.000Z';
+  sb.store.voctrain_certTranscriptRequests = JSON.stringify(store);
+  sb.ctrRequestMovedOn('R1', 'ready', 'processing');
+  const mine = sb.notifications.filter(n => /^CTR-R1-/.test(n.id));
+  assert(mine.length === 1 && /ready/.test(mine[0].text), 'Ready: the Processing notice is taken down, the Ready one stays (' + mine.map(n => n.id).join(', ') + ')');
+  assert(sb.tombs.indexOf('notifications:CTR-R1-pending') !== -1 && sb.tombs.some(t => /^notifications:CTR-R1-processing-/.test(t)), 'their removal is recorded, so no other PC brings them back');
+  assert(sb.notifications.some(n => n.id === 'NOTIF-other'), 'her other notices are left alone');
+  // Ready again later (back to Processing, then Ready): a new notice, not one already taken down.
+  store[0].status = 'ready'; store[0].updatedAt = '2026-11-05T10:00:00.000Z';
+  sb.store.voctrain_certTranscriptRequests = JSON.stringify(store);
+  sb.ctrRequestMovedOn('R1', 'ready', 'processing');
+  const again = sb.notifications.filter(n => /^CTR-R1-/.test(n.id));
+  assert(again.length === 1 && /20261105/.test(again[0].id) && sb.tombs.indexOf('notifications:' + again[0].id) === -1, 'a later Ready is a new notice, never one whose removal was recorded');
+}
+console.log('[index.html] A notice finds her account even when it does not name her record');
+{
+  const sb = dash('admin', { requests: [{ id: 'R5', studentId: 'S3', studentName: 'Chevaughn Morgan', type: 'transcript', status: 'ready', updatedAt: '2026-11-03T10:00:00.000Z' }] });
+  sb.userAccounts = [{ id: 'USR-chev2', role: 'student', status: 'active', studentDataId: 'OLD-ID', email: 'chev@x.test' }];
+  sb.findStudentRecordForAccount = a => (a.id === 'USR-chev2' ? sb.students[1] : null);
+  sb.ctrRequestMovedOn('R5', 'ready', 'processing');
+  assert(sb.notifications.some(n => /^CTR-R5-ready-/.test(n.id) && n.forUsers[0] === 'USR-chev2'), 'her account points at an older id: her sign-in finds her record, and so does the notice');
+}
+console.log('[index.html] A deleted request: her notices about it go');
+{
+  const sb = dash('admin', { requests: [{ id: 'R7', studentId: 'S1', type: 'transcript', status: 'ready', deleted: true, deletedAt: '2026-11-04T10:00:00.000Z', updatedAt: '2026-11-04T10:00:00.000Z' }] });
+  sb.notifications.push({ id: 'CTR-R7-ready-20261103100000', forUsers: ['USR-akeem'] }, { id: 'CTR-R70-ready', forUsers: ['USR-x'] });
+  sb.ctrRequestDeleted('R7');
+  assertEq(sb.notifications.map(n => n.id), ['CTR-R70-ready'], 'its notices go (and only its own: R70 is another request)');
+  assert(sb.saves === 1, 'saved');
+  const sb2 = dash('adminstaff', { requests: [{ id: 'R7', studentId: 'S1', type: 'transcript', status: 'ready', deleted: true }] });
+  sb2.notifications.push({ id: 'CTR-R7-ready', forUsers: ['USR-akeem'] });
+  sb2.ctrRequestDeleted('R7');
+  assert(sb2.notifications.length === 1, 'only the Administrator deletes');
+}
+console.log('[Core] Deleting a request keeps it on file and wins every merge');
+{
+  for (const T of [Core.Transcript, require(path.join(ROOT, "Offline System", "cestis-core.js")).Transcript]) {
+    const R = { id: 'R1', studentId: 'S1', type: 'certificate', status: 'pending', requestedAt: '2026-11-01T10:00:00.000Z', updatedAt: '2026-11-01T10:00:00.000Z' };
+    const del = T.deleteRequest([R], 'R1', 'Marcia Thompson', '2026-11-02T10:00:00.000Z');
+    assert(del.request && del.request.deleted === true && del.request.deletedBy === 'Marcia Thompson' && del.list.length === 1, 'deleted: kept on file, with who and when');
+    assert(!T.isOpenRequest(del.request) && !T.hasOpenRequest(del.list, 'S1', 'certificate') && T.pendingRequestCount(del.list) === 0 && T.liveRequests(del.list).length === 0, 'and left out of every list and count; she may ask again');
+    assert(T.mergeRequestLists([R], del.list)[0].deleted === true && T.mergeRequestLists(del.list, [R])[0].deleted === true, 'her older copy (or another PC\'s) does not bring it back, either way round');
+    const later = Object.assign({}, R, { status: 'processing', updatedAt: '2026-11-03T10:00:00.000Z' });
+    assert(T.mergeRequestLists(del.list, [later])[0].deleted === true, 'a later change from a copy that never saw the deletion does not undo it');
+    const back = T.restoreRequest(del.list, 'R1', 'Marcia Thompson', '2026-11-04T10:00:00.000Z');
+    assert(back.request.deleted === false && T.mergeRequestLists(del.list, back.list)[0].deleted === false && T.isOpenRequest(back.request), 'restored: it is back, and the restore wins too');
+  }
+  const OT = Core.officeToday;
+  assert(OT.openRequests([{ id: 'a', status: 'pending', deleted: true }, { id: 'b', status: 'pending' }]).count === 1, 'Office today counts no deleted request');
+}
+console.log('[the requests page] Delete (the Administrator), the Deleted view, Restore');
+{
+  const page = fs.readFileSync(path.join(ROOT, 'Cert-Transcript-Requests.html'), 'utf8');
+  assert(/\(isAdmin \? '<button class="cr-btn cr-del" onclick="crDelete\(/.test(page) && /VIEWER\.role !== 'admin'\) \{ toast\('Only the Administrator can delete a request'\)/.test(page), 'Delete on each row, the Administrator only, checked again when pressed');
+  assert(/T\.deleteRequest\(requests, id, ACTOR\)/.test(page) && /type: 'cestis-ctr-deleted'/.test(page), 'it marks the request deleted (kept on file) and tells the dashboard');
+  assert(/<option value="deleted">Deleted<\/option>/.test(page) && /crRestore\(/.test(page), 'a Deleted view, with Restore');
+  assert(/if \(\(st === 'deleted'\) !== isDeleted\(r\)\) return false;/.test(page), 'deleted requests show only there');
+  assert(/raw !== lastRaw/.test(page), 'the page sees any change to the queue, not only one that changes its length');
+  const tg = fs.readFileSync(path.join(ROOT, 'Transcript-Grades.html'), 'utf8');
+  assert(/r\.studentId === s\.id && r\.deleted !== true/.test(tg), 'the trainee\'s own list leaves a deleted request out');
+  const core = fs.readFileSync(path.join(ROOT, 'cestis-core.js'), 'utf8');
+  assert(/if \(known\.deleted === true\) return verdict\(item, true, \{ key: key, known: true \}\);/.test(core), 'what her device still sends through the gate never brings a deleted request back');
+}
+console.log('[index.html] Every office computer keeps the request queue, opened page or not');
+{
+  const page = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  const fnOf = n => { const m = new RegExp('function ' + n + '\\(').exec(page); let d = 0; for (let i = page.indexOf('{', m.index); ; i++) { if (page[i] === '{') d++; else if (page[i] === '}') { d--; if (!d) return page.slice(m.index, i + 1); } } };
+  const reader = fnOf('ctrStartQueueReader');
+  assert(/currentRole !== 'admin' && currentRole !== 'adminstaff'/.test(reader), 'office staff only');
+  assert(/file: 'CESTIS_Transcript_Requests\.json'/.test(reader) && /keys: \['voctrain_certTranscriptRequests'\]/.test(reader) && /records: true/.test(reader), 'the queue\'s own file, merged request by request, as the requests page keeps it');
+  const cr = fs.readFileSync(path.join(ROOT, 'Cert-Transcript-Requests.html'), 'utf8');
+  assert(/file: 'CESTIS_Transcript_Requests\.json'/.test(cr) && /records: true/.test(cr), '(the requests page keeps the same file the same way)');
+  assert(/function buildAdminPages\(\) \{[\s\S]{0,300}ctrStartQueueReader\(\)/.test(page), 'it starts when the Administrator\'s pages are built');
+  assert((page.match(/try \{ ctrStartQueueReader\(\); \} catch\(e\) \{\}/g) || []).length === 2, 'and when Admin Staff\'s are');
+  assert(/ctrPushQueue\(\);/.test(fnOf('ctrCollectRequestsFor')), 'a request collected from the Certificates page is sent at once');
+  assert(/ctrPushQueue\(\)/.test(fnOf('gateMergeRequests')), 'and so is a request a trainee sent from home');
+}
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);

@@ -203,7 +203,7 @@ const GUIDE_HTML = '<!doctype html><html><head><meta charset="utf-8"><title>Guid
   await ap.waitForFunction(() => currentRole === 'admin', null, { timeout: 30000 });
   await ap.evaluate(() => showPage('a-resources'));
   await ap.waitForFunction(() => !!document.querySelector('#arStudyKits .kit-row'), null, { timeout: 20000 });
-  const adm = await ap.evaluate(() => ({ text: document.getElementById('arStudyKits').innerText, progs: document.querySelectorAll('#arStudyKits details.kit-prog, #arStudyKits .kit-prog-h').length }));
+  const adm = await ap.evaluate(() => ({ text: document.getElementById('arStudyKits').textContent, progs: document.querySelectorAll('#arStudyKits details.kit-prog, #arStudyKits .kit-prog-h').length }));
   ok(adm.progs >= Math.min(2, new Set(INDEX.kits.map(k => k.qualId)).size) && /Not yet checked/.test(adm.text), 'Resource Manager: every programme\'s kits, folded by programme; an unchecked kit says so (' + adm.progs + ' programmes)');
   await ap.evaluate(() => document.querySelectorAll('#arStudyKits details.kit-prog').forEach(d => { d.open = true; }));
   await theme(ap, 'dark'); await ap.screenshot({ path: path.join(SHOTS, '07-admin-resources-dark.png') });
@@ -233,7 +233,7 @@ const GUIDE_HTML = '<!doctype html><html><head><meta charset="utf-8"><title>Guid
     isCloudConnected = true; googleAccessToken = 'test-token';
     renderAdminResources();
   }, WELD.unitCode);
-  const guideRow = await ap.evaluate(u => { const li = Array.from(document.querySelectorAll('#arStudyKits .kit-row')).find(x => x.textContent.indexOf(u) !== -1); return li ? li.innerText : ''; }, WELD.unitCode);
+  const guideRow = await ap.evaluate(u => { const li = Array.from(document.querySelectorAll('#arStudyKits .kit-row')).find(x => x.textContent.indexOf(u) !== -1); return li ? li.textContent : ''; }, WELD.unitCode);
   ok(/Learner guide/.test(guideRow), 'the guide shows beside its unit\'s kit');
   ok(/Learner guide for/.test(await ap.evaluate(() => document.getElementById('adminResourcesList').innerText)), 'and in the resource list, with its unit');
   await ap.evaluate(() => openLearnerGuide('DRES-guide1'));

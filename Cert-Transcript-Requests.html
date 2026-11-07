@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <script src="cestis-config.js?v=284ebb2a"></script>
-<script src="cestis-core.js?v=89f482e3"></script>
+<script src="cestis-core.js?v=bc7740cf"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Certificate / Transcript Requests — C.E.S.T.I.S</title>
 <style>
@@ -71,6 +71,9 @@
   .cr-btn:hover, .cr-btn:focus-visible { border-color:var(--accent); }
   .cr-btn.go { background:var(--green-dim); color:var(--green); border-color:rgba(46,204,113,0.35); }
   .cr-btn[disabled] { opacity:0.55; cursor:not-allowed; }
+  .cr-btn.cr-del { color:var(--red); border-color:rgba(214,48,36,0.35); }
+  .cr-btn.cr-del:hover, .cr-btn.cr-del:focus-visible { background:var(--red-dim); border-color:var(--red); }
+  tr.cr-deleted td { opacity:0.8; }
   .cr-wait { font-size:12px; font-weight:600; color:var(--accent); margin-top:2px; }
   .cr-wait.long { color:var(--red); }
   .cr-empty { text-align:center; color:var(--text-muted); padding:56px 20px; font-size:13.5px; line-height:1.7; }
@@ -112,6 +115,7 @@
     <option value="collected">Collected</option>
     <option value="declined">Declined</option>
     <option value="cancelled">Withdrawn by the trainee</option>
+    <option value="deleted">Deleted</option>
   </select>
   <select class="cr-select" id="crTypeFilter" onchange="render()">
     <option value="all">All types</option>
@@ -183,15 +187,17 @@ function fmtDT(iso) {
   return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
+function isDeleted(r) { return !!r && r.deleted === true; }
 function renderStats() {
-  var open = requests.filter(function (r) { return r.status === 'pending' || r.status === 'processing'; }).length;
-  var ready = requests.filter(function (r) { return r.status === 'ready'; }).length;
-  var done = requests.filter(function (r) { return r.status === 'collected'; }).length;
+  var live = requests.filter(function (r) { return r && !isDeleted(r); });
+  var open = live.filter(function (r) { return r.status === 'pending' || r.status === 'processing'; }).length;
+  var ready = live.filter(function (r) { return r.status === 'ready'; }).length;
+  var done = live.filter(function (r) { return r.status === 'collected'; }).length;
   document.getElementById('crStats').innerHTML =
     '<div class="cr-stat"><div class="v" style="color:var(--accent);">' + open + '</div><div class="l">Awaiting action</div></div>' +
     '<div class="cr-stat"><div class="v" style="color:var(--green);">' + ready + '</div><div class="l">Ready for collection</div></div>' +
     '<div class="cr-stat"><div class="v">' + done + '</div><div class="l">Collected</div></div>' +
-    '<div class="cr-stat"><div class="v">' + requests.length + '</div><div class="l">All time</div></div>';
+    '<div class="cr-stat"><div class="v">' + live.length + '</div><div class="l">All time</div></div>';
 }
 
 function render() {
@@ -208,6 +214,9 @@ function render() {
   var list = requests.slice().sort(function (a, b) { return String(a && a.requestedAt).localeCompare(String(b && b.requestedAt)); })
     .filter(function (r) {
       if (!r) return false;
+      // A deleted request is shown only under "Deleted", where it can be restored.
+      if ((st === 'deleted') !== isDeleted(r)) return false;
+      if (st === 'deleted') return !q || String(r.studentName).toLowerCase().indexOf(q) !== -1 || String(r.course).toLowerCase().indexOf(q) !== -1;
       if (st === 'open' && ['pending', 'processing', 'ready'].indexOf(r.status) === -1) return false;
       if (st !== 'open' && st !== 'all' && r.status !== st) return false;
       if (ty !== 'all' && r.type !== ty) return false;
@@ -226,7 +235,17 @@ function render() {
   var labels = Object.assign({ cancelled: 'Withdrawn by the trainee' }, T ? T.REQUEST_STATUS_LABELS : {});
   var OT = window.CESTISCore && CESTISCore.officeToday, now = Date.now();
   var stages = crStages();
+  var isAdmin = VIEWER.role === 'admin';
   tbody.innerHTML = list.map(function (r) {
+    if (isDeleted(r)) {
+      return '<tr class="cr-deleted">' +
+        '<td style="font-weight:600;">' + esc(r.studentName || r.studentId) + '</td>' +
+        '<td style="color:var(--text-secondary);">' + esc(r.course || '—') + '</td>' +
+        '<td style="color:var(--text-secondary);">' + fmtDT(r.requestedAt) + '</td>' +
+        '<td><span class="cr-badge t-' + esc(r.type) + '">' + esc((T && T.REQUEST_TYPES[r.type]) || r.type) + '</span></td>' +
+        '<td><span class="cr-badge b-declined">Deleted</span><div class="cr-wait">' + (r.deletedBy ? 'by ' + esc(r.deletedBy) + ', ' : '') + fmtDT(r.deletedAt) + '</div></td>' +
+        '<td><div class="cr-acts">' + (isAdmin ? '<button class="cr-btn" onclick="crRestore(' + crJsArg(r.id) + ')">Restore</button>' : '') + '</div></td></tr>';
+    }
     var open = T ? T.isOpenRequest(r) : (r.status === 'pending' || r.status === 'processing' || r.status === 'ready');
     var days = OT ? OT.daysWaiting(r.requestedAt, now) : 0;
     var wait = open && OT ? '<div class="cr-wait' + (days >= 7 ? ' long' : '') + '">' + esc(OT.waitingText(days)) + '</div>' : '';
@@ -253,9 +272,43 @@ function render() {
         (statuses.indexOf(r.status) === -1 && r.status === 'cancelled' ? statuses.concat(['cancelled']) : statuses).map(function (s) {
           return '<option value="' + s + '"' + (s === r.status ? ' selected' : '') + '>' + esc(labels[s] || s) + '</option>';
         }).join('') +
-      '</select></div></td>' +
+      '</select>' +
+      // Deleting a request: the Administrator only.
+      (isAdmin ? '<button class="cr-btn cr-del" onclick="crDelete(' + crJsArg(r.id) + ')" title="Delete this request">Delete</button>' : '') +
+      '</div></td>' +
     '</tr>';
   }).join('');
+}
+
+/* Delete (the Administrator): the request leaves the queue, the trainee's
+   list and her bell; it stays on file, marked deleted with who and when
+   (T.deleteRequest), so the deletion reaches every PC and her device, and it
+   can be restored from the "Deleted" view. */
+function crDelete(id) {
+  if (!VIEWER.ok || VIEWER.role !== 'admin') { toast('Only the Administrator can delete a request'); return; }
+  load();
+  var r = requests.filter(function (x) { return x && x.id === id; })[0];
+  if (!r) { toast('That request is no longer in the queue'); render(); return; }
+  var what = (T && T.REQUEST_TYPES[r.type]) || r.type;
+  if (!window.confirm('Delete ' + (r.studentName || 'this trainee') + '\'s ' + String(what).toLowerCase() + ' request?\n\nIt leaves the queue and the trainee\'s list. You can restore it from "Deleted".')) return;
+  var res = T && T.deleteRequest ? T.deleteRequest(requests, id, ACTOR) : null;
+  if (!res || !res.request) { toast('That request is no longer in the queue'); render(); return; }
+  requests = res.list;
+  save();
+  try { window.parent.postMessage({ type: 'cestis-ctr-deleted', requestId: id }, '*'); } catch (e) {}
+  render();
+  toast('Request deleted. It can be restored from "Deleted".');
+}
+function crRestore(id) {
+  if (!VIEWER.ok || VIEWER.role !== 'admin') return;
+  load();
+  var res = T && T.restoreRequest ? T.restoreRequest(requests, id, ACTOR) : null;
+  if (!res || !res.request) { toast('That request is no longer on file'); render(); return; }
+  requests = res.list;
+  save();
+  try { window.top.postMessage({ type: 'transcript-data-updated', requests: true }, '*'); } catch (e) {}
+  render();
+  toast('Request restored');
 }
 
 /* Each trainee's stage and certificate, from the roll this page reads. */
@@ -334,11 +387,11 @@ function setStatus(id, status) {
 window.addEventListener('storage', function (e) {
   if (e.key === KEY && VIEWER.ok) { load(); render(); }
 });
-var lastLen = -1;
+var lastRaw = null;
 setInterval(function () {
   var raw = '';
   try { raw = String(CESTISStore.getItem(KEY) || ''); } catch (e) {}
-  if (VIEWER.ok && raw.length !== lastLen) { lastLen = raw.length; load(); render(); }
+  if (VIEWER.ok && raw !== lastRaw) { lastRaw = raw; load(); render(); }
 }, 5000);
 
 function boot() { if (VIEWER.ok) load(); render(); }
