@@ -1,0 +1,1936 @@
+{
+  "format": "cestis-study-kit",
+  "version": 1,
+  "status": "to-check",
+  "written": "2026-11-07",
+  "programme": "Welding & Fabrication",
+  "qualification": {
+    "id": "QUAL-WEL-L2",
+    "title": "WELDING LEVEL 2",
+    "code": "MEM22423"
+  },
+  "level": 2,
+  "unit": {
+    "code": "EEMCAD0012A",
+    "title": "Operate computer aided design (CAD) to produce basic drawing elements"
+  },
+  "summary": "This unit teaches you to use a computer aided design (CAD) program to make accurate, basic drawings of steel parts. You will learn to set up a safe workstation and a new drawing, enter points with coordinates and object snaps, draw and edit lines, circles and shapes, organise your work on layers, add text and dimensions, and save, manage and print your drawings to scale.",
+  "sections": [
+    {
+      "title": "Unit overview",
+      "blocks": [
+        {
+          "p": "This unit is part of the Welding Level 2 qualification (MEM22423). It teaches you to use a **computer aided design (CAD)** program to produce the basic elements of an engineering drawing: lines, circles, arcs and shapes, placed exactly where they belong, on the right layers, with text and dimensions, saved safely and printed to scale."
+        },
+        {
+          "p": "CAD (also called computer aided drafting) is now the normal way to make fabrication drawings. Base plates, brackets, gates, grills, handrails, frames and tank stands are drawn on screen, printed for the shop floor, emailed to customers as PDF files and, in many shops, sent straight to a CNC plasma or laser cutting table. An accurate CAD drawing means accurate parts, less waste and fewer mistakes on the job."
+        },
+        {
+          "p": "**Who it is for:** welding trainees who can already read simple drawings (views, line types and dimensions). You do not need to have used CAD before, but you need basic computer skills: using a mouse and keyboard, and opening and saving files."
+        },
+        {
+          "note": "CAD programs differ in their menus, icons and some command names. The commands in this kit (Line, Circle, Offset, Trim, Fillet, Array and so on) are found in almost every 2D CAD program, and the typed forms shown (such as @50,0) are the ones most programs use. Your instructor will show you where each one is in the Centre's program: check yours.",
+          "label": "Remember"
+        },
+        {
+          "table": {
+            "head": [
+              "What you must be able to do",
+              "What this means at the CAD workstation"
+            ],
+            "rows": [
+              [
+                "Work safely at the workstation",
+                "Set up the chair, desk and screen to avoid strain; take breaks; keep cables, plugs and drinks safe."
+              ],
+              [
+                "Set up a new drawing",
+                "Start from the template; set millimetre units; check the layers, text style, dimension style and title block; save the file at once."
+              ],
+              [
+                "Enter points accurately",
+                "Use absolute, relative and polar coordinates, the drawing aids (grid, snap, ortho) and object snaps, never guessing by eye."
+              ],
+              [
+                "Draw basic elements",
+                "Draw lines, polylines, rectangles, circles, arcs, polygons and hatching, and use blocks for repeated items."
+              ],
+              [
+                "Edit the drawing",
+                "Use erase, move, copy, rotate, scale, mirror, offset, trim, extend, fillet, chamfer, array, stretch and explode."
+              ],
+              [
+                "Organise the drawing with layers",
+                "Put outlines, hidden lines, centre lines, dimensions and text on their own layers with the right linetype and lineweight."
+              ],
+              [
+                "Add text and dimensions",
+                "Add clear notes and correct dimensions of the right type, and fill in the title block."
+              ],
+              [
+                "Check the drawing",
+                "Measure distances and areas with the inquiry tools and compare them with the sketch before you print."
+              ],
+              [
+                "Save and manage files",
+                "Name, file, back up and revise drawings so that nothing is lost and the right version is always used."
+              ],
+              [
+                "Print to scale",
+                "Set the printer, paper, area and a stated scale, preview, print, and measure the print to prove the scale."
+              ]
+            ]
+          }
+        },
+        {
+          "h": "How you will be assessed"
+        },
+        {
+          "ul": [
+            "A **multiple-choice theory paper** on workstation safety, set-up, coordinates, drawing aids, draw and edit commands, layers, text, dimensions, files and printing.",
+            "A **written paper** with short answers (exact command names and terms) and longer answers in full sentences, such as how to set up a drawing or how to print to scale.",
+            "**Practical tasks** at a CAD workstation: drawing and dimensioning a plate with holes using coordinates, layers and editing commands, and producing a two-view drawing with a title block, printed to scale. The assessor also watches your posture, your saving and your file names."
+          ]
+        },
+        {
+          "note": "Short-answer questions ask for exact words such as origin, relative, model space, explode, rotate, snap, intersection, text style and A3. Learn the key terms in the Revision section.",
+          "label": "Tip"
+        }
+      ]
+    },
+    {
+      "title": "A safe and healthy workstation",
+      "blocks": [
+        {
+          "p": "CAD work means long hours at a screen, with your eyes fixed on small details and one hand on the mouse. The main risks are **eye strain**, **pain in the neck, back and shoulders**, **pain in the wrists and hands** from repeated small movements, and **electrical and tripping hazards** from cables and plugs. Set up the workstation before you start, not after it hurts."
+        },
+        {
+          "table": {
+            "head": [
+              "Part",
+              "Set it up like this",
+              "Why"
+            ],
+            "rows": [
+              [
+                "Chair",
+                [
+                  "Height set so your feet are flat on the floor (or on a footrest) and your knees are about level with your hips",
+                  "Sit right back so the backrest supports your lower back"
+                ],
+                "Supports your back and stops you leaning forward for hours"
+              ],
+              [
+                "Desk, keyboard and mouse",
+                [
+                  "Forearms about level with the desk, elbows close to your sides, shoulders relaxed",
+                  "Wrists straight, not bent up or resting on a hard edge",
+                  "Mouse right beside the keyboard, at the same height"
+                ],
+                "Stops strain in the shoulders, forearms and wrists"
+              ],
+              [
+                "Screen",
+                [
+                  "Straight in front of you, about an arm's length away",
+                  "Top of the screen at or a little below eye level",
+                  "Tilted slightly back"
+                ],
+                "Keeps your neck straight and your eyes looking slightly down, which is restful"
+              ],
+              [
+                "Light and glare",
+                [
+                  "Screen side-on to windows, not facing them or with a window behind it",
+                  "Blinds closed when the sun shines on the screen",
+                  "Brightness to suit the room; text big enough to read without leaning in"
+                ],
+                "Glare and reflections make you squint and strain your eyes"
+              ],
+              [
+                "Laptop",
+                [
+                  "Raise the screen on a stand or a firm box",
+                  "Use a separate keyboard and mouse for long sessions"
+                ],
+                "A laptop on a desk makes you bend your neck down for hours"
+              ]
+            ]
+          }
+        },
+        {
+          "h": "Breaks and rest for your eyes"
+        },
+        {
+          "ul": [
+            "Take a short break of about **5 to 10 minutes every hour**: stand up, walk, stretch your neck, shoulders and hands.",
+            "Every 20 minutes or so, look at something far away (about 6 metres) for about 20 seconds. This lets your eye muscles relax.",
+            "Blink often. People blink less when they stare at a screen, which dries the eyes.",
+            "Keep the screen clean, and tell your instructor if you get headaches, blurred vision or pain that does not go away after rest."
+          ]
+        },
+        {
+          "h": "Electrical and general safety"
+        },
+        {
+          "ul": [
+            "Check the plug, cable and power strip before you start. Do not use anything cracked, burnt or with bare wires: report it and tag it DO NOT USE.",
+            "Do not overload a power strip, and never plug one power strip into another.",
+            "Keep drinks and food away from the computer. A spill can wreck the keyboard or the computer and can cause a shock.",
+            "Keep cables tidy and out of walkways, so that no one trips or pulls a computer off the desk.",
+            "Never open the computer case or the printer's covers beyond what the maker's instructions allow. Report faults to your instructor."
+          ]
+        },
+        {
+          "note": "Power cuts and voltage surges, especially in thunderstorms, can damage computers and wipe out unsaved work. Use the surge protector or UPS (uninterruptible power supply) the Centre provides, turn on your program's automatic save, and press Save every 10 to 15 minutes.",
+          "label": "Jamaica"
+        },
+        {
+          "note": "Pain, tingling or numbness in the hands, wrists, neck or back that comes back each time you work is a warning. Tell your instructor early: a small change to the chair, screen or mouse now prevents a long-term injury.",
+          "label": "Safety"
+        }
+      ]
+    },
+    {
+      "title": "CAD basics: the screen, commands and views",
+      "blocks": [
+        {
+          "h": "Why use CAD?"
+        },
+        {
+          "table": {
+            "head": [
+              "Point",
+              "CAD",
+              "Drawing by hand"
+            ],
+            "rows": [
+              [
+                "Accuracy",
+                "Sizes are typed in and points are picked with object snaps, so lines are exact",
+                "Depends on the skill of the person, the pencil and the scale rule"
+              ],
+              [
+                "Changes",
+                "Move, stretch, trim or add a hole in seconds, without redrawing",
+                "Rub out, or redraw the whole sheet"
+              ],
+              [
+                "Repeated items",
+                "Copy, array or insert a block (a title block, bolt holes, a standard part)",
+                "Every item is drawn again by hand"
+              ],
+              [
+                "Printing and sharing",
+                "Print at any scale, any number of times; send a PDF by email; send outlines to a CNC cutting table",
+                "One original; photocopies; handed over or posted"
+              ],
+              [
+                "Storage",
+                "Files take no space and can be backed up, but can be lost if they are not",
+                "Paper takes space and can tear, fade or get wet"
+              ],
+              [
+                "Cost and power",
+                "Needs a computer, a program, electricity and training",
+                "Cheap; needs no power; works anywhere, even on site"
+              ],
+              [
+                "Best for",
+                "Finished, accurate drawings, repeat work and drawings that will change",
+                "Quick sketches, ideas on site, and learning the rules of drawing"
+              ]
+            ]
+          }
+        },
+        {
+          "h": "The CAD screen"
+        },
+        {
+          "table": {
+            "head": [
+              "Part of the screen",
+              "What it does"
+            ],
+            "rows": [
+              [
+                "Drawing area",
+                "Where you draw. In **model space** you draw the part at full size."
+              ],
+              [
+                "Crosshairs (cursor)",
+                "Shows where you are pointing; a small box on it is used to pick objects."
+              ],
+              [
+                "Ribbon, menus and toolbars",
+                "Icons and menus for the commands."
+              ],
+              [
+                "Command line (command window)",
+                "Where you can type commands and values, and where the program tells you what it wants next (the **prompt**). Read it all the time."
+              ],
+              [
+                "Status bar",
+                "Buttons to turn the drawing aids on and off (grid, snap, ortho, polar tracking, object snap), and the X and Y position of the cursor."
+              ],
+              [
+                "Layout tabs",
+                "Sheets of paper set up for printing, with a border, a title block and windows (viewports) onto the model. This is often called **paper space**."
+              ],
+              [
+                "Coordinate icon",
+                "Shows which way the X and Y axes point."
+              ],
+              [
+                "Layer and properties panels",
+                "Show and change the layer, colour, linetype and lineweight of objects."
+              ]
+            ]
+          }
+        },
+        {
+          "h": "Giving commands"
+        },
+        {
+          "ul": [
+            "Start a command by clicking its icon, choosing it from a menu, or typing its name (or a short form, such as L for Line or C for Circle in many programs) and pressing **Enter**.",
+            "Then **read the prompt** on the command line and answer it: pick a point, type a value, or choose an option.",
+            "Press **Enter** to finish a command such as Line. In many programs, pressing Enter (or the space bar) again repeats the last command.",
+            "Press **Esc** to cancel a command you started by mistake.",
+            "Use **Undo** (often Ctrl + Z) to reverse the last action, and Redo to bring it back.",
+            "A right-click usually shows a short menu of options for the command you are in."
+          ]
+        },
+        {
+          "h": "Zoom and Pan"
+        },
+        {
+          "p": "**Zoom** makes the drawing look bigger or smaller on the screen; **Pan** slides your view across the drawing. Neither changes the real size or position of anything. In many programs, rolling the mouse wheel zooms in and out at the cursor, and holding the wheel down while you move the mouse pans."
+        },
+        {
+          "table": {
+            "head": [
+              "Zoom option",
+              "What it shows"
+            ],
+            "rows": [
+              [
+                "Zoom Window",
+                "The area inside a box you drag round it"
+              ],
+              [
+                "Zoom Extents",
+                "Everything that is drawn, as large as will fit on screen"
+              ],
+              [
+                "Zoom All",
+                "The whole drawing area (the limits) or everything drawn, whichever is bigger"
+              ],
+              [
+                "Zoom Previous",
+                "The view you had just before"
+              ]
+            ]
+          }
+        },
+        {
+          "note": "Zoom and Pan change only your **view**. Move and Scale change the **objects** themselves. If a part has \"disappeared\", try Zoom Extents before you assume it is lost.",
+          "label": "Remember"
+        }
+      ]
+    },
+    {
+      "title": "Setting up a new drawing",
+      "blocks": [
+        {
+          "p": "A few minutes of set-up saves hours later. The easiest way is to start from the Centre's **template file**: a starting drawing that already has the units, layers, text and dimension styles, and the title block. Check each setting anyway."
+        },
+        {
+          "flow": [
+            "Start a new drawing from the Centre's template",
+            "Check the units: millimetres, with the decimal places to suit the job (often 0 or 0.0), and angles in decimal degrees",
+            "Set the drawing limits or work area to fit the part at full size; turn on the grid and snap at a useful spacing, such as 10 mm",
+            "Check or create the layers you need",
+            "Check the text style and the dimension style",
+            "Save the file straight away, with a clear name, in the right folder",
+            "Fill in the title block (often on the layout), then start drawing"
+          ]
+        },
+        {
+          "h": "Draw at full size"
+        },
+        {
+          "p": "In model space, one drawing unit is one millimetre and you always draw the part at **full size (1:1)**. A gate 2,400 mm wide is drawn 2,400 units wide, even though it will be printed much smaller. The scale is chosen only when you print, or when you set up a viewport on a layout. Drawing at full size means every dimension measures the real size, and the distance and area tools give real answers."
+        },
+        {
+          "table": {
+            "head": [
+              "Size you are given",
+              "What you type (units in mm)"
+            ],
+            "rows": [
+              [
+                "1.2 m",
+                "1200"
+              ],
+              [
+                "0.75 m",
+                "750"
+              ],
+              [
+                "1 inch",
+                "25.4"
+              ],
+              [
+                "¾ inch",
+                "19.05"
+              ],
+              [
+                "1 foot (12 inches)",
+                "304.8"
+              ],
+              [
+                "10 feet",
+                "3048"
+              ]
+            ]
+          }
+        },
+        {
+          "note": "Steel in Jamaica is often sold and talked about in inches and feet (\"1-inch square tube\", \"a 10-foot gate\"), and customers often measure in feet. Convert to millimetres before you draw: inches × 25.4, feet × 304.8. Write the conversion on the sketch so it can be checked.",
+          "label": "Jamaica"
+        },
+        {
+          "h": "Model space and layouts"
+        },
+        {
+          "ul": [
+            "**Model space** is where you draw the part at full size.",
+            "A **layout** (paper space) is a sheet of paper of a set size, with a border and title block, and one or more **viewports**: windows that show the model at a set scale, such as 1:5.",
+            "For simple work you can print straight from model space at a stated scale. For finished drawings, many offices print from a layout. Follow the way the Centre's template is set up."
+          ]
+        },
+        {
+          "h": "Drawing aids"
+        },
+        {
+          "table": {
+            "head": [
+              "Aid",
+              "What it does",
+              "Use it when"
+            ],
+            "rows": [
+              [
+                "Grid",
+                "Shows a pattern of dots or lines at a set spacing. It does not print.",
+                "You want to judge sizes and positions roughly"
+              ],
+              [
+                "Snap",
+                "Makes the cursor move only in set steps, such as every 10 mm",
+                "Points fall on a regular spacing"
+              ],
+              [
+                "Ortho",
+                "Keeps lines and movements horizontal or vertical only",
+                "Drawing square outlines, frames and bars"
+              ],
+              [
+                "Polar tracking",
+                "Shows guide lines at set angles, such as every 15° or 45°",
+                "Drawing lines at 30°, 45° or 60°"
+              ],
+              [
+                "Object snap",
+                "Picks exact points on objects: ends, middles, centres, crossings",
+                "Always, when a point must touch something already drawn"
+              ]
+            ]
+          }
+        },
+        {
+          "note": "Look at the status bar before you pick points, to see which aids are on. In many programs they are switched with buttons or function keys (for example F8 for Ortho). A grid snap left on by mistake makes the cursor jump past the point you want; turn it off when you are working with object snaps on odd sizes.",
+          "label": "Tip"
+        },
+        {
+          "h": "Layers"
+        },
+        {
+          "p": "Layers work like clear sheets laid on top of each other. Every object sits on one layer, and each layer has its own **colour**, **linetype** and **lineweight**. Leave each object's own settings as **ByLayer**, so that it takes them from its layer. Then the lines look right on screen and print right, and you can control whole groups of objects at once."
+        },
+        {
+          "table": {
+            "head": [
+              "Layer setting",
+              "What it does"
+            ],
+            "rows": [
+              [
+                "Current layer",
+                "The layer that new objects are drawn on. Check it before you draw."
+              ],
+              [
+                "On / Off",
+                "Off hides the layer's objects; they stay in the drawing and come back when it is turned on."
+              ],
+              [
+                "Freeze / Thaw",
+                "Frozen layers are hidden and ignored by the program, which can speed up a big drawing. The current layer cannot be frozen."
+              ],
+              [
+                "Lock / Unlock",
+                "A locked layer's objects can be seen (and snapped to) but not changed. Useful for a title block or a finished outline."
+              ],
+              [
+                "Colour",
+                "The colour on screen; it can also control how the line prints."
+              ],
+              [
+                "Linetype",
+                "Continuous, dashed (hidden), chain (centre) and so on."
+              ],
+              [
+                "Lineweight",
+                "How thick the line prints: thick for outlines, thin for the rest."
+              ]
+            ]
+          }
+        },
+        {
+          "table": {
+            "head": [
+              "Suggested layer",
+              "Linetype",
+              "Lineweight (typical)",
+              "Used for"
+            ],
+            "rows": [
+              [
+                "Outline",
+                "Continuous",
+                "Thick, about 0.5 mm",
+                "Visible edges of the part"
+              ],
+              [
+                "Hidden",
+                "Dashed",
+                "Thin, about 0.25 mm",
+                "Edges you cannot see from that view"
+              ],
+              [
+                "Centre",
+                "Chain (long dash, short dash)",
+                "Thin",
+                "Centre lines of holes, arcs and symmetrical parts"
+              ],
+              [
+                "Dimensions",
+                "Continuous",
+                "Thin",
+                "All dimensions"
+              ],
+              [
+                "Text",
+                "Continuous",
+                "Thin",
+                "Notes and labels"
+              ],
+              [
+                "Hatch",
+                "Continuous",
+                "Thin",
+                "Section hatching"
+              ],
+              [
+                "Construction",
+                "Continuous",
+                "Thin, any colour",
+                "Temporary guide lines: turned off or frozen before printing"
+              ],
+              [
+                "Title block",
+                "Continuous",
+                "As the template sets",
+                "Border and title block: kept locked"
+              ]
+            ]
+          }
+        },
+        {
+          "note": "Thick lines are usually about twice as thick as thin ones (for example 0.5 mm and 0.25 mm, or 0.7 mm and 0.35 mm). If a hidden or centre line shows as a solid line, its **linetype scale** does not suit the size of the drawing: change the linetype scale, not the layer. Use the layer names in the Centre's template if they differ from these.",
+          "label": "Tip"
+        }
+      ]
+    },
+    {
+      "title": "Entering points: coordinates and object snaps",
+      "blocks": [
+        {
+          "p": "CAD places every point by its **coordinates**. The **X axis** runs across the screen and X gets bigger to the right. The **Y axis** runs up the screen and Y gets bigger upwards. The point where X and Y are both zero, 0,0, is the **origin**. A point is written X first, then Y, with a comma between: 50,20 means 50 mm to the right of the origin and 20 mm up."
+        },
+        {
+          "table": {
+            "head": [
+              "Method",
+              "What you type (most programs)",
+              "Measured from",
+              "Example"
+            ],
+            "rows": [
+              [
+                "Absolute",
+                "X,Y",
+                "The origin, 0,0",
+                "Start at 10,10, then type 90,10: the line ends 80 mm to the right, at 90,10"
+              ],
+              [
+                "Relative",
+                "@X,Y",
+                "The **last point** you picked",
+                "From 90,10, type @0,45: the line goes 45 mm straight up and ends at 90,55"
+              ],
+              [
+                "Polar (relative)",
+                "@distance<angle",
+                "The last point",
+                "Type @60<45: a 60 mm line going up and to the right at 45°"
+              ],
+              [
+                "Direct distance",
+                "Point the cursor the way you want (with Ortho or polar tracking on) and type a length",
+                "The last point, in the cursor's direction",
+                "With Ortho on, point to the right and type 120: a 120 mm line to the right"
+              ]
+            ]
+          }
+        },
+        {
+          "p": "Negative values go the other way: @-40,0 goes 40 mm to the **left**, and @0,-25 goes 25 mm **down**."
+        },
+        {
+          "h": "Angles"
+        },
+        {
+          "p": "Angles are measured from the **3 o'clock direction** (along positive X, often called east), going **anticlockwise**. A negative angle goes clockwise."
+        },
+        {
+          "table": {
+            "head": [
+              "Angle",
+              "Direction of the line"
+            ],
+            "rows": [
+              [
+                "0°",
+                "To the right"
+              ],
+              [
+                "45°",
+                "Up and to the right"
+              ],
+              [
+                "90°",
+                "Straight up"
+              ],
+              [
+                "135°",
+                "Up and to the left"
+              ],
+              [
+                "180°",
+                "To the left"
+              ],
+              [
+                "225°",
+                "Down and to the left"
+              ],
+              [
+                "270° (or −90°)",
+                "Straight down"
+              ],
+              [
+                "315° (or −45°)",
+                "Down and to the right"
+              ]
+            ]
+          }
+        },
+        {
+          "h": "Worked example: an L-shaped plate"
+        },
+        {
+          "p": "An L-shaped plate is 80 mm across the bottom and 60 mm high, and both legs are 20 mm wide. Start the Line command at the origin and use relative coordinates all the way round."
+        },
+        {
+          "table": {
+            "head": [
+              "Step",
+              "You type",
+              "What is drawn",
+              "Line ends at"
+            ],
+            "rows": [
+              [
+                "1",
+                "0,0",
+                "Start point",
+                "0,0"
+              ],
+              [
+                "2",
+                "@80,0",
+                "80 mm to the right",
+                "80,0"
+              ],
+              [
+                "3",
+                "@0,20",
+                "20 mm up",
+                "80,20"
+              ],
+              [
+                "4",
+                "@-60,0",
+                "60 mm to the left",
+                "20,20"
+              ],
+              [
+                "5",
+                "@0,40",
+                "40 mm up",
+                "20,60"
+              ],
+              [
+                "6",
+                "@-20,0",
+                "20 mm to the left",
+                "0,60"
+              ],
+              [
+                "7",
+                "C (Close)",
+                "Back to the start",
+                "0,0"
+              ]
+            ]
+          }
+        },
+        {
+          "note": "Before you type, sketch the shape and write the length and direction of each side on it. Every relative move is \"how far across, how far up\" from where you are now, so add up the X moves and the Y moves round a closed shape: they must come back to zero.",
+          "label": "Tip"
+        },
+        {
+          "h": "Object snaps"
+        },
+        {
+          "p": "**Object snaps** make the cursor lock on to an exact point of an object that is already drawn. A marker of a different shape shows which snap has been found. Use them every time a point must touch, start from or line up with something."
+        },
+        {
+          "table": {
+            "head": [
+              "Object snap",
+              "What it picks",
+              "Typical use"
+            ],
+            "rows": [
+              [
+                "Endpoint",
+                "The nearer end of a line or arc",
+                "Joining lines; dimensioning to corners"
+              ],
+              [
+                "Midpoint",
+                "The exact middle of a line or arc",
+                "Centre lines and symmetrical parts"
+              ],
+              [
+                "Centre",
+                "The centre of a circle or arc",
+                "Hole centres; the centre of a polar array"
+              ],
+              [
+                "Quadrant",
+                "The 0°, 90°, 180° and 270° points on a circle",
+                "Lines to the top, bottom or side of a circle"
+              ],
+              [
+                "Intersection",
+                "The point where two objects cross",
+                "Where centre lines cross, to place a hole"
+              ],
+              [
+                "Perpendicular",
+                "The point that makes a right angle with an object",
+                "A line square to another line"
+              ],
+              [
+                "Tangent",
+                "The point where a line just touches a circle or arc without cutting it",
+                "Lines joining two circles, as on a link plate"
+              ],
+              [
+                "Nearest",
+                "Any point on the object, close to the cursor",
+                "When a point must lie on an object, but not at a set place"
+              ]
+            ]
+          }
+        },
+        {
+          "ul": [
+            "**Running** object snaps stay on all the time. Turn on only the few you use most (often Endpoint, Midpoint, Centre and Intersection), or the cursor will keep jumping to the wrong one.",
+            "A **one-off** snap (an override) works for one pick only. Choose it from the snap menu or type its short name when the program asks for a point.",
+            "If the wrong snap is found, zoom in so the objects are further apart, or use a one-off snap."
+          ]
+        },
+        {
+          "note": "Never pick a point \"by eye\" where it should touch something. A line that looks joined on screen may miss by a fraction of a millimetre, and then Trim, Fillet, Hatch and the area tool will not work properly.",
+          "label": "Remember"
+        }
+      ]
+    },
+    {
+      "title": "Drawing basic elements",
+      "blocks": [
+        {
+          "table": {
+            "head": [
+              "Command",
+              "What it draws",
+              "How it is usually set"
+            ],
+            "rows": [
+              [
+                "Line",
+                "Straight lines; each segment is a separate object",
+                "Pick or type each point; Enter to finish; C to close"
+              ],
+              [
+                "Polyline",
+                "Joined lines and arcs that act as **one object**",
+                "Like Line, with options for arcs and width. A closed polyline is easy to offset and to measure for area."
+              ],
+              [
+                "Rectangle",
+                "A four-sided closed polyline",
+                "Pick two opposite corners, for example 0,0 then @150,80"
+              ],
+              [
+                "Circle",
+                "A circle",
+                "Centre and radius; centre and diameter; 2 points (the ends of a diameter); 3 points; or tangent, tangent, radius"
+              ],
+              [
+                "Arc",
+                "Part of a circle",
+                "Three points, or start, centre and end, and other options. Many programs draw arcs anticlockwise from the start point."
+              ],
+              [
+                "Polygon",
+                "A regular shape with equal sides, such as a hexagon",
+                "Number of sides, centre, then inscribed or circumscribed and a radius"
+              ],
+              [
+                "Ellipse",
+                "An oval",
+                "The ends of one axis and the half-length of the other"
+              ],
+              [
+                "Hatch",
+                "A pattern filling a closed area, such as a cut surface in a section view",
+                "Pick a point inside a closed boundary, or select the boundary; choose the pattern, angle and scale"
+              ],
+              [
+                "Text",
+                "Words on the drawing",
+                "A single line of text, or a paragraph (multiline) text box"
+              ]
+            ]
+          }
+        },
+        {
+          "h": "Circles and holes"
+        },
+        {
+          "ul": [
+            "Drawings give holes by their **diameter**, with the sign Ø: Ø14 means a hole 14 mm across.",
+            "If the program asks for a radius, type **half the diameter**: Ø14 is radius 7. Many programs let you choose the Diameter option instead.",
+            "Place hole centres with coordinates, or with the Intersection snap where two centre lines cross.",
+            "**Tangent, tangent, radius** draws a circle of a set radius that just touches two lines or circles, for example a rounded end between two edges."
+          ]
+        },
+        {
+          "h": "Polygons: hexagons for nuts and bars"
+        },
+        {
+          "p": "Hexagons are given either **across flats** (AF: from one flat side to the opposite one, which is the spanner size) or across corners. The Polygon command lets you choose:"
+        },
+        {
+          "table": {
+            "head": [
+              "Option",
+              "The circle you give",
+              "Use it when the drawing gives"
+            ],
+            "rows": [
+              [
+                "Inscribed in circle",
+                "The corners lie on the circle",
+                "The across-corners size: radius = half the across-corners size"
+              ],
+              [
+                "Circumscribed about circle",
+                "The flat sides touch the circle",
+                "The across-flats size: radius = half the across-flats size"
+              ]
+            ]
+          }
+        },
+        {
+          "p": "For example, a hexagon 24 mm across flats is a polygon with 6 sides, **circumscribed**, radius 12."
+        },
+        {
+          "h": "Hatching"
+        },
+        {
+          "ul": [
+            "Hatching shows a cut surface in a section view. A common pattern for steel is thin lines at 45°.",
+            "The boundary must be **completely closed**. A tiny gap, where lines do not quite meet, stops the hatch or makes it spill out over the drawing.",
+            "To find a gap, zoom in on the corners. Close it with Endpoint snaps, Extend, Fillet with radius 0, or by redrawing the outline as one closed polyline.",
+            "Set the hatch scale so the lines are evenly spaced on the printed sheet: neither a solid black mass nor lines so far apart they look like a mistake."
+          ]
+        },
+        {
+          "h": "Blocks"
+        },
+        {
+          "p": "A **block** is a group of objects saved as one named item that you can insert again and again: a title block, a bolt, a standard bracket, a weld symbol. Every copy of a block is one object, which keeps the file small and tidy. If you change the block's definition, every copy in the drawing changes. **Explode** breaks a block (or a polyline or rectangle) back into separate simple objects, for example so that one line of it can be edited."
+        },
+        {
+          "h": "Text"
+        },
+        {
+          "ul": [
+            "Set up a **text style** first: the saved set of settings for the font and height. Use a plain, clear font.",
+            "Text heights are sizes on the **printed sheet**: about **3.5 mm** for notes and dimensions, 5 to 7 mm for titles, and never below about 2.5 mm.",
+            "Use single-line text for short labels and multiline (paragraph) text for notes of several lines.",
+            "Put all text on the Text layer, keep notes clear of the views, and write them in capitals if that is the Centre's practice."
+          ]
+        },
+        {
+          "note": "If you print from a layout, the viewport's scale looks after text size. If you print straight from model space at 1:10, everything is printed ten times smaller, so text must be drawn ten times taller: 35 mm in the model gives 3.5 mm on paper. Some programs do this for you with an annotation scale. Ask your instructor which way the Centre works.",
+          "label": "Tip"
+        }
+      ]
+    },
+    {
+      "title": "Editing the drawing",
+      "blocks": [
+        {
+          "p": "Most of the time spent on a CAD drawing is editing: tidying, copying and changing what is already there. Most editing commands first ask you to **select objects**, then press Enter, then answer the prompts."
+        },
+        {
+          "h": "Selecting objects"
+        },
+        {
+          "table": {
+            "head": [
+              "Way to select",
+              "What it picks"
+            ],
+            "rows": [
+              [
+                "Click on an object",
+                "That object"
+              ],
+              [
+                "Window (in most programs, drag from **left to right**; the box has a solid edge)",
+                "Only objects that are **fully inside** the box"
+              ],
+              [
+                "Crossing (in most programs, drag from **right to left**; the box has a dashed edge)",
+                "Every object that is inside the box **or touches** its edge"
+              ],
+              [
+                "Shift + click (many programs)",
+                "Removes an object from the selection"
+              ],
+              [
+                "Select all (often Ctrl + A)",
+                "Everything that can be selected"
+              ]
+            ]
+          }
+        },
+        {
+          "h": "The main editing commands"
+        },
+        {
+          "table": {
+            "head": [
+              "Command",
+              "What it does",
+              "What it usually asks for"
+            ],
+            "rows": [
+              [
+                "Erase",
+                "Removes objects from the drawing",
+                "Select the objects, then Enter (the Delete key also works)"
+              ],
+              [
+                "Move",
+                "Moves objects to a new place",
+                "Objects, a base point, then the second point (or a distance)"
+              ],
+              [
+                "Copy",
+                "Makes copies; the original stays",
+                "Objects, a base point, then one or more second points"
+              ],
+              [
+                "Rotate",
+                "Turns objects about a base point; a positive angle turns them anticlockwise",
+                "Objects, base point, angle"
+              ],
+              [
+                "Scale",
+                "Makes objects bigger or smaller about a base point: factor 2 doubles, 0.5 halves",
+                "Objects, base point, scale factor"
+              ],
+              [
+                "Mirror",
+                "Makes a reversed copy about a mirror line, like a reflection",
+                "Objects, two points on the mirror line, and whether to delete the original"
+              ],
+              [
+                "Offset",
+                "Makes a parallel copy at an exact distance: a line beside a line, a bigger or smaller circle round the same centre",
+                "Distance, the object, then the side to offset to"
+              ],
+              [
+                "Trim",
+                "Cuts off the part of an object that runs past a cutting edge",
+                "The cutting edges (or all objects), then the parts to cut off"
+              ],
+              [
+                "Extend",
+                "Lengthens an object so that it meets a boundary",
+                "The boundary (or all objects), then the end to extend"
+              ],
+              [
+                "Fillet",
+                "Joins two objects with an arc of a set radius; with radius 0 it makes a clean, sharp corner",
+                "Radius, then the two objects"
+              ],
+              [
+                "Chamfer",
+                "Cuts a corner with a straight, angled line at set distances (for example 5 mm × 5 mm)",
+                "Distances, then the two lines"
+              ],
+              [
+                "Array",
+                "Makes many evenly spaced copies: **rectangular** (rows and columns) or **polar** (round a centre)",
+                "Rectangular: rows, columns and spacing. Polar: centre, number of items, angle to fill"
+              ],
+              [
+                "Stretch",
+                "Moves part of a drawing and stretches the lines joined to it",
+                "A crossing box round the part to move, base point, second point"
+              ],
+              [
+                "Break",
+                "Cuts a gap in an object, or splits it at a point",
+                "The object and the break points"
+              ],
+              [
+                "Join",
+                "Joins lines or arcs that meet end to end into one object",
+                "The objects"
+              ],
+              [
+                "Explode",
+                "Breaks a polyline, rectangle or block into simple separate objects",
+                "The objects"
+              ]
+            ]
+          }
+        },
+        {
+          "note": "In a **rectangular array**, the spacing is from centre to centre (or from any point on one copy to the same point on the next), not the gap between the items. In a **polar array** of n items over 360°, the copies are 360 ÷ n degrees apart: 4 items are 90° apart, 6 are 60° apart, 8 are 45° apart.",
+          "label": "Remember"
+        },
+        {
+          "h": "Worked example: a base plate with holes"
+        },
+        {
+          "p": "A base plate is 200 mm × 120 mm with 15 mm radius corners, four Ø16 holes 25 mm in from both edges, and a Ø50 hole in the middle. Put the bottom-left corner at the origin."
+        },
+        {
+          "flow": [
+            "Make Outline the current layer. Rectangle: first corner 0,0, other corner @200,120",
+            "Fillet: set the radius to 15, then pick the two sides at each corner (or use the polyline option to do all four at once)",
+            "Work out the hole centres: 25,25 and 175,25 along the bottom, 25,95 and 175,95 along the top (200 − 25 = 175; 120 − 25 = 95)",
+            "Circle at 25,25 with radius 8 (half of Ø16)",
+            "Rectangular array of that circle: 2 rows and 2 columns, row spacing 70 (95 − 25) and column spacing 150 (175 − 25). Or copy it with object snaps",
+            "Centre hole: circle at 100,60 (the middle of 200 × 120) with radius 25",
+            "Change to the Centre layer and add centre lines through each hole, running a little past the hole",
+            "Check sizes with the distance tool, then dimension on the Dimensions layer and save"
+          ]
+        },
+        {
+          "note": "Draw construction lines on a Construction layer when you need guides, for example lines 25 mm in from each edge made with Offset. Their crossings give the hole centres with the Intersection snap. Freeze or erase them before printing.",
+          "label": "Tip"
+        },
+        {
+          "h": "Turning a rough outline into a finished one"
+        },
+        {
+          "ul": [
+            "Lines that cross at a corner: **Trim** each back to the other, or **Fillet with radius 0**.",
+            "A line that stops short of another: **Extend** it to meet the boundary.",
+            "An inside edge a set distance in from the outside: **Offset** the outline.",
+            "Rounded or bevelled corners: **Fillet** (arc) or **Chamfer** (angled cut).",
+            "A symmetrical part: draw half, then **Mirror** it.",
+            "Leftover guide lines: **Erase** them.",
+            "Finally, measure with the distance tool and compare with the sketch."
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Views, dimensions, title block and checking",
+      "blocks": [
+        {
+          "h": "Two views of a part"
+        },
+        {
+          "p": "One view rarely shows a part fully. A fabrication drawing usually has a **front view** and an **end view** or a **plan**, drawn **lined up** with each other so that every edge can be followed from one view to the next."
+        },
+        {
+          "flow": [
+            "Draw the front view first, on the Outline layer",
+            "With Ortho on, draw construction lines across from the top and bottom edges of the front view (and from any holes or steps)",
+            "Draw the end view between those lines, so that its heights match the front view exactly",
+            "Add hidden lines (Hidden layer) for edges that cannot be seen, and centre lines (Centre layer) for holes",
+            "Erase or freeze the construction lines, then dimension each view"
+          ]
+        },
+        {
+          "ul": [
+            "Edges you cannot see from a view are drawn as **hidden (dashed) lines**. For example, a hole through a plate seen from the edge shows as two hidden lines with a centre line between them.",
+            "The title block shows which **projection** is used, with its symbol. In first-angle projection, the view seen from the left is placed on the right of the front view; in third-angle projection, it is placed on the left. Use the projection the Centre uses."
+          ]
+        },
+        {
+          "h": "Dimensions"
+        },
+        {
+          "p": "Dimensions in CAD measure the objects themselves, so the part must be drawn accurately at full size first. Set the Dimensions layer current, and use a **dimension style** with the right text height (about 3.5 mm on the printed sheet), arrow size and units (millimetres)."
+        },
+        {
+          "table": {
+            "head": [
+              "Dimension type",
+              "Use it for",
+              "Example"
+            ],
+            "rows": [
+              [
+                "Linear",
+                "Horizontal or vertical sizes",
+                "Plate width 200"
+              ],
+              [
+                "Aligned",
+                "A sloping edge, measured along its true length",
+                "A brace cut at an angle"
+              ],
+              [
+                "Angular",
+                "The angle between two lines",
+                "45° on a chamfered corner"
+              ],
+              [
+                "Radius",
+                "Arcs and rounded corners",
+                "R15"
+              ],
+              [
+                "Diameter",
+                "Full circles and holes",
+                "Ø16"
+              ],
+              [
+                "Leader (note with an arrow)",
+                "A note pointing to a feature",
+                "4 HOLES Ø16"
+              ],
+              [
+                "Baseline / continue",
+                "Several sizes from one datum edge, or in a chain",
+                "Hole positions from the left edge"
+              ]
+            ]
+          }
+        },
+        {
+          "ul": [
+            "Pick the points with **object snaps**, so the dimension measures the true size.",
+            "Place dimensions **outside** the views where you can, with smaller ones nearer the view and overall sizes outside them, so that lines do not cross.",
+            "Give each size **once only**, and show hole positions from a **datum** (a chosen reference edge) to the hole centres.",
+            "Keep dimensions **associative**: an associative dimension is linked to the object and updates itself if the object is changed.",
+            "Never type over a dimension's number to \"correct\" it. If a dimension shows the wrong value, **the object is drawn wrong**: fix the object."
+          ]
+        },
+        {
+          "h": "Notes"
+        },
+        {
+          "p": "Add general notes on the Text layer, for example: ALL DIMENSIONS IN MM; MATERIAL: 6 MM MILD STEEL PLATE; GENERAL TOLERANCE ±1 MM UNLESS STATED; REMOVE ALL SHARP EDGES; and any welding notes. Check the spelling."
+        },
+        {
+          "h": "The title block"
+        },
+        {
+          "table": {
+            "head": [
+              "Item",
+              "Why it is needed"
+            ],
+            "rows": [
+              [
+                "Title of the part, and the drawing number",
+                "Says what the drawing is and lets it be found"
+              ],
+              [
+                "Name (drawn by), checked by, and the date",
+                "Shows who is responsible and when it was made"
+              ],
+              [
+                "Scale",
+                "Must match the scale the drawing is printed at"
+              ],
+              [
+                "Projection symbol",
+                "Shows first-angle or third-angle"
+              ],
+              [
+                "Material, and \"dimensions in mm\"",
+                "So the part is made from the right stock and sizes are not misread"
+              ],
+              [
+                "Sheet size and revision letter",
+                "So the right sheet and the latest version are used"
+              ],
+              [
+                "Centre or company name",
+                "Shows where the drawing came from"
+              ]
+            ]
+          }
+        },
+        {
+          "h": "Checking with the inquiry tools"
+        },
+        {
+          "table": {
+            "head": [
+              "Tool",
+              "What it tells you"
+            ],
+            "rows": [
+              [
+                "Distance (measure)",
+                "The distance between two points you pick, with the angle and the X and Y differences"
+              ],
+              [
+                "Area",
+                "The area enclosed by a closed shape (in mm² when you draw in mm), and its perimeter"
+              ],
+              [
+                "List (properties)",
+                "Details of an object: its layer, length, radius, position and so on"
+              ],
+              [
+                "ID point",
+                "The X,Y coordinates of a point you pick"
+              ]
+            ]
+          }
+        },
+        {
+          "note": "Area × thickness × 7850 kg/m³ gives the mass of a steel plate. A 200 mm × 120 mm plate is 24,000 mm², which is 0.024 m². At 6 mm (0.006 m) thick it weighs about 0.024 × 0.006 × 7850 ≈ 1.13 kg, a little less once the holes are cut. Handy for costing and lifting.",
+          "label": "Tip"
+        },
+        {
+          "ul": [
+            "Before printing, check: the sizes match the sketch; every object is on the right layer; corners meet exactly; the dimensions and notes are correct; the title block is filled in; the construction layer is off.",
+            "Ask a classmate to check your sizes with the distance tool. A second pair of eyes finds mistakes you no longer see."
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Saving, managing and printing drawings",
+      "blocks": [
+        {
+          "h": "Saving"
+        },
+        {
+          "table": {
+            "head": [
+              "Command",
+              "What it does"
+            ],
+            "rows": [
+              [
+                "Save",
+                "Writes your changes into the **same file**, with the same name and in the same place"
+              ],
+              [
+                "Save As",
+                "Saves a **copy with a new name or in a new place**; from then on you are working in the new file and the old one stays as it was"
+              ]
+            ]
+          }
+        },
+        {
+          "ul": [
+            "Save the drawing **as soon as you start it**, with its proper name, then save often (every 10 to 15 minutes) and always before printing.",
+            "Turn on the program's automatic save, but do not rely on it alone.",
+            "Use Save As to start a new version, so that an approved drawing is never written over by mistake."
+          ]
+        },
+        {
+          "h": "Names, folders and file types"
+        },
+        {
+          "ul": [
+            "Give every file a name that says what it is: the **job number, the part name and the drawing number**, for example J215-gate-frame-D02. Never leave the name the program gives (Drawing1).",
+            "Keep files in folders: one for each job or customer, in the **shared folder** the Centre uses, not on the desktop of one computer.",
+            "Do not save over another person's drawing. If you need to change it, ask, then use Save As with your initials or a new revision."
+          ]
+        },
+        {
+          "table": {
+            "head": [
+              "File type",
+              "What it is for"
+            ],
+            "rows": [
+              [
+                "The program's own drawing file (in many programs, .dwg)",
+                "Your working drawing"
+              ],
+              [
+                "Template (in many programs, .dwt)",
+                "A starting file with units, layers, styles and the title block set up"
+              ],
+              [
+                "DXF",
+                "A common exchange format that most other CAD programs and CNC plasma and laser cutting tables can read"
+              ],
+              [
+                "PDF",
+                "For people who need to view or print the drawing without CAD, such as customers and the shop floor"
+              ],
+              [
+                "Backup copy (in many programs, .bak)",
+                "An automatic copy of the version before your last save, which can be renamed and opened if the main file is damaged"
+              ]
+            ]
+          }
+        },
+        {
+          "h": "Backups"
+        },
+        {
+          "p": "A file can be deleted, written over, damaged by a power cut or lost with a stolen or broken computer. Keep a **backup** in another place: the Centre's backup or network drive, cloud storage, or a memory stick kept apart from the computer. Update it at the end of every session. A backup on the same computer is lost with that computer."
+        },
+        {
+          "h": "Revisions"
+        },
+        {
+          "p": "Once a drawing has been issued (given to the shop floor or the customer), it is never quietly changed. If it must change:"
+        },
+        {
+          "flow": [
+            "Save As a new file for the new revision, so the issued revision is kept",
+            "Make the change",
+            "Change the revision letter, for example from A to B",
+            "Write in the revision table what was changed, the date and your initials",
+            "Issue the new revision, and take back or mark old prints SUPERSEDED so no one works from them"
+          ]
+        },
+        {
+          "h": "Printing to scale"
+        },
+        {
+          "flow": [
+            "Save the drawing",
+            "Open the print (plot) settings, or the layout set up for printing",
+            "Choose the printer, or a PDF printer to make a PDF file",
+            "Choose the paper size (such as A4 or A3) and the direction (landscape or portrait)",
+            "Choose what to print: the layout, the extents of the drawing, or a window round the border",
+            "Set a stated scale, such as 1:1, 1:5 or 1:10, **not fit to paper**",
+            "Set the lines to print black, with thick and thin lineweights; centre the print on the paper",
+            "Use print preview to check that everything fits inside the border and can be read",
+            "Print, then measure a known dimension on the paper with a rule to prove the scale"
+          ]
+        },
+        {
+          "table": {
+            "head": [
+              "Paper size",
+              "Size (mm)"
+            ],
+            "rows": [
+              [
+                "A4",
+                "210 × 297"
+              ],
+              [
+                "A3",
+                "297 × 420"
+              ],
+              [
+                "A2",
+                "420 × 594"
+              ],
+              [
+                "A1",
+                "594 × 841"
+              ],
+              [
+                "A0",
+                "841 × 1189"
+              ]
+            ]
+          }
+        },
+        {
+          "p": "Each A size is half of the one above it. Most school and workshop printers take A4 and A3."
+        },
+        {
+          "h": "Scales"
+        },
+        {
+          "p": "A scale of **1:n** means that 1 mm on the paper stands for n mm on the real part. Divide the real size by n to find the printed size; multiply a measured size by n to find the real size."
+        },
+        {
+          "table": {
+            "head": [
+              "Scale",
+              "Meaning",
+              "A real length of 1,000 mm prints as"
+            ],
+            "rows": [
+              [
+                "2:1",
+                "Twice full size (small parts)",
+                "2,000 mm"
+              ],
+              [
+                "1:1",
+                "Full size",
+                "1,000 mm"
+              ],
+              [
+                "1:2",
+                "Half full size",
+                "500 mm"
+              ],
+              [
+                "1:5",
+                "One fifth full size",
+                "200 mm"
+              ],
+              [
+                "1:10",
+                "One tenth full size",
+                "100 mm"
+              ],
+              [
+                "1:20",
+                "One twentieth full size",
+                "50 mm"
+              ]
+            ]
+          }
+        },
+        {
+          "p": "To choose a scale, divide the largest size of the part by the space on the sheet, and take the next standard scale. For example, a frame 1,600 mm long on an A3 sheet with about 380 mm of drawing space: 1:2 gives 800 mm (too big), 1:5 gives 320 mm (fits, with room for dimensions)."
+        },
+        {
+          "note": "**Fit to paper** prints at whatever odd scale fills the sheet, such as 1:7.38. Nobody can measure from it, and the scale in the title block is then wrong. The same happens when a PDF is printed with \"Fit\" ticked: print PDF drawings at **actual size (100%)**.",
+          "label": "Remember"
+        },
+        {
+          "note": "Keep your fingers out of the printer while it runs. The inside of a laser printer gets very hot. Clear paper jams only as the maker's instructions say, and report faults.",
+          "label": "Safety"
+        }
+      ]
+    },
+    {
+      "title": "Revision",
+      "blocks": [
+        {
+          "p": "Use this checklist to test yourself. If you cannot honestly say \"I can\" to a line, go back to that section and practise it at the workstation."
+        },
+        {
+          "h": "I can ..."
+        },
+        {
+          "ul": [
+            "I can set up a CAD workstation to avoid eye strain and pain in my neck, back and wrists, and work safely with cables, plugs and drinks.",
+            "I can explain why I take short breaks and how I rest my eyes.",
+            "I can name the parts of the CAD screen and start, finish, cancel and undo commands.",
+            "I can explain the difference between Zoom and Pan, and Move and Scale.",
+            "I can start a drawing from a template, set millimetre units and draw at full size.",
+            "I can convert metres, inches and feet to millimetres.",
+            "I can use the grid, snap, ortho, polar tracking and object snaps.",
+            "I can enter points with absolute, relative and polar coordinates, and say which way any angle points.",
+            "I can draw lines, polylines, rectangles, circles, arcs, polygons and hatching, and use blocks.",
+            "I can select objects with a window and with a crossing box.",
+            "I can use erase, move, copy, rotate, scale, mirror, offset, trim, extend, fillet, chamfer, array, stretch and explode.",
+            "I can set up and use layers with the right linetypes and lineweights, and turn layers off, freeze and lock them.",
+            "I can draw two views lined up with each other, with hidden lines and centre lines.",
+            "I can add text and the right types of dimension, and fill in a title block.",
+            "I can check sizes and areas with the inquiry tools.",
+            "I can name, save, back up and revise drawing files correctly.",
+            "I can print a drawing to a stated scale and check the scale on the paper."
+          ]
+        },
+        {
+          "h": "Key terms"
+        },
+        {
+          "terms": [
+            [
+              "Absolute coordinates",
+              "Points measured from the origin, typed as X,Y"
+            ],
+            [
+              "Aligned dimension",
+              "A dimension that measures a sloping edge along its true length"
+            ],
+            [
+              "Array",
+              "Evenly spaced copies in rows and columns (rectangular) or round a centre (polar)"
+            ],
+            [
+              "Associative dimension",
+              "A dimension that updates itself when the object it measures changes"
+            ],
+            [
+              "Block",
+              "A group of objects saved as one named item that can be inserted many times"
+            ],
+            [
+              "CAD",
+              "Computer aided design (or drafting): making drawings on a computer"
+            ],
+            [
+              "Command line",
+              "Where commands and values are typed and the program's prompts appear"
+            ],
+            [
+              "Crossing selection",
+              "A selection box that picks everything inside it or touching it"
+            ],
+            [
+              "Explode",
+              "Breaks a block, polyline or rectangle into separate simple objects"
+            ],
+            [
+              "Extend",
+              "Lengthens an object to meet a boundary"
+            ],
+            [
+              "Fillet",
+              "Joins two objects with an arc of a set radius; radius 0 gives a sharp corner"
+            ],
+            [
+              "Grid",
+              "A pattern of dots or lines on screen that helps you judge sizes; it does not print"
+            ],
+            [
+              "Hatch",
+              "A pattern filling a closed area, used to show cut surfaces"
+            ],
+            [
+              "Layer",
+              "A named group of objects with its own colour, linetype and lineweight"
+            ],
+            [
+              "Layout (paper space)",
+              "A sheet set up for printing, with a title block and viewports"
+            ],
+            [
+              "Lineweight",
+              "How thick a line prints"
+            ],
+            [
+              "Linetype",
+              "The pattern of a line: continuous, dashed (hidden) or chain (centre)"
+            ],
+            [
+              "Model space",
+              "The drawing area where the part is drawn at full size"
+            ],
+            [
+              "Object snap",
+              "A tool that picks an exact point on an object, such as an endpoint or centre"
+            ],
+            [
+              "Offset",
+              "A parallel copy at an exact distance"
+            ],
+            [
+              "Origin",
+              "The point 0,0, where X and Y are both zero"
+            ],
+            [
+              "Ortho",
+              "A mode that keeps lines horizontal or vertical"
+            ],
+            [
+              "Pan",
+              "Slides the view across the drawing without changing the zoom or the objects"
+            ],
+            [
+              "Polar coordinates",
+              "A distance and an angle from the last point, typed as @distance<angle"
+            ],
+            [
+              "Polyline",
+              "Joined lines and arcs that act as one object"
+            ],
+            [
+              "Relative coordinates",
+              "Points measured from the last point, typed with @"
+            ],
+            [
+              "Revision",
+              "A new issue of a drawing after a change, shown by a new letter and a note in the revision table"
+            ],
+            [
+              "Scale (printing)",
+              "The ratio of the printed size to the real size, such as 1:5"
+            ],
+            [
+              "Snap",
+              "A mode that makes the cursor move in set steps"
+            ],
+            [
+              "Template",
+              "A starting file with units, layers, styles and title block already set up"
+            ],
+            [
+              "Text style",
+              "The saved settings for text font and height"
+            ],
+            [
+              "Title block",
+              "The box on a drawing giving its title, number, scale, projection, material, name and date"
+            ],
+            [
+              "Trim",
+              "Cuts off the part of an object that runs past a cutting edge"
+            ],
+            [
+              "Zoom",
+              "Changes how big the drawing looks on screen, not its real size"
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "cases": {
+    "c1": {
+      "title": "A pump base plate in Old Harbour",
+      "text": "Kerry-Ann is on work experience at a small fabrication shop in Old Harbour, St Catherine. She must draw a base plate for a water pump from the supervisor's sketch: 6 mm mild steel plate, 240 mm × 160 mm, with four Ø18 holes whose centres are 30 mm in from both edges. She puts the bottom-left corner of the plate at the origin, 0,0, and draws on the Centre's template."
+    },
+    "c2": {
+      "title": "A driveway gate drawing in Ocho Rios",
+      "text": "Damion works for a gate and grill business in Ocho Rios, St Ann. He has drawn a driveway gate 3,000 mm wide and 1,500 mm high in model space at full size, and must print it on A3 paper, which leaves about 380 mm of width for the drawing inside the border. He will print straight from model space. Some of his centre lines were drawn on the Outline layer by mistake."
+    },
+    "c3": {
+      "title": "A site office in Montego Bay",
+      "text": "Shawna-Kay draws handrail and staircase details on a laptop in a container office at a hotel building site in Montego Bay, St James. The laptop sits on a low table, the screen faces a bright window, and she has worked for two and a half hours without a break. Her neck aches and her eyes are sore. The laptop charger, a printer, a fan and a kettle are all plugged into one power strip, which is plugged into a second strip whose cable runs across the doorway."
+    },
+    "c4": {
+      "title": "A changed bracket drawing in Kingston",
+      "text": "At a steel shop in Kingston, Jevaughn drew a pump bracket, saved it as J318-pump-bracket-A, and printed it for the shop floor as revision A. The customer now wants the holes changed from Ø14 to Ø16. Jevaughn's only copy of the file is on the desktop of the workshop computer. The customer also wants the bracket outline cut on a CNC plasma table at another firm."
+    },
+    "c5": {
+      "title": "A tank outlet flange in May Pen",
+      "text": "Oshane, a trainee in May Pen, Clarendon, is drawing a round flange for a water tank outlet: Ø150 outside, a Ø60 hole in the middle, and six Ø14 bolt holes equally spaced on a 110 mm pitch circle diameter (PCD). He draws the Ø150 circle with its centre at 0,0, and plans to draw one bolt hole and then make the rest with a polar array."
+    }
+  },
+  "questions": [
+    {
+      "id": "P-01",
+      "c": "c1",
+      "q": "Kerry-Ann needs the centre of the hole nearest the top-right corner of the plate. What are its coordinates?",
+      "o": [
+        "240,160",
+        "210,160",
+        "210,130",
+        "130,210"
+      ],
+      "a": 2,
+      "why": "The top-right corner is at 240,160, so a centre 30 mm in from both edges is at 240 − 30 = 210 across and 160 − 30 = 130 up. X is always written first."
+    },
+    {
+      "id": "P-02",
+      "c": "c1",
+      "q": "She draws the first hole at 30,30 and copies it with a rectangular array of 2 rows and 2 columns. Which spacings should she enter?",
+      "o": [
+        "Rows 160 mm apart and columns 240 mm apart",
+        "Rows 100 mm apart and columns 180 mm apart",
+        "Rows 130 mm apart and columns 210 mm apart",
+        "Rows 30 mm apart and columns 30 mm apart"
+      ],
+      "a": 1,
+      "why": "Array spacing is centre to centre. The centres are 30 mm in from each edge, so they are 160 − 60 = 100 mm apart up the plate and 240 − 60 = 180 mm apart across it."
+    },
+    {
+      "id": "P-03",
+      "c": "c1",
+      "q": "The Circle command asks Kerry-Ann for a radius. What should she type for each hole?",
+      "o": [
+        "18",
+        "36",
+        "4.5",
+        "9"
+      ],
+      "a": 3,
+      "why": "Ø18 is the diameter, so the radius is half of it: 9 mm. Typing 18 at the radius prompt would draw a Ø36 hole; many programs also offer a Diameter option."
+    },
+    {
+      "id": "P-04",
+      "c": "c1",
+      "q": "Her dimension across the plate shows 239.5 instead of 240. What should she do?",
+      "o": [
+        "Fix the outline so it is drawn 240 mm wide",
+        "Type 240 over the number in the dimension",
+        "Leave it, as half a millimetre will not matter",
+        "Delete the dimension and write 240 as text"
+      ],
+      "a": 0,
+      "why": "A CAD dimension measures the object, so a wrong value means the outline is drawn wrong. Typing over the number hides the mistake, and the CNC or the shop floor would then work from a wrong drawing."
+    },
+    {
+      "id": "P-05",
+      "c": "c2",
+      "q": "Which standard scale is the largest that will fit the 3,000 mm gate into the 380 mm of space, with room left for dimensions?",
+      "o": [
+        "1:10",
+        "1:5",
+        "1:2",
+        "1:20"
+      ],
+      "a": 0,
+      "why": "At 1:10 the gate prints 300 mm wide, leaving 80 mm for dimensions. At 1:5 it would be 600 mm, which does not fit; 1:20 fits but makes the drawing smaller than it needs to be."
+    },
+    {
+      "id": "P-06",
+      "c": "c2",
+      "q": "Damion's notes must be 3.5 mm high on the paper. How tall should he make the text in model space for a 1:10 print?",
+      "o": [
+        "3.5 mm, the same as on the paper",
+        "0.35 mm, a tenth of the paper size",
+        "35 mm, ten times the paper size",
+        "10 mm, the same as the scale number"
+      ],
+      "a": 2,
+      "why": "Printing from model space at 1:10 makes everything ten times smaller, so text must be drawn ten times taller to print at 3.5 mm. A layout viewport or an annotation scale can do this for you."
+    },
+    {
+      "id": "P-07",
+      "c": "c2",
+      "q": "His centre lines print as thick continuous lines. What is the best fix?",
+      "o": [
+        "Make the centre lines' own colour red so they stand out",
+        "Move them onto the Centre layer, set to ByLayer",
+        "Turn the Outline layer off before he prints the drawing",
+        "Erase them and leave the centre lines off this drawing"
+      ],
+      "a": 1,
+      "why": "The Centre layer carries the chain linetype and thin lineweight, so objects on it set to ByLayer print correctly. Turning off Outline would hide the gate itself, and centre lines are needed to locate the bars and hinges."
+    },
+    {
+      "id": "P-08",
+      "c": "c2",
+      "q": "Damion measures the 3,000 mm width on his print and gets 287 mm instead of 300 mm. What is the most likely cause?",
+      "o": [
+        "The layer lineweights were set too thin",
+        "The drawing was not saved before printing",
+        "The print was set to fit the paper",
+        "The grid was left switched on"
+      ],
+      "a": 2,
+      "why": "Fit to paper prints at an odd scale (here about 1:10.45) that matches no title block. Set a stated scale of 1:10 and measure again; lineweights, saving and the grid do not change printed sizes."
+    },
+    {
+      "id": "P-09",
+      "c": "c3",
+      "q": "Which change will do most to ease Shawna-Kay's aching neck?",
+      "o": [
+        "Turn the screen brightness up so that she can see more clearly",
+        "Tilt the laptop screen further back on the low table",
+        "Pull her chair closer so that she can lean in to the screen",
+        "Raise the laptop on a stand, with a separate keyboard"
+      ],
+      "a": 3,
+      "why": "A laptop on a low table makes you bend your neck down for hours. Raising the screen to about eye level, and typing on a separate keyboard and mouse, keeps the neck straight."
+    },
+    {
+      "id": "P-10",
+      "c": "c3",
+      "q": "What should she do about the bright window?",
+      "o": [
+        "Turn the table so the window is to one side",
+        "Sit so that the bright window is right behind the screen",
+        "Turn the screen brightness right down so the glare is less",
+        "Wear dark sunglasses while she works at the screen"
+      ],
+      "a": 0,
+      "why": "A window behind the screen makes you look into bright light, and a window behind you reflects off the screen. With the window to the side, and blinds closed in strong sun, glare is cut."
+    },
+    {
+      "id": "P-11",
+      "c": "c3",
+      "q": "What is the right action about the power strips and cable?",
+      "o": [
+        "Tape the cable to the doorway floor and carry on as before",
+        "Unplug just the kettle, and leave everything else as it is",
+        "Use one strip, move the kettle, and reroute the cable",
+        "Switch the second strip off at night and use it by day"
+      ],
+      "a": 2,
+      "why": "One power strip plugged into another, with a kettle as well, can overload and overheat. The cable across the doorway is a trip hazard that could also pull the laptop off the table."
+    },
+    {
+      "id": "P-12",
+      "c": "c4",
+      "q": "What should Jevaughn do to make the hole change properly?",
+      "o": [
+        "Change the holes and save over revision A, since it is still the same part",
+        "Make revision B, note the change and date, and recall the A prints",
+        "Give it a brand-new drawing number so that the old file is never touched",
+        "Mark the change in pen on the shop floor print and leave the file as it is"
+      ],
+      "a": 1,
+      "why": "An issued drawing keeps its history. The new revision letter and the note in the revision table show what changed and when, and recalling or marking the old prints stops anyone drilling Ø14 holes from revision A."
+    },
+    {
+      "id": "P-13",
+      "c": "c4",
+      "q": "Which action keeps the revision A file exactly as it was issued?",
+      "o": [
+        "Pressing Save after each change he makes",
+        "Turning on the program's automatic save",
+        "Save As with a new name before any change",
+        "Closing the drawing without saving changes"
+      ],
+      "a": 2,
+      "why": "Save As makes a new file and leaves the old one untouched. Save writes the changes into the same file, so revision A would be lost; closing without saving loses the new work instead."
+    },
+    {
+      "id": "P-14",
+      "c": "c4",
+      "q": "Where is the best place for a backup of Jevaughn's drawings?",
+      "o": [
+        "In a second folder on that computer's desktop",
+        "In the computer's recycle bin, to restore later",
+        "On the shared drive, away from that computer",
+        "Inside the same file, saved under the same name"
+      ],
+      "a": 2,
+      "why": "A backup must survive if this computer breaks, is stolen or catches a virus. A copy on the same computer is lost along with it."
+    },
+    {
+      "id": "P-15",
+      "c": "c4",
+      "q": "Which file type should he send so the other firm's CNC plasma table can cut the outline?",
+      "o": [
+        "A PDF of the printed drawing",
+        "A DXF of the outline",
+        "A photo of the screen",
+        "A copy of the template file"
+      ],
+      "a": 1,
+      "why": "DXF is the common exchange format that most CAD programs and CNC cutting tables can read as real geometry. A PDF or photo is a picture to look at, not lines a machine can follow."
+    },
+    {
+      "id": "P-16",
+      "c": "c5",
+      "q": "Oshane draws the first bolt hole on the pitch circle, to the right of the flange centre (at 0°). Where is its centre?",
+      "o": [
+        "55,0",
+        "110,0",
+        "75,0",
+        "0,55"
+      ],
+      "a": 0,
+      "why": "The pitch circle diameter is 110 mm, so its radius is 55 mm, and the point at 0° is 55 mm to the right of 0,0. 75 is the radius of the outside edge, and 0,55 is on the pitch circle but at 90°."
+    },
+    {
+      "id": "P-17",
+      "c": "c5",
+      "q": "He wants to draw the pitch circle with Offset from the Ø150 outline. What offset distance should he use?",
+      "o": [
+        "40 mm",
+        "55 mm",
+        "95 mm",
+        "20 mm"
+      ],
+      "a": 3,
+      "why": "Offset works on the radius: 150 ÷ 2 = 75 and 110 ÷ 2 = 55, so the pitch circle is 75 − 55 = 20 mm inside the outline. 40 mm is the difference in diameters."
+    },
+    {
+      "id": "P-18",
+      "c": "c5",
+      "q": "After the polar array of six holes over 360°, how far apart are the hole centres measured round the flange?",
+      "o": [
+        "45°",
+        "60°",
+        "90°",
+        "36°"
+      ],
+      "a": 1,
+      "why": "A polar array spreads the items evenly: 360° ÷ 6 = 60°. Four holes would be 90° apart and eight would be 45° apart."
+    },
+    {
+      "id": "P-19",
+      "c": null,
+      "q": "Tajay drags a box from right to left across part of his drawing, and objects that only touch the box are picked as well. Why?",
+      "o": [
+        "He was still in the middle of the Trim command",
+        "Right to left makes a crossing selection",
+        "Object snap was turned on when he dragged it",
+        "The objects are all on a layer that is locked"
+      ],
+      "a": 1,
+      "why": "In most programs, a box dragged right to left is a crossing selection: it picks anything inside it or touching it. Dragged left to right, it is a window that picks only objects fully inside."
+    },
+    {
+      "id": "P-20",
+      "c": null,
+      "q": "A customer's sketch gives a handrail as 8 feet long. With the units set to millimetres, what length should you draw?",
+      "o": [
+        "2400",
+        "96",
+        "243.84",
+        "2438.4"
+      ],
+      "a": 3,
+      "why": "One foot is 304.8 mm, so 8 × 304.8 = 2,438.4 mm. 96 is the length in inches, and rounding to 2,400 would make the rail almost 40 mm short."
+    }
+  ]
+}
