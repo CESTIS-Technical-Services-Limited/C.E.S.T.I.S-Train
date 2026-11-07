@@ -407,6 +407,11 @@ const NOT_HANDED_IN = ['Leon Stewart', 'Kerry-Ann Palmer', 'Marlon Wright', 'Sas
     const tameka = idOf('Tameka Richards');
     await I.fill('#grade-ASN-WK10-' + tameka, '78');
     await I.fill('#fb-ASN-WK10-' + tameka, 'Clean cuts and a clear write-up. Next time, measure the kerf width and say why it changed.');
+    // Another device's save arrives while she is typing: the views are redrawn
+    // (refreshContentDependentViews). What she typed is still there.
+    await I.evaluate(() => refreshContentDependentViews());
+    const kept = await I.evaluate(id => ({ g: (document.getElementById('grade-ASN-WK10-' + id) || {}).value, f: (document.getElementById('fb-ASN-WK10-' + id) || {}).value }), tameka);
+    ok(kept.g === '78' && /measure the kerf width/.test(kept.f || ''), 'a redraw from a background sync keeps the mark and comment she is typing');
     await I.locator('#grade-ASN-WK10-' + tameka + ' + button').click();
     await I.waitForTimeout(600);
     const saved = await I.evaluate(id => { const a = instructorAssignments.find(x => x.id === 'ASN-WK10'); return { g: a.grades[id], f: (a.feedback || {})[id], at: (a.feedbackAt || {})[id] }; }, tameka);

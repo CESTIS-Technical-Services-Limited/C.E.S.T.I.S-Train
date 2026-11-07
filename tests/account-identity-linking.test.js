@@ -85,7 +85,8 @@ console.log('Sign-in and the roster reconcile never hand one man the other\'s re
     updateSkillAreaCounts: function () {}, saveState: function () {} };
   sb2.window = sb2;
   vm.createContext(sb2);
-  vm.runInContext(extractFunction(SRC, 'reconcileStudentsFromAccounts'), sb2);
+  sb2.skillAreas = [];
+  vm.runInContext(['reconcileStudentsFromAccounts', 'createStudentDataForAccount', 'traineeIdForAccount', 'instructorCourseMatch'].map(function (n) { return extractFunction(SRC, n); }).join('\n'), sb2);
   vm.runInContext('reconcileStudentsFromAccounts()', sb2);
   assert(sb2.userAccounts[0].studentDataId !== 'STU-welder', 'the reconcile does not link the Plumbing account to the welder');
   const own = sb2.students.find(function (s) { return s.id === sb2.userAccounts[0].studentDataId; });
@@ -110,7 +111,7 @@ console.log('A trainee cannot rename herself into somebody else');
     syncProfileToLmsChat: function () {}, saveState: function () {}, closeModal: function () {}, updateSidebarAvatar: function () {},
     buildStudentPages: function () {}, showPage: function () {} };
   vm.createContext(sb);
-  vm.runInContext(extractFunction(SRC, 'saveStudentProfile') + '\nsaveStudentProfile();', sb);
+  vm.runInContext(extractFunction(SRC, 'profileNowIso') + '\n' + extractFunction(SRC, 'saveStudentProfile') + '\nsaveStudentProfile();', sb);
   assertEq(alicia.name, 'Alicia Grant', 'the trainee record keeps her name');
   assertEq(sb.userAccounts[0].name, 'Alicia Grant', 'and so does her login');
   assertEq(sb.studentProfiles['STU-ali'].name, 'Alicia Grant', 'the profile (applied at every sign-in) keeps it too');

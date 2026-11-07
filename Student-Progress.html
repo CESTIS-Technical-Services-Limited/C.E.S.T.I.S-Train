@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
 <script src="cestis-config.js?v=284ebb2a"></script>
-<script src="cestis-core.js?v=06ea93fc"></script>
+<script src="cestis-core.js?v=33000641"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CESTIS - Student Progress</title>
 
@@ -299,6 +299,10 @@ td.sp-sel-cell { text-align:center; }
 .sp-bulk-row:last-child { border-bottom:none; }
 .sp-bulk-row .who { font-weight:600; }
 .sp-bulk-row .items { margin-top:3px; color:var(--text-muted); line-height:1.5; }
+.sp-pending-note { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px; padding:10px 14px; border-radius:var(--radius-sm, 8px);
+  background:rgba(52,152,219,0.12); border:1px solid rgba(52,152,219,0.35); color:var(--text-primary); font-size:13px; }
+.sp-fee-note { background:rgba(240,165,0,0.10); border-color:rgba(240,165,0,0.35); }
+.sp-pending-note[hidden] { display:none; }
 </style>
 </head>
 <body>
@@ -322,6 +326,8 @@ td.sp-sel-cell { text-align:center; }
   <input type="text" class="form-control" style="width:220px;" placeholder="Search by name, ID, or course..." id="studentSearch" onkeyup="filterStudents()">
 </div>
 
+<div id="spPendingNote" class="sp-pending-note" role="status" hidden></div>
+<div id="spFeeOnlyNote" class="sp-pending-note sp-fee-note" role="status" hidden></div>
 <div class="pipeline" style="margin-bottom:20px;">
   <div class="pipeline-stage s-test"><span class="count" id="pTest2">0</span>Testing</div>
   <div class="pipeline-stage s-interview"><span class="count" id="pInterview2">0</span>Interview</div>
@@ -1222,7 +1228,72 @@ function filterStudents() {
   renderStudents(filteredStudents());
 }
 
+/* Trainees who registered and are waiting for approval have no trainee record
+   yet, so they are not in the list below: say how many, and where they are. */
+function spRenderPendingNote() {
+  var el = document.getElementById('spPendingNote');
+  if (!el) return;
+  var queue = [];
+  try {
+    queue = (window.CESTISCore && CESTISCore.accountAccess && CESTISCore.accountAccess.reviewQueue)
+      ? CESTISCore.accountAccess.reviewQueue(userAccounts)
+      : (userAccounts || []).filter(function (u) { return u && String(u.status || '').toLowerCase() === 'pending'; });
+  } catch (e) { queue = []; }
+  queue = queue.filter(function (u) { return u && String(u.role || '').toLowerCase() === 'student'; });
+  if (!queue.length) { el.hidden = true; el.innerHTML = ''; return; }
+  var names = queue.slice(0, 3).map(function (u) { return spEscapeHtml(u.name || 'A trainee'); }).join(', ') + (queue.length > 3 ? ' and ' + (queue.length - 3) + ' more' : '');
+  var inDashboard = false;
+  try { inDashboard = !!(window.parent && window.parent !== window); } catch (e) {}
+  el.innerHTML = '<span><strong>' + queue.length + ' trainee' + (queue.length === 1 ? '' : 's') + ' waiting for approval</strong> (' + names + '). ' +
+    'They appear here once approved.</span>' +
+    (inDashboard ? ' <button class="btn btn-sm btn-secondary" onclick="spOpenVerifyUsers()">Open Verify Users</button>' : '');
+  el.hidden = false;
+}
+/* Trainees added in School Fee whose programme has no training centre here:
+   the fee page may price any programme, but only a training centre enrols
+   anybody, so they stay off this roll (CESTISCore.lmsMirrorTarget). That used
+   to be silent; now it is said, with what to do. Nothing is changed here. */
+function spFeeOnlyTrainees() {
+  var out = [];
+  try {
+    if (!window.CESTISCore || typeof CESTISCore.lmsMirrorTarget !== 'function') return out;
+    var fee = safeJsonParse(CESTISStore.getItem('cestiSchoolFeeStudents'), []);
+    if (!Array.isArray(fee) || !fee.length) return out;
+    var del = {};
+    (safeJsonParse(CESTISStore.getItem('voctrain_deletedStudentIds'), []) || []).forEach(function (id) { if (id) del[String(id)] = true; });
+    var times = {};
+    try { times = CESTISCore.readDeletedStudentTimes(CESTISStore) || {}; } catch (e) { times = {}; }
+    var idx = CESTISCore.twinIndex(students);
+    fee.forEach(function (f) {
+      if (!f || !f.name) return;
+      if (CESTISCore.feeRecordTombstoned && CESTISCore.feeRecordTombstoned(f, del, times)) return;
+      var t = CESTISCore.lmsMirrorTarget(f, students, skillAreas, { findCentre: CESTISCore.enrolment.findCentre, twinIndex: idx,
+        on: f.enrollmentDate || f.enrolmentDate || f.createdAt || '' });
+      if (t.action === 'skip' && t.reason === 'no-training-centre') out.push({ name: f.name, programme: f.skillArea || f.course || '' });
+    });
+  } catch (e) { return []; }
+  return out;
+}
+function spRenderFeeOnlyNote() {
+  var el = document.getElementById('spFeeOnlyNote');
+  if (!el) return;
+  var list = spFeeOnlyTrainees();
+  if (!list.length) { el.hidden = true; el.innerHTML = ''; return; }
+  var progs = {};
+  list.forEach(function (x) { var p = x.programme || '(no programme)'; progs[p] = (progs[p] || 0) + 1; });
+  var progText = Object.keys(progs).slice(0, 4).map(function (p) { return spEscapeHtml(p) + ' (' + progs[p] + ')'; }).join(', ') + (Object.keys(progs).length > 4 ? ', …' : '');
+  var names = list.slice(0, 3).map(function (x) { return spEscapeHtml(x.name); }).join(', ') + (list.length > 3 ? ' and ' + (list.length - 3) + ' more' : '');
+  el.innerHTML = '<span><strong>' + list.length + ' trainee' + (list.length === 1 ? '' : 's') + ' in School Fee ' + (list.length === 1 ? 'is' : 'are') + ' not on this list</strong> (' + names + '): ' +
+    (list.length === 1 ? 'the programme does' : 'their programme does') + ' not match a training centre — ' + progText + '. ' +
+    'Add the training centre, or choose one of the Centre\u2019s programmes for them in School Fee; they then appear here.</span>';
+  el.hidden = false;
+}
+function spOpenVerifyUsers() {
+  try { window.parent.postMessage({ type: 'cestis-sp-verify-users' }, '*'); } catch (e) {}
+}
 function updatePipelineCounts() {
+  try { spRenderPendingNote(); } catch (e) {}
+  try { spRenderFeeOnlyNote(); } catch (e) {}
   var stagePipelineIds = {
     testing:'pTest2', interview:'pInterview2', training:'pTraining2',
     certified:'pCertified2', collected:'pCollected2', nyc:'pNyc2', incomplete:'pIncomplete2'
@@ -1804,7 +1875,7 @@ if(document.readyState === 'loading'){
 <script src="megadata/loader.js?v=8323d60e" data-megadata="megadata/schemas.js?v=587d1f90 megadata/projections.js?v=fab3751c megadata/dal.js?v=bfa8a7f0 megadata/adapter-idb.js?v=ed376ed4 megadata/broker-client.js?v=fe421bad megadata/enforcement-shim.js?v=822fd59a megadata/browser-sync.js?v=a8f6fc04 megadata/page-boot.js?v=cc05f2e4 megadata/pages/roster-model.js?v=9d3cd451 megadata/pages/sp-page.js?v=9f4b4f54"></script>
 
 <!-- Per-page Google Drive save path (own file in the shared backup folder) -->
-<script src="cestis-page-cloud.js?v=32331e75"></script>
+<script src="cestis-page-cloud.js?v=555cc0dc"></script>
 <script>
 CESTISPageCloud.init({
   page: 'Student Progress',

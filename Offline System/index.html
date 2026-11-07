@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <script src="cestis-config.js?v=284ebb2a"></script>
-<script src="cestis-core.js?v=06ea93fc"></script>
+<script src="cestis-core.js?v=33000641"></script>
 <script src="cestis-form-modal.js?v=74020c38" defer></script>
 <!-- Inert until a page registers: the CMC Board registers as a READ-ONLY reader
      so the operating pages' books reach its dashboards without anyone syncing. -->
-<script src="cestis-page-cloud.js?v=32331e75"></script>
+<script src="cestis-page-cloud.js?v=555cc0dc"></script>
 <script src="cestis-gate-client.js?v=e44ebfd2" defer></script>
 <!-- The staff and board modules: Staff Appraisals, the CMC Board's portal and
      the certificate designs' seed (about 255 KB, 61 KB on the wire). A trainee's
@@ -2040,6 +2040,42 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
 .dash-fees-earlier { font-size:13px; font-weight:700; color:var(--orange); margin-top:4px; }
 .dash-fees-note { font-size:12px; color:var(--text-muted); margin-top:12px; line-height:1.5; }
 
+/* The dashboard's year bar (dashYearBarHtml): the School Fee page's year bar,
+   in the dashboard's own colours — the chosen year, Whole Year / Q1–Q4 /
+   All Years, what is being counted, and the switch for closed centres. The
+   three active colours are School Fee's, white text on each in both themes. */
+.dash-yearbar { display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center; justify-content:center; padding:12px 14px; margin:0 0 20px;
+  border-radius:var(--radius); background:var(--bg-card); border:1px solid var(--border-light); }
+.dyb-fy { display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:center; }
+.dyb-label { font-weight:700; font-size:14px; letter-spacing:.4px; min-width:120px; text-align:center; color:var(--text-primary); }
+.dyb-tag { font-size:12px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; background:#8a6d1b; color:#fff; border-radius:6px; padding:1px 6px; margin-left:4px; vertical-align:middle; }
+.dyb-tabs { display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:center; }
+.dyb-tab, .dyb-btn { cursor:pointer; border:1px solid var(--border-light); background:transparent; color:var(--text-primary); padding:6px 14px; border-radius:8px;
+  font-size:13px; font-weight:600; font-family:inherit; transition:background .15s, border-color .15s; }
+.dyb-tab:hover, .dyb-btn:hover { background:var(--w-06); border-color:var(--blue); }
+.dyb-tab.active { background:#0D47A1; color:#fff; border-color:#0D47A1; box-shadow:0 0 0 3px rgba(13,71,161,.25); }
+.dyb-thisyear.active { background:#1b8a5a; border-color:#1b8a5a; box-shadow:0 0 0 3px rgba(27,138,90,.22); }
+.dyb-allyears.active { background:#8a6d1b; border-color:#8a6d1b; box-shadow:0 0 0 3px rgba(138,109,27,.22); }
+.dyb-status { flex-basis:100%; display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:8px 18px; padding-top:10px; border-top:1px solid var(--border); text-align:center; }
+.dyb-what strong { font-size:15px; color:var(--text-primary); }
+.dyb-detail { display:block; font-size:12px; color:var(--text-muted); margin-top:2px; }
+.dyb-closed { display:inline-flex; align-items:center; gap:7px; font-size:13px; color:var(--text-secondary); cursor:pointer; padding:5px 10px; border-radius:8px; border:1px solid var(--border-light); }
+.dyb-closed input { accent-color:var(--accent); width:16px; height:16px; margin:0; cursor:pointer; }
+.dyb-count { color:var(--text-muted); font-size:12px; }
+.dyb-note { flex-basis:100%; text-align:center; font-size:13px; line-height:1.7; padding:8px 12px; border-radius:8px; color:var(--text-primary);
+  background:rgba(138,109,27,.12); border:1px solid rgba(138,109,27,.38); }
+.dyb-return { padding:3px 10px; font-size:12px; margin-left:4px; }
+.dyb-who { display:inline; }
+.dyb-who summary { display:inline; cursor:pointer; color:var(--info-text); font-weight:700; text-decoration:underline; }
+.dyb-who ul { text-align:left; max-height:180px; overflow:auto; margin:6px auto; padding-left:20px; max-width:560px; font-size:13px; }
+.dyb-link { cursor:pointer; border:none; background:none; padding:0; color:var(--info-text); font-weight:700; text-decoration:underline; font-size:inherit; font-family:inherit; }
+.dyb-card-sub { font-size:12px; color:var(--text-muted); }
+@media (max-width:600px) {
+  .dash-yearbar { padding:10px; }
+  .dyb-tab, .dyb-btn { padding:6px 10px; }
+  .dyb-label { min-width:0; }
+}
+
 /* ============================== QUICK ACTIONS GRID ============================== */
 .quick-actions {
   display:grid; grid-template-columns:repeat(auto-fit,minmax(100px,1fr)); gap:12px;
@@ -2303,7 +2339,7 @@ body.vc-fullscreen-mode.vc-host-only-mode .video-grid .video-tile:not(.vc-hoston
   background:rgba(52,152,219,0.05); pointer-events:none;
 }
 .profile-header .profile-avatar {
-  width:88px; height:88px; border-radius:50%; flex-shrink:0;
+  width:88px; height:88px; border-radius:50%; flex-shrink:0; overflow:hidden;
   display:flex; align-items:center; justify-content:center;
   font-size:36px; font-weight:800; color:var(--on-accent);
   box-shadow:0 6px 24px rgba(0,0,0,0.3);
@@ -8284,7 +8320,7 @@ function exportDataBackup() {
     'voctrain_systemSettings','voctrain_examResults','voctrain_examAttempts','voctrain_examRegisters','voctrain_assessmentWork','voctrain_calendarEvents','voctrain_adrTasks',
     'voctrain_adrStaffMeta','voctrain_adminStaffAccess','voctrain_instructorData','voctrain_certDownloadApprovals',
     'voctrain_skillAreas','voctrain_certTemplates','voctrain_chatRooms','voctrain_chatMessages',
-    'voctrain_chatProfiles','voctrain_chatFollows',
+    'voctrain_chatProfiles','voctrain_chatPictures','voctrain_chatFollows',
     // Travels with the centres it belongs to: restore the roster without the
     // record of what was deleted and every deleted training centre comes back.
     'voctrain_deletedCentreIds','voctrain_deletedStudentIds','voctrain_deletedUserIds',
@@ -8800,7 +8836,11 @@ function initLmsChatData() {
     if(cr) lmsChatRooms = JSON.parse(cr);
     lmsChatCleanRooms();   // a room's icon and colour are drawn: keep them plain (CESTISCore.chat.cleanRoom)
     if(cm) lmsChatMessages = JSON.parse(cm);
-    if(cp) lmsChatProfiles = JSON.parse(cp);
+    // Merged into what this page holds (each detail by its stamp), then the
+    // pictures kept apart put back: replacing the profiles with the stored
+    // copy dropped every picture and anything this page had newer.
+    if(cp) { var _cpStored = JSON.parse(cp); if(_cpStored && typeof _cpStored === 'object' && !Array.isArray(_cpStored)) CESTISCore.profiles.mergeMap(lmsChatProfiles, _cpStored, { name: 'chatProfiles' }); }
+    lmsChatAttachPictures();
     if(cf) lmsChatFollows = JSON.parse(cf);
     var cfl = CESTISStore.getItem('voctrain_chatFollowLog');
     if(cfl) { var _cfl = JSON.parse(cfl); if(_cfl && typeof _cfl === 'object' && !Array.isArray(_cfl)) lmsChatFollowLog = _cfl; }
@@ -8875,9 +8915,10 @@ function lmsChatReloadFromStore() {
     if (CESTISCore.chatSync.mergeRooms(lmsChatMessages, cm)) moved = true;
   }
   if (cp && typeof cp === 'object') {
-    var _cp = CESTISCore.sync.mergeMap(lmsChatProfiles, cp, {});
+    var _cp = CESTISCore.profiles.mergeMap(lmsChatProfiles, cp, { name: 'chatProfiles' });
     if (_cp && (_cp.added || _cp.updated)) moved = true;
   }
+  if (lmsChatAttachPictures()) moved = true;
   if (cf || cfl) {
     if (!lmsChatFollowLog || typeof lmsChatFollowLog !== 'object') lmsChatFollowLog = {};
     if (CESTISCore.chatSync.mergeFollows(lmsChatFollows, lmsChatFollowLog, cf || {}, (cfl && typeof cfl === 'object' && !Array.isArray(cfl)) ? cfl : {})) moved = true;
@@ -9208,6 +9249,28 @@ function lmsChatKeepStoredRooms() {
   return dropped.length;
 }
 
+/* The chat profiles as this device keeps them: the profiles without their
+   pictures (voctrain_chatProfiles), and the pictures apart
+   (voctrain_chatPictures), each with the stamp of the picture it holds —
+   written only when a picture changed. The pictures used to be dropped here
+   ("kept in memory and on Drive"), so after a reload or a sign-out the
+   device held its people without them, and its next copy (newer, since
+   presence dates a profile) deleted them everywhere. */
+function lmsChatStoreProfiles() {
+  CESTISStore.setItem('voctrain_chatProfiles', JSON.stringify(CESTISCore.profiles.stripPictures(lmsChatProfiles)));
+  var stored = safeJsonParse(CESTISStore.getItem('voctrain_chatPictures'), null);
+  var pics = (stored && typeof stored === 'object' && !Array.isArray(stored)) ? stored : {};
+  if (CESTISCore.profiles.mergePictures(pics, CESTISCore.profiles.picturesOf(lmsChatProfiles)) && Object.keys(pics).length) {
+    CESTISStore.setItem('voctrain_chatPictures', JSON.stringify(pics));
+  }
+}
+/* ...and back: the kept pictures onto the profiles in memory (each by its
+   stamp: one changed or taken off since is never put back). */
+function lmsChatAttachPictures() {
+  var pics = safeJsonParse(CESTISStore.getItem('voctrain_chatPictures'), null);
+  if (!pics || typeof pics !== 'object' || Array.isArray(pics)) return 0;
+  try { return CESTISCore.profiles.attachPictures(lmsChatProfiles, pics); } catch (e) { return 0; }
+}
 function saveLmsChatData() {
   if (!lmsChatStoreReady()) return;
   trimLmsChatHistory();
@@ -9228,13 +9291,7 @@ function saveLmsChatData() {
       });
     });
     CESTISStore.setItem('voctrain_chatMessages', JSON.stringify(msgCopy));
-    // Strip profile pics from localStorage (keep in memory + Drive)
-    var profCopy = {};
-    Object.keys(lmsChatProfiles).forEach(function(uid) {
-      profCopy[uid] = Object.assign({}, lmsChatProfiles[uid]);
-      delete profCopy[uid].profilePic;
-    });
-    CESTISStore.setItem('voctrain_chatProfiles', JSON.stringify(profCopy));
+    lmsChatStoreProfiles();
     CESTISStore.setItem('voctrain_chatFollows', JSON.stringify(lmsChatFollows));
     CESTISStore.setItem('voctrain_chatFollowLog', JSON.stringify(lmsChatFollowLog || {}));
   } catch(e) { console.warn('saveLmsChatData: storage error', e); }
@@ -9645,10 +9702,14 @@ function clearSensitiveStudentData() {
     CESTISStore.setItem('voctrain_assessmentWork', JSON.stringify(myWork));
   } catch(e) {}
 
-  // 4. Keep only this student's profile
+  // 4. Keep only this student's profile. It is filed under her student ID
+  // (Edit Profile writes studentProfiles[<student ID>]); keeping only the
+  // account id's entry threw her own phone, e-mail and emergency contact
+  // away at every sign-out — for good when they had not been sent yet.
   try {
     var myProfile = {};
     if(userId && studentProfiles[userId]) { myProfile[userId] = studentProfiles[userId]; }
+    if(studentId && studentProfiles[studentId]) { myProfile[studentId] = studentProfiles[studentId]; }
     studentProfiles = myProfile;
     CESTISStore.setItem('voctrain_studentProfiles', JSON.stringify(myProfile));
   } catch(e) { studentProfiles = {}; CESTISStore.removeItem('voctrain_studentProfiles'); }
@@ -9725,8 +9786,24 @@ function clearSensitiveStudentData() {
   // 7. Remove chat messages (may contain sensitive conversations)
   CESTISStore.removeItem('voctrain_chatMessages');
   lmsChatMessages = {};
-  CESTISStore.removeItem('voctrain_chatProfiles');
-  lmsChatProfiles = {};
+  // Her own chat profile (picture, status, status message, about) stays: it
+  // is hers, and it may be the only copy of a change not sent yet. Everyone
+  // else's goes.
+  try {
+    var myChat = {}, myPics = {};
+    var _allPics = safeJsonParse(CESTISStore.getItem('voctrain_chatPictures'), null) || {};
+    if(userId && lmsChatProfiles[userId]) {
+      myChat[userId] = lmsChatProfiles[userId];
+      var _ownPics = {}; _ownPics[userId] = lmsChatProfiles[userId];
+      var _mine = CESTISCore.profiles.picturesOf(_ownPics);
+      if(_allPics[userId]) myPics[userId] = _allPics[userId];
+      if(_mine[userId]) { var _pm = {}; _pm[userId] = myPics[userId]; CESTISCore.profiles.mergePictures(_pm, _mine); myPics[userId] = _pm[userId]; }
+    } else if(userId && _allPics[userId]) myPics[userId] = _allPics[userId];
+    lmsChatProfiles = myChat;
+    CESTISStore.setItem('voctrain_chatProfiles', JSON.stringify(CESTISCore.profiles.stripPictures(myChat)));
+    if(Object.keys(myPics).length) CESTISStore.setItem('voctrain_chatPictures', JSON.stringify(myPics));
+    else CESTISStore.removeItem('voctrain_chatPictures');
+  } catch(e) { CESTISStore.removeItem('voctrain_chatProfiles'); lmsChatProfiles = {}; }
   CESTISStore.removeItem('voctrain_chatFollows');
   lmsChatFollows = {};
   CESTISStore.removeItem('voctrain_chatFollowLog');
@@ -9770,6 +9847,12 @@ function clearSensitiveStudentData() {
   //   chatRooms (room list only, messages removed), systemSettings,
   //   classSessions, notifications
   // These are non-sensitive, read-only data that helps the student experience on next login.
+
+  // What is left is the baseline from here: the other trainees' records that
+  // just left this device were not deleted (a later save must never write
+  // them down as removed — her own profile now stays, so the list is no
+  // longer simply empty).
+  try { syncRebaselineAll(); } catch(e) {}
 
   console.log('[Session] Sensitive student data cleared from localStorage and memory. Own progress preserved.');
 }
@@ -10103,17 +10186,20 @@ function loadPerUserLocalData() {
     var nt = safeJsonParse(CESTISStore.getItem(prefix + 'notifications'), null);
     // Merge per-user data (don't overwrite if already loaded from cloud)
     if (cm) { Object.keys(cm).forEach(function(k) { if (!lmsChatMessages[k] || lmsChatMessages[k].length === 0) lmsChatMessages[k] = cm[k]; }); }
-    if (cp) { Object.keys(cp).forEach(function(k) { if (!lmsChatProfiles[k]) lmsChatProfiles[k] = cp[k]; }); }
+    // Profiles detail by detail (CESTISCore.profiles): this copy is the only
+    // one with the pictures when the shared one lacks them, and a profile
+    // the sign-in had already started (presence) used to shut it out whole.
+    if (cp && typeof cp === 'object') { try { CESTISCore.profiles.mergeMap(lmsChatProfiles, cp, { name: 'chatProfiles' }); } catch(e) {} }
     if (cf) { Object.keys(cf).forEach(function(k) { if (!lmsChatFollows[k]) lmsChatFollows[k] = cf[k]; }); }
     // (A room or notice deleted since this copy was kept stays deleted.)
     var _gone = function(col, r) { try { return CESTISCore.sync.deletedAfter(syncTombsFor(col), r && r.id != null ? String(r.id) : '', r); } catch(e) { return false; } };
     if (cr) { cr.forEach(function(room) { if (room && !_gone('chatRooms', room) && !lmsChatRooms.some(function(r) { return r.id === room.id; })) lmsChatRooms.push(room); }); }
     if (currentRole === 'student') {
       var sp = safeJsonParse(CESTISStore.getItem(prefix + 'studentProfiles'), null);
-      if (sp) { Object.keys(sp).forEach(function(k) { if (!studentProfiles[k]) studentProfiles[k] = sp[k]; }); }
+      if (sp && typeof sp === 'object') { try { CESTISCore.profiles.mergeMap(studentProfiles, sp, { name: 'studentProfiles', tombs: syncTombsFor('studentProfiles') }); } catch(e) {} }
     } else if (currentRole === 'instructor') {
       var ip = safeJsonParse(CESTISStore.getItem(prefix + 'instructorProfiles'), null);
-      if (ip) { Object.keys(ip).forEach(function(k) { if (!instructorProfiles[k]) instructorProfiles[k] = ip[k]; }); }
+      if (ip && typeof ip === 'object') { try { CESTISCore.profiles.mergeMap(instructorProfiles, ip, { name: 'instructorProfiles', tombs: syncTombsFor('instructorProfiles') }); } catch(e) {} }
     }
     if (nt && Array.isArray(nt)) { nt.forEach(function(n) { if (n && !_gone('notifications', n) && !notifications.some(function(l) { return l.id === n.id; })) notifications.push(n); }); }
     console.log('[PerUser] Loaded per-user local data for ' + userId);
@@ -10817,16 +10903,18 @@ function reconcileStudentsFromAccounts() {
     // whether the account still points at its (stable) id or resolves to it by
     // name+programme. This closes the "deleted student resurrected via its
     // re-synced account" hole.
-    if (typeof isStudentDeleted === 'function') {
-      if (u.studentDataId && isStudentDeleted(u.studentDataId)) return;
-      if (window.CESTISCore && u.name) {
-        var _delSid = CESTISCore.stableStudentId({ name: u.name, course: u.programme || '' });
-        if (_delSid && isStudentDeleted(_delSid)) return;
-      }
-    }
+    // An account registered or approved AFTER the deletion is a new enrolment
+    // of the same person (studentAccountTombstoned): it gets its record. This
+    // returned for every account whose name and programme had ever been
+    // deleted, so a trainee who registered again never appeared anywhere.
+    if (typeof studentAccountTombstoned === 'function' ? studentAccountTombstoned(u) : false) return;
 
-    // Check if a student record already exists
-    if (u.studentDataId && studentIds[u.studentDataId]) return;
+    // Check if a student record already exists (and is this person's: a
+    // namesake's record holding the same id is not)
+    if (u.studentDataId && studentIds[u.studentDataId]) {
+      var _held = students.find(function(s) { return s && s.id === u.studentDataId; });
+      if (!(_held && CESTISCore.identityConflict && CESTISCore.identityConflict(_held, u))) return;
+    }
     var nameKey = u.name && u.programme
       ? CESTISCore.normName(u.name) + '|' + CESTISCore.normCourse(u.programme) : null;
     if (nameKey && studentNameCourse[nameKey]) {
@@ -10874,44 +10962,15 @@ function reconcileStudentsFromAccounts() {
       }
     }
 
-    // No matching student record — create one
-    var studentId = u.studentDataId || ('STU-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).substring(2,6).toUpperCase());
-    var course = u.programme || '';
-
-    // Find an instructor for this course
-    var assignedInstructor = '';
-    if (course) {
-      var matchedInstructor = instructorData.find(function(ins) {
-        if (!ins.course) return false;
-        if (ins.course.toLowerCase().trim() === course.toLowerCase().trim()) return true;
-        var insSk = findSkillAreaForCourse(ins.course);
-        var stuSk = findSkillAreaForCourse(course);
-        return insSk && stuSk && insSk.id && stuSk.id && insSk.id === stuSk.id;
-      });
-      if (matchedInstructor) assignedInstructor = matchedInstructor.name;
-    }
-
-    students.push({
-      id: studentId,
-      name: (u.name || '').trim(),
-      stage: 'training',
-      course: course.trim(),
-      score: '',
-      progress: 5,
-      certNo: null,
-      certDate: null,
-      certCollected: false,
-      attendance: 0,
-      assignments: 0,
-      assignmentsTotal: 10,
-      gpa: '0.0',
-      gender: '',
-      createdAt: u.createdAt || localDateStr(),
-      instructor: assignedInstructor
-    });
-
-    // Link the user account to this student record
-    if (!u.studentDataId) u.studentDataId = studentId;
+    // No matching student record — create one, through the one creation path
+    // (centre and fiscal-year stamp, the new-enrolment mark that keeps an
+    // earlier deletion from hiding it, contact details, its own id when a
+    // namesake holds the one its name gives). No save inside the loop.
+    // Dated by the account (when it was approved, else made), not today: an
+    // account from an earlier financial year is not a new enrolment this year.
+    var _on = String(u.approvedAt || u.createdAt || '').slice(0, 10);
+    var _made = createStudentDataForAccount(u, { noSave: true, programmeFallback: '', on: /^\d{4}-\d{2}-\d{2}$/.test(_on) ? _on : '' });
+    var studentId = _made.id;
 
     // Track for dedup
     studentIds[studentId] = true;
@@ -12769,20 +12828,24 @@ function exportCertsCSV() {
   showToast('Certificates CSV exported!');
 }
 
-function exportReportCSV() {
+function exportReportCSV(opts) {
   // One row per training centre that holds trainees, named with its intake key
   // where two share a programme — the old one-row-per-programme-name resolved
   // each name to a single centre and silently dropped every other intake.
   // avgAttendance by the one rule: over the programme's ACTIVE trainees
   // (blank when it has none in training).
+  // From the dashboard ({ dashboard: true }) it counts what the dashboard
+  // counts: the trainees of the year its year bar shows (dashScope).
+  const sc = opts && opts.dashboard ? dashScope() : null;
   const _fig = centreFigureSet();
   const data = reportProgrammeRolls().map(p => {
-    const cs = p.roll;
+    const cs = sc ? p.roll.filter(s => s && sc.ids[String(s.id)]) : p.roll;
     const att = CESTISCore.centreFigures.attendance(cs, _fig.attOf);
     return {course:p.full||p.label,enrolled:cs.length,certified:cs.filter(s=>s.stage==='certified'||s.stage==='collected').length,avgAttendance:att.rate == null ? '' : att.rate};
-  });
-  exportCSV(data, ['course','enrolled','certified','avgAttendance'], 'report_export.csv');
-  showToast('Report CSV exported!');
+  }).filter(r => !sc || r.enrolled);
+  const period = sc ? CESTISCore.yearView.periodLabel(sc.view) : '';
+  exportCSV(data, ['course','enrolled','certified','avgAttendance'], sc ? 'report_export_' + period.replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '') + '.csv' : 'report_export.csv');
+  showToast(sc ? 'Report CSV exported: ' + CESTISCore.yearView.headline(sc) : 'Report CSV exported!');
 }
 
 function switchSettingsTab(tab, which) {
@@ -13821,7 +13884,15 @@ function updateTopbarWho() {
   document.getElementById('topbarWhoName').textContent = name;
   document.getElementById('topbarWhoRole').textContent = role;
   var av = document.getElementById('topbarWhoAvatar');
-  if(av) { av.textContent = initials || '?'; var sa = document.getElementById('sidebarAvatar'); if(sa && sa.style.background) av.style.background = sa.style.background; }
+  if(av) {
+    var sa = document.getElementById('sidebarAvatar'); if(sa && sa.style.background) av.style.background = sa.style.background;
+    // Their own picture when they have set one (on a phone this is the only
+    // place it shows outside the chat), else their initials.
+    var _own = (currentLoggedInUser && typeof lmsChatProfiles !== 'undefined') ? lmsChatProfiles[currentLoggedInUser.id] : null;
+    var _pic = _own && _own.profilePic ? safeUrl(_own.profilePic) : '';
+    if(_pic) { av.innerHTML = '<img src="' + escapeAttr(_pic) + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">'; av.style.overflow = 'hidden'; }
+    else av.textContent = initials || '?';
+  }
   box.title = 'Signed in as ' + name + (role ? ' (' + role + ')' : '');
   box.setAttribute('aria-label', box.title + ' — account menu');
   var head = document.getElementById('topbarAccountWho');
@@ -13971,13 +14042,7 @@ function enterApp(role) {
     }
 
     // Show profile picture in sidebar if user has one in LMS Chat
-    if(currentLoggedInUser && typeof lmsChatProfiles !== 'undefined') {
-      var cp = lmsChatProfiles[currentLoggedInUser.id];
-      if(cp && cp.profilePic) {
-        var sa = document.getElementById('sidebarAvatar');
-        if(sa && safeUrl(cp.profilePic)) { sa.innerHTML = '<img src="'+escapeAttr(safeUrl(cp.profilePic))+'" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">'; sa.style.overflow = 'hidden'; }
-      }
-    }
+    profileShowOwnPicture();
 
     // Set session expiry and start periodic check
     setSessionExpiry();
@@ -13986,6 +14051,9 @@ function enterApp(role) {
 
     // Load per-user local data (chat, profiles) for this specific user
     loadPerUserLocalData();
+    // ...a trainee at home: her own picture and status, from her own record.
+    try { if (typeof cestisGateSession === 'function' && cestisGateSession()) profilesTakeTraineeChat(); } catch(e) {}
+    profileShowOwnPicture();
 
     // Bring up the realtime data-channel peer for the whole session so live
     // notifications, announcements, assignments and assigned tasks arrive
@@ -14301,12 +14369,15 @@ function closePendingScreen() {
 function findStudentRecordForAccount(account) {
   if (!account) return null;
   var match = null;
+  // (A record another person's details say is not this account's — a namesake
+  // whose email, TRN or date of birth differs — is never this account's record.)
+  var mine = function(s) { return !(CESTISCore.identityConflict && CESTISCore.identityConflict(s, account)); };
   if (account.studentDataId) {
-    match = students.find(function(s) { return s.id === account.studentDataId; });
+    match = students.find(function(s) { return s.id === account.studentDataId && mine(s); });
   }
   if (!match) {
     var sid = CESTISCore.stableStudentId({ name: account.name, course: account.programme || '' });
-    if (sid) match = students.find(function(s) { return s.id === sid; });
+    if (sid) match = students.find(function(s) { return s.id === sid && mine(s); });
   }
   if (!match) {
     // By name only when the programme agrees and the namesake is unique — the
@@ -14367,8 +14438,9 @@ function fillTraineeContactFromAccount(student, account) {
   } catch (e) { console.warn('[Accounts] could not fill the fee record\'s contact:', e); }
   return changed;
 }
-function createStudentDataForAccount(userAccount) {
-  var prog = userAccount.programme || 'Welding';
+function createStudentDataForAccount(userAccount, opts) {
+  opts = opts || {};
+  var prog = userAccount.programme || (Object.prototype.hasOwnProperty.call(opts, 'programmeFallback') ? opts.programmeFallback : 'Welding');
   var matchedInstructor = instructorData.find(function(ins){ return ins.course && instructorCourseMatch(prog, ins.course); });
   var assignedInstructor = matchedInstructor ? matchedInstructor.name : (instructorData.length > 0 ? instructorData[0].name : '');
   var newStudent = {
@@ -14386,7 +14458,7 @@ function createStudentDataForAccount(userAccount) {
     assignmentsTotal: 10,
     gpa: '0.0',
     gender: '',
-    createdAt: localDateStr(),
+    createdAt: opts.on || localDateStr(),
     instructor: assignedInstructor
   };
   // Ground the trainee in their training centre's duration and fiscal year, so
@@ -14396,7 +14468,7 @@ function createStudentDataForAccount(userAccount) {
   // in it for good (see CESTISCore.enrolment.findCentre, opts.exact).
   try {
     var _cs = CESTISCore.enrolment.enrolmentStamp(
-      CESTISCore.enrolment.findCentre(skillAreas, prog, { exact: true }), localDateStr());
+      CESTISCore.enrolment.findCentre(skillAreas, prog, { exact: true }), opts.on || localDateStr());
     if (_cs) {
       newStudent.centreId = _cs.centreId; newStudent.centreName = _cs.centreName;
       newStudent.courseStart = _cs.courseStart; newStudent.courseEnd = _cs.courseEnd;
@@ -14404,6 +14476,14 @@ function createStudentDataForAccount(userAccount) {
     }
   } catch(e) {}
   if (window.CESTISCore) { var _sid = CESTISCore.stableStudentId(newStudent); if (_sid) newStudent.id = _sid; }
+  // The id a name and programme give is already another person's (a namesake
+  // whose email, TRN or date of birth differs): this trainee gets an id of
+  // their own, the same on every device (from the account), so neither is
+  // merged into the other.
+  newStudent.id = traineeIdForAccount(newStudent.id, userAccount);
+  // ...and pinned as its own person, so the id stabilisation at the next
+  // sign-in does not fold it back into that namesake (CESTISCore.pinIfNamesake).
+  try { CESTISCore.pinIfNamesake(newStudent, students); } catch (e) {}
   // The email and telephone given with the account (a fee record that does
   // not exist yet is created on save by the mirror, carrying them across).
   try { fillTraineeContactFromAccount(newStudent, userAccount); } catch (e) {}
@@ -14415,8 +14495,17 @@ function createStudentDataForAccount(userAccount) {
   attendanceRecords.push({studentId:newStudent.id, studentName:newStudent.name, course:newStudent.course, date:localDateStr(), days:{Mon:'absent',Tue:'absent',Wed:'absent',Thu:'absent',Fri:'absent'}});
   updateSkillAreaCounts();
   userAccount.studentDataId = newStudent.id;
-  saveState();
+  if (!opts.noSave) saveState();
   return newStudent;
+}
+/* The record id for a trainee being created for an account: the id their name
+   and programme give, unless a record already holds it for somebody else. */
+function traineeIdForAccount(id, account) {
+  if (!id || !account || !window.CESTISCore) return id;
+  var holder = (students || []).find(function(s) { return s && s.id === id; });
+  if (!holder || !CESTISCore.identityConflict(holder, account)) return id;
+  return 'STU-' + CESTISCore.hashString(CESTISCore.naturalKey({ name: account.name, course: account.programme || '' }) + '|account|' +
+    (String(account.email || '').trim().toLowerCase() || String(account.id || '')));
 }
 
 // The instructor record belonging to the account that just signed in.
@@ -14626,8 +14715,10 @@ function approveUser(userId) {
   user.approvedAt = localDateStr();
   stampReviewer(user);
   touchAccount(user);
-  // Ensure student data is created and linked when approving a student account
-  if (user.role === 'student' && !user.studentDataId) {
+  // Ensure student data is created and linked when approving a student account.
+  // A registration from home already names the id its record will have, so
+  // "has an id" is not "has a record": the record is looked for, and made.
+  if (user.role === 'student') {
     var existingStudent = findStudentRecordForAccount(user);
     if (existingStudent) {
       user.studentDataId = existingStudent.id;
@@ -14705,8 +14796,9 @@ function approveAllPending() {
     u.approvedAt = dateStr;
     stampReviewer(u);
     touchAccount(u);
-    // Create linked student/instructor data on approval
-    if (u.role === 'student' && !u.studentDataId) {
+    // Create linked student/instructor data on approval (see approveUser:
+    // a registration from home already names its record's id).
+    if (u.role === 'student') {
       var existingStudent = findStudentRecordForAccount(u);
       if (existingStudent) {
         u.studentDataId = existingStudent.id;
@@ -15725,7 +15817,8 @@ function showPage(pageId) {
   const pg = document.getElementById('page-'+pageId);
   if(pg) pg.classList.add('active');
   // Keep the staff-appraisal due indicator fresh whenever the admin dashboard is shown
-  if(pageId === 'dashboard') { try { if(typeof sappRenderAdminDueCard === 'function') sappRenderAdminDueCard(); } catch(e) {} try { refreshDashboardFees(); } catch(e) {} }
+  // ...and every figure on it, for the year its year bar shows (refreshAdminDashboard).
+  if(pageId === 'dashboard') { try { if(typeof sappRenderAdminDueCard === 'function') sappRenderAdminDueCard(); } catch(e) {} try { refreshAdminDashboard(); } catch(e) {} }
   if(pageId === 'dashboard' || pageId === 'as-dashboard') { try { renderOfficeToday(); } catch(e) { console.warn('[Office today] render failed', e); } }
   if(pageId === 'transfer-trainees') { try { renderTransferTraineesPage(); } catch(e) { console.warn('[Transfer] render failed', e); } }
   // Reports counts the roll on every panel, so it is drawn on the way in rather
@@ -15983,51 +16076,23 @@ function buildAdminPages() {
   resolveExamStatuses();
   setTimeout(renderVerifyUsersPage, 200);
   setTimeout(function() { try { renderOfficeToday(); } catch(e) {} }, 250);
-  const totalEnrolled = students.length;
-  // Certified THIS calendar year, by the certificate's own date — the card
-  // used to count every graduate the Centre ever had.
-  const totalCertified = CESTISCore.certs.certifiedInYear(students, new Date().getFullYear());
-  const upcomingExams = exams.filter(e=>e.status==='upcoming').length;
-  // By the GPA the marks produce (studentGpaFigure), best first; trainees with
-  // no marks yet are not "performers" (the hand-typed 0.0 put five at-risk
-  // trainees at the top).
-  const topPerformers = students.map(s => { const sum = studentCourseworkSummary(s); return { s: s, g: studentGpaFigure(s, sum), p: sum.percent }; })
-    .filter(x => x.g != null).sort((a,b) => (parseFloat(b.g) - parseFloat(a.g)) || ((b.p || 0) - (a.p || 0))).slice(0,5)
-    .map(x => Object.assign({}, x.s, { gpa: x.g }));
-  const incompleteCount = students.filter(s=>s.stage==='incomplete').length;
-  // Only trainees in training in an intake still running, by the register:
-  // the same rule as the Needs Attention list the alert opens
-  // (CESTISCore.attention) — applicants, graduates and ended intakes are not
-  // a warning.
-  const lowAttendance = attentionLowAttendanceCount();
-  // The marking backlog and the registers not taken on the last school day
-  // (CESTISCore.officeWatch): who and how old, not a bare count.
-  let backlog = { waiting: 0, pastDueMissing: 0, byOwner: [], oldestDays: null }, notTaken = { day: '', list: [] };
-  try { backlog = officeBacklog(false); notTaken = registersNotTakenList(); } catch (e) {}
-  const pendingCerts = students.filter(s=>s.stage==='certified'&&!s.certCollected).length;
-  // What the course-end rule found in the transcripts of trainees whose course
-  // has ended: ready to certify, or still waiting for results to be marked.
-  const courseEndOf = (state) => students.filter(s=>{ const f = CESTISCore.courseEnd.flag(s); return f && f.state===state; });
-  const readyToCertify = courseEndOf('ready'), awaitingMarking = courseEndOf('awaiting-marking');
-  const someNames = (list) => list.slice(0,3).map(s=>s.name).join(', ') + (list.length>3 ? ' and ' + (list.length-3) + ' more' : '');
-  const nextExam = exams.filter(e=>e.status==='upcoming').sort((a,b)=>a.date.localeCompare(b.date))[0];
+  // Every figure below counts the trainees of the year chosen on the
+  // dashboard's year bar (dashScope — CESTISCore.yearView): each block is
+  // drawn by its own function, so a change of year redraws them all.
+  _dashScopeMemo = null;
   const mc = document.getElementById('mainContent');
   mc.innerHTML = `
   <section class="page active" id="page-dashboard">
     <div id="sappAdminDueCard"></div>
     <div id="officeTodayCard"></div>
-    <div class="stats-grid">
-      <div class="stat-card"><div class="stat-icon" style="background:var(--blue-dim);color:var(--blue);">\uD83D\uDC65</div><div class="stat-value" data-count="${totalEnrolled}">0</div><div class="stat-label">Total Enrolled Students</div><div class="stat-change" id="dashActiveLine" style="color:var(--text-muted);">${dashActiveLineText()}</div></div>
-      <div class="stat-card"><div class="stat-icon" style="background:var(--green-dim);color:var(--green);">\uD83C\uDF93</div><div class="stat-value" data-count="${totalCertified}">0</div><div class="stat-label">Certified This Year</div><div class="stat-change" style="color:var(--text-muted);">Completed certification</div></div>
-      <div class="stat-card"><div class="stat-icon" style="background:var(--accent-dim);color:var(--accent);">\uD83D\uDCDD</div><div class="stat-value" data-count="${upcomingExams}">0</div><div class="stat-label">Upcoming Exams</div><div class="stat-change" style="color:var(--text-muted);">Next: ${escapeHtml(nextExam?nextExam.date.slice(5):'None scheduled')}</div></div>
-      <div class="stat-card"><div class="stat-icon" style="background:var(--purple-dim);color:var(--purple);">\uD83D\uDCF9</div><div class="stat-value" data-count="${classSessions.length}">0</div><div class="stat-label">Class Sessions</div><div class="stat-change" style="color:var(--text-muted);">Total scheduled</div></div>
-    </div>
+    <div class="dash-yearbar" id="dashYearBar" role="region" aria-label="The year the figures below count">${dashYearBarHtml()}</div>
+    <div class="stats-grid" id="dashStats">${dashStatsHtml()}</div>
     <div class="card dash-fees-card" id="dashFeesCard">${dashFeesCardInner()}</div>
     <div class="quick-actions">
       <div class="quick-action-btn" onclick="openNewTrainee()"><div class="qa-icon">&#128100;</div><div class="qa-label">Add Student</div></div>
       <div class="quick-action-btn" onclick="openModal('createExamModal')"><div class="qa-icon">\uD83D\uDCDD</div><div class="qa-label">Create Exam</div></div>
       <div class="quick-action-btn" onclick="showPage('announcements')"><div class="qa-icon">\uD83D\uDCE2</div><div class="qa-label">New Announcement</div></div>
-      <div class="quick-action-btn" onclick="exportReportCSV()"><div class="qa-icon">\uD83D\uDCC4</div><div class="qa-label">Export Report</div></div>
+      <div class="quick-action-btn" onclick="exportReportCSV({ dashboard: true })"><div class="qa-icon">\uD83D\uDCC4</div><div class="qa-label">Export Report</div></div>
       <div class="quick-action-btn" onclick="showPage('attendance')"><div class="qa-icon">\u2705</div><div class="qa-label">Take Attendance</div></div>
       <div class="quick-action-btn" onclick="showPage('calendar')"><div class="qa-icon">\uD83D\uDCC5</div><div class="qa-label">View Calendar</div></div>
     </div>
@@ -16036,67 +16101,12 @@ function buildAdminPages() {
     </div>
     <div id="systemHealthCard" class="sys-health-mount"></div>
     <div class="grid-2col">
-      <div class="card"><div class="card-header"><h3>System Alerts</h3></div>
-        <div class="alert-item alert-danger alert-link" role="button" tabindex="0" id="dashLowAttendanceAlert" onclick="showPage('needs-attention')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showPage('needs-attention');}" title="See who, with their last attendance and phone"><div class="alert-icon">\u26A0\uFE0F</div><div class="alert-body"><div class="alert-msg">${lowAttendance} student${lowAttendance!==1?'s':''} below 70% attendance</div><div class="alert-time">Needs attention — see who &rarr;</div></div></div>
-        ${notTaken.list.length ? `<div class="alert-item alert-danger alert-link" role="button" tabindex="0" id="dashRegistersNotTaken" onclick="showPage('attendance')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showPage('attendance');}"><div class="alert-icon">\uD83D\uDCCB</div><div class="alert-body"><div class="alert-msg">Registers not taken on ${escapeHtml(officeDayLabel(notTaken.day))}: ${notTaken.list.length} class${notTaken.list.length!==1?'es':''}</div><div class="alert-time">${escapeHtml(notTaken.list.map(x => (x.session.name || 'Class') + ' (' + x.course + (x.instructor ? ', ' + x.instructor : '') + ')').join(' · '))}</div></div></div>` : ''}
-        ${backlog.waiting || backlog.pastDueMissing ? `<div class="alert-item alert-warning alert-link" role="button" tabindex="0" id="dashMarkingBacklog" onclick="showPage('a-assignments')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showPage('a-assignments');}"><div class="alert-icon">\u270D\uFE0F</div><div class="alert-body"><div class="alert-msg">${backlog.waiting} piece${backlog.waiting!==1?'s':''} of work waiting to be marked${backlog.oldestDays != null ? ', the oldest for ' + officeDaysText(backlog.oldestDays) : ''}</div><div class="alert-time">${backlog.pastDueMissing ? backlog.pastDueMissing + ' past due, never handed in · ' : ''}${escapeHtml(backlog.byOwner.slice(0,3).map(o => o.owner + ': ' + o.waiting).join(' · '))} &rarr;</div></div></div>` : ''}
-        <div class="alert-item alert-warning"><div class="alert-icon">\uD83D\uDCDD</div><div class="alert-body"><div class="alert-msg">${upcomingExams} exams scheduled this period</div><div class="alert-time">Review schedule</div></div></div>
-        ${readyToCertify.length ? `<div class="alert-item alert-success"><div class="alert-icon">\u2705</div><div class="alert-body"><div class="alert-msg">${readyToCertify.length} trainee${readyToCertify.length!==1?'s':''} ready to certify</div><div class="alert-time">Course ended, every core unit competent: ${escapeHtml(someNames(readyToCertify))}</div></div></div>` : ''}
-        ${awaitingMarking.length ? `<div class="alert-item alert-warning"><div class="alert-icon">\u23F3</div><div class="alert-body"><div class="alert-msg">${awaitingMarking.length} trainee${awaitingMarking.length!==1?'s':''} awaiting marking after their course ended</div><div class="alert-time">Not marked Not Yet Competent until the results are in: ${escapeHtml(someNames(awaitingMarking))}</div></div></div>` : ''}
-        <div class="alert-item alert-info"><div class="alert-icon">\uD83C\uDF93</div><div class="alert-body"><div class="alert-msg">${pendingCerts} certificates pending collection</div><div class="alert-time">Notify students</div></div></div>
-        <div class="alert-item alert-warning"><div class="alert-icon">\uD83D\uDCCA</div><div class="alert-body"><div class="alert-msg">${incompleteCount} students marked incomplete</div><div class="alert-time">Follow up required</div></div></div>
-        <div class="alert-item alert-info"><div class="alert-icon">\uD83D\uDD04</div><div class="alert-body"><div class="alert-msg">Auto-sync is ${isCloudConnected?'active':'inactive'}</div><div class="alert-time">${isCloudConnected?'Every '+(AUTO_SAVE_INTERVAL_MS/1000)+' seconds':'Turn it on with the Sync button'}</div></div></div>
-      </div>
-      <div class="card"><div class="card-header"><h3>Top Performers</h3></div>
-        ${topPerformers.length ? '' : '<p style="font-size:13px;color:var(--text-muted);padding:8px 0;">No marks recorded yet.</p>'}
-        ${topPerformers.map((s,i) => {
-          const colors = ['linear-gradient(135deg,#f0a500,#d4900a)','linear-gradient(135deg,#bdc3c7,#95a5a6)','linear-gradient(135deg,#e67e22,#d35400)','linear-gradient(135deg,var(--blue),#2980b9)','linear-gradient(135deg,var(--teal),#16a085)'];
-          const initials = s.name.split(' ').map(n=>n[0]).join('');
-          return `<div class="performer-row">
-            <div class="rank ${i<3?'rank-'+(i+1):''}">${i+1}</div>
-            <div class="perf-avatar" style="background:${colors[i]};">${escapeHtml(initials)}</div>
-            <div class="perf-info"><div class="perf-name">${escapeHtml(s.name)}</div><div class="perf-course">${escapeHtml(s.course)}</div></div>
-            <div class="perf-score"><div class="score-val">${escapeHtml(s.gpa)} GPA</div><div class="score-bar"><div class="score-fill" style="width:${(parseFloat(s.gpa)/4*100).toFixed(0)}%;"></div></div></div>
-          </div>`;
-        }).join('')}
-      </div>
+      <div class="card" id="dashAlertsCard">${dashAlertsHtml()}</div>
+      <div class="card" id="dashTopCard">${dashTopPerformersHtml()}</div>
     </div>
     <div class="grid-2col">
-      <div class="card"><div class="card-header"><h3>Recent Activity</h3></div>
-        <div style="display:flex;flex-direction:column;gap:12px;">
-          ${(function(){
-            var items = [];
-            (examResults||[]).slice(-3).reverse().forEach(function(r) {
-              var ex = exams.find(function(e){return e.id===r.examId;}) || {};
-              var st = students.find(function(s){return s.id===r.studentId;}) || {};
-              items.push('<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);"><div style="width:8px;height:8px;border-radius:50%;background:'+(r.passed?'var(--green)':'var(--red)')+';flex-shrink:0;"></div><div><div style="font-size:13px;">'+escapeHtml(st.name||'Student')+' '+(r.passed?'passed':'attempted')+' <strong>'+escapeHtml(ex.title||'Exam')+'</strong></div><div style="font-size:11px;color:var(--text-muted);">Score: '+escapeHtml(r.score)+'%</div></div></div>');
-            });
-            students.filter(function(s){return s.stage==='collected';}).slice(-2).forEach(function(s) {
-              items.push('<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);"><div style="width:8px;height:8px;border-radius:50%;background:var(--accent);flex-shrink:0;"></div><div><div style="font-size:13px;">'+escapeHtml(s.name)+' collected certificate for <strong>'+escapeHtml(s.course)+'</strong></div><div style="font-size:11px;color:var(--text-muted);">Certificate '+escapeHtml(s.certNo)+'</div></div></div>');
-            });
-            if(items.length === 0) items.push('<p style="color:var(--text-muted);padding:8px;">No recent activity. Activity will appear here as students interact with the system.</p>');
-            return items.slice(0,4).join('');
-          })()}
-        </div>
-      </div>
-      <div class="card"><div class="card-header"><h3>Certifications by Month</h3></div>
-        <div class="bar-chart">${(function(){
-          const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-          // The last six calendar months as (year, month), across January;
-          // certificate dates are read with Date.parse, which understands the
-          // "October 16, 2026" every issuing path writes (splitting on '-'
-          // counted none of them, and lumped last October into this one).
-          const buckets = CESTISCore.certs.byMonth(students, new Date(), 6);
-          const maxCerts = Math.max(1, ...buckets.map(b => b.count));
-          let html = '';
-          buckets.forEach((b, i) => {
-            const pct = (b.count / maxCerts * 100).toFixed(0);
-            html += '<div class="bar-col" title="'+b.count+' certificate'+(b.count===1?'':'s')+'"><div class="bar" style="height:'+pct+'%;background:'+(i===buckets.length-1?'var(--blue)':'var(--accent)')+';"></div><div class="bar-label">'+months[b.month]+'</div></div>';
-          });
-          if(!html) html = '<p style="color:var(--text-muted);padding:16px;text-align:center;">No certification data yet.</p>';
-          return html;
-        })()}</div>
-      </div>
+      <div class="card" id="dashActivityCard">${dashRecentActivityHtml()}</div>
+      <div class="card" id="dashCertMonthsCard">${dashCertMonthsHtml()}</div>
     </div>
   </section>
 
@@ -17054,7 +17064,7 @@ function buildStudentPages() {
 
   <section class="page" id="page-s-profile">
     <div class="profile-header">
-      <div class="profile-avatar" style="background:linear-gradient(135deg,var(--blue),var(--teal));">${escapeHtml(s.name.split(' ').map(n=>n[0]).join(''))}</div>
+      <div class="profile-avatar" data-own-avatar style="background:linear-gradient(135deg,var(--blue),var(--teal));">${ownAvatarInner(s.name.split(' ').map(n=>n[0]).join(''))}</div>
       <div class="profile-details">
         <h2>${escapeHtml(s.name)}</h2>
         <div class="profile-subtitle">${escapeHtml(s.course)} Programme</div>
@@ -17655,7 +17665,7 @@ function buildInstructorPages() {
   <!-- INSTRUCTOR PROFILE -->
   <section class="page" id="page-i-profile">
     <div class="profile-header">
-      <div class="profile-avatar" style="background:linear-gradient(135deg,var(--green),var(--teal));">${escapeHtml(ins.name.split(' ').map(n=>n[0]).join('').replace('.',''))}</div>
+      <div class="profile-avatar" data-own-avatar style="background:linear-gradient(135deg,var(--green),var(--teal));">${ownAvatarInner(ins.name.split(' ').map(n=>n[0]).join('').replace('.',''))}</div>
       <div class="profile-details">
         <h2>${escapeHtml(ins.name)}</h2>
         <div class="profile-subtitle">${escapeHtml(ins.course)} Instructor</div>
@@ -17689,7 +17699,7 @@ function buildInstructorPages() {
         <div class="info-row"><span class="info-label">Joined</span><span class="info-value">${escapeHtml(ins.joinedYear || (Number(ins.yearsExp) >= 0 ? new Date().getFullYear() - Number(ins.yearsExp) : '—'))}</span></div>
       </div>
     </div>
-    ${(instructorProfiles[ins.id]?.bio) ? '<div class="info-section" style="margin-top:20px;"><h4>About</h4><p style="color:var(--text-secondary);line-height:1.6;padding:12px 0;">' + instructorProfiles[ins.id].bio + '</p></div>' : ''}
+    ${(instructorProfiles[ins.id]?.bio) ? '<div class="info-section" style="margin-top:20px;"><h4>About</h4><p style="color:var(--text-secondary);line-height:1.6;padding:12px 0;">' + escapeHtml(instructorProfiles[ins.id].bio) + '</p></div>' : ''}
   </section>
 
   <!-- C.E.S.T.I.S LMS CHAT PAGE (INSTRUCTOR) -->
@@ -25023,18 +25033,40 @@ function renderStudentDriveResources() {
 // ============================== SHARED PROFILE PIC HELPERS ==============================
 var _pendingProfilePics = { student: null, instructor: null, account: null };
 
-function profilePicPreview(input, previewId, type) {
-  var file = input.files[0];
+/* A chosen photo, made a 256-pixel JPEG before it is kept: it travels with
+   the person's profile to every device (and, for a trainee at home, inside
+   her profile record, which the trainee gate takes only up to a size). A
+   phone camera's 4 MB original used to be kept as it was. done(dataUrl) —
+   or nothing, with a message, when the file is not a picture. */
+function profilePicPrepare(file, done) {
   if(!file) return;
-  if(file.size > 2 * 1024 * 1024) { showToast('Image must be under 2 MB'); return; }
+  if(file.size > 15 * 1024 * 1024) { showToast('That photo is too large. Please choose a smaller picture.', 'warning'); return; }
   var reader = new FileReader();
   reader.onload = function(e) {
-    var preview = document.getElementById(previewId);
-    if(preview) preview.innerHTML = '<img src="'+e.target.result+'" alt="New profile picture (preview)">';
-    _pendingProfilePics[type] = e.target.result;
+    var src = e.target.result;
+    var img = new Image();
+    img.onload = function() {
+      try {
+        var s = Math.min(1, 256 / Math.max(img.width, img.height));
+        var c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(img.width * s)); c.height = Math.max(1, Math.round(img.height * s));
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        done(c.toDataURL('image/jpeg', 0.85));
+      } catch(err) { if(String(src).length < 300000 && CESTISCore.profiles.isPicture(src)) done(src); else showToast('That photo could not be prepared. Please choose a smaller picture.', 'warning'); }
+    };
+    img.onerror = function() { showToast('That file is not a picture this browser can read.', 'warning'); };
+    img.src = src;
   };
   reader.readAsDataURL(file);
+}
+function profilePicPreview(input, previewId, type) {
+  var file = input.files[0];
   input.value = '';
+  profilePicPrepare(file, function(url) {
+    var preview = document.getElementById(previewId);
+    if(preview) preview.innerHTML = '<img src="'+escapeAttr(safeUrl(url, {data:true}))+'" alt="New profile picture (preview)">';
+    _pendingProfilePics[type] = url;
+  });
 }
 
 function profilePicRemove(previewId, type) {
@@ -25055,7 +25087,99 @@ function profilePicLoadPreview(previewId, userId, name) {
   }
 }
 
-// Sync profile pic and status to lmsChatProfiles so other users see it in LMS Chat
+/* ---- A person's own profile: picture, status, status message, about ----
+   Every change is stamped detail by detail (CESTISCore.profiles.touch), so an
+   older copy of the profile — another device's, the Centre's backup, a copy
+   kept from before the last sign-out — can never put the old value back, and
+   a detail another copy simply lacks (a picture kept apart) is never taken
+   as removed. The chosen status is the person's own (statusChoice);
+   presence only shows it while they are about. */
+function profileNowIso() {
+  try { if (window.CESTISPageCloud && typeof CESTISPageCloud.now === 'function') return CESTISPageCloud.now(); } catch(e) {}
+  return CESTISCore.sync.nowIso();
+}
+function profileChatApply(userId, changes) {
+  if(typeof lmsChatProfiles === 'undefined' || !userId) return [];
+  if(!lmsChatProfiles[userId]) lmsChatProfiles[userId] = {};
+  var cp = lmsChatProfiles[userId];
+  var changed = [];
+  Object.keys(changes || {}).forEach(function(f) {
+    var v = changes[f];
+    if(v === undefined || cp[f] === v) return;
+    cp[f] = v;
+    changed.push(f);
+  });
+  if(changed.length) { try { CESTISCore.profiles.touch(cp, changed, profileNowIso(), 'chatProfiles'); } catch(e) { console.warn('[Profile] stamp failed', e); } }
+  // Presence shows the choice straight away.
+  if(changes && changes.statusChoice !== undefined) { cp.status = CESTISCore.profiles.chosenStatus(cp); cp.lastSeen = new Date().toISOString(); }
+  try { profileMirrorOwnChat(userId); } catch(e) {}
+  return changed;
+}
+/* A trainee at home (a trainee-gate session): her own chat details go inside
+   her profile record (preferences.chat), the one record of hers the gate
+   takes — that is how they reach the Centre, and how her published records
+   bring them back to the next device she signs in on. */
+function profileMirrorOwnChat(userId) {
+  if(!(typeof cestisGateSession === 'function' && cestisGateSession())) return false;
+  if(currentRole !== 'student' || !currentStudent || !currentLoggedInUser || currentLoggedInUser.id !== userId) return false;
+  var part = CESTISCore.profiles.chatPart(lmsChatProfiles[userId]);
+  if(!part) return false;
+  var sid = currentStudent.id;
+  var sp = studentProfiles[sid] || (studentProfiles[sid] = {});
+  var prefs = (sp.preferences && typeof sp.preferences === 'object' && !Array.isArray(sp.preferences)) ? sp.preferences : {};
+  var both = CESTISCore.profiles.mergeChatParts(prefs.chat, part);
+  if(JSON.stringify(both) === JSON.stringify(prefs.chat)) return false;
+  prefs.chat = both;
+  sp.preferences = prefs;
+  CESTISCore.profiles.touch(sp, ['preferences'], profileNowIso(), 'studentProfiles');
+  return true;
+}
+/* The trainee's account for a profile record's key (her account id, or her
+   student ID). Only a trainee's: nobody's record sets a member of staff's
+   picture. */
+function profileTraineeAccountFor(key) {
+  if(key == null || key === '') return null;
+  var list = Array.isArray(userAccounts) ? userAccounts : [];
+  var u = list.find(function(a) { return a && a.id === key && a.role === 'student'; });
+  if(!u) u = list.find(function(a) { return a && a.role === 'student' && a.studentDataId === key; });
+  return u ? u.id : null;
+}
+/* Trainees' own chat details that came inside their profile records (from
+   home, through the trainee gate — or her own record published back to her)
+   into the chat profiles everyone sees, each detail by its stamp; and a
+   gender she changed at home onto her trainee record, unless the office
+   changed it since. Returns how many changed. */
+function profilesTakeTraineeChat() {
+  var n = 0;
+  if(!studentProfiles || typeof studentProfiles !== 'object' || typeof lmsChatProfiles === 'undefined') return 0;
+  Object.keys(studentProfiles).forEach(function(k) {
+    var sp = studentProfiles[k];
+    var prefs = sp && sp.preferences;
+    if(!prefs || typeof prefs !== 'object') return;
+    var acct = profileTraineeAccountFor(k);
+    if(!acct) return;
+    if(prefs.chat && typeof prefs.chat === 'object') {
+      if(!lmsChatProfiles[acct]) lmsChatProfiles[acct] = {};
+      if(CESTISCore.profiles.takeChatPart(lmsChatProfiles[acct], prefs.chat)) { n++; profileFolderWanted(acct); }
+    }
+    if(typeof prefs.gender === 'string' && prefs.genderAt && !(typeof cestisGateSession === 'function' && cestisGateSession())) {
+      var account = userAccounts.find(function(a) { return a && a.id === acct; });
+      var stu = account ? findStudentRecordForAccount(account) : null;
+      if(stu && (stu.gender || '') !== prefs.gender && /^(Male|Female|)$/.test(prefs.gender)) {
+        var F = CESTISCore.sync.fields, R = CESTISCore.STUDENT_FIELD_RULES;
+        var since = F.stampFor(stu, 'gender') || F.floorOf(stu, { stamp: R.stamp, skip: R.skip });
+        if((Date.parse(prefs.genderAt) || 0) > since) {
+          stu.gender = prefs.gender;
+          stu.lastModified = CESTISCore.sync.laterStamp(profileNowIso(), stu.lastModified);
+          n++;
+        }
+      }
+    }
+  });
+  return n;
+}
+
+// The edit forms' picture and status, into the person's chat profile.
 function syncProfileToLmsChat(userId, name, role, programme, picType) {
   if(typeof lmsChatProfiles === 'undefined') return;
   if(!lmsChatProfiles[userId]) lmsChatProfiles[userId] = {};
@@ -25064,13 +25188,12 @@ function syncProfileToLmsChat(userId, name, role, programme, picType) {
   cp.role = role;
   cp.programme = programme || '';
 
-  // Handle profile picture
+  var changes = {};
+  // A picture taken off is kept as '' (a dated removal), never a missing
+  // value: a missing value is what a copy without the picture looks like.
   var pendingPic = _pendingProfilePics[picType];
-  if(pendingPic === '__remove__') {
-    delete cp.profilePic;
-  } else if(pendingPic) {
-    cp.profilePic = pendingPic;
-  }
+  if(pendingPic === '__remove__') changes.profilePic = '';
+  else if(pendingPic) changes.profilePic = pendingPic;
   _pendingProfilePics[picType] = null;
 
   // Read status fields based on type
@@ -25078,14 +25201,45 @@ function syncProfileToLmsChat(userId, name, role, programme, picType) {
   var statusMsgId = picType === 'student' ? 'editStuStatusMsg' : picType === 'instructor' ? 'editInsStatusMsg' : 'editAcctStatusMsg';
   var statusEl = document.getElementById(statusId);
   var statusMsgEl = document.getElementById(statusMsgId);
-  if(statusEl) cp.status = statusEl.value;
-  if(statusMsgEl) cp.statusMsg = statusMsgEl.value.trim();
+  if(statusEl && statusEl.value) changes.statusChoice = statusEl.value;
+  if(statusMsgEl) changes.statusMsg = statusMsgEl.value.trim();
+  profileChatApply(userId, changes);
 
-  // Save and sync
-  if(typeof saveLmsChatData === 'function') saveLmsChatData();
-  if(typeof lmsChatSyncToDrive === 'function') lmsChatSyncToDrive();
+  // Saved by the caller (saveState, which stamps and keeps it, then sends it).
+  if(typeof lmsChatScheduleDriveSync === 'function') lmsChatScheduleDriveSync();
 }
 
+// The signed-in person's own picture in the sidebar, once it has arrived
+// (after a sign-in's sync, or from their own folder).
+/* The big circle on My Profile: the person's own picture when they have set
+   one, else their initials (escaped). */
+function ownAvatarInner(initials) {
+  try {
+    var cp = (currentLoggedInUser && typeof lmsChatProfiles !== 'undefined') ? lmsChatProfiles[currentLoggedInUser.id] : null;
+    var pic = cp && cp.profilePic ? safeUrl(cp.profilePic) : '';
+    if (pic) return '<img src="' + escapeAttr(pic) + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
+  } catch (e) {}
+  return escapeHtml(initials || '');
+}
+function profileShowOwnPicture() {
+  try {
+    if(!currentLoggedInUser || typeof lmsChatProfiles === 'undefined') return;
+    var cp = lmsChatProfiles[currentLoggedInUser.id];
+    var sa = document.getElementById('sidebarAvatar');
+    try { updateTopbarWho(); } catch(e) {}
+    // My Profile's big circle, if it is on the page.
+    try {
+      var _pic = cp && cp.profilePic ? safeUrl(cp.profilePic) : '';
+      if (_pic) document.querySelectorAll('[data-own-avatar]').forEach(function(el) {
+        el.innerHTML = '<img src="' + escapeAttr(_pic) + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
+        el.style.overflow = 'hidden';
+      });
+    } catch(e) {}
+    if(!sa || !cp || !cp.profilePic || !safeUrl(cp.profilePic)) return;
+    sa.innerHTML = '<img src="'+escapeAttr(safeUrl(cp.profilePic))+'" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
+    sa.style.overflow = 'hidden';
+  } catch(e) {}
+}
 // Update sidebar avatar to show profile picture if available
 function updateSidebarAvatar(userId, name) {
   var el = document.getElementById('sidebarUserName');
@@ -25126,7 +25280,7 @@ function openEditStudentProfile() {
   profilePicLoadPreview('editStuPicPreview', currentLoggedInUser?.id, s.name);
   var statusSel = document.getElementById('editStuStatus');
   var statusMsg = document.getElementById('editStuStatusMsg');
-  if(statusSel) statusSel.value = chatProfile.status || 'online';
+  if(statusSel) statusSel.value = CESTISCore.profiles.chosenStatus(chatProfile);
   if(statusMsg) statusMsg.value = chatProfile.statusMsg || '';
 
   openModal('editStudentProfileModal');
@@ -25150,11 +25304,14 @@ function saveStudentProfile() {
   if(!newName) { showToast('Please enter your name'); return; }
   if(!email) { showToast('Please enter an email address'); return; }
 
-  // Update gender on the student record
+  // Update gender on the student record — dated, so the change travels (a
+  // trainee record's details are stamped only when its date moves).
   var newGender = (document.getElementById('editProfileGender')?.value || '').trim();
   var stu = students.find(function(st){ return st.id === s.id; });
+  var genderChanged = (s.gender || '') !== newGender;
   if(stu) stu.gender = newGender;
   s.gender = newGender;
+  if(genderChanged && stu) stu.lastModified = CESTISCore.sync.laterStamp(profileNowIso(), stu.lastModified);
 
   // A trainee cannot change their own legal name — they ASK, and the office
   // applies it (Student Progress → Edit, which also knows about namesakes).
@@ -25178,15 +25335,33 @@ function saveStudentProfile() {
     }
   }
 
-  studentProfiles[s.id] = {
+  // Changed in place, detail by detail, each change stamped: the record used
+  // to be replaced whole, which dropped whatever else it held (what the
+  // office keeps there, her picture and status from home) and let an older
+  // copy with a newer date put every detail back.
+  var sp = studentProfiles[s.id] || (studentProfiles[s.id] = {});
+  var spNext = {
     name: s.name,
     requestedName: nameRequest || (_prevProfile.requestedName && _prevProfile.requestedName !== s.name ? _prevProfile.requestedName : undefined),
     email: email,
     phone: phone,
     emergencyName: emergencyName,
-    emergencyPhone: emergencyPhone,
-    updatedAt: new Date().toISOString()
+    emergencyPhone: emergencyPhone
   };
+  var spChanged = [];
+  Object.keys(spNext).forEach(function(f) {
+    var v = spNext[f];
+    if(v === undefined) { if(f in sp) { delete sp[f]; spChanged.push(f); } return; }
+    if(sp[f] !== v) { sp[f] = v; spChanged.push(f); }
+  });
+  // At home her gender goes with her profile record (the one the trainee
+  // gate takes); the office puts it on her record unless it changed it since.
+  if(genderChanged && typeof cestisGateSession === 'function' && cestisGateSession()) {
+    var _prefs = (sp.preferences && typeof sp.preferences === 'object' && !Array.isArray(sp.preferences)) ? sp.preferences : {};
+    _prefs.gender = newGender; _prefs.genderAt = profileNowIso();
+    sp.preferences = _prefs; spChanged.push('preferences');
+  }
+  if(spChanged.length || !sp.updatedAt) CESTISCore.profiles.touch(sp, spChanged, profileNowIso(), 'studentProfiles');
 
   // Keep School Fee Management showing the same name as Student Progress.
   if(wasIdentity && stu) {
@@ -25231,7 +25406,7 @@ function openEditInstructorProfile() {
   profilePicLoadPreview('editInsPicPreview', currentLoggedInUser?.id, ins.name);
   var statusSel = document.getElementById('editInsStatus');
   var statusMsg = document.getElementById('editInsStatusMsg');
-  if(statusSel) statusSel.value = chatProfile.status || 'online';
+  if(statusSel) statusSel.value = CESTISCore.profiles.chosenStatus(chatProfile);
   if(statusMsg) statusMsg.value = chatProfile.statusMsg || '';
 
   openModal('editInstructorProfileModal');
@@ -25250,22 +25425,24 @@ function saveInstructorProfile() {
   if(!newName) { showToast('Please enter your name'); return; }
   if(!email) { showToast('Please enter an email address'); return; }
 
-  // Update name in instructor data, userAccounts, and instructorData array
+  // Update name in instructor data, userAccounts, and instructorData array.
+  // The account is dated (touchAccount): undated, the next sync took the
+  // older copy of the account back and the old name with it.
+  var _acctTouched = false;
   if(newName !== ins.name) {
     ins.name = newName;
     if(currentLoggedInUser) currentLoggedInUser.name = newName;
     var acct = userAccounts.find(function(u){ return u.id === currentLoggedInUser.id; });
-    if(acct) acct.name = newName;
+    if(acct) { acct.name = newName; touchAccount(acct); _acctTouched = true; }
   }
 
-  instructorProfiles[ins.id] = {
-    name: newName,
-    email: email,
-    phone: phone,
-    specialization: specialization,
-    bio: bio,
-    updatedAt: new Date().toISOString()
-  };
+  // Changed in place, each change stamped (see saveStudentProfile).
+  var ip = instructorProfiles[ins.id] || (instructorProfiles[ins.id] = {});
+  var ipNext = { name: newName, email: email, phone: phone, specialization: specialization, bio: bio };
+  var ipChanged = [];
+  Object.keys(ipNext).forEach(function(f) { if(ip[f] !== ipNext[f]) { ip[f] = ipNext[f]; ipChanged.push(f); } });
+  if(ipChanged.length || !ip.updatedAt) CESTISCore.profiles.touch(ip, ipChanged, profileNowIso(), 'instructorProfiles');
+  if(_acctTouched) { try { saveUserAccounts(); } catch(e) {} }
 
   // Also update the instructor data object so changes reflect everywhere
   ins.email = email;
@@ -25343,7 +25520,7 @@ function openAccountProfileEdit() {
   profilePicLoadPreview('editAcctPicPreview', user.id, user.name);
   var statusSel = document.getElementById('editAcctStatus');
   var statusMsg = document.getElementById('editAcctStatusMsg');
-  if(statusSel) statusSel.value = chatProfile.status || 'online';
+  if(statusSel) statusSel.value = CESTISCore.profiles.chosenStatus(chatProfile);
   if(statusMsg) statusMsg.value = chatProfile.statusMsg || '';
 
   openModal('editAccountProfileModal');
@@ -25359,16 +25536,24 @@ function saveAccountProfile() {
 
   if(!newName) { showToast('Please enter your name'); return; }
 
-  // Update the userAccounts entry
+  // Update the userAccounts entry — dated (touchAccount) and written to the
+  // accounts list at once (saveUserAccounts). Undated, the next sync judged
+  // the Centre's older copy of the account the newer one and the name and
+  // e-mail went back; the phone number never left this computer at all.
   var acct = userAccounts.find(function(u){ return u.id === user.id; });
-  if(acct) {
-    acct.name = newName;
-    if(email) acct.email = email;
-    if(phone) acct.phone = phone;
+  var acctChanged = false;
+  [acct, user].forEach(function(a) {
+    if(!a) return;
+    if(a.name !== newName) { a.name = newName; acctChanged = true; }
+    if(email && a.email !== email) { a.email = email; acctChanged = true; }
+    if(phone !== undefined && (a.phone || '') !== phone) { a.phone = phone; acctChanged = true; }
+  });
+  if(acctChanged) {
+    var _t = CESTISCore.sync.laterStamp(profileNowIso(), (acct || user).updatedAt);
+    if(acct) acct.updatedAt = _t;
+    user.updatedAt = _t;
+    try { saveUserAccounts(); } catch(e) {}
   }
-  user.name = newName;
-  if(email) user.email = email;
-  if(phone) user.phone = phone;
 
   // Sync profile pic and status to LMS Chat
   syncProfileToLmsChat(user.id, newName, user.role, user.programme || '', 'account');
@@ -26151,6 +26336,13 @@ window.addEventListener('message', function(e) {
   }
   // Student Progress's "+ Add Student" (OF-7): the New trainee form — or,
   // for somebody who may manage the roll but not add accounts, its own form.
+  // Student Progress's "waiting for approval" note: Verify Users (or, for Admin
+  // Staff, their trainee accounts page).
+  if(e.data && e.data.type === 'cestis-sp-verify-users') {
+    if (!cestisMessageFromFrames(e, STUDENT_PROGRESS_FRAMES)) return;
+    if (currentRole === 'admin') showPage('verify-users');
+    else if (currentRole === 'adminstaff' && typeof pageAllowedForRole === 'function' && pageAllowedForRole('as-trainee-accounts')) showPage('as-trainee-accounts');
+  }
   if(e.data && e.data.type === 'cestis-new-trainee') {
     if (!cestisMessageFromFrames(e, STUDENT_PROGRESS_FRAMES)) return;
     if (officeMayAddTrainee()) openNewTrainee();
@@ -26441,7 +26633,7 @@ var CESTIS_SHARED_COLLECTIONS = {
   // Another tab's or the Centre's network's copy: its details' stamps came
   // with it, and nothing in it was edited in THIS window.
   voctrain_students:            function(v){ students = v; cestisRepointSessionRecords(); if (typeof studentFieldsRebaseline === 'function') studentFieldsRebaseline(); },
-  voctrain_studentProfiles:     function(v){ studentProfiles = v; },
+  voctrain_studentProfiles:     function(v){ studentProfiles = v; try { if (typeof profilesTakeTraineeChat === 'function') profilesTakeTraineeChat(); } catch(e) {} },
   voctrain_instructorData:      function(v){ instructorData = v; cestisRepointSessionRecords(); },
   voctrain_instructorProfiles:  function(v){ instructorProfiles = v; },
   // Merged, never adopted wholesale (see mergeIncomingAttendance).
@@ -26728,14 +26920,18 @@ function syncStudentsFromLocalFeeSystem(force) {
       // records disagreeing on both, and adding "again" would split one trainee
       // into two.
       if (twins.find(fee)) return;
-      if (deleted[studentId]) return;                 // removed on the dashboard
-      if (feeSid && deleted[feeSid]) return;          // tombstoned under its stable id
-      if (deleted['SF-' + norm(fee.id)]) return;      // tombstoned under the fee twin id
+      // Removed on the dashboard (under its own id, its mirror id, its linked
+      // id or its stable id) — unless this fee record was ADDED after that
+      // deletion: a new enrolment of the same name, which used to be ignored
+      // for good (CESTISCore.feeRecordTombstoned).
+      if (CESTISCore.feeRecordTombstoned ? CESTISCore.feeRecordTombstoned(fee, deleted, (typeof _getDeletedStudentTimes === 'function' ? _getDeletedStudentTimes() : CESTISCore.readDeletedStudentTimes(CESTISStore)))
+          : (deleted[studentId] || (feeSid && deleted[feeSid]) || deleted['SF-' + norm(fee.id)])) return;
       if (existingIds[studentId]) return;             // already present by id
       // A trainee who already has a sign-in account already has a record —
       // on this device or not yet on it. Enrolling them again made a second
       // record under a new id, and for it a second, email-less account.
       if (traineeRecordExistsElsewhere({ name: name, programme: course, email: norm(fee.email),
+                                         nationalId: norm(fee.nationalId), dateOfBirth: norm(fee.dateOfBirth),
                                          ids: [studentId, norm(fee.lmsId), feeSid] })) return;
 
       // The shared rule (see CESTISCore.lmsMirrorTarget). This dashboard's
@@ -26784,6 +26980,25 @@ function syncStudentsFromLocalFeeSystem(force) {
         instructor: assignedInstructor,
         source: 'schoolfee'
       };
+      // Its training centre's course dates and financial year, from the date
+      // the fee page enrolled it (the dashboard's year bar reads these), and
+      // the new-enrolment mark that keeps an earlier deletion of the same name
+      // from hiding it.
+      try {
+        var _feeOn = norm(fee.enrollmentDate || fee.enrolmentDate) || localDateStr();
+        var _cs = CESTISCore.enrolment.enrolmentStamp(CESTISCore.enrolment.findCentre(skillAreas, course, { exact: true }), _feeOn);
+        if (_cs) {
+          _newStudent.centreId = _cs.centreId; _newStudent.centreName = _cs.centreName;
+          _newStudent.courseStart = _cs.courseStart; _newStudent.courseEnd = _cs.courseEnd;
+          _newStudent.enrolmentDate = _cs.enrolmentDate; _newStudent.fiscalYear = _cs.fiscalYear;
+        } else if (norm(fee.enrollmentDate || fee.enrolmentDate)) {
+          _newStudent.enrolmentDate = norm(fee.enrollmentDate || fee.enrolmentDate);
+        }
+      } catch(e) {}
+      try { CESTISCore.markEnrolment(_newStudent, CESTISStore); _delStudentAtMemo = null; } catch(e) {}
+      // A namesake on the same programme (another person, as decided above):
+      // pinned, so the id stabilisation never folds the two together.
+      try { CESTISCore.pinIfNamesake(_newStudent, students); } catch(e) {}
       twins.add(_newStudent);
       existingIds[studentId] = true;
 
@@ -26930,11 +27145,14 @@ function refreshStudentDependentViews() {
     // as it stands — 329 trainees against 220, from the same array.
     'refreshReportsAnalytics'
   ];
-  fns.forEach(function(name){
-    try {
-      var fn = window[name];
-      if(typeof fn === 'function') fn();
-    } catch(e) { /* one bad render shouldn't block the others */ }
+  // What somebody is typing survives the redraw (cestisKeepTyping).
+  cestisKeepTyping(function() {
+    fns.forEach(function(name){
+      try {
+        var fn = window[name];
+        if(typeof fn === 'function') fn();
+      } catch(e) { /* one bad render shouldn't block the others */ }
+    });
   });
 }
 
@@ -26942,6 +27160,53 @@ function refreshStudentDependentViews() {
 // pages, so a change made in one place is reflected everywhere without a reload.
 // Every listed render function guards on its own missing DOM (or is wrapped in
 // try/catch here), so calling one whose page isn't mounted is a safe no-op.
+/* A background sync redraws the views (refreshContentDependentViews,
+   refreshStudentDependentViews) while somebody may be typing in them. The
+   redraw replaced the boxes with fresh empty ones, so a mark and a comment an
+   instructor had typed — but not yet saved — vanished as another device's
+   save arrived, and pressing Save then saved nothing. What was typed into a
+   box the redraw replaced is put back (same id), with the cursor where it
+   was; an edit panel it sat in is opened again. Nothing is saved here. */
+function cestisKeepTyping(run) {
+  var kept = [], focus = null;
+  try {
+    document.querySelectorAll('input[id], textarea[id], select[id]').forEach(function(el) {
+      var t = String(el.type || '').toLowerCase();
+      if (t === 'hidden' || t === 'file' || t === 'password' || t === 'button' || t === 'submit') return;
+      var dirty = el.tagName === 'SELECT' ? false
+        : (t === 'checkbox' || t === 'radio') ? el.checked !== el.defaultChecked
+        : el.value !== el.defaultValue;
+      if (dirty) kept.push({ id: el.id, node: el, value: el.value, checked: el.checked, box: t === 'checkbox' || t === 'radio' });
+    });
+    var a = document.activeElement;
+    if (a && a.id && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA')) {
+      var st = null, en = null;
+      try { st = a.selectionStart; en = a.selectionEnd; } catch (e) {}
+      focus = { id: a.id, node: a, st: st, en: en };
+    }
+  } catch (e) { kept = []; focus = null; }
+  try { run(); }
+  finally {
+    kept.forEach(function(k) {
+      try {
+        var now = document.getElementById(k.id);
+        if (!now || now === k.node || now.tagName !== k.node.tagName) return;
+        if (k.box) now.checked = k.checked; else now.value = k.value;
+        var ed = now.closest ? now.closest('.gb-editor') : null;
+        if (ed && ed.hidden) ed.hidden = false;
+      } catch (e) {}
+    });
+    if (focus) {
+      try {
+        var f = document.getElementById(focus.id);
+        if (f && f !== focus.node && document.activeElement !== f) {
+          f.focus({ preventScroll: true });
+          if (focus.st != null && typeof f.setSelectionRange === 'function') f.setSelectionRange(focus.st, focus.en);
+        }
+      } catch (e) {}
+    }
+  }
+}
 function refreshContentDependentViews() {
   var fns = [
     'renderExams','renderInstructorExams','renderStudentExams',
@@ -26958,11 +27223,14 @@ function refreshContentDependentViews() {
     'filterCerts','renderCertStats','renderCertDownloadMgmt',
     'refreshAttentionViews'
   ];
-  fns.forEach(function(name){
-    try {
-      var fn = window[name];
-      if(typeof fn === 'function') fn();
-    } catch(e) { /* one bad render shouldn't block the others */ }
+  // What somebody is typing survives the redraw (cestisKeepTyping).
+  cestisKeepTyping(function() {
+    fns.forEach(function(name){
+      try {
+        var fn = window[name];
+        if(typeof fn === 'function') fn();
+      } catch(e) { /* one bad render shouldn't block the others */ }
+    });
   });
 }
 
@@ -27282,8 +27550,11 @@ function updatePipelineCounts() {
   // One pass to tally every stage, not one full pass PER stage — this runs on
   // every keystroke in the student search (via filterStudents) and on every
   // reactive refresh.
+  // The dashboard's pipeline: the trainees of the year its year bar shows
+  // (dashScope), like every other figure on it. Nothing else draws one.
+  if (!document.getElementById('pTest')) return;
   var tally = {};
-  students.forEach(function (st) { if (st) tally[st.stage] = (tally[st.stage] || 0) + 1; });
+  dashScope().roll.forEach(function (st) { if (st) tally[st.stage] = (tally[st.stage] || 0) + 1; });
   stages.forEach(s => {
     const count = tally[s] || 0;
     var base = STAGE_ID_BASE[s] || ('p'+s.charAt(0).toUpperCase()+s.slice(1));
@@ -27316,68 +27587,361 @@ function backfillAccountProgrammes() {
   } catch (e) { return false; }
 }
 
-// Live-update the Dashboard stat cards that count students, so they reflect
-// students added via any path (e.g. pulled in from School Fee) without
-// rebuilding the page (the dashboard is template-literal HTML; there is no
-// updateDashboard fn). The cards have no ids, so match them by label text.
+/* ============ THE DASHBOARD'S YEAR ============
+   The owner: "put a filter fiscal year for dashboard as well that ensure only
+   trainee to date are shown, not data for centres closed."
+
+   The School Fee page's year bar sits above the dashboard's figures:
+   ◀ Previous year | FY | Next year ▶, Whole Year, Q1–Q4, All Years, and a
+   small "Include closed centres" switch. WHO the figures count is decided in
+   one place — CESTISCore.yearView.scope, where the rule is written out — and
+   dashScope() asks it once per drawing. Every figure on the dashboard reads
+   that one answer: the four cards, School Fees, the pipeline, the alerts
+   about trainees, Top Performers, Recent Activity and the certificate chart.
+   Exams and classes follow the same period and closed-centre choice
+   (CESTISCore.yearView.recordIn).
+
+   Left as they are, whatever year is shown: the work waiting today — Office
+   today, staff appraisals, registers not taken, marking waiting, system
+   health. They are not a year's figures, and hiding them would hide work
+   still to be done.
+
+   The choice belongs to this screen (localStorage 'cestisDashYearView',
+   never backed up or shared) and the filter is a view only: nothing here
+   changes a record. */
+var _dashYearView = null;
+function dashLocalStore() { try { return window.localStorage; } catch (e) { return null; } }
+function dashYearView() {
+  if (!_dashYearView) _dashYearView = CESTISCore.yearView.read(dashLocalStore());
+  return _dashYearView;
+}
+function dashSetYearView(change) {
+  _dashYearView = CESTISCore.yearView.normalise(Object.assign({}, dashYearView(), change || {}));
+  CESTISCore.yearView.write(dashLocalStore(), _dashYearView);
+  _dashScopeMemo = null;
+  refreshAdminDashboard();
+}
+// The bar's buttons — the School Fee bar's, by the same names and behaviour.
+function dashShiftFY(dir) {
+  var v = dashYearView();
+  dashSetYearView({ fy: CESTISCore.yearView.shiftFY(v.fy, dir), mode: v.mode === 'all' ? 'year' : v.mode });
+}
+function dashSelectYear() { dashSetYearView({ mode: 'year' }); }
+function dashSelectQuarter(q) { dashSetYearView({ mode: 'quarter', q: q }); }
+// "All Years" is a toggle, as on School Fee: pressed again, back to one year.
+function dashSelectAll() { dashSetYearView({ mode: dashYearView().mode === 'all' ? 'year' : 'all' }); }
+function dashReturnToPresent() {
+  var now = CESTISCore.currentQuarter() || {};
+  dashSetYearView({ fy: now.fy, q: now.q || 1, mode: 'year' });
+}
+function dashSetClosed(on) { dashSetYearView({ closed: !!on }); }
+
+/* Who the dashboard counts, worked out once per drawing. The answer is kept
+   only while nothing it depends on has changed and only until the current
+   piece of work is done, so a trainee added a moment later is never missed. */
+var _dashScopeMemo = null, _dashScopeSig = '';
+function dashScope() {
+  var roll = (typeof students !== 'undefined' && Array.isArray(students)) ? students : [];
+  var areas = (typeof skillAreas !== 'undefined' && Array.isArray(skillAreas)) ? skillAreas : [];
+  var v = dashYearView();
+  var sig = [roll.length, areas.length, v.mode, v.fy, v.q, v.closed, CESTISCore.courseDuration.todayStr()].join('|');
+  if (_dashScopeMemo && _dashScopeMemo._roll === roll && _dashScopeMemo._areas === areas && _dashScopeSig === sig) return _dashScopeMemo;
+  var sc = CESTISCore.yearView.scope(roll, v, { centreOf: studentCentreRecord });
+  sc._roll = roll; sc._areas = areas;
+  _dashScopeMemo = sc; _dashScopeSig = sig;
+  Promise.resolve().then(function () { if (_dashScopeMemo === sc) _dashScopeMemo = null; });
+  return sc;
+}
+function dashRoll() { return dashScope().roll; }
+// An exam's or a class's training centre: the intake running on its date.
+function dashCentreOfRecord(r) {
+  if (!r || !r.course || typeof skillAreas === 'undefined' || !Array.isArray(skillAreas)) return null;
+  try { return CESTISCore.enrolment.findCentre(skillAreas, r.course, { on: r.date || '' }) || null; } catch (e) { return null; }
+}
+function dashRecordInView(r) {
+  return CESTISCore.yearView.recordIn(r, dashYearView(), { centreOf: dashCentreOfRecord });
+}
+function dashExamsInView() { return (Array.isArray(exams) ? exams : []).filter(function (e) { return e && dashRecordInView(e); }); }
+function dashClassesInView() { return (Array.isArray(classSessions) ? classSessions : []).filter(function (c) { return c && dashRecordInView(c); }); }
+// The attendance alert: the Needs Attention list's own rule (trainees in
+// training in an intake still running, by the register), over the trainees
+// the dashboard is counting.
+function dashLowAttendanceCount() {
+  var ids = dashScope().ids;
+  try { return attentionRows().filter(function (r) { return ids[String(r.id)] && r.pct != null && r.pct < CESTISCore.attention.LOW_ATTENDANCE; }).length; } catch (e) { return 0; }
+}
+/* A closed centre's fee accounts and payments are left out with its trainees
+   (CESTISCore.yearView.fees). An account linked to a trainee goes by that
+   trainee's own intake; one that is not, by what is stamped on it; a payment
+   with no account, by its programme's intake on the day it was paid. */
+function dashFeeClosedRule() {
+  var Y = CESTISCore.yearView, byId = {};
+  (Array.isArray(students) ? students : []).forEach(function (s) { if (s && s.id != null) byId[String(s.id)] = s; });
+  var closedRec = function (rec) { return Y.intakeClosed(Y.intakeOf(rec, studentCentreRecord(rec))); };
+  return {
+    account: function (f) {
+      if (!f) return false;
+      var s = f.lmsId != null ? byId[String(f.lmsId)] : null;
+      return closedRec(s || { centreId: f.centreId, centreKey: f.centreKey, centreName: f.centreName, course: f.skillArea || f.course,
+        enrollmentDate: f.enrollmentDate, createdAt: f.createdAt, courseStart: f.courseStart, courseEnd: f.courseEnd });
+    },
+    payment: function (p) {
+      var c = dashCentreOfRecord({ course: p && (p.skillArea || p.course), date: p && p.date });
+      return !!c && Y.intakeClosed(Y.intakeOf(null, c));
+    }
+  };
+}
+
+/* The bar: the School Fee year bar's look, words and behaviour, and beside
+   it what is being counted, said plainly — "FY 2026/2027 · open centres ·
+   214 trainees" — with every trainee the view leaves out accounted for. */
+function dashWhoList(list, why) {
+  if (!list || !list.length) return '';
+  return ' <details class="dyb-who"><summary>Show who</summary><ul>' + list.map(function (s) {
+    return '<li>' + escapeHtml(s.name || s.id || 'Trainee') + (s.course ? ' — ' + escapeHtml(s.course) : '') + (why ? ' ' + escapeHtml(why(s)) : '') + '</li>';
+  }).join('') + '</ul><button type="button" class="dyb-link" onclick="showPage(\'students\')">Open Student Progress</button></details>';
+}
+function dashYearBarHtml() {
+  var Y = CESTISCore.yearView, sc = dashScope(), v = sc.view, all = v.mode === 'all';
+  var thisFY = Y.presentFY(), tense = Y.tense(v.fy), isPast = !all && tense !== 'present';
+  var n = function (k, one, many) { return k.toLocaleString() + ' ' + (k === 1 ? one : many); };
+  var quarters = [[1, 'Q1 · Apr–Jun'], [2, 'Q2 · Jul–Sep'], [3, 'Q3 · Oct–Dec'], [4, 'Q4 · Jan–Mar']];
+  var tab = function (key, cls, on, onclick, label, title, tick) {
+    return '<button type="button" class="dyb-tab' + (cls ? ' ' + cls : '') + (on ? ' active' : '') + '" data-dyb="' + key + '" onclick="' + onclick + '" aria-pressed="' +
+      (on ? 'true' : 'false') + '" title="' + escapeAttr(title) + '">' + (on && tick ? '✓ ' : '') + label + '</button>';
+  };
+  var h = '<div class="dyb-fy">' +
+      '<button type="button" class="dyb-btn" data-dyb="prev" onclick="dashShiftFY(-1)" title="Go back one financial year">◀ Previous year</button>' +
+      '<span class="dyb-label">FY ' + escapeHtml(v.fy) + (isPast ? ' <span class="dyb-tag">' + (tense === 'future' ? 'ahead' : 'past') + '</span>' : '') + '</span>' +
+      '<button type="button" class="dyb-btn" data-dyb="next" onclick="dashShiftFY(1)" title="Go forward one financial year">Next year ▶</button>' +
+    '</div>' +
+    '<div class="dyb-tabs">' +
+      tab('year', 'dyb-thisyear', v.mode === 'year', 'dashSelectYear()', 'Whole Year', 'The whole of FY ' + v.fy, true) +
+      quarters.map(function (q) {
+        return tab('q' + q[0], '', v.mode === 'quarter' && v.q === q[0], 'dashSelectQuarter(' + q[0] + ')', q[1], 'Trainees who enrolled in ' + q[1].split(' · ')[1] + ' of FY ' + v.fy, false);
+      }).join('') +
+      tab('all', 'dyb-allyears', all, 'dashSelectAll()', 'All Years', all ? 'Showing every year at once. Click to go back to one year.' : 'Every year at once — the Centre’s whole history', true) +
+    '</div>';
+  // What is counted.
+  var detail = '';
+  if (all) detail = 'Every trainee on the roll';
+  else {
+    var when = v.mode === 'quarter' ? 'in ' + Y.periodLabel(v).split(' ')[0] : (tense === 'present' ? 'this year' : 'in FY ' + v.fy);
+    detail = sc.enrolled.toLocaleString() + ' enrolled ' + when + (tense === 'present' ? ' to date' : '');
+    if (sc.carried) detail += ' · ' + n(sc.carried, 'trainee', 'trainees') + (tense === 'present' ? ' still in training' : ' in training') + ' from earlier years';
+  }
+  h += '<div class="dyb-status"><div class="dyb-what" id="dashYearStatus" aria-live="polite"><strong id="dashYearHeadline">' + escapeHtml(Y.headline(sc)) + '</strong>' +
+    '<span class="dyb-detail">' + escapeHtml(detail) + '</span></div>';
+  if (!all && tense === 'present') {
+    var shut = sc.closedOut.length;
+    h += '<label class="dyb-closed"><input type="checkbox" id="dashIncludeClosed" data-dyb="closed"' + (v.closed ? ' checked' : '') + ' onchange="dashSetClosed(this.checked)"> Include closed centres' +
+      (!v.closed && shut ? ' <span class="dyb-count">(' + n(shut, 'trainee', 'trainees') + ' not counted)</span>' : '') + '</label>';
+  }
+  h += '</div>';
+  // Everyone the view leaves out is accounted for.
+  var notes = [];
+  if (sc.later.length) notes.push(n(sc.later.length, 'trainee is', 'trainees are') + ' enrolled with a date after today, so not counted yet.' +
+    dashWhoList(sc.later, function (s) { return '(enrolled ' + (s.enrolmentDate || s.enrollmentDate || s.enrollDate || '') + ')'; }));
+  if (sc.unplaced.length) notes.push(n(sc.unplaced.length, 'trainee has', 'trainees have') + ' no enrolment date, year or centre dates, so no year can be given — counted under All Years.' + dashWhoList(sc.unplaced));
+  if (sc.noQuarter.length) notes.push(n(sc.noQuarter.length, 'trainee', 'trainees') + ' of FY ' + escapeHtml(v.fy) + ' with no date inside the year ' + (sc.noQuarter.length === 1 ? 'is' : 'are') + ' counted under Whole Year, not a quarter.' + dashWhoList(sc.noQuarter));
+  if (sc.carriedNotInQuarter) notes.push(n(sc.carriedNotInQuarter, 'trainee', 'trainees') + ' in training from earlier years ' + (sc.carriedNotInQuarter === 1 ? 'is' : 'are') + ' counted under Whole Year, not a quarter.');
+  if (isPast) notes.push('You are looking at <strong>FY ' + escapeHtml(v.fy) + '</strong>, not the present year. ' +
+    (tense === 'future' ? 'This year has not started yet. ' : 'Every centre of that year is counted, closed ones too — by now all of them have closed. ') +
+    '<button type="button" class="dyb-btn dyb-return" data-dyb="present" onclick="dashReturnToPresent()">Return to FY ' + escapeHtml(thisFY) + '</button>');
+  if (all) notes.push('Every year is counted together, so these figures include past groups and closed centres. ' +
+    '<button type="button" class="dyb-btn dyb-return" data-dyb="present" onclick="dashReturnToPresent()">Show FY ' + escapeHtml(thisFY) + ' only</button>');
+  return h + notes.map(function (t) { return '<div class="dyb-note">' + t + '</div>'; }).join('');
+}
+
 // Under "Total Enrolled": how many of them are in training now, and how many
 // are applicants — the total counts both, and those who have finished.
-function dashActiveLineText() {
-  var e = CESTISCore.centreFigures.enrolment(students);
-  return e.active + ' active (in training) \u00b7 ' + e.applicants + ' applicant' + (e.applicants === 1 ? '' : 's');
+function dashActiveLineText(roll) {
+  var e = CESTISCore.centreFigures.enrolment(roll || (typeof dashRoll === 'function' ? dashRoll() : students));
+  return e.active + ' active (in training) · ' + e.applicants + ' applicant' + (e.applicants === 1 ? '' : 's');
 }
-/* School fees on the administrator's dashboard (audit M7): this financial
-   year's billed, collected and outstanding, and — beside Outstanding, never
-   added into it — what trainees of earlier years still owe. Read from the
-   School Fee books by the rule the board and School Fee itself use
-   (CESTISCore.centreFigures.fees). Reads only. */
+/* The four cards. Under All Years they are what they always were;
+   "Certified" is then this calendar year's certificates, by their own date
+   (the card once counted every graduate the Centre ever had). For a year or
+   a quarter it is its trainees who hold a certificate — the pipeline's
+   Certified and Collected. */
+function dashStatsHtml() {
+  var sc = dashScope(), roll = sc.roll, all = sc.view.mode === 'all', F = CESTISCore.centreFigures;
+  var certified = all ? CESTISCore.certs.certifiedInYear(roll, new Date().getFullYear()) : roll.filter(F.isCertified).length;
+  var upcoming = dashExamsInView().filter(function (e) { return e.status === 'upcoming'; });
+  var nextExam = upcoming.slice().sort(function (a, b) { return String(a.date || '').localeCompare(String(b.date || '')); })[0];
+  var classes = dashClassesInView().length;
+  var card = function (id, icon, bg, fg, value, label, sub, subId) {
+    return '<div class="stat-card"><div class="stat-icon" style="background:var(' + bg + ');color:var(' + fg + ');">' + icon + '</div>' +
+      '<div class="stat-value" id="' + id + '" data-count="' + value + '">' + value.toLocaleString() + '</div><div class="stat-label">' + label + '</div>' +
+      '<div class="stat-change"' + (subId ? ' id="' + subId + '"' : '') + ' style="color:var(--text-muted);">' + sub + '</div></div>';
+  };
+  return card('dashTotalEnrolled', '👥', '--blue-dim', '--blue', roll.length, 'Total Enrolled Students', escapeHtml(dashActiveLineText(roll)), 'dashActiveLine') +
+    card('dashCertified', '🎓', '--green-dim', '--green', certified, all ? 'Certified This Year' : 'Certified', all ? 'Completed certification' : 'Of the trainees counted here') +
+    card('dashUpcomingExams', '📝', '--accent-dim', '--accent', upcoming.length, 'Upcoming Exams', 'Next: ' + escapeHtml(nextExam && nextExam.date ? String(nextExam.date).slice(5) : 'None scheduled')) +
+    card('dashClassSessions', '📹', '--purple-dim', '--purple', classes, 'Class Sessions', all ? 'Total scheduled' : 'Scheduled in ' + escapeHtml(CESTISCore.yearView.periodLabel(sc.view)));
+}
+/* System Alerts. Those about trainees count the trainees shown; the work
+   waiting today — registers not taken, marking, sync — is every programme's,
+   whatever year is shown. */
+function dashAlertsHtml() {
+  const sc = dashScope(), roll = sc.roll;
+  // Only trainees in training in an intake still running, by the register:
+  // the same rule as the Needs Attention list the alert opens
+  // (CESTISCore.attention) — applicants, graduates and ended intakes are not
+  // a warning.
+  const lowAttendance = dashLowAttendanceCount();
+  // The marking backlog and the registers not taken on the last school day
+  // (CESTISCore.officeWatch): who and how old, not a bare count.
+  let backlog = { waiting: 0, pastDueMissing: 0, byOwner: [], oldestDays: null }, notTaken = { day: '', list: [] };
+  try { backlog = officeBacklog(false); notTaken = registersNotTakenList(); } catch (e) {}
+  const upcomingExams = dashExamsInView().filter(e=>e.status==='upcoming').length;
+  const pendingCerts = roll.filter(s=>s.stage==='certified'&&!s.certCollected).length;
+  const incompleteCount = roll.filter(s=>s.stage==='incomplete').length;
+  // What the course-end rule found in the transcripts of trainees whose course
+  // has ended: ready to certify, or still waiting for results to be marked.
+  const courseEndOf = (state) => roll.filter(s=>{ const f = CESTISCore.courseEnd.flag(s); return f && f.state===state; });
+  const readyToCertify = courseEndOf('ready'), awaitingMarking = courseEndOf('awaiting-marking');
+  const someNames = (list) => list.slice(0,3).map(s=>s.name).join(', ') + (list.length>3 ? ' and ' + (list.length-3) + ' more' : '');
+  return `<div class="card-header"><h3>System Alerts</h3></div>
+        <div class="alert-item alert-danger alert-link" role="button" tabindex="0" id="dashLowAttendanceAlert" onclick="showPage('needs-attention')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showPage('needs-attention');}" title="See who, with their last attendance and phone"><div class="alert-icon">⚠️</div><div class="alert-body"><div class="alert-msg">${lowAttendance} student${lowAttendance!==1?'s':''} below 70% attendance</div><div class="alert-time">Needs attention — see who &rarr;</div></div></div>
+        ${notTaken.list.length ? `<div class="alert-item alert-danger alert-link" role="button" tabindex="0" id="dashRegistersNotTaken" onclick="showPage('attendance')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showPage('attendance');}"><div class="alert-icon">📋</div><div class="alert-body"><div class="alert-msg">Registers not taken on ${escapeHtml(officeDayLabel(notTaken.day))}: ${notTaken.list.length} class${notTaken.list.length!==1?'es':''}</div><div class="alert-time">${escapeHtml(notTaken.list.map(x => (x.session.name || 'Class') + ' (' + x.course + (x.instructor ? ', ' + x.instructor : '') + ')').join(' · '))}</div></div></div>` : ''}
+        ${backlog.waiting || backlog.pastDueMissing ? `<div class="alert-item alert-warning alert-link" role="button" tabindex="0" id="dashMarkingBacklog" onclick="showPage('a-assignments')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showPage('a-assignments');}"><div class="alert-icon">✍️</div><div class="alert-body"><div class="alert-msg">${backlog.waiting} piece${backlog.waiting!==1?'s':''} of work waiting to be marked${backlog.oldestDays != null ? ', the oldest for ' + officeDaysText(backlog.oldestDays) : ''}</div><div class="alert-time">${backlog.pastDueMissing ? backlog.pastDueMissing + ' past due, never handed in · ' : ''}${escapeHtml(backlog.byOwner.slice(0,3).map(o => o.owner + ': ' + o.waiting).join(' · '))} &rarr;</div></div></div>` : ''}
+        <div class="alert-item alert-warning" id="dashExamsAlert"><div class="alert-icon">📝</div><div class="alert-body"><div class="alert-msg">${upcomingExams} exams scheduled this period</div><div class="alert-time">Review schedule</div></div></div>
+        ${readyToCertify.length ? `<div class="alert-item alert-success"><div class="alert-icon">✅</div><div class="alert-body"><div class="alert-msg">${readyToCertify.length} trainee${readyToCertify.length!==1?'s':''} ready to certify</div><div class="alert-time">Course ended, every core unit competent: ${escapeHtml(someNames(readyToCertify))}</div></div></div>` : ''}
+        ${awaitingMarking.length ? `<div class="alert-item alert-warning"><div class="alert-icon">⏳</div><div class="alert-body"><div class="alert-msg">${awaitingMarking.length} trainee${awaitingMarking.length!==1?'s':''} awaiting marking after their course ended</div><div class="alert-time">Not marked Not Yet Competent until the results are in: ${escapeHtml(someNames(awaitingMarking))}</div></div></div>` : ''}
+        <div class="alert-item alert-info" id="dashPendingCertsAlert"><div class="alert-icon">🎓</div><div class="alert-body"><div class="alert-msg">${pendingCerts} certificates pending collection</div><div class="alert-time">Notify students</div></div></div>
+        <div class="alert-item alert-warning" id="dashIncompleteAlert"><div class="alert-icon">📊</div><div class="alert-body"><div class="alert-msg">${incompleteCount} students marked incomplete</div><div class="alert-time">Follow up required</div></div></div>
+        <div class="alert-item alert-info"><div class="alert-icon">🔄</div><div class="alert-body"><div class="alert-msg">Auto-sync is ${isCloudConnected?'active':'inactive'}</div><div class="alert-time">${isCloudConnected?'Every '+(AUTO_SAVE_INTERVAL_MS/1000)+' seconds':'Turn it on with the Sync button'}</div></div></div>`;
+}
+function dashTopPerformersHtml() {
+  const roll = dashRoll();
+  // By the GPA the marks produce (studentGpaFigure), best first; trainees with
+  // no marks yet are not "performers" (the hand-typed 0.0 put five at-risk
+  // trainees at the top).
+  const topPerformers = roll.map(s => { const sum = studentCourseworkSummary(s); return { s: s, g: studentGpaFigure(s, sum), p: sum.percent }; })
+    .filter(x => x.g != null).sort((a,b) => (parseFloat(b.g) - parseFloat(a.g)) || ((b.p || 0) - (a.p || 0))).slice(0,5)
+    .map(x => Object.assign({}, x.s, { gpa: x.g }));
+  return `<div class="card-header"><h3>Top Performers</h3></div>
+        ${topPerformers.length ? '' : '<p style="font-size:13px;color:var(--text-muted);padding:8px 0;">No marks recorded yet.</p>'}
+        ${topPerformers.map((s,i) => {
+          const colors = ['linear-gradient(135deg,#f0a500,#d4900a)','linear-gradient(135deg,#bdc3c7,#95a5a6)','linear-gradient(135deg,#e67e22,#d35400)','linear-gradient(135deg,var(--blue),#2980b9)','linear-gradient(135deg,var(--teal),#16a085)'];
+          const initials = String(s.name || '').split(' ').map(n=>n[0] || '').join('');
+          return `<div class="performer-row">
+            <div class="rank ${i<3?'rank-'+(i+1):''}">${i+1}</div>
+            <div class="perf-avatar" style="background:${colors[i]};">${escapeHtml(initials)}</div>
+            <div class="perf-info"><div class="perf-name">${escapeHtml(s.name)}</div><div class="perf-course">${escapeHtml(s.course)}</div></div>
+            <div class="perf-score"><div class="score-val">${escapeHtml(s.gpa)} GPA</div><div class="score-bar"><div class="score-fill" style="width:${(parseFloat(s.gpa)/4*100).toFixed(0)}%;"></div></div></div>
+          </div>`;
+        }).join('')}`;
+}
+// The latest results and certificate collections of the trainees shown.
+function dashRecentActivityHtml() {
+  var sc = dashScope(), items = [];
+  (examResults||[]).filter(function(r){ return r && sc.ids[String(r.studentId)]; }).slice(-3).reverse().forEach(function(r) {
+    var ex = exams.find(function(e){return e.id===r.examId;}) || {};
+    var st = sc.roll.find(function(s){return s.id===r.studentId;}) || {};
+    items.push('<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);"><div style="width:8px;height:8px;border-radius:50%;background:'+(r.passed?'var(--green)':'var(--red)')+';flex-shrink:0;"></div><div><div style="font-size:13px;">'+escapeHtml(st.name||'Student')+' '+(r.passed?'passed':'attempted')+' <strong>'+escapeHtml(ex.title||'Exam')+'</strong></div><div style="font-size:11px;color:var(--text-muted);">Score: '+escapeHtml(r.score)+'%</div></div></div>');
+  });
+  sc.roll.filter(function(s){return s.stage==='collected';}).slice(-2).forEach(function(s) {
+    items.push('<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);"><div style="width:8px;height:8px;border-radius:50%;background:var(--accent);flex-shrink:0;"></div><div><div style="font-size:13px;">'+escapeHtml(s.name)+' collected certificate for <strong>'+escapeHtml(s.course)+'</strong></div><div style="font-size:11px;color:var(--text-muted);">Certificate '+escapeHtml(s.certNo)+'</div></div></div>');
+  });
+  if(items.length === 0) items.push('<p style="color:var(--text-muted);padding:8px;">No recent activity for the trainees shown. Activity will appear here as students interact with the system.</p>');
+  return '<div class="card-header"><h3>Recent Activity</h3></div><div style="display:flex;flex-direction:column;gap:12px;">' + items.slice(0,4).join('') + '</div>';
+}
+/* Certificates of the trainees shown, by month: the six months up to today
+   — or, for a past year, up to its trainees' last certificate, as a group is
+   certified after its year ends (CESTISCore.yearView.chartEnd). */
+function dashCertMonthsHtml() {
+  const sc = dashScope(), roll = sc.roll;
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const end = CESTISCore.yearView.chartEnd(sc, roll.filter(s => s && s.certNo).map(s => s.certDate));
+  // Certificate dates are read with Date.parse, which understands the
+  // "October 16, 2026" every issuing path writes (splitting on '-' counted
+  // none of them, and lumped last October into this one).
+  const buckets = CESTISCore.certs.byMonth(roll, new Date(end + 'T12:00:00'), 6);
+  const maxCerts = Math.max(1, ...buckets.map(b => b.count));
+  let html = '';
+  buckets.forEach((b, i) => {
+    const pct = (b.count / maxCerts * 100).toFixed(0);
+    html += '<div class="bar-col" title="'+b.count+' certificate'+(b.count===1?'':'s')+'"><div class="bar" style="height:'+pct+'%;background:'+(i===buckets.length-1?'var(--blue)':'var(--accent)')+';"></div><div class="bar-label">'+months[b.month]+'</div></div>';
+  });
+  if(!html) html = '<p style="color:var(--text-muted);padding:16px;text-align:center;">No certification data yet.</p>';
+  return '<div class="card-header"><h3>Certifications by Month</h3><span class="dyb-card-sub">Of the trainees shown</span></div><div class="bar-chart">' + html + '</div>';
+}
+
+/* School fees on the administrator's dashboard (audit M7): the year's billed,
+   collected and outstanding, and — beside Outstanding, never added into it —
+   what trainees of earlier years still owe. Read from the School Fee books by
+   School Fee's own year rule (CESTISCore.yearView.fees, which with closed
+   centres included gives exactly CESTISCore.centreFigures.fees — what the
+   board and School Fee show), for the year, quarter or every year the bar
+   shows, leaving out closed centres as the rest of the dashboard does. Reads
+   only. */
 function dashFeesCardInner() {
-  var F = CESTISCore.centreFigures, f = null;
+  var F = CESTISCore.centreFigures, f = null, view = dashYearView();
   try {
     var books = F.feeBooks(function (k) { return CESTISStore.getItem(k); });
-    f = F.fees(books.accounts, books.payments);
+    var rule = dashFeeClosedRule();
+    f = CESTISCore.yearView.fees(books.accounts, books.payments, view, { closedOf: rule.account, paymentClosed: rule.payment });
   } catch (e) { f = null; }
   var m = F.moneyText;
   var open = '<button class="btn btn-secondary btn-sm" onclick="showPage(\'fee-management\')">Open School Fee →</button>';
-  if (!f || (!f.accounts && !f.collected && !f.earlier.trainees)) {
-    return '<div class="card-header"><h3>School Fees</h3>' + open + '</div><p style="font-size:13px;color:var(--text-muted);">No fee records yet.</p>';
+  if (!f || (!f.accounts && !f.collected && !(f.earlier && f.earlier.trainees) && !f.closedOut)) {
+    return '<div class="card-header"><h3>School Fees' + (f ? ' — ' + escapeHtml(f.label) : '') + '</h3>' + open + '</div><p style="font-size:13px;color:var(--text-muted);">No fee records' + (f && view.mode !== 'all' ? ' for ' + escapeHtml(f.label) : ' yet') + '.</p>';
   }
   var cell = function (label, value, colour, extra) {
     return '<div class="dash-fees-cell"><div class="stat-label">' + label + '</div><div class="dash-fees-v"' + (colour ? ' style="color:' + colour + ';"' : '') + '>' +
       escapeHtml(value) + '</div>' + (extra || '') + '</div>';
   };
+  var all = view.mode === 'all', who = all ? 'every trainee, every year' : 'trainees enrolled in ' + escapeHtml(f.label);
   return '<div class="card-header"><h3>School Fees — ' + escapeHtml(f.label) + '</h3>' + open + '</div>' +
     '<div class="dash-fees-row">' +
       cell('Billed', m(f.billed)) +
       cell('Collected', m(f.collected), 'var(--green)') +
-      cell('Outstanding', m(f.owed), 'var(--red)', '<div class="dash-fees-earlier" id="dashFeesEarlier">' + escapeHtml(F.earlierText(f.earlier)) + '</div>') +
+      cell('Outstanding', m(f.owed), 'var(--red)', f.earlier ? '<div class="dash-fees-earlier" id="dashFeesEarlier">' + escapeHtml(F.earlierText(f.earlier)) + '</div>' : '') +
     '</div>' +
-    '<div class="dash-fees-note">Billed and Outstanding: trainees enrolled in ' + escapeHtml(f.label) + ' (Outstanding is as at today; ' +
-      f.debtors + ' of ' + f.accounts + ' still owe). Collected: payments dated in ' + escapeHtml(f.label) + '. Earlier years are not included in Outstanding.</div>';
+    '<div class="dash-fees-note">Billed and Outstanding: ' + who + ' (Outstanding is as at today; ' +
+      f.debtors + ' of ' + f.accounts + ' still owe). Collected: ' + (all ? 'every payment' : 'payments dated in ' + escapeHtml(f.label)) + '.' +
+      (f.earlier ? ' Earlier years are not included in Outstanding.' : '') +
+      (f.closedOut ? ' Closed centres are left out (' + f.closedOut + ' fee record' + (f.closedOut === 1 ? '' : 's') + '); tick Include closed centres to count them, as School Fee does.' : '') + '</div>';
 }
 function refreshDashboardFees() {
   var el = document.getElementById('dashFeesCard');
   if (el) el.innerHTML = dashFeesCardInner();
 }
 
+/* Fill one block of the dashboard, keeping the keyboard where it was: a
+   button pressed on the year bar is the same button after the redraw. */
+function dashFill(id, fn) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  var act = document.activeElement, key = act && el.contains(act) && act.getAttribute ? act.getAttribute('data-dyb') : null;
+  try { el.innerHTML = fn(); } catch (e) { console.warn('[Dashboard] ' + id + ' could not be drawn', e); return; }
+  // A button that went with the redraw ("Return to FY …"): the year's own tab.
+  if (key) { var again = el.querySelector('[data-dyb="' + key + '"]') || el.querySelector('[data-dyb="year"]'); if (again) { try { again.focus(); } catch (e) {} } }
+}
+// Redraw every figure on the dashboard for the year its bar shows.
+function refreshAdminDashboard() {
+  if (!document.getElementById('page-dashboard')) return;
+  _dashScopeMemo = null;
+  dashFill('dashYearBar', dashYearBarHtml);
+  dashFill('dashStats', dashStatsHtml);
+  dashFill('dashFeesCard', dashFeesCardInner);
+  dashFill('dashAlertsCard', dashAlertsHtml);
+  dashFill('dashTopCard', dashTopPerformersHtml);
+  dashFill('dashActivityCard', dashRecentActivityHtml);
+  dashFill('dashCertMonthsCard', dashCertMonthsHtml);
+  try { updatePipelineCounts(); } catch (e) {}
+}
+
+/* The roll changed (a trainee pulled in from School Fee, a sync, an edit):
+   the cheap part of the dashboard follows at once — the bar's count, the
+   four cards and School Fees — so the bar and the cards never disagree. */
 function refreshDashboardStudentTotals() {
-  try { var _al = document.getElementById('dashActiveLine'); if (_al) _al.textContent = dashActiveLineText(); } catch (e) {}
+  if (!document.getElementById('page-dashboard')) return;
   try { refreshDashboardFees(); } catch (e) {}
-  try {
-    var totalEnrolled = students.length;
-    var totalCertified = CESTISCore.certs.certifiedInYear(students, new Date().getFullYear());
-    var map = { 'Total Enrolled Students': totalEnrolled, 'Certified This Year': totalCertified };
-    document.querySelectorAll('#page-dashboard .stat-card').forEach(function(card){
-      var labelEl = card.querySelector('.stat-label');
-      var valEl = card.querySelector('.stat-value');
-      if (!labelEl || !valEl) return;
-      var label = (labelEl.textContent || '').trim();
-      if (Object.prototype.hasOwnProperty.call(map, label)) {
-        valEl.setAttribute('data-count', map[label]);
-        valEl.textContent = map[label];
-      }
-    });
-  } catch (e) { /* non-fatal */ }
+  dashFill('dashYearBar', dashYearBarHtml);
+  dashFill('dashStats', dashStatsHtml);
 }
 
 function renderSkills() {
@@ -38885,11 +39449,10 @@ async function mergeFromCloud() {
         lmsChatMessages[roomId].sort(function(a,b){ return new Date(a.timestamp) - new Date(b.timestamp); });
       });
     }
-    if (backupData.data.chatProfiles) {
-      Object.keys(backupData.data.chatProfiles).forEach(function(uid) {
-        if (!lmsChatProfiles[uid]) lmsChatProfiles[uid] = {};
-        Object.assign(lmsChatProfiles[uid], backupData.data.chatProfiles[uid]);
-      });
+    if (backupData.data.chatProfiles && typeof backupData.data.chatProfiles === 'object') {
+      // Detail by detail: a backup's older picture or status never replaces
+      // one changed since (CESTISCore.profiles).
+      CESTISCore.profiles.mergeMap(lmsChatProfiles, backupData.data.chatProfiles, { name: 'chatProfiles' });
     }
     if (backupData.data.driveResources) {
       backupData.data.driveResources.forEach(function(cr) {
@@ -40347,7 +40910,12 @@ async function syncUserLoginFolderToDrive(account, opts) {
   if (!account || !isCloudConnected || !googleAccessToken) return false;
   var _rec = buildUserLoginRecord(account);
   var _recKey = JSON.stringify(_rec.account);
-  if (opts && opts.ifChanged && _userLoginLastSent[account.id] === _recKey) return true;
+  var _acctDue = !(opts && opts.ifChanged && _userLoginLastSent[account.id] === _recKey);
+  // Their own profile too (opts.profile): written when it changed.
+  var _prof = null;
+  try { _prof = (opts && opts.profile) ? ownProfileForFolder(account) : null; } catch (e) { _prof = null; }
+  var _profDue = !!(_prof && _ownProfileLastSent[account.id] !== _prof.key);
+  if (!_acctDue && !_profDue) return true;
   try {
     if (!_userLoginRootFolderId) {
       _userLoginRootFolderId = await driveFindOrCreateFolder(USER_LOGIN_FOLDER_NAME, GOOGLE_DRIVE_CONFIG.FOLDER_ID, googleAccessToken);
@@ -40359,13 +40927,236 @@ async function syncUserLoginFolderToDrive(account, opts) {
       if (subId) _userLoginSubfolderIds[account.id] = subId;
     }
     if (!subId) return false;
-    var _sent = await driveUploadJsonToFolder('account.json', _rec, subId, googleAccessToken);
-    if (_sent) _userLoginLastSent[account.id] = _recKey;
+    if (_acctDue) {
+      var _sent = await driveUploadJsonToFolder('account.json', _rec, subId, googleAccessToken);
+      if (_sent) _userLoginLastSent[account.id] = _recKey;
+    }
+    if (_profDue) {
+      if (await ownProfileWrite(account, _prof, subId, googleAccessToken)) delete _ownProfileWanted[account.id];
+    }
     return true;
   } catch (e) {
     console.warn('[UserLogin] Could not sync folder for account ' + (account && account.id) + ':', e);
     return false;
   }
+}
+
+/* ---- Each person's own folder: their profile, and their picture as a file ----
+   The folder above ("User Login/<name> (<id>)/") also holds profile.json —
+   what the person changed about themselves (picture, status, status message,
+   about; a trainee's e-mail, phone and emergency contact; an instructor's
+   specialisation; a member of staff's phone), each detail with its stamp —
+   and the picture itself beside it as a file. The picture goes first and the
+   profile names it after, so the profile never names a picture the folder
+   does not hold; an older picture is only ever replaced by a newer one that
+   arrived whole. At every sign-in it is read back and merged detail by
+   detail (loadOwnProfileFromFolder), so what a person set comes back on any
+   computer — after a sign-out emptied this one, or when a shared copy lost
+   it — and never over something changed since. */
+var OWN_PROFILE_FILE = 'profile.json';
+var _ownProfileLastSent = {};      // account id -> the profile this page last wrote there
+var _ownPictureLastSent = {};      // account id -> the hash of the picture this page last wrote there
+var _ownProfileWanted = {};        // trainees whose change arrived from home: their folder is written next
+function profileFolderWanted(acct) { if (acct) _ownProfileWanted[acct] = true; }
+function ownPictureFileName(dataUrl) {
+  var m = /^data:image\/(png|jpe?g|gif|webp);/i.exec(String(dataUrl || ''));
+  var ext = m ? m[1].toLowerCase().replace('jpeg', 'jpg') : 'jpg';
+  return 'profile-picture.' + ext;
+}
+// The trainee's student ID for her account (where her profile is filed).
+function ownProfileStudentId(account) {
+  if (!account || account.role !== 'student') return null;
+  var s = null;
+  try { s = (currentLoggedInUser && currentLoggedInUser.id === account.id && currentStudent) ? currentStudent : findStudentRecordForAccount(account); } catch (e) { s = null; }
+  return (s && s.id) || account.studentDataId || null;
+}
+function ownProfileInstructorId(account) {
+  if (!account || account.role !== 'instructor') return null;
+  if (currentLoggedInUser && currentLoggedInUser.id === account.id && currentInstructor) return currentInstructor.id;
+  var em = String(account.email || '').trim().toLowerCase();
+  var ins = em ? (instructorData || []).find(function(i) { return i && String(i.email || '').trim().toLowerCase() === em; }) : null;
+  return ins ? ins.id : null;
+}
+/* What goes in the folder: { key, json, pic } — json without the picture's
+   bytes (it names the file and the picture's hash), pic the picture itself. */
+function ownProfileForFolder(account) {
+  if (!account || !account.id || typeof lmsChatProfiles === 'undefined') return null;
+  var out = { version: '1.0', kind: 'cestis-profile', accountId: account.id, role: account.role || '',
+    account: { name: account.name || '', email: account.email || '', phone: account.phone || '', updatedAt: account.updatedAt || '' } };
+  var chat = lmsChatProfiles[account.id] ? CESTISCore.profiles.chatPart(lmsChatProfiles[account.id]) : null;
+  var pic = null;
+  if (chat) {
+    if (typeof chat.profilePic === 'string' && chat.profilePic) {
+      pic = chat.profilePic;
+      chat.picture = { file: ownPictureFileName(pic), hash: String(CESTISCore.hashString(pic)) };
+      delete chat.profilePic;
+    }
+    out.chat = chat;
+  }
+  var sid = ownProfileStudentId(account);
+  if (sid && studentProfiles[sid]) {
+    var sp = JSON.parse(JSON.stringify(studentProfiles[sid]));
+    if (sp.preferences && sp.preferences.chat) delete sp.preferences.chat;   // (the chat details are above)
+    out.studentId = sid; out.studentProfile = sp;
+  }
+  var iid = ownProfileInstructorId(account);
+  if (iid && instructorProfiles[iid]) { out.instructorId = iid; out.instructorProfile = JSON.parse(JSON.stringify(instructorProfiles[iid])); }
+  if (!out.chat && !out.studentProfile && !out.instructorProfile && !out.account.phone) return null;
+  return { key: JSON.stringify(out), json: out, pic: pic };
+}
+function dataUrlToBlob(dataUrl) {
+  var m = /^data:([^;,]+);base64,(.*)$/.exec(String(dataUrl || ''));
+  if (!m) return null;
+  var bin = atob(m[2]), bytes = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new Blob([bytes], { type: m[1] });
+}
+async function driveFindInFolder(name, folderId, token, folders) {
+  var q = "name='" + String(name).replace(/'/g, "\\'") + "' and '" + folderId + "' in parents and trashed=false" +
+    (folders ? " and mimeType='application/vnd.google-apps.folder'" : '');
+  var r = await fetch('https://www.googleapis.com/drive/v3/files?q=' + encodeURIComponent(q) + '&fields=files(id,name)', { headers: { 'Authorization': 'Bearer ' + token } });
+  if (!r.ok) throw new Error('lookup ' + r.status);
+  var d = await r.json();
+  return (d.files && d.files.length) ? d.files[0].id : null;
+}
+async function driveUploadBlobToFolder(fileName, blob, mime, folderId, token) {
+  var existingId = await driveFindInFolder(fileName, folderId, token, false);
+  if (existingId) {
+    var pr = await fetch('https://www.googleapis.com/upload/drive/v3/files/' + existingId + '?uploadType=media', {
+      method: 'PATCH', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': mime }, body: blob
+    });
+    return !!(pr && pr.ok);
+  }
+  var form = new FormData();
+  form.append('metadata', new Blob([JSON.stringify({ name: fileName, parents: [folderId], mimeType: mime })], { type: 'application/json' }));
+  form.append('file', blob);
+  var cr = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
+    method: 'POST', headers: { 'Authorization': 'Bearer ' + token }, body: form
+  });
+  return !!(cr && cr.ok);
+}
+async function ownProfileWrite(account, prof, subId, token) {
+  if (!prof) return true;
+  if (prof.pic) {
+    var h = prof.json.chat.picture.hash;
+    if (_ownPictureLastSent[account.id] !== h) {
+      var blob = dataUrlToBlob(prof.pic);
+      if (!blob) return false;
+      // The picture first: the profile names it only once it is there whole.
+      if (!(await driveUploadBlobToFolder(prof.json.chat.picture.file, blob, blob.type || 'image/jpeg', subId, token))) return false;
+      _ownPictureLastSent[account.id] = h;
+    }
+  }
+  var body = JSON.parse(JSON.stringify(prof.json));
+  body.savedAt = new Date().toISOString();
+  var ok = await driveUploadJsonToFolder(OWN_PROFILE_FILE, body, subId, token);
+  if (ok) _ownProfileLastSent[account.id] = prof.key;
+  return ok;
+}
+// Trainees whose change arrived from home: their folders, a few each turn.
+async function ownProfileWriteWanted() {
+  var ids = Object.keys(_ownProfileWanted).slice(0, 3);
+  for (var i = 0; i < ids.length; i++) {
+    var acct = (userAccounts || []).find(function(a) { return a && a.id === ids[i]; });
+    if (!acct) { delete _ownProfileWanted[ids[i]]; continue; }
+    await syncUserLoginFolderToDrive(acct, { ifChanged: true, profile: true });
+  }
+}
+/* At sign-in: the profile in the person's own folder, merged in (each detail
+   by its stamp — an older one never replaces a newer one here). Returns
+   whether anything changed. Never creates a folder, never touches a
+   password, a role or a status; a trainee's name stays the office's. */
+async function loadOwnProfileFromFolder() {
+  var account = currentLoggedInUser;
+  if (!account || !isCloudConnected || !googleAccessToken) return false;
+  if (typeof cestisGateSession === 'function' && cestisGateSession()) return false;
+  var token = googleAccessToken;
+  var root = _userLoginRootFolderId || await driveFindInFolder(USER_LOGIN_FOLDER_NAME, GOOGLE_DRIVE_CONFIG.FOLDER_ID, token, true);
+  if (!root) return false;
+  _userLoginRootFolderId = root;
+  var sub = _userLoginSubfolderIds[account.id] || await driveFindInFolder(userLoginFolderName(account), root, token, true);
+  if (!sub) return false;
+  _userLoginSubfolderIds[account.id] = sub;
+  var fid = await driveFindInFolder(OWN_PROFILE_FILE, sub, token, false);
+  if (!fid) return false;
+  var r = await fetch('https://www.googleapis.com/drive/v3/files/' + fid + '?alt=media', { headers: { 'Authorization': 'Bearer ' + token } });
+  if (!r.ok) return false;
+  var snap = null;
+  try { snap = await r.json(); } catch (e) { snap = null; }
+  if (!snap || snap.kind !== 'cestis-profile' || snap.accountId !== account.id) return false;
+  var changed = false;
+  if (snap.chat && typeof snap.chat === 'object') {
+    var part = JSON.parse(JSON.stringify(snap.chat));
+    var ref = part.picture; delete part.picture;
+    var cur = lmsChatProfiles[account.id];
+    if (ref && ref.file && ref.hash) {
+      if (cur && cur.profilePic && String(CESTISCore.hashString(cur.profilePic)) === ref.hash) part.profilePic = cur.profilePic;
+      else {
+        try {
+          var pid = await driveFindInFolder(ref.file, sub, token, false);
+          if (pid) {
+            var pr = await fetch('https://www.googleapis.com/drive/v3/files/' + pid + '?alt=media', { headers: { 'Authorization': 'Bearer ' + token } });
+            if (pr.ok) {
+              var url = await new Promise(function(res) { pr.blob().then(function(b) { var fr = new FileReader(); fr.onload = function() { res(fr.result); }; fr.onerror = function() { res(null); }; fr.readAsDataURL(b); }, function() { res(null); }); });
+              // Only the very picture the profile names (its stamp describes it).
+              if (url && String(CESTISCore.hashString(url)) === ref.hash) part.profilePic = url;
+              else if (url && typeof url === 'string') {
+                var fixed = url.replace(/^data:[^;,]*;/, 'data:image/' + (ref.file.split('.').pop() === 'jpg' ? 'jpeg' : ref.file.split('.').pop()) + ';');
+                if (String(CESTISCore.hashString(fixed)) === ref.hash) part.profilePic = fixed;
+              }
+            }
+          }
+        } catch (e) {}
+      }
+    }
+    if (!lmsChatProfiles[account.id]) lmsChatProfiles[account.id] = {};
+    if (CESTISCore.profiles.takeChatPart(lmsChatProfiles[account.id], part)) changed = true;
+  }
+  var sid = ownProfileStudentId(account);
+  if (sid && snap.studentId === sid && snap.studentProfile && typeof snap.studentProfile === 'object') {
+    var one = {}; one[sid] = snap.studentProfile;
+    var o1 = CESTISCore.profiles.mergeMap(studentProfiles, one, { name: 'studentProfiles', tombs: syncTombsFor('studentProfiles') });
+    if (o1.added || o1.updated) changed = true;
+  }
+  var iid = ownProfileInstructorId(account);
+  if (iid && snap.instructorId === iid && snap.instructorProfile && typeof snap.instructorProfile === 'object') {
+    var two = {}; two[iid] = snap.instructorProfile;
+    var o2 = CESTISCore.profiles.mergeMap(instructorProfiles, two, { name: 'instructorProfiles', tombs: syncTombsFor('instructorProfiles') });
+    if (o2.added || o2.updated) changed = true;
+    var ip = instructorProfiles[iid];
+    if (ip && currentInstructor && currentInstructor.id === iid) {
+      ['email', 'phone', 'specialization'].forEach(function(f) { if (ip[f] && currentInstructor[f] !== ip[f]) { currentInstructor[f] = ip[f]; changed = true; } });
+    }
+  }
+  // A member of staff's own name, e-mail and phone, when this copy is newer
+  // than the account this computer holds.
+  var a = snap.account;
+  if (a && account.role !== 'student' && (Date.parse(a.updatedAt || '') || 0) > (Date.parse(account.updatedAt || '') || 0)) {
+    var acct = userAccounts.find(function(u) { return u && u.id === account.id; });
+    var did = false;
+    [acct, account].forEach(function(x) {
+      if (!x) return;
+      if (a.name && x.name !== a.name && !/[<>]/.test(a.name)) { x.name = a.name; did = true; }
+      if (a.email && x.email !== a.email) { x.email = a.email; did = true; }
+      if (typeof a.phone === 'string' && (x.phone || '') !== a.phone) { x.phone = a.phone; did = true; }
+      x.updatedAt = a.updatedAt;
+    });
+    if (did) { changed = true; try { saveUserAccounts(); } catch (e) {} }
+  }
+  if (changed) profileRefreshOwnViews();
+  return changed;
+}
+// The person's own details on screen, after they arrived.
+function profileRefreshOwnViews() {
+  try {
+    profileShowOwnPicture();
+    if (currentRole === 'student' && currentStudent) {
+      var sp = studentProfiles[currentStudent.id] || {};
+      var ph = document.getElementById('sProfilePhone'); if (ph && sp.phone) ph.textContent = sp.phone;
+      var em = document.getElementById('sProfileEmail'); if (em && sp.email) em.textContent = sp.email;
+    }
+    if (currentLoggedInUser) { var n = document.getElementById('sidebarUserName'); if (n && currentRole !== 'student' && currentRole !== 'instructor') n.textContent = currentLoggedInUser.name; }
+  } catch (e) {}
 }
 
 // Backfill a named sub-folder for EVERY account (admin action). Sequential to
@@ -40575,6 +41366,9 @@ function mergeCloudAccounts(cloudAccounts, opts) {
       }
       if (cloudUser.name && cloudUser.name !== localMatch.name) { localMatch.name = cloudUser.name; changed++; }
       if (cloudUser.email && cloudUser.email !== localMatch.email) { localMatch.email = cloudUser.email; changed++; }
+      // The telephone number its owner gave in Edit Profile travels too (it
+      // used to stay on the computer it was typed on).
+      if (typeof cloudUser.phone === 'string' && cloudUser.phone !== (localMatch.phone || '')) { localMatch.phone = cloudUser.phone; changed++; }
       if (cloudUser.programme !== undefined && cloudUser.programme !== localMatch.programme) { localMatch.programme = cloudUser.programme; changed++; }
       if (cloudUser.role && cloudUser.role !== localMatch.role) { localMatch.role = cloudUser.role; changed++; }
       if (cloudUser.cmcChair !== undefined && !!cloudUser.cmcChair !== !!localMatch.cmcChair) { localMatch.cmcChair = cloudUser.cmcChair === true; changed++; }
@@ -41017,7 +41811,7 @@ async function mergeBackupData(backupData) {
     // Merge chat profiles — newest wins (this used to let any cloud copy
     // overwrite the local one, and never saved the result).
     if (backupData.data.chatProfiles && typeof backupData.data.chatProfiles === 'object') {
-      var _cpOut = CESTISCore.sync.mergeMap(lmsChatProfiles, backupData.data.chatProfiles, {});
+      var _cpOut = CESTISCore.profiles.mergeMap(lmsChatProfiles, backupData.data.chatProfiles, { name: 'chatProfiles' });
       if (_cpOut.added || _cpOut.updated) changed = true;
     }
 
@@ -41088,16 +41882,19 @@ async function mergeBackupData(backupData) {
     }
 
 
-    // Merge student profiles — an edited profile now reaches every device
+    // Merge student profiles — an edited profile now reaches every device,
+    // detail by detail (CESTISCore.profiles). A trainee's picture and status
+    // sent from home ride inside her record; they go into the chat profiles.
     if (backupData.data.studentProfiles && typeof backupData.data.studentProfiles === 'object') {
-      var _spOut = CESTISCore.sync.mergeMap(studentProfiles, backupData.data.studentProfiles, { tombs: syncTombsFor('studentProfiles') });
+      var _spOut = CESTISCore.profiles.mergeMap(studentProfiles, backupData.data.studentProfiles, { name: 'studentProfiles', tombs: syncTombsFor('studentProfiles') });
       if (_spOut.added || _spOut.updated || _spOut.removed) changed = true;
+      try { if (profilesTakeTraineeChat()) changed = true; } catch (e) { console.warn('[Merge] trainee profile details:', e); }
     }
 
 
     // Merge instructor profiles
     if (backupData.data.instructorProfiles && typeof backupData.data.instructorProfiles === 'object') {
-      var _ipOut = CESTISCore.sync.mergeMap(instructorProfiles, backupData.data.instructorProfiles, { tombs: syncTombsFor('instructorProfiles') });
+      var _ipOut = CESTISCore.profiles.mergeMap(instructorProfiles, backupData.data.instructorProfiles, { name: 'instructorProfiles', tombs: syncTombsFor('instructorProfiles') });
       if (_ipOut.added || _ipOut.updated || _ipOut.removed) changed = true;
     }
 
@@ -41344,6 +42141,15 @@ async function autoSyncOnLogin() {
       if (userChanged) anyChanged = true;
     } catch (e) {
       console.warn('[AutoSync] Per-user backup sync error:', e);
+    }
+    // 1c. What this person changed about themselves, from their own folder
+    // (picture, status, phone, …): back on this computer whatever the shared
+    // copies hold, each detail by its stamp.
+    try {
+      if (await loadOwnProfileFromFolder()) { anyChanged = true; saveState(); }
+      profileShowOwnPicture();
+    } catch (e) {
+      console.warn('[AutoSync] Own profile folder read error:', e);
     }
 
     // 2. Also sync chat-specific data from the chat Drive folder
@@ -42163,7 +42969,10 @@ async function autoSaveToAllFolders() {
     // Keep this user's named "User Login" sub-folder (in the main Drive backup
     // folder) up to date with their current hashed account record.
     try {
-      if (currentLoggedInUser) await syncUserLoginFolderToDrive(currentLoggedInUser, { ifChanged: true });
+      // ...and their own profile (picture, status, phone, …) in the same folder.
+      if (currentLoggedInUser) await syncUserLoginFolderToDrive(currentLoggedInUser, { ifChanged: true, profile: true });
+      // Trainees whose change was collected from home: theirs too.
+      if (Object.keys(_ownProfileWanted).length) await ownProfileWriteWanted();
     } catch (e) {
       console.warn('[AutoSave] User Login folder sync error:', e);
     }
@@ -42292,6 +43101,8 @@ var GATE_STORE_KEYS = ['voctrain_users', 'voctrain_deletedUserIds', 'voctrain_st
   'voctrain_certDownloadApprovals', 'voctrain_support_messages', 'voctrain_chatRooms', 'voctrain_chatMessages',
   'voctrain_skillAreas', 'voctrain_instructorData', 'voctrain_transcriptProfiles', 'voctrain_studentProfiles',
   'voctrain_certTemplates',
+  // Her own picture and status, to go inside her profile record (CESTISCore.profiles, ownChatPart).
+  'voctrain_chatProfiles', 'voctrain_chatPictures',
   // Prepared assessments: her photos, sign-offs, results and filed papers, and her group (CESTISCore.assessments).
   'voctrain_assessmentWork',
   // Her fees at home (CESTISCore.gate.home.buildFees): read only, and only on a PC that holds the fee roll.
@@ -44248,6 +45059,8 @@ function gateAfterApply(r) {
   if (stu) currentStudent = stu;
   var acct = (userAccounts || []).find(function(u) { return u && u.id === uid; });
   if (acct) { acct.role = 'student'; currentLoggedInUser = acct; }
+  // Her picture and status as her own record now carries them.
+  try { if (profilesTakeTraineeChat()) { lmsChatStoreProfiles(); profileShowOwnPicture(); } } catch (e) {}
   try { examAttemptsArrived('device'); } catch (e) {}
   try { refreshContentDependentViews(); } catch (e) {}
   try { if (typeof renderStudentDashboard === 'function') renderStudentDashboard(); } catch (e) {}
@@ -47319,6 +48132,8 @@ function lmsChatOpenProfileModal() {
 
   var myFollowersCount  = lmsChatGetFollowersOf(user.id).length;
   var myFollowingCount  = (lmsChatFollows[user.id] || []).length;
+  // The status they chose (never what presence last wrote).
+  var _myStatus = CESTISCore.profiles.chosenStatus(profile);
 
   modal.innerHTML = '<div class="profile-modal-content">' +
     '<h3 style="margin-bottom:6px;">My Chat Profile</h3>' +
@@ -47341,9 +48156,9 @@ function lmsChatOpenProfileModal() {
     '<div style="text-align:left;margin-bottom:12px;">' +
       '<label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:6px;">Status</label>' +
       '<select class="profile-status-select" id="lmsChatStatusSelect">' +
-        '<option value="online"'+(profile.status==='online'?' selected':'')+'>Online</option>' +
-        '<option value="away"'+(profile.status==='away'?' selected':'')+'>Away</option>' +
-        '<option value="offline"'+(!profile.status||profile.status==='offline'?' selected':'')+'>Offline</option>' +
+        '<option value="online"'+(_myStatus==='online'?' selected':'')+'>Online</option>' +
+        '<option value="away"'+(_myStatus==='away'?' selected':'')+'>Away</option>' +
+        '<option value="offline"'+(_myStatus==='offline'?' selected':'')+'>Offline</option>' +
       '</select>' +
     '</div>' +
     '<div style="text-align:left;margin-bottom:12px;">' +
@@ -47427,18 +48242,25 @@ function lmsChatSaveProfile() {
   profile.role = user.role;
   profile.programme = user.programme || '';
 
+  // Each change stamped (profileChatApply): an older copy never puts the
+  // old picture, status or message back.
   var statusSel = document.getElementById('lmsChatStatusSelect');
   var statusMsg = document.getElementById('lmsChatStatusMsg');
   var bioInput  = document.getElementById('lmsChatBioInput');
-  if(statusSel) profile.status = statusSel.value;
-  if(statusMsg) profile.statusMsg = statusMsg.value.trim();
-  if(bioInput)  profile.bio = bioInput.value.trim();
+  var changes = {};
+  if(statusSel && statusSel.value) changes.statusChoice = statusSel.value;
+  if(statusMsg) changes.statusMsg = statusMsg.value.trim();
+  if(bioInput)  changes.bio = bioInput.value.trim();
   if(lmsChatPendingProfilePic) {
-    profile.profilePic = lmsChatPendingProfilePic;
+    changes.profilePic = lmsChatPendingProfilePic;
     lmsChatPendingProfilePic = null;
   }
+  profileChatApply(user.id, changes);
 
-  saveLmsChatData();
+  // saveState: stamped, kept on this device and sent (a trainee at home's
+  // goes inside her profile record — profileMirrorOwnChat).
+  try { saveState(); } catch(e) { saveLmsChatData(); }
+  try { updateSidebarAvatar(user.id, user.name); } catch(e) {}
   lmsChatCloseProfileModal();
   showToast('Profile saved and syncing...');
 
@@ -49146,9 +49968,11 @@ function lmsChatOnPageShow(prefix) {
 
   // Set my status to online, with a heartbeat time: "online" means seen in
   // the last few minutes (CESTISCore.chat.isOnline), not "ever opened chat".
+  // The status shown is the one the person chose (CESTISCore.profiles.chosenStatus):
+  // presence used to write "online" over their choice at every visit.
   var user = lmsChatGetCurrentUser();
   if(!lmsChatProfiles[user.id]) lmsChatProfiles[user.id] = {};
-  lmsChatProfiles[user.id].status = 'online';
+  lmsChatProfiles[user.id].status = CESTISCore.profiles.chosenStatus(lmsChatProfiles[user.id]);
   lmsChatProfiles[user.id].lastSeen = new Date().toISOString();
 
   // Auto-fetch latest chat data from Google Drive
@@ -49172,9 +49996,7 @@ function lmsChatOnPageShow(prefix) {
   lmsChatSchedulePoll(1500);
 
   // Save status (but skip the Drive sync timer — we just fetched)
-  try {
-    CESTISStore.setItem('voctrain_chatProfiles', JSON.stringify(lmsChatProfiles));
-  } catch(e) {}
+  try { lmsChatStoreProfiles(); } catch(e) {}
 
   // Bring up the realtime data-channel peer for sub-second message delivery.
   // Idempotent: reuses the existing peer if one is already open.
@@ -49247,8 +50069,9 @@ function lmsChatHeartbeat() {
     if (!me || !me.id) return;
     var p = lmsChatProfiles[me.id] || (lmsChatProfiles[me.id] = {});
     var last = Date.parse(p.lastSeen || '') || 0;
-    if (Date.now() - last < 4 * 60 * 1000 && p.status !== 'offline') return;
-    p.status = 'online'; p.lastSeen = new Date().toISOString();
+    var want = CESTISCore.profiles.chosenStatus(p);
+    if (Date.now() - last < 4 * 60 * 1000 && p.status === want) return;
+    p.status = want; p.lastSeen = new Date().toISOString();
     saveLmsChatData();
   } catch(e) {}
 }
@@ -49520,7 +50343,7 @@ async function lmsChatSyncFromDrive() {
 
     // Profiles: the newer edit of each (it used to be whichever the cloud had).
     if(data.chatProfiles && typeof data.chatProfiles === 'object') {
-      var _cp = CESTISCore.sync.mergeMap(lmsChatProfiles, data.chatProfiles, {});
+      var _cp = CESTISCore.profiles.mergeMap(lmsChatProfiles, data.chatProfiles, { name: 'chatProfiles' });
       if(_cp.added || _cp.updated) _chatMoved = true;
     }
 
@@ -49549,7 +50372,7 @@ async function lmsChatSyncFromDrive() {
       });
       CESTISStore.setItem('voctrain_chatRooms', JSON.stringify(lmsChatRooms));
       CESTISStore.setItem('voctrain_chatMessages', JSON.stringify(msgCopy));
-      CESTISStore.setItem('voctrain_chatProfiles', JSON.stringify(lmsChatProfiles));
+      lmsChatStoreProfiles();
       CESTISStore.setItem('voctrain_chatFollows', JSON.stringify(lmsChatFollows));
       CESTISStore.setItem('voctrain_chatFollowLog', JSON.stringify(lmsChatFollowLog || {}));
     } catch(e) {}
@@ -65275,6 +66098,11 @@ function ttRefreshOnShow(){
     voctrain_documentHubFiles: function (v) { documentHubFiles = v; },
     voctrain_chatRooms:        function (v) { lmsChatRooms = v; },
     voctrain_chatMessages:     function (v) { lmsChatMessages = v; },
+    // People's pictures and statuses: merged into this page's, detail by
+    // detail (CESTISCore.profiles) — never adopted whole, and never left out
+    // (a page that was open kept its old copy and saved it back).
+    voctrain_chatProfiles:     function (v) { CESTISCore.profiles.mergeMap(lmsChatProfiles, v, { name: 'chatProfiles' }); lmsChatAttachPictures(); profileShowOwnPicture(); },
+    voctrain_chatPictures:     function (v) { CESTISCore.profiles.attachPictures(lmsChatProfiles, v); profileShowOwnPicture(); },
     voctrain_vcSessions:       function (v) { vcSessions = v; },
     voctrain_syncTombstones:   function (v) { syncTombstones = v; },
     // The certificate designs. Without this a device that was already open

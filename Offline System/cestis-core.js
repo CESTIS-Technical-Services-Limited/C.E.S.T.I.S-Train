@@ -564,6 +564,10 @@
       var cand = nameCandidates(name);
       return (cand && cand.length) ? list[cand[0]] : null;
     }
+    function allByName(name) {
+      var cand = nameCandidates(name);
+      return cand ? cand.map(function (i) { return list[i]; }) : [];
+    }
 
     function add(student) {
       if (!student) return;
@@ -573,7 +577,7 @@
       index(student, list.length - 1);
     }
 
-    return { find: find, findByName: findByName, add: add, get size() { return list.length; } };
+    return { find: find, findByName: findByName, allByName: allByName, add: add, get size() { return list.length; } };
   };
 
   /* --- Edit recency -------------------------------------------------------
@@ -728,13 +732,26 @@
        nobody put them on. Pointing the other way the dashboard IS the authority,
        so a second enrolment it holds has to reach the fee roll and be priced —
        which is why only that direction tests the programme. */
-    var byName = idx ? idx.findByName(fee.name) : null;
-    if (!idx) {
+    /* ...but only a namesake who can be this person: not one already linked
+       to ANOTHER fee record (that record is their fee account, so this one is
+       somebody else's), and not one whose email, TRN or date of birth differs.
+       A second John Brown added in School Fee on Plumbing used to be linked to
+       the Welding John Brown — never put on the roll, and the Welding man's
+       link to his own fee record moved onto the newcomer's. */
+    var namesakes;
+    if (idx && typeof idx.allByName === 'function') namesakes = idx.allByName(fee.name);
+    else if (idx) namesakes = idx.findByName(fee.name) ? [idx.findByName(fee.name)] : [];
+    else {
       var want = Core.normName(fee.name);
-      for (i = 0; i < list.length; i++) {
-        if (list[i] && Core.normName(list[i].name) === want) { byName = list[i]; break; }
-      }
+      namesakes = list.filter(function (s) { return s && Core.normName(s.name) === want; });
     }
+    var feeId = hasId(fee.id) ? String(fee.id) : '';
+    var byName = namesakes.filter(function (s) {
+      if (!s) return false;
+      if (hasId(s.schoolFeeId) && feeId && String(s.schoolFeeId) !== feeId) return false;
+      if (Core.identityConflict && Core.identityConflict(s, fee)) return false;
+      return true;
+    })[0] || null;
     if (byName) {
       return { action: 'link', match: byName, course: byName.course || '',
         centreCourse: centreCourse, reason: 'already-enrolled-elsewhere' };
@@ -940,6 +957,22 @@
      to? An administrator's "keep separate" pin, or a re-enrolment. */
   Core.keepsOwnId = function (s) {
     return Core.isKeptSeparate(s) || Core.isReEnrolment(s);
+  };
+  /* A NEW record whose name and programme give the same stable id as a record
+     already on the roll is another person of that name (the callers have
+     already decided it is not that record): pinned as its own person
+     (keepSeparate), so the id stabilisation and the duplicate clean-ups —
+     which all respect the pin — never fold it into the namesake or move it
+     onto their id. Returns whether it was pinned. */
+  Core.pinIfNamesake = function (rec, roll) {
+    if (!rec || Core.isKeptSeparate(rec)) return false;
+    var sid = Core.stableStudentId(rec);
+    if (!sid) return false;
+    var other = (Array.isArray(roll) ? roll : []).some(function (s) {
+      return s && s !== rec && String(s.id) !== String(rec.id) && (String(s.id) === sid || Core.stableStudentId(s) === sid);
+    });
+    if (other) rec.keepSeparate = true;
+    return other;
   };
   /* The id a new enrolment should get. Normally the stable id; when that id
      is tombstoned (the person — or a namesake — was deleted from this
@@ -1635,6 +1668,24 @@
      tombstone left by an earlier deletion of the same person does not hide
      it. A deletion that has no time yet is given one just before this
      enrolment — it still hides every older copy of the record. */
+  /* Is a School Fee record one the dashboard deleted? Its dashboard forms are
+     its mirror id ('SF-' + id), its own id, its linked id and the stable id
+     of its name and programme. A fee record ADDED after that deletion is a new
+     enrolment of the same person (as Core.isStudentTombstoned rules for a
+     record marked enrolled): it is not hidden by it. A record with no date
+     of its own is taken as older than the deletion. */
+  Core.feeRecordTombstoned = function (fee, deletedIds, times) {
+    if (!fee) return false;
+    var del = deletedIds || {};
+    var has = function (id) { return id != null && id !== '' && (del instanceof Set ? del.has(String(id)) : del[String(id)] === true); };
+    var ids = ['SF-' + fee.id, fee.id, fee.lmsId, Core.stableStudentId({ name: fee.name, course: fee.skillArea || fee.course || '' })];
+    var hit = ids.filter(has);
+    if (!hit.length) return false;
+    var made = Date.parse(fee.createdAt || '') || 0;
+    if (!made) return true;
+    times = times || {};
+    return hit.some(function (id) { var t = Date.parse(times[String(id)] || '') || 0; return !t || t >= made; });
+  };
   Core.markEnrolment = function (student, store, nowIso) {
     if (!student) return student;
     var nowMs = Date.parse(nowIso || '') || Date.now();
@@ -1838,6 +1889,8 @@
     'postLoginSyncCompleted', 'cloudSyncCompleted', 'cestisAutoSyncEnabled',
     // Which menu groups are open on THIS screen (the office's sidebar).
     'cestisNavOpen',
+    // Which year this screen's dashboard shows (Core.yearView).
+    'cestisDashYearView',
     // This computer's own letters on a receipt number (Core.receiptNumbers).
     'cestisReceiptDevice',
     // "this device holds work not yet uploaded" — true of THIS device only —
@@ -9091,7 +9144,8 @@
       }
       var want = Core.normName(cand.name);
       if (!want) return {};
-      var same = list.filter(function (a) { return Core.normName(a.name) === want && programmesAgree(a.programme, cand.programme); });
+      var same = list.filter(function (a) { return Core.normName(a.name) === want && programmesAgree(a.programme, cand.programme) &&
+        !(Core.identityConflict && Core.identityConflict(a, cand)); });
       if (same.length === 1) return { match: same[0], by: 'name' };
       if (!same.length) return {};
       if (cand.programme) {
@@ -10859,7 +10913,7 @@
     }
 
     return { FIELD: FS, FLOOR: FLOOR, valueHash: valueHash, parse: parse, format: fmt, stampFor: stampFor, floorOf: floorOf,
-             hasStamps: hasStamps, pick: pick, settle: settle, stamp: stamp, restampOwnFields: restampOwnFields };
+             hasStamps: hasStamps, pick: pick, settle: settle, stamp: stamp, restampOwnFields: restampOwnFields, restHash: restHash };
   })();
 
   /* The trainee record's rules for the detail stamps above — one definition
@@ -10888,6 +10942,312 @@
     return Core.sync.fields.stamp(list, function (r) { return r && r.id != null ? String(r.id) : undefined; },
       index || null, nowIso || '', { skip: R.skip, gate: R.gate, rebase: !!rebase });
   };
+
+  /* ==========================================================================
+     PERSONAL PROFILES — what an account holder changes about themselves is
+     never undone by an older copy, a default or a sign-out.
+
+     What a person edits about themselves lives in three maps, keyed by the
+     account (chat) or by the trainee / instructor:
+       chatProfiles[account]       picture, status, status message, about —
+                                   shown to everyone in the chat and the top bar;
+       studentProfiles[trainee]    e-mail, phone, emergency contact;
+       instructorProfiles[staff]   e-mail, phone, specialisation, about.
+     They used to be merged WHOLE, the copy with the newer updatedAt winning
+     and the loser's fields deleted. A chat profile's date moves every time its
+     owner is seen online, and the device kept profiles without their pictures,
+     so a device that had just seen its owner online held a NEWER copy with no
+     picture and an old status message — which deleted the picture and put
+     the old message back on every device. The owner's chosen status was
+     overwritten by "online"/"offline" at every sign-in and sign-out, since
+     presence wrote the same field.
+
+     Now:
+       - an edit stamps the details it changed (touch — the same per-detail
+         stamps as trainee records, Core.sync.fields, under _fs), so a detail
+         changed later wins over an older copy whatever its record date says;
+       - a detail is decided on its own (mergeRecord): by its stamps, else by
+         the record date; a detail one copy simply does not hold is NEVER a
+         deletion — only a dated removal is (a picture taken off is '' with a
+         stamp, never a missing key);
+       - presence (status shown, lastSeen) is decided by lastSeen alone, and
+         the person's choice is its own detail (statusChoice), never touched
+         by presence;
+       - pictures are kept on a device apart from the profiles (picturesOf,
+         attachPictures — the store key voctrain_chatPictures), each with the
+         stamp of the value it holds.
+     A trainee at home signs in through the trainee gate, which takes only her
+     profile record (studentProfiles, its fields fixed by the gate:
+     Core.gate PROFILE_FIELDS). Her own chat details travel inside it, in
+     preferences.chat (chatPart), with their own stamps; the office takes
+     them into the chat profiles (takeChatPart), and her published records
+     carry them back to her (Core.gate.sliceFor).
+     ========================================================================== */
+  Core.profiles = (function () {
+    var CHAT_OWN = ['profilePic', 'statusMsg', 'bio', 'statusChoice'];
+    var PRESENCE = ['status', 'lastSeen'];
+    var STATUSES = { online: 1, away: 1, offline: 1 };
+    var NEVER = { _fs: 1, updatedAt: 1, profileAt: 1, _plaintextPw: 1 };
+    // Each map's rules. Presence and the copied identity (name, role,
+    // programme) are not the person's edits: they are left out of the detail
+    // stamps (skip), so their constant change never spoils them. A chat
+    // profile's record date moves with presence, so the date its unstamped
+    // details are judged by (dateField) is when its owner last edited it
+    // (profileAt), which presence never moves.
+    var RULES = {
+      chatProfiles: { presence: PRESENCE, dateField: 'profileAt', skip: { status: 1, lastSeen: 1, name: 1, role: 1, programme: 1, profileAt: 1 } },
+      studentProfiles: { skip: {} },
+      instructorProfiles: { skip: {} }
+    };
+    var PIC = /^data:image\/(png|jpe?g|gif|webp);base64,[A-Za-z0-9+\/=]+$/;
+    function isObj(v) { return !!v && typeof v === 'object' && !Array.isArray(v); }
+    function copy(v) { return v === undefined ? undefined : JSON.parse(JSON.stringify(v)); }
+    function ms(v) { var t = Date.parse(v || ''); return isNaN(t) ? 0 : t; }
+    function blank(v) { return v === undefined || v === null || v === ''; }
+    function same(a, b) {
+      if (a === b) return true;
+      if ((a && typeof a === 'object') || (b && typeof b === 'object')) return JSON.stringify(a === undefined ? null : a) === JSON.stringify(b === undefined ? null : b);
+      return false;
+    }
+    function rulesOf(name) { return RULES[name] || RULES.studentProfiles; }
+    function nowMsOf(opts) { return (opts && typeof opts.nowMs === 'number' && !isNaN(opts.nowMs)) ? opts.nowMs : Core.sync.now(); }
+    function sortedMap(m) { var o = {}; Object.keys(m).sort().forEach(function (k) { o[k] = m[k]; }); return o; }
+
+    /* The person changed these details of `rec` just now: stamp each (never
+       earlier than the stamp it carries), set the floor the first time (the
+       record's date before this edit: nothing unstamped is newer), and date
+       the record. `name`: which map (its skip list). Returns rec. */
+    function touch(rec, fields, nowIso, name) {
+      if (!isObj(rec)) return rec;
+      var Fs = Core.sync.fields, FS = Fs.FIELD, FLOOR = Fs.FLOOR;
+      var R = rulesOf(name), skip = R.skip, dateField = R.dateField || 'updatedAt';
+      var nowMs = ms(nowIso) || Core.sync.now();
+      var before = ms(rec[dateField]);
+      var first = !Fs.hasStamps(rec);
+      var m = isObj(rec[FS]) ? rec[FS] : {};
+      (fields || []).forEach(function (f) {
+        if (NEVER[f] || skip[f]) return;
+        var t = nowMs, p = Fs.parse(m[f]);
+        if (p && Core.sync.trusted(p.t, nowMs) && p.t >= t) t = p.t + 1;   // never backwards
+        m[f] = Fs.format(t, Fs.valueHash(rec[f]));
+      });
+      rec[FS] = m;
+      var fp = Fs.parse(m[FLOOR]);
+      m[FLOOR] = Fs.format(first || !fp ? (before || 1) : fp.t, Fs.restHash(rec, { skip: skip }));
+      rec[FS] = sortedMap(m);
+      rec.updatedAt = Core.sync.laterStamp(new Date(nowMs).toISOString(), rec.updatedAt, nowMs);
+      if (dateField !== 'updatedAt') rec[dateField] = Core.sync.laterStamp(new Date(nowMs).toISOString(), rec[dateField], nowMs);
+      return rec;
+    }
+    /* When `f` of this copy was set (ms): its own stamp when that describes
+       the value held, else 0. */
+    function fieldTime(rec, f, nowMs) { return Core.sync.fields.stampFor(rec, f, nowMs); }
+
+    /* Merge the copy `c` into the copy `l` (in place), detail by detail.
+       opts: { name: 'chatProfiles' | 'studentProfiles' | 'instructorProfiles',
+       nowMs, preferCloud (a tie of record dates goes to c) }. Returns whether
+       `l` changed. */
+    function mergeRecord(l, c, opts) {
+      if (!isObj(l) || !isObj(c)) return false;
+      opts = opts || {};
+      var Fs = Core.sync.fields;
+      var R = rulesOf(opts.name), skip = R.skip || {}, presence = R.presence || [];
+      var nowMs = nowMsOf(opts);
+      var dateField = R.dateField || 'updatedAt';
+      var fo = { stamp: dateField, skip: skip, nowMs: nowMs };
+      var a = copy(l);
+      var lt = Core.sync.trusted(ms(a.updatedAt), nowMs), ct = Core.sync.trusted(ms(c.updatedAt), nowMs);
+      var cloudNewer = ct > lt || (ct === lt && opts.preferCloud === true);
+      var changed = false;
+      var take = function (f) {
+        if (c[f] === undefined) { if (Object.prototype.hasOwnProperty.call(l, f)) { delete l[f]; changed = true; } return; }
+        if (!same(l[f], c[f])) { l[f] = copy(c[f]); changed = true; }
+      };
+      // Presence: whoever was seen last (the record's date only between two
+      // copies that never saw anyone).
+      if (presence.length) {
+        var ls = Core.sync.trusted(ms(a.lastSeen), nowMs), cs = Core.sync.trusted(ms(c.lastSeen), nowMs);
+        var cw = cs > ls || (!ls && !cs && cloudNewer);
+        presence.forEach(function (f) {
+          if (c[f] === undefined) return;
+          if (cw || a[f] === undefined) take(f);
+        });
+      }
+      var seen = {};
+      Object.keys(a).concat(Object.keys(c)).forEach(function (f) {
+        if (seen[f]) return;
+        seen[f] = 1;
+        if (NEVER[f] || presence.indexOf(f) !== -1) return;
+        var x = a[f], y = c[f];
+        if (same(x, y)) return;
+        var who = skip[f] ? null : Fs.pick(a, c, f, fo);
+        if (who === null) {
+          // Not decided by stamps: a detail one copy does not hold is never
+          // a deletion; otherwise the newer record, and a blank is filled.
+          if (y === undefined) who = 'local';
+          else if (x === undefined) who = 'cloud';
+          else if (cloudNewer) who = 'cloud';
+          else if (ct === lt && blank(x) && !blank(y)) who = 'cloud';
+          else who = 'local';
+        }
+        if (who === 'cloud') take(f);
+      });
+      var before = JSON.stringify(l[Fs.FIELD] === undefined ? null : l[Fs.FIELD]);
+      Fs.settle(l, a, c, fo);
+      if (JSON.stringify(l[Fs.FIELD] === undefined ? null : l[Fs.FIELD]) !== before) changed = true;
+      if (ct > lt && c.updatedAt !== l.updatedAt) { l.updatedAt = c.updatedAt; changed = true; }
+      if (dateField !== 'updatedAt' && Core.sync.trusted(ms(c[dateField]), nowMs) > Core.sync.trusted(ms(a[dateField]), nowMs)) { l[dateField] = c[dateField]; changed = true; }
+      return changed;
+    }
+
+    /* A whole map merged into `local` (in place): { added, updated, removed },
+       as Core.sync.mergeMap, honouring tombstones (opts.tombs). */
+    function mergeMap(local, cloud, opts) {
+      opts = opts || {};
+      var out = { added: 0, updated: 0, removed: 0 };
+      if (!isObj(local)) return out;
+      var tombs = opts.tombs || {};
+      Object.keys(local).forEach(function (k) {
+        if (Core.sync.deletedAfter(tombs, k, local[k], opts.nowMs)) { delete local[k]; out.removed++; return; }
+        if (isObj(local[k]) && Core.sync.restampOwn(local[k], ['updatedAt'], opts.nowMs)) out.updated++;
+      });
+      Object.keys(isObj(cloud) ? cloud : {}).forEach(function (k) {
+        var c = cloud[k];
+        if (!isObj(c)) { if (local[k] === undefined) { local[k] = c; out.added++; } return; }
+        if (Core.sync.deletedAfter(tombs, k, c, opts.nowMs)) return;
+        var l = local[k];
+        if (!isObj(l)) { var fresh = copy(c); delete fresh._plaintextPw; local[k] = fresh; out.added++; return; }
+        if (mergeRecord(l, c, opts)) out.updated++;
+      });
+      return out;
+    }
+    /* Two copies of one record as values (the Centre's network merges values,
+       not live objects): the merged copy; neither is changed. */
+    function mergedCopy(local, cloud, opts) {
+      if (!isObj(local)) return copy(cloud);
+      if (!isObj(cloud)) return copy(local);
+      var out = copy(local);
+      mergeRecord(out, cloud, opts);
+      return out;
+    }
+
+    /* The person's chosen status ('online' | 'away' | 'offline'), which
+       presence shows while they are about. Never presence itself. */
+    function chosenStatus(rec) {
+      if (isObj(rec) && STATUSES[rec.statusChoice]) return rec.statusChoice;
+      return 'online';
+    }
+
+    /* ---- Pictures, kept on a device apart from the profiles ---- */
+    /* { account: { pic, at, fs } } for every profile holding a picture (or a
+       dated removal: pic ''). fs: the picture's own stamp when it describes
+       the picture held; at: when it was set (that stamp, or the record date). */
+    function picturesOf(map) {
+      var out = {};
+      Object.keys(isObj(map) ? map : {}).forEach(function (uid) {
+        var r = map[uid];
+        if (!isObj(r) || typeof r.profilePic !== 'string') return;
+        // A picture with no stamp of its own (set before pictures were dated)
+        // is as old as the last edit known, never as new as presence.
+        var t = fieldTime(r, 'profilePic');
+        out[uid] = { pic: r.profilePic, at: new Date(t || ms(r.profileAt) || 1).toISOString() };
+        if (t) out[uid].fs = r._fs.profilePic;
+      });
+      return out;
+    }
+    /* The profiles without their pictures (what the device's profile list
+       holds). A picture taken off ('') stays: it is a dated removal. */
+    function stripPictures(map) {
+      var out = {};
+      Object.keys(isObj(map) ? map : {}).forEach(function (uid) {
+        var r = map[uid];
+        if (!isObj(r)) { out[uid] = r; return; }
+        var c = {};
+        Object.keys(r).forEach(function (f) { if (f !== 'profilePic' || r[f] === '') c[f] = r[f]; });
+        out[uid] = c;
+      });
+      return out;
+    }
+    /* Put kept pictures back on the profiles (in place), each by the detail
+       rule: a picture changed or taken off since is never replaced by an
+       older one. Returns how many profiles changed. */
+    function attachPictures(map, pics, opts) {
+      var n = 0;
+      if (!isObj(map)) return 0;
+      Object.keys(isObj(pics) ? pics : {}).forEach(function (uid) {
+        var e = pics[uid];
+        if (!isObj(e) || typeof e.pic !== 'string') return;
+        if (!isObj(map[uid])) map[uid] = {};
+        var r = map[uid];
+        if (r.profilePic === e.pic) return;
+        var c = { profilePic: e.pic, updatedAt: e.at || '', profileAt: e.at || '' };
+        // The picture is all this copy says: nothing else of it is dated (floor 1).
+        if (e.fs) { c._fs = { profilePic: e.fs }; c._fs[Core.sync.fields.FLOOR] = Core.sync.fields.format(1, Core.sync.fields.restHash(c, { skip: RULES.chatProfiles.skip })); }
+        if (mergeRecord(r, c, { name: 'chatProfiles', nowMs: opts && opts.nowMs })) n++;
+      });
+      return n;
+    }
+    /* Two kept-picture maps: per account, the later one (into `local`); the
+       same picture with the same stamp is no change. */
+    function mergePictures(local, cloud) {
+      var changed = 0;
+      if (!isObj(local)) return 0;
+      Object.keys(isObj(cloud) ? cloud : {}).forEach(function (uid) {
+        var c = cloud[uid], l = local[uid];
+        if (!isObj(c) || typeof c.pic !== 'string') return;
+        if (!isObj(l) || (ms(c.at) > ms(l.at) && (l.pic !== c.pic || (l.fs || '') !== (c.fs || '')))) { local[uid] = copy(c); changed++; }
+      });
+      return changed;
+    }
+
+    /* ---- A trainee's own chat details inside her profile record ---- */
+    /* Her picture, status, status message and about, with their stamps —
+       what travels in studentProfiles[her].preferences.chat. null when she
+       has set none of them. */
+    function chatPart(rec) {
+      if (!isObj(rec)) return null;
+      var out = {}, any = false, best = 0, fs = {};
+      CHAT_OWN.forEach(function (f) {
+        if (rec[f] === undefined) return;
+        out[f] = copy(rec[f]); any = true;
+        var t = fieldTime(rec, f);
+        if (t) { fs[f] = rec._fs[f]; if (t > best) best = t; }
+      });
+      if (!any) return null;
+      if (Object.keys(fs).length) out._fs = fs;
+      out.updatedAt = new Date(best || ms(rec.profileAt) || ms(rec.updatedAt) || 1).toISOString();
+      return out;
+    }
+    /* A chat part merged into the chat profile `rec` (in place), only the
+       person's own details, each by the detail rule. A picture must be a
+       picture. Returns whether `rec` changed. */
+    function takeChatPart(rec, part, opts) {
+      if (!isObj(rec) || !isObj(part)) return false;
+      var c = {};
+      CHAT_OWN.forEach(function (f) { if (part[f] !== undefined) c[f] = part[f]; });
+      if (c.statusChoice !== undefined && !STATUSES[c.statusChoice]) delete c.statusChoice;
+      if (c.profilePic !== undefined && (typeof c.profilePic !== 'string' || (c.profilePic && !PIC.test(c.profilePic)))) delete c.profilePic;
+      ['statusMsg', 'bio'].forEach(function (f) { if (c[f] !== undefined && typeof c[f] !== 'string') delete c[f]; });
+      if (!Object.keys(c).length) return false;
+      if (isObj(part._fs)) c._fs = copy(part._fs);
+      c.updatedAt = c.profileAt = typeof part.updatedAt === 'string' ? part.updatedAt : '';
+      return mergeRecord(rec, c, { name: 'chatProfiles', nowMs: opts && opts.nowMs });
+    }
+    /* The newest of two chat parts, detail by detail. */
+    function mergeChatParts(a, b) {
+      if (!isObj(a)) return isObj(b) ? copy(b) : null;
+      if (!isObj(b)) return copy(a);
+      var out = copy(a);
+      mergeRecord(out, b, { name: 'chatProfiles' });
+      return out;
+    }
+    function isPicture(v) { return typeof v === 'string' && PIC.test(v); }
+
+    return { CHAT_OWN: CHAT_OWN, PRESENCE: PRESENCE, RULES: RULES, touch: touch, mergeRecord: mergeRecord, mergeMap: mergeMap,
+             mergedCopy: mergedCopy, chosenStatus: chosenStatus, picturesOf: picturesOf, stripPictures: stripPictures,
+             attachPictures: attachPictures, mergePictures: mergePictures, chatPart: chatPart, takeChatPart: takeChatPart,
+             mergeChatParts: mergeChatParts, isPicture: isPicture };
+  })();
 
   /* ==========================================================================
      CASHBOOK: one merge rule for every quarter, on every path.
@@ -11848,11 +12208,17 @@
       { key: 'voctrain_support_messages', type: 'list', tombs: 'supportMessages', id: byId },
       { key: 'voctrain_notifications', type: 'list', tombs: 'notifications', id: byId, maps: 'notifications' },
       { key: 'voctrain_documentHubFiles', type: 'list', tombs: 'documentHubFiles', id: byId },
-      { key: 'voctrain_studentProfiles', type: 'map', tombs: 'studentProfiles' },
-      { key: 'voctrain_instructorProfiles', type: 'map', tombs: 'instructorProfiles' },
+      // A person's own profile: detail by detail, a detail one copy lacks is
+      // never a deletion, presence by when they were last seen
+      // (Core.profiles.mergeRecord) — the rule of every other path.
+      { key: 'voctrain_studentProfiles', type: 'map', tombs: 'studentProfiles', profile: 'studentProfiles' },
+      { key: 'voctrain_instructorProfiles', type: 'map', tombs: 'instructorProfiles', profile: 'instructorProfiles' },
       { key: 'voctrain_adrStaffMeta', type: 'map', tombs: 'adrStaffMeta' },
       { key: 'voctrain_certTemplates', type: 'map', tombs: 'certTemplates' },
-      { key: 'voctrain_chatProfiles', type: 'map' },
+      { key: 'voctrain_chatProfiles', type: 'map', profile: 'chatProfiles' },
+      // Profile pictures, kept apart from the profiles: per account, the one
+      // set last; a picture taken off ('') is a dated entry like any other.
+      { key: 'voctrain_chatPictures', type: 'map', stamps: ['at'], whole: true },
       // The School Fee roll, trainee by trainee. Its whole list used to be one
       // value, newest write wins — so a new PC whose dashboard had just made a
       // placeholder for every trainee (dated now) kept its placeholders over the
@@ -12065,7 +12431,7 @@
           var cand;
           if (a === undefined) cand = b;
           else if (b === undefined) cand = a;
-          else if (isObj(a) && isObj(b)) cand = newer(a, b, spec.stamps);
+          else if (isObj(a) && isObj(b)) cand = spec.profile ? Core.profiles.mergedCopy(a, b, { name: spec.profile, preferCloud: !!preferCloud }) : newer(a, b, spec.stamps);
           else cand = preferCloud ? b : a;
           if (isObj(cand) && Core.sync.deletedAfter(tombs, k, cand)) return;
           out[k] = cand;
@@ -15568,6 +15934,304 @@
       programmeReturn: programmeReturn, genderOf: genderOf, ageBand: ageBand, AGE_BANDS: AGE_BANDS };
   })();
 
+  /* ============ THE DASHBOARD'S YEAR: which trainees its figures count ============
+     The owner: "put a filter fiscal year for dashboard as well that ensure
+     only trainee to date are shown, not data for centres closed." The
+     administrator's dashboard counted every trainee the Centre ever had —
+     last year's groups and finished intakes in every total. It now has the
+     School Fee page's year bar, and this is the one rule behind it; every
+     figure on the dashboard asks it and nothing else. It is a view: it reads
+     the records and changes none of them.
+
+     A view is { mode, fy, q, closed }:
+       mode   'year' (the default) | 'quarter' | 'all'
+       fy     the financial year (April to March), '2026/2027'; default the
+              one today falls in
+       q      1–4, for 'quarter'
+       closed true to count the trainees of centres that have closed too
+              (off by default; it only matters in the present year)
+
+     WHERE A TRAINEE SITS. Their year is the financial year of their
+     enrolment date; with none, the year stamped on them at enrolment; with
+     none, the year of their training centre's dates (the centre record, or
+     the course dates stamped on them when the record is gone); with none,
+     the date their record was made. Their quarter is the quarter of the
+     first of their enrolment date, record date or centre start date that
+     falls inside that year. A trainee nothing places in any year is
+     "unplaced": never in a year's figures, always in All Years, and named in
+     a note — never silently dropped.
+
+     WHO A YEAR COUNTS: the trainees enrolled in it, and the trainees of an
+     earlier year whose intake was still running in it (their centre's end
+     date falls in or after the year). Without the second, every intake that
+     starts in September and ends in June would vanish from the present year
+     in April, while the whole group is still in training.
+       • The PRESENT year counts to date: a trainee whose enrolment date is
+         after today is not counted yet (named in a note). Centres that have
+         CLOSED are left out — a centre whose course has ended and that has
+         no reopening window: the rule that stops it enrolling anybody
+         (Core.enrolment.canEnrol's 'ended', School Fee's feeProgrammeClosed),
+         applied to the trainee's own intake. "Include closed centres" brings
+         them back.
+       • A PAST year counts everyone in it, closed centres included: by now
+         every intake of a past year has closed, so leaving them out would
+         leave nothing to see. A year AHEAD counts everyone in it too.
+       • A QUARTER narrows the year to the trainees ENROLLED in it — the
+         quarter of their date. A trainee carried in from an earlier year, or
+         one with no date inside the year, is in the Whole Year only (said so
+         in a note).
+       • ALL YEARS counts every trainee on the roll, as the dashboard always did. */
+  Core.yearView = (function () {
+    var STORE_KEY = 'cestisDashYearView';
+    var MODES = { year: 1, quarter: 1, all: 1 };
+    function list(a) { return (Array.isArray(a) ? a : []).filter(Boolean); }
+    function fyStart(fy) {
+      var m = /^(\d{4})\/(\d{4})$/.exec(String(fy || ''));
+      return m && +m[2] === +m[1] + 1 ? +m[1] : null;
+    }
+    function validFY(fy) { return fyStart(fy) != null; }
+    function shiftFY(fy, n) { var y = fyStart(fy); return y == null ? fy : (y + n) + '/' + (y + n + 1); }
+    function two(n) { return (n < 10 ? '0' : '') + n; }
+    // 'YYYY-MM-DD' from a date as records write them ('2026-09-07',
+    // '2026-09-07T14:00:00Z', 'October 16, 2026'); '' when there is none.
+    function dateOf(v) {
+      if (v == null || v === '') return '';
+      var s = String(v), m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+      if (m) return m[0];
+      var t = Date.parse(s);
+      if (isNaN(t)) return '';
+      var d = new Date(t);
+      return d.getFullYear() + '-' + two(d.getMonth() + 1) + '-' + two(d.getDate());
+    }
+    function fyOf(d) { var q = d ? Core.deriveQuarter(d) : null; return q ? q.fy : null; }
+    function todayOf(t) { return Core.courseDuration.todayStr(t); }
+    function presentFY(today) { return fyOf(todayOf(today)); }
+    function tense(fy, today) {
+      var p = presentFY(today);
+      if (!fy || fy === p) return 'present';
+      return fyStart(fy) < fyStart(p) ? 'past' : 'future';
+    }
+    function yearBounds(fy) { var y = fyStart(fy); return { from: y + '-04-01', to: (y + 1) + '-03-31' }; }
+    function quarterBounds(fy, q) {
+      var y = fyStart(fy), m = q === 4 ? 1 : 1 + q * 3, yr = q === 4 ? y + 1 : y;
+      var end = new Date(Date.UTC(yr, m + 2, 0)).getUTCDate();
+      return { from: yr + '-' + two(m) + '-01', to: yr + '-' + two(m + 2) + '-' + two(end) };
+    }
+
+    /* A choice made good: unknown modes, years and quarters fall back to the
+       present. One remembered with present:true follows the present into a
+       new financial year — "this year" stays this year after March. */
+    function normalise(raw, today) {
+      raw = raw && typeof raw === 'object' ? raw : {};
+      var now = Core.deriveQuarter(todayOf(today)) || {};
+      var q = parseInt(raw.q, 10);
+      return {
+        mode: MODES[raw.mode] ? raw.mode : 'year',
+        fy: (raw.present === true || !validFY(raw.fy)) ? now.fy : raw.fy,
+        q: q >= 1 && q <= 4 ? q : (now.q || 1),
+        closed: raw.closed === true
+      };
+    }
+    // What this device remembers (one person's choice, never shared).
+    function stored(view, today) {
+      var v = normalise(view, today);
+      return { mode: v.mode, fy: v.fy, q: v.q, closed: v.closed, present: v.fy === presentFY(today) };
+    }
+    function read(storage, today) {
+      var raw = null;
+      try { raw = JSON.parse((storage && storage.getItem(STORE_KEY)) || 'null'); } catch (e) { raw = null; }
+      return normalise(raw, today);
+    }
+    function write(storage, view, today) {
+      try { if (storage) storage.setItem(STORE_KEY, JSON.stringify(stored(view, today))); return true; } catch (e) { return false; }
+    }
+
+    /* The dates of a trainee's intake: the centre record's (with its
+       reopening windows), or those stamped on the trainee when it is gone. */
+    function intakeOf(s, centre) {
+      var N = Core.courseDuration.normDate;
+      if (centre) return { start: N(centre.startDate), end: N(centre.endDate), permissions: centre.instructorPermissions || [] };
+      return { start: N(s && s.courseStart), end: N(s && s.courseEnd), permissions: [] };
+    }
+    // Closed: the course has ended and no reopening window is open.
+    function intakeClosed(ik, today, nowMs) {
+      if (!ik || !ik.end) return false;
+      if (Core.courseDuration.status(ik.start, ik.end, todayOf(today)) !== 'ended') return false;
+      return !Core.courseDuration.permissionActiveAt(ik.permissions, typeof nowMs === 'number' ? nowMs : Date.now());
+    }
+    /* -> { fy, date, joined, how }. fy null: unplaced. `date` places them in
+       a quarter ('' when no date falls inside their year); `joined` is the
+       day they joined, for "to date". how: 'enrolled' | 'stamp' | 'centre' |
+       'created'. */
+    function placeOf(s, centre) {
+      var joined = dateOf(s && (s.enrolmentDate || s.enrollmentDate || s.enrollDate));
+      var created = dateOf(s && s.createdAt), ik = intakeOf(s, centre), fy = null, how = null;
+      if (joined) { fy = fyOf(joined); how = 'enrolled'; }
+      if (!fy && s && validFY(s.enrolmentFiscalYear)) { fy = s.enrolmentFiscalYear; how = 'stamp'; }
+      if (!fy && s && validFY(s.fiscalYear)) { fy = s.fiscalYear; how = 'stamp'; }
+      if (!fy) { fy = fyOf(ik.start) || fyOf(ik.end); if (fy) how = 'centre'; }
+      if (!fy && created) { fy = fyOf(created); how = 'created'; }
+      if (!fy) return { fy: null, date: '', joined: '', how: null };
+      var date = '';
+      [joined, created, ik.start].some(function (d) { if (d && fyOf(d) === fy) { date = d; return true; } return false; });
+      return { fy: fy, date: date, joined: joined || created, how: how };
+    }
+
+    /* scope(students, view, opts) — who the figures count.
+       opts: { today, nowMs, centreOf(trainee) -> their training centre or null }
+       -> { view, tense ('present' | 'past' | 'future' | 'all'), total,
+            roll: [in view], ids: { id: true }, enrolled, carried,
+            closedOut: [], later: [], unplaced: [], noQuarter: [],
+            carriedNotInQuarter, otherQuarters, otherYears }
+       Every trainee on the roll is in exactly one of: roll, closedOut,
+       later, unplaced, noQuarter, or one of the three counts. */
+    function scope(students, view, opts) {
+      opts = opts || {};
+      var today = todayOf(opts.today), nowMs = typeof opts.nowMs === 'number' ? opts.nowMs : Date.now();
+      var v = normalise(view, today), all = v.mode === 'all', t = tense(v.fy, today);
+      var centreOf = typeof opts.centreOf === 'function' ? opts.centreOf : function () { return null; };
+      var dropClosed = !all && t === 'present' && !v.closed, yb = yearBounds(v.fy);
+      var out = { view: v, tense: all ? 'all' : t, today: today, total: 0, roll: [], ids: {}, enrolled: 0, carried: 0,
+        closedOut: [], later: [], unplaced: [], noQuarter: [], carriedNotInQuarter: 0, otherQuarters: 0, otherYears: 0 };
+      function take(s, carried) {
+        out.roll.push(s);
+        if (s.id != null) out.ids[String(s.id)] = true;
+        if (carried) out.carried++; else out.enrolled++;
+      }
+      list(students).forEach(function (s) {
+        out.total++;
+        if (all) { take(s, false); return; }
+        var c = null;
+        try { c = centreOf(s) || null; } catch (e) { c = null; }
+        var p = placeOf(s, c), ik = intakeOf(s, c), carried = false;
+        if (!p.fy) { out.unplaced.push(s); return; }
+        if (p.fy !== v.fy) {
+          if (fyStart(p.fy) < fyStart(v.fy) && ik.end && ik.end >= yb.from) carried = true;
+          else { out.otherYears++; return; }
+        }
+        if (v.mode === 'quarter') {
+          if (carried) { out.carriedNotInQuarter++; return; }
+          if (!p.date) { out.noQuarter.push(s); return; }
+          if (Core.deriveQuarter(p.date).q !== v.q) { out.otherQuarters++; return; }
+        }
+        if (t === 'present' && p.joined && p.joined > today) { out.later.push(s); return; }
+        if (dropClosed && intakeClosed(ik, today, nowMs)) { out.closedOut.push(s); return; }
+        take(s, carried);
+      });
+      return out;
+    }
+
+    /* "FY 2026/2027", "Q3 · Oct–Dec 2026", "All years". */
+    function periodLabel(view, today) {
+      var v = normalise(view, today);
+      if (v.mode === 'all') return 'All years';
+      if (v.mode === 'quarter') return Core.quarterShortLabel(v.fy, v.q) + ' ' + Core.quarterCalendarYear(v.fy, v.q);
+      return 'FY ' + v.fy;
+    }
+    // What the bar says first: "FY 2026/2027 · open centres · 214 trainees".
+    function headline(sc) {
+      var v = sc.view, n = sc.roll.length;
+      var centres = sc.tense === 'present' ? (v.closed ? 'open and closed centres' : 'open centres') : 'every centre';
+      return periodLabel(v, sc.today) + ' · ' + centres + ' · ' + n.toLocaleString('en-US') + ' trainee' + (n === 1 ? '' : 's');
+    }
+
+    /* A dated record that is not a trainee's — an exam, a class: in view when
+       its date is in the period (an undated one counts with the present year
+       and quarter)
+       and, in the present year, it is not a closed centre's.
+       opts: { today, nowMs, centreOf(record) } */
+    function recordIn(rec, view, opts) {
+      opts = opts || {};
+      var today = todayOf(opts.today), v = normalise(view, today);
+      if (v.mode === 'all') return true;
+      var d = dateOf(rec && rec.date), t = tense(v.fy, today);
+      if (d) {
+        var q = Core.deriveQuarter(d);
+        if (q.fy !== v.fy || (v.mode === 'quarter' && q.q !== v.q)) return false;
+      } else if (t !== 'present' || (v.mode === 'quarter' && v.q !== (Core.deriveQuarter(today) || {}).q)) return false;
+      if (t !== 'present' || v.closed || typeof opts.centreOf !== 'function') return true;
+      var c = null;
+      try { c = opts.centreOf(rec) || null; } catch (e) { c = null; }
+      return !(c && intakeClosed(intakeOf(null, c), today, opts.nowMs));
+    }
+
+    /* The School Fees card. Fee accounts are placed by the School Fee page's
+       own rule (Core.centreFigures: the enrolment date, else the date the
+       account was made; an account with neither belongs to every year), so
+       with closed centres included the card is School Fee's own figures for
+       the year, to the dollar. From the view it takes the year, the quarter
+       (accounts enrolled in it, payments dated in it), All Years (every
+       account, every payment) and, in the present year, the closed-centre
+       rule: a closed centre's accounts, and their payments, are left out.
+       "Earlier years still owing" stays beside Outstanding, never in it.
+       opts: { today, nowMs, closedOf(account) -> true when its centre has closed }
+       -> { label, billed, collected, owed, accounts, debtors, unpriced, closedOut,
+            earlier: { owed, trainees } | null } */
+    function fees(accounts, payments, view, opts) {
+      opts = opts || {};
+      var today = todayOf(opts.today), v = normalise(view, today), all = v.mode === 'all';
+      var dropClosed = !all && tense(v.fy, today) === 'present' && !v.closed;
+      var closedOf = typeof opts.closedOf === 'function' ? opts.closedOf : function () { return false; };
+      var num = function (x) { var n = parseFloat(x); return isFinite(n) ? n : 0; };
+      var cents = function (n) { return Math.round(n * 100) / 100; };
+      var accts = list(accounts), pays = list(payments), paid = {}, byId = {}, out = {
+        label: periodLabel(v, today), billed: 0, collected: 0, owed: 0, accounts: 0, debtors: 0, unpriced: 0, closedOut: 0,
+        earlier: all ? null : { owed: 0, trainees: 0 } };
+      var closedMemo = {};
+      function isClosed(f) {
+        var k = String(f.id);
+        if (!(k in closedMemo)) { try { closedMemo[k] = !!closedOf(f); } catch (e) { closedMemo[k] = false; } }
+        return closedMemo[k];
+      }
+      pays.forEach(function (p) { var k = String(p.studentId); paid[k] = (paid[k] || 0) + num(p.amount); });
+      accts.forEach(function (f) {
+        if (f.id != null) byId[String(f.id)] = f;
+        var tuition = num(f.tuitionFee), got = paid[String(f.id)] || 0, bal = tuition - got;
+        var q = Core.deriveQuarter(f.enrollmentDate) || Core.deriveQuarter(f.createdAt);
+        var inView = all || !q || (q.fy === v.fy && (v.mode !== 'quarter' || q.q === v.q));
+        if (!inView) {
+          if (q && fyStart(q.fy) < fyStart(v.fy) && bal > 0) { out.earlier.owed += bal; out.earlier.trainees++; }
+          return;
+        }
+        if (dropClosed && isClosed(f)) { out.closedOut++; return; }
+        out.accounts++; out.billed += tuition; out.owed += bal;
+        if (bal > 0) out.debtors++;
+        if (tuition <= 0 && got <= 0) out.unpriced++;
+      });
+      pays.forEach(function (p) {
+        if (!all) {
+          var q = Core.deriveQuarter(p.date);
+          if (q && (q.fy !== v.fy || (v.mode === 'quarter' && q.q !== v.q))) return;
+        }
+        if (dropClosed) {
+          var owner = byId[String(p.studentId)];
+          if (owner ? isClosed(owner) : (typeof opts.paymentClosed === 'function' && opts.paymentClosed(p))) return;
+        }
+        out.collected += num(p.amount);
+      });
+      out.billed = cents(out.billed); out.collected = cents(out.collected); out.owed = cents(out.owed);
+      if (out.earlier) out.earlier.owed = cents(out.earlier.owed);
+      return out;
+    }
+
+    /* The six months the certificate chart shows: up to today, or — for a
+       past year — up to the last certificate of its trainees (a group is
+       certified after its year ends), or the year's end when there is none.
+       -> the date the window ends on, 'YYYY-MM-DD'. */
+    function chartEnd(sc, certDates) {
+      var today = sc.today, v = sc.view;
+      if (sc.tense !== 'past') return today;
+      var end = v.mode === 'quarter' ? quarterBounds(v.fy, v.q).to : yearBounds(v.fy).to;
+      list(certDates).forEach(function (d) { d = dateOf(d); if (d && d > end) end = d; });
+      return end > today ? today : end;
+    }
+
+    return { STORE_KEY: STORE_KEY, normalise: normalise, stored: stored, read: read, write: write,
+      presentFY: presentFY, tense: tense, shiftFY: shiftFY, fyStart: fyStart, yearBounds: yearBounds, quarterBounds: quarterBounds,
+      dateOf: dateOf, placeOf: placeOf, intakeOf: intakeOf, intakeClosed: intakeClosed,
+      scope: scope, periodLabel: periodLabel, headline: headline, recordIn: recordIn, fees: fees, chartEnd: chartEnd };
+  })();
+
   // ===================== NEEDS ATTENTION: who is struggling, most urgent first =====================
   // The dashboard said "5 students below 70% attendance" and nothing else: no
   // names, no "last seen", no phone. Finding who was struggling meant opening
@@ -18516,6 +19180,18 @@
         return val == null ? null : val;
       };
     }
+    /* A trainee's own chat details (picture, status, status message, about)
+       as the Centre holds them: her chat profile with its picture, kept apart
+       (Core.profiles.chatPart). null when she has set none. */
+    function ownChatPart(ctx, acct) {
+      if (!acct || !Core.profiles) return null;
+      var cp = ctx.chatProfiles && ctx.chatProfiles[acct], pic = ctx.chatPictures && ctx.chatPictures[acct];
+      if (!isObj(cp) && !isObj(pic)) return null;
+      var one = {};
+      one[acct] = isObj(cp) ? copy(cp) : {};
+      if (isObj(pic)) { var pics = {}; pics[acct] = pic; Core.profiles.attachPictures(one, pics, { nowMs: ctx.now }); }
+      return Core.profiles.chatPart(one[acct]);
+    }
 
     /* Can this account sign in through the gate at all (and so need a
        slice)? A password that works, or no password yet but an email to sign
@@ -18695,6 +19371,10 @@
       var ctx = { now: now, opts: opts, L: {}, M: {} };
       LISTS.forEach(function (k) { ctx.L[k] = read(k, 'list'); });
       MAPS.forEach(function (k) { ctx.M[k] = read(k, 'map'); });
+      // The trainees' own chat details (ownChatPart) — read apart from MAPS:
+      // a profile's presence changes all day and says nothing about records.
+      ctx.chatProfiles = read('voctrain_chatProfiles', 'map');
+      ctx.chatPictures = read('voctrain_chatPictures', 'map');
       ctx.settings = read('voctrain_systemSettings', 'map');
       ctx.offset = str(ctx.settings.centreUtcOffset) || Core.exams.DEFAULT_OFFSET;
       ctx.tombs = read('voctrain_syncTombstones', 'map');
@@ -18784,6 +19464,9 @@
       LISTS.forEach(function (k) { ctx.L[k].forEach(see); });
       MAPS.forEach(function (k) { Object.keys(ctx.M[k]).forEach(function (mk) { see(ctx.M[k][mk]); }); });
       allAccounts.forEach(see); allStudents.forEach(see); see(ctx.settings);
+      // Of a chat profile, only when its owner last edited it (never presence).
+      Object.keys(ctx.chatProfiles).forEach(function (k) { var t = Core.sync.trusted(msOf(ctx.chatProfiles[k] && ctx.chatProfiles[k].profileAt), now); if (t > s) s = t; });
+      Object.keys(ctx.chatPictures).forEach(function (k) { var t = Core.sync.trusted(msOf(ctx.chatPictures[k] && ctx.chatPictures[k].at), now); if (t > s) s = t; });
       var seeTimes = function (m) {
         Object.keys(isObj(m) ? m : {}).forEach(function (k) { var t = Core.sync.trusted(msOf(m[k]), now); if (t > s) s = t; });
       };
@@ -19158,6 +19841,22 @@
           if (!hasOwn.call(d[k], t.stu) && hasOwn.call(ctx.M[k], x)) d[k][t.stu] = copy(ctx.M[k][x]);
         });
       });
+      // Her own picture, status, status message and about (Core.profiles):
+      // the newest of what her profile record carries and what the Centre's
+      // chat holds, inside her record (preferences.chat), so the device she
+      // signs in on at home shows them — never one of somebody else's.
+      var ownChat = ownChatPart(ctx, t.acct);
+      if (ownChat) {
+        var spKey = hasOwn.call(d.voctrain_studentProfiles, t.stu) || !hasOwn.call(d.voctrain_studentProfiles, t.acct) ? t.stu : t.acct;
+        var spRec = isObj(d.voctrain_studentProfiles[spKey]) ? d.voctrain_studentProfiles[spKey] : (d.voctrain_studentProfiles[spKey] = {});
+        var prefs = isObj(spRec.preferences) ? spRec.preferences : {};
+        var both = Core.profiles.mergeChatParts(isObj(prefs.chat) ? prefs.chat : null, ownChat);
+        if (both) {
+          prefs.chat = both;
+          spRec.preferences = prefs;
+          if (msOf(both.updatedAt) > msOf(spRec.updatedAt)) spRec.updatedAt = both.updatedAt;
+        }
+      }
       // Prepared assessments (Core.assessments): her own photos and sign-offs
       // (hers to change), her own practical results and filed papers (what the
       // office keeps of where a paper is, never); and each group she is in, as

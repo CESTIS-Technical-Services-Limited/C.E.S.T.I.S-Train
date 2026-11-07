@@ -72,7 +72,7 @@ function dashboard(opts) {
   sb.window = sb;
   sb.findStudentRecordForAccount = a => sb.students.find(s => Core.normName(s.name) === Core.normName(a.name)) || null;
   vm.createContext(sb);
-  vm.runInContext(['cestisGenId', 'findSkillAreaForCourse', 'instructorCourseMatch', 'fillTraineeContactFromAccount', 'createStudentDataForAccount',
+  vm.runInContext(['cestisGenId', 'findSkillAreaForCourse', 'instructorCourseMatch', 'fillTraineeContactFromAccount', 'createStudentDataForAccount', 'traineeIdForAccount',
     'readArr', 'syncStudentsToSchoolFee', 'approveUser', 'approveAllPending'].map(n => extractFunction(INDEX, n)).join('\n\n'), sb);
   return sb;
 }

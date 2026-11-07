@@ -132,9 +132,15 @@ PAGES.forEach(function (page) {
     'assignmentSubmissions', 'instructorResources', 'instructorData', 'adrTasks', 'supportMessages', 'notifications', 'documentHubFiles'].forEach(function (c) {
     assert(merge.indexOf('CESTISCore.sync.mergeList(' + c + ',') !== -1, w + ': ' + c + ' merges by the rule');
   });
-  ['studentProfiles', 'instructorProfiles', 'adrStaffMeta', 'certTemplates', 'lmsChatProfiles'].forEach(function (c) {
+  ['adrStaffMeta', 'certTemplates'].forEach(function (c) {
     assert(merge.indexOf('CESTISCore.sync.mergeMap(' + c + ',') !== -1, w + ': ' + c + ' merges by the rule');
   });
+  // A person's own profile: the same rule detail by detail (CESTISCore.profiles,
+  // tests/profile-persistence.test.js), with the deletions honoured.
+  [['studentProfiles', 'studentProfiles'], ['instructorProfiles', 'instructorProfiles'], ['lmsChatProfiles', 'chatProfiles']].forEach(function (p) {
+    assert(merge.indexOf('CESTISCore.profiles.mergeMap(' + p[0] + ',') !== -1 && merge.indexOf("name: '" + p[1] + "'") !== -1, w + ': ' + p[0] + ' merges by the rule');
+  });
+  assert(/CESTISCore\.profiles\.mergeMap\(studentProfiles, [^;]*tombs: syncTombsFor\('studentProfiles'\)/.test(merge), w + ': a deleted trainee profile stays deleted');
   assert(merge.indexOf('CESTISCore.cloudMerge.applyApproval(certDownloadApprovals, ca)') !== -1, w + ': approvals use the one shared approval rule');
   assert(merge.indexOf('mergeTombstones(') !== -1, w + ': the cloud\'s tombstones are taken in');
   assert(merge.indexOf('syncRebaselineAll()') !== -1, w + ': the baseline is retaken after a merge');

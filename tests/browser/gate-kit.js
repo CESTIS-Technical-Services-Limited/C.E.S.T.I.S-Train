@@ -67,6 +67,7 @@ function make(env) {
      opts.drive null: a device that never reaches the shared files at all. */
   async function computer(opts) {
     const o = opts.phone ? { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true } : { viewport: { width: 1366, height: 768 } };
+    if (opts.scale) o.deviceScaleFactor = opts.scale;   // sharper screenshots
     const ctx = await browser.newContext(Object.assign({ timezoneId: 'America/Jamaica' }, o));
     ctx._drive = opts.drive; ctx._gate = opts.gate; ctx._log = [];
     await ctx.route('**/*', r => {

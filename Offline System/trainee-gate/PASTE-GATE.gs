@@ -868,7 +868,8 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       }
       var want = Core.normName(cand.name);
       if (!want) return {};
-      var same = list.filter(function (a) { return Core.normName(a.name) === want && programmesAgree(a.programme, cand.programme); });
+      var same = list.filter(function (a) { return Core.normName(a.name) === want && programmesAgree(a.programme, cand.programme) &&
+        !(Core.identityConflict && Core.identityConflict(a, cand)); });
       if (same.length === 1) return { match: same[0], by: 'name' };
       if (!same.length) return {};
       if (cand.programme) {
@@ -4728,6 +4729,18 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
         return val == null ? null : val;
       };
     }
+    /* A trainee's own chat details (picture, status, status message, about)
+       as the Centre holds them: her chat profile with its picture, kept apart
+       (Core.profiles.chatPart). null when she has set none. */
+    function ownChatPart(ctx, acct) {
+      if (!acct || !Core.profiles) return null;
+      var cp = ctx.chatProfiles && ctx.chatProfiles[acct], pic = ctx.chatPictures && ctx.chatPictures[acct];
+      if (!isObj(cp) && !isObj(pic)) return null;
+      var one = {};
+      one[acct] = isObj(cp) ? copy(cp) : {};
+      if (isObj(pic)) { var pics = {}; pics[acct] = pic; Core.profiles.attachPictures(one, pics, { nowMs: ctx.now }); }
+      return Core.profiles.chatPart(one[acct]);
+    }
 
     /* Can this account sign in through the gate at all (and so need a
        slice)? A password that works, or no password yet but an email to sign
@@ -4907,6 +4920,10 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       var ctx = { now: now, opts: opts, L: {}, M: {} };
       LISTS.forEach(function (k) { ctx.L[k] = read(k, 'list'); });
       MAPS.forEach(function (k) { ctx.M[k] = read(k, 'map'); });
+      // The trainees' own chat details (ownChatPart) — read apart from MAPS:
+      // a profile's presence changes all day and says nothing about records.
+      ctx.chatProfiles = read('voctrain_chatProfiles', 'map');
+      ctx.chatPictures = read('voctrain_chatPictures', 'map');
       ctx.settings = read('voctrain_systemSettings', 'map');
       ctx.offset = str(ctx.settings.centreUtcOffset) || Core.exams.DEFAULT_OFFSET;
       ctx.tombs = read('voctrain_syncTombstones', 'map');
@@ -4996,6 +5013,9 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       LISTS.forEach(function (k) { ctx.L[k].forEach(see); });
       MAPS.forEach(function (k) { Object.keys(ctx.M[k]).forEach(function (mk) { see(ctx.M[k][mk]); }); });
       allAccounts.forEach(see); allStudents.forEach(see); see(ctx.settings);
+      // Of a chat profile, only when its owner last edited it (never presence).
+      Object.keys(ctx.chatProfiles).forEach(function (k) { var t = Core.sync.trusted(msOf(ctx.chatProfiles[k] && ctx.chatProfiles[k].profileAt), now); if (t > s) s = t; });
+      Object.keys(ctx.chatPictures).forEach(function (k) { var t = Core.sync.trusted(msOf(ctx.chatPictures[k] && ctx.chatPictures[k].at), now); if (t > s) s = t; });
       var seeTimes = function (m) {
         Object.keys(isObj(m) ? m : {}).forEach(function (k) { var t = Core.sync.trusted(msOf(m[k]), now); if (t > s) s = t; });
       };
@@ -5370,6 +5390,22 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
           if (!hasOwn.call(d[k], t.stu) && hasOwn.call(ctx.M[k], x)) d[k][t.stu] = copy(ctx.M[k][x]);
         });
       });
+      // Her own picture, status, status message and about (Core.profiles):
+      // the newest of what her profile record carries and what the Centre's
+      // chat holds, inside her record (preferences.chat), so the device she
+      // signs in on at home shows them — never one of somebody else's.
+      var ownChat = ownChatPart(ctx, t.acct);
+      if (ownChat) {
+        var spKey = hasOwn.call(d.voctrain_studentProfiles, t.stu) || !hasOwn.call(d.voctrain_studentProfiles, t.acct) ? t.stu : t.acct;
+        var spRec = isObj(d.voctrain_studentProfiles[spKey]) ? d.voctrain_studentProfiles[spKey] : (d.voctrain_studentProfiles[spKey] = {});
+        var prefs = isObj(spRec.preferences) ? spRec.preferences : {};
+        var both = Core.profiles.mergeChatParts(isObj(prefs.chat) ? prefs.chat : null, ownChat);
+        if (both) {
+          prefs.chat = both;
+          spRec.preferences = prefs;
+          if (msOf(both.updatedAt) > msOf(spRec.updatedAt)) spRec.updatedAt = both.updatedAt;
+        }
+      }
       // Prepared assessments (Core.assessments): her own photos and sign-offs
       // (hers to change), her own practical results and filed papers (what the
       // office keeps of where a paper is, never); and each group she is in, as
@@ -6881,7 +6917,7 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
      The rules above name them only on the staff side (building slices,
      collecting inboxes), which the gate never runs. Touching one throws,
      so a rule that starts to need it fails loudly instead of quietly. */
-  ["Transcript","certs","chat","chatSync","comms","courseDuration","coursework","deriveQuarter","dropTombstonedStudents","feeRecordRank","feeTwinIndex","identityConflict","isSnapshotableKey","keepsOwnId","migrateToStableIds","notify","pageCloud","pendingUpload","relinkDependentData","sync"].forEach(function (name) {
+  ["Transcript","certs","chat","chatSync","comms","courseDuration","coursework","deriveQuarter","dropTombstonedStudents","feeRecordRank","feeTwinIndex","identityConflict","isSnapshotableKey","keepsOwnId","migrateToStableIds","notify","pageCloud","pendingUpload","profiles","relinkDependentData","sync"].forEach(function (name) {
     Object.defineProperty(Core, name, { configurable: true, enumerable: false, get: function () {
       throw new Error('Core.' + name + ' is not in the gate\'s paste: rebuild it with node trainee-gate/build-paste.js --full');
     } });

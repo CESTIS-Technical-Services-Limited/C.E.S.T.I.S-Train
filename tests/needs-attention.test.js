@@ -177,7 +177,12 @@ function page(role) {
   assert(/Owes/.test(as.els['attnHead-as-needs-attention'].innerHTML), 'Admin Staff see it too');
 }
 {
-  assert(/const lowAttendance = attentionLowAttendanceCount\(\);/.test(fn('buildAdminPages')) && /id="dashLowAttendanceAlert" onclick="showPage\('needs-attention'\)"/.test(fn('buildAdminPages')), 'the administrator\'s "below 70% attendance" alert opens the list and counts by its rule');
+  // The administrator's alert counts by the list's own rule, over the trainees
+  // the dashboard's year bar shows (dashScope).
+  assert(/\$\{dashAlertsHtml\(\)\}/.test(fn('buildAdminPages')) && /const lowAttendance = dashLowAttendanceCount\(\);/.test(fn('dashAlertsHtml')) &&
+    /id="dashLowAttendanceAlert" onclick="showPage\('needs-attention'\)"/.test(fn('dashAlertsHtml')) &&
+    /attentionRows\(\)\.filter\(function \(r\) \{ return ids\[String\(r\.id\)\] && r\.pct != null && r\.pct < CESTISCore\.attention\.LOW_ATTENDANCE; \}\)/.test(fn('dashLowAttendanceCount')),
+    'the administrator\'s "below 70% attendance" alert opens the list and counts by its rule');
   assert(/id="iDashLowAttendanceAlert" onclick="showPage\('i-needs-attention'\)"/.test(fn('buildInstructorPages')), 'so does the instructor\'s');
   assert(/data-page="as-needs-attention"/.test(fn('buildAdminStaffSidebar')) && /data-page="i-needs-attention"/.test(fn('buildInstructorSidebar')) && /data-page="needs-attention"/.test(fn('buildAdminSidebar')), 'each of the three has it in the sidebar');
 }

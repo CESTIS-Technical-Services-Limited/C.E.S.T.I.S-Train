@@ -34,7 +34,7 @@ const SUITES = [
   'tests/centre-key-identity.test.js', 'tests/centre-drift.test.js', 'tests/identity-churn.test.js', 'tests/intake-level-match.test.js',
   'tests/same-name-collapse.test.js', 'tests/transcript-core.test.js', 'tests/transcript-records.test.js', 'tests/transadmin-pages.test.js',
   'tests/finance-core.test.js', 'tests/staff-appraisals.test.js', 'tests/cmc-portal.test.js', 'tests/income-expenditure.test.js',
-  'tests/enrolment-core.test.js', 'tests/school-fee-programmes.test.js', 'tests/fee-intake-collapse.test.js', 'tests/school-fee-perf.test.js', 'tests/sync-concurrency-fixes.test.js', 'tests/cert-namesake.test.js',
+  'tests/enrolment-core.test.js', 'tests/school-fee-programmes.test.js', 'tests/fee-intake-collapse.test.js', 'tests/school-fee-perf.test.js', 'tests/sync-concurrency-fixes.test.js', 'tests/cert-namesake.test.js', 'tests/missing-trainees.test.js', 'tests/fee-mirror-namesake.test.js',
   'tests/school-fee-seed.test.js', 'tests/school-fee-dashboard-scope.test.js', 'tests/reports-analytics.test.js', 'tests/system-settings-merge.test.js',
   'tests/cert-vc-core.test.js', 'tests/cert-template-seed.test.js', 'tests/certificate-portal.test.js', 'tests/vc-sessions.test.js',
   'tests/account-access.test.js', 'tests/account-store-key.test.js', 'tests/two-step-login-layer.test.js', 'tests/two-step-state-sync.test.js',
@@ -84,7 +84,8 @@ const SUITES = [
   'tests/requests-run-themselves.test.js', 'tests/student-progress-bulk.test.js', 'tests/new-trainee-form.test.js', 'tests/sign-in-slips.test.js',
   'tests/academic-year-options.test.js', 'tests/version-tags.test.js', 'tests/centre-config.test.js',
   'tests/megadata-dormant.test.js', 'tests/payroll-rates.test.js', 'tests/light-pages.test.js', 'tests/staff-modules-offline.test.js', 'tests/exam-extra-time.test.js', 'tests/records-safe-core.test.js', 'tests/records-safe-page.test.js',
-  'tests/assessments-core.test.js', 'tests/assessments-bank.test.js', 'tests/assessment-pdf.test.js'
+  'tests/assessments-core.test.js', 'tests/assessments-bank.test.js', 'tests/assessment-pdf.test.js', 'tests/profile-persistence.test.js',
+  'tests/dash-fiscal-year.test.js'
 ];
 
 /* tests/*.test.js files that are not in SUITES. They run too (see above). */
