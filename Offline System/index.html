@@ -4898,6 +4898,17 @@ html[data-theme="light"] .lms-chat-msg .msg-edited, html[data-theme="light"] .lm
 .cert-portal-sync button:disabled { opacity:0.6; cursor:wait; }
 .cert-portal-certno { display:inline-block; font-family:monospace; font-size:13px; padding:4px 10px; border-radius:6px; background:var(--accent-dim); color:var(--accent); margin:0 auto 16px; }
 .cert-preview-wrap { margin-top:18px; display:grid; gap:14px; }
+/* A requested certificate, opened by the Administrator (renderCtrCertificate) */
+.ctr-cert-card { padding:24px; display:grid; gap:16px; max-width:980px; }
+.ctr-cert-head { display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+.ctr-cert-head h3 { font-family:'Playfair Display',serif; margin:0; }
+.ctr-cert-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px; }
+.ctr-cert-item { background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 14px; min-width:0; }
+.ctr-cert-label { font-size:12px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.06em; margin-bottom:4px; }
+.ctr-cert-value { font-size:14px; color:var(--text-primary); overflow-wrap:anywhere; }
+.ctr-cert-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.ctr-cert-note { margin:0; font-size:14px; color:var(--text-secondary); }
+.ctr-cert-muted { font-size:12px; color:var(--text-muted); }
 .cert-preview-page { background:#fff; border-radius:6px; overflow:hidden; box-shadow:0 6px 24px rgba(0,0,0,0.45); }
 .cert-preview-page canvas, .cert-preview-page img { display:block; width:100%; height:auto; }
 .cert-preview-label { font-size:12px; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin:0 0 6px; }
@@ -15763,6 +15774,7 @@ function showPage(pageId) {
     'qual-plan':'Qual Plan / Curriculum','s-qual-plan':'Qual Plan / Curriculum','i-qual-plan':'Qual Plan / Curriculum','as-qual-plan':'Qual Plan / Curriculum',
     'transcript-grades':'Transcript / Grades','s-transcript-grades':'Transcript / Grades','as-transcript-grades':'Transcript / Grades','i-trainee-grades':'Trainee Grades',
     'cert-transcript-requests':'Certificate / Transcript Requests','as-cert-transcript-requests':'Certificate / Transcript Requests',
+    'ctr-certificate':'Requested Certificate',
     'cmc-dashboard':'CMC Analytics Dashboard','cmc-financial':'Financial Overview','cmc-virements':'Virement Approvals','cmc-staff':'Staff & HR','cmc-academic':'Academic Performance','cmc-profile':'My Profile',
     'tms-system':'TMS System','as-tms-system':'TMS System','nqs-system':'NQS System','as-nqs-system':'NQS System',
     'needs-attention':'Needs Attention','as-needs-attention':'Needs Attention','i-needs-attention':'Needs Attention'
@@ -16605,6 +16617,11 @@ function buildAdminPages() {
   <!-- CERTIFICATE / TRANSCRIPT REQUESTS (Admin) -->
   <section class="page" id="page-cert-transcript-requests">
     <iframe id="ctrRequestsFrame" style="width:100%;height:calc(100vh - var(--topbar-h) - 56px);border:none;border-radius:12px;"></iframe>
+  </section>
+
+  <!-- A REQUESTED CERTIFICATE (Administrator only): opened from a request -->
+  <section class="page" id="page-ctr-certificate">
+    <div id="ctrCertView"></div>
   </section>
 
   <!-- PDF WORKSHOP -->
@@ -26207,10 +26224,77 @@ function ctrOpenFor(what, studentId) {
   };
   if(what === 'transcript') {
     go(staff ? 'as-transcript-grades' : 'transcript-grades', staff ? 'asTranscriptGradesFrame' : 'transcriptGradesFrame', { type: 'cestis-tg-select', studentId: studentId }, 'select');
+  } else if(what === 'certificate') {
+    // The certificate itself: the Administrator only.
+    if(currentRole !== 'admin') { showToast('Only the Administrator can open a certificate.', 'warning'); return; }
+    renderCtrCertificate(studentId);
+    showPage('ctr-certificate');
   } else if(what === 'certify') {
     if(!studentProgressManageAllowed() || !pageAllowedForRole(staff ? 'as-students' : 'students')) { showToast('Certifying needs "Student Progress" and "Student Progress — manage". Ask the Administrator.', 'warning'); return; }
     go(staff ? 'as-students' : 'students', staff ? 'asStudentProgressFrame' : 'studentProgressFrame', { type: 'cestis-sp-certify', studentId: studentId }, 'certify');
   }
+}
+
+/* A requested certificate, for the Administrator: who it is for, its number
+   and dates, whether its download is approved and whether it was collected,
+   and the certificate itself (both pages, drawn as the trainee's copy is),
+   with the office's own copy to print. A trainee who is not certified gets
+   no certificate here either: the page says so, with the way to certify. */
+function renderCtrCertificate(studentId) {
+  var host = document.getElementById('ctrCertView');
+  if (!host) return;
+  if (currentRole !== 'admin') { host.innerHTML = ''; return; }
+  var s = (students || []).find(function(x) { return x && String(x.id) === String(studentId); });
+  var back = '<button class="btn btn-sm btn-secondary" onclick="showPage(\'cert-transcript-requests\')">\u2190 Back to requests</button>';
+  if (!s) {
+    host.innerHTML = '<div class="card" style="padding:24px;">' + back + '<p style="margin-top:16px;">This trainee\u2019s record is not on this computer. Sync, then open the request again.</p></div>';
+    return;
+  }
+  var C = CESTISCore.certs;
+  var issued = C.isIssued(s);
+  var approval = (certDownloadApprovals || []).find(function(d) { return d && d.studentId === s.id; });
+  var row = function(label, value) {
+    return '<div class="ctr-cert-item"><div class="ctr-cert-label">' + escapeHtml(label) + '</div><div class="ctr-cert-value">' + value + '</div></div>';
+  };
+  var stage = '<span class="badge ' + (stageBadge[s.stage] || 'badge-blue') + '"><span class="badge-dot"></span>' + escapeHtml(stageLabels[s.stage] || s.stage || '\u2014') + '</span>';
+  var details =
+    row('Trainee', '<strong>' + escapeHtml(s.name || '') + '</strong>') +
+    row('Student ID', escapeHtml(s.id)) +
+    row('Programme', escapeHtml(s.course || '\u2014')) +
+    row('Stage', stage);
+  var body;
+  if (!issued) {
+    var why = C.isRevoked(s) ? 'This trainee\u2019s certificate was withdrawn.'
+      : (s.certNo ? 'A certificate number is on this record, but the trainee is not marked Certified, so there is no certificate to open.'
+                  : 'This trainee has not been certified yet, so there is no certificate to open.');
+    body = '<div class="ctr-cert-grid">' + details + '</div>' +
+      '<p class="ctr-cert-note">' + escapeHtml(why) + ' Once the course is completed, certify them in Student Progress.</p>' +
+      '<div class="ctr-cert-actions"><button class="btn btn-sm btn-primary" onclick="ctrOpenFor(\'certify\',' + jsArg(s.id) + ')">Certify in Student Progress</button></div>';
+  } else {
+    var dl = approval && approval.approved
+      ? '<span class="badge badge-green"><span class="badge-dot"></span>Approved</span> <span class="ctr-cert-muted">Downloads: ' + escapeHtml(approval.downloadCount || 0) + '</span>'
+      : '<span class="badge badge-amber"><span class="badge-dot"></span>Not approved</span>';
+    details +=
+      row('Certificate number', '<span style="font-family:monospace;">' + escapeHtml(s.certNo) + '</span>') +
+      row('Date certified', escapeHtml(s.certDate || '\u2014')) +
+      row('Trainee download', dl) +
+      row('Collected', s.certCollected ? '<span class="badge badge-green"><span class="badge-dot"></span>Collected</span>' : '<span class="badge badge-amber"><span class="badge-dot"></span>Not yet</span>');
+    body = '<div class="ctr-cert-grid">' + details + '</div>' +
+      '<div class="ctr-cert-actions">' +
+        '<button class="btn btn-sm btn-primary" onclick="generateCertificatePDF(' + jsArg(s.id) + ', { office: true })">' + CERT_DOWNLOAD_ICON + ' Download office copy (PDF)</button>' +
+        (approval && approval.approved ? '' : '<button class="btn btn-sm btn-secondary" onclick="ctrCertApprove(' + jsArg(s.id) + ')">Approve trainee download</button>') +
+      '</div>' +
+      '<p class="ctr-cert-muted" style="margin:6px 0 0;">The office copy is for printing here; it is not counted as the trainee\u2019s download.</p>' +
+      '<div class="cert-preview-wrap" id="ctrCertPreview"><p class="ctr-cert-muted">Preparing the certificate\u2026</p></div>';
+  }
+  host.innerHTML = '<div class="card ctr-cert-card">' +
+    '<div class="ctr-cert-head">' + back + '<h3>Requested certificate</h3></div>' + body + '</div>';
+  if (issued) certRenderPreview(s, document.getElementById('ctrCertPreview'));
+}
+function ctrCertApprove(studentId) {
+  if (currentRole !== 'admin') return;
+  approveCertDownload(studentId);
+  renderCtrCertificate(studentId);
 }
 
 // ============================== CERT/TRANSCRIPT REQUEST BADGE ==============================
@@ -54582,16 +54666,19 @@ function _certHasCloudToken() {
   } catch (x) { return false; }
 }
 
-function generateCertificatePDF(studentId) {
+function generateCertificatePDF(studentId, opts) {
+  opts = opts || {};
   var student = students.find(function(s){ return s.id === studentId; });
   if(!student || !student.certNo) { showToast('Certificate not found'); _certDownloadStatus('Certificate not found.', true); return; }
   // Never for a trainee who has not finished (not Certified or Collected), whatever called this.
   if(!CESTISCore.certs.isIssued(student)) { showToast('No certificate has been issued yet.'); _certDownloadStatus('No certificate has been issued yet.', true); return; }
   // Her own certificate, at home (T4): its background through the gate.
-  if (typeof cestisGateSession === 'function' && cestisGateSession() && window.CESTISGate) { homeCertDownload(student); return; }
+  if (!opts.office && typeof cestisGateSession === 'function' && cestisGateSession() && window.CESTISGate) { homeCertDownload(student); return; }
 
   // Gate: require a cloud sync first so every download is recorded centrally.
-  if(!certSyncDone()) {
+  // (The office's own copy, printed by the Administrator, is not a download
+  // by the trainee: it is not counted and needs no sync first.)
+  if(!opts.office && !certSyncDone()) {
     var dlBtnG = document.getElementById('certPublicDownloadBtn');
     if(_certHasCloudToken() && !_certDriveFetchInProgress) {
       // We can sync silently — pull the latest, then retry the download.
@@ -54600,7 +54687,7 @@ function generateCertificatePDF(studentId) {
       _certDriveLastFetched = null; // force a fresh pull
       Promise.resolve(fetchCertDataFromDrive()).then(function(){
         if(dlBtnG) dlBtnG.disabled = false;
-        if(certSyncDone()) { generateCertificatePDF(studentId); }
+        if(certSyncDone()) { generateCertificatePDF(studentId, opts); }
         else { _certDownloadStatus('Could not sync. Please use “Sync Now” at the top of the login page, then try again.', true); }
       }).catch(function(){
         if(dlBtnG) dlBtnG.disabled = false;
@@ -54623,7 +54710,7 @@ function generateCertificatePDF(studentId) {
     showToast('Loading PDF library, please wait...');
     _certDownloadStatus('Loading PDF library...', false);
     // This site's copy first, a CDN only if that fails — see cestisNeedLib in <head>.
-    cestisNeedLib('jspdf').then(function() { generateCertificatePDF(studentId); },
+    cestisNeedLib('jspdf').then(function() { generateCertificatePDF(studentId, opts); },
       function() { showToast('Failed to load PDF library. Check the connection.'); _certDownloadStatus('Failed to load PDF library. Check the connection.', true); });
     return;
   }
@@ -54648,12 +54735,12 @@ function generateCertificatePDF(studentId) {
       _certImagesLoaded = true;
       var tpl2 = certTemplates[certKey] || {};
       if(tpl2.bgPage1) {
-        _generateCertPDFInner(studentId);
+        _generateCertPDFInner(studentId, opts);
         return;
       }
       // Step 2: on the Centre's own network, its server (certImageLoadFromLan)
       return certImageLoadFromLan(certKey).then(function(found) {
-        if(found) { _generateCertPDFInner(studentId); return; }
+        if(found) { _generateCertPDFInner(studentId, opts); return; }
         // Step 3: Try Google Drive
         if(googleAccessToken) {
           showToast('Template not on this computer yet. Checking for it...');
@@ -54662,7 +54749,7 @@ function generateCertificatePDF(studentId) {
             if(data) {
               // Also try page 2
               certImageLoadFromDrive(certKey, 'bgPage2').then(function() {
-                _generateCertPDFInner(studentId);
+                _generateCertPDFInner(studentId, opts);
               });
             } else {
               showToast('No certificate template found for ' + (student.course || 'this course') + '. Please contact administration.');
@@ -54680,7 +54767,7 @@ function generateCertificatePDF(studentId) {
     });
     return;
   }
-  _generateCertPDFInner(studentId);
+  _generateCertPDFInner(studentId, opts);
 }
 
 // Names THIS device in the per-device download count. "Session" in the key
@@ -54694,14 +54781,15 @@ function certDeviceId() {
   } catch (e) { return 'this-device'; }
 }
 
-function _generateCertPDFInner(studentId) {
+function _generateCertPDFInner(studentId, opts) {
+  opts = opts || {};
   var student = students.find(function(s){ return s.id === studentId; });
   if(!student) return;
 
   // Track download. The approval records the number printed (fill-only
   // both ways — a number, once issued, never changes), so the number on the
   // paper is always on record somewhere that syncs.
-  var approval = certDownloadApprovals.find(function(d){ return d.studentId === studentId; });
+  var approval = opts.office ? null : certDownloadApprovals.find(function(d){ return d.studentId === studentId; });
   if(approval) {
     certAlignNumberWithApproval(student, approval);
     // Counted per device, so two devices' downloads add up when they sync
