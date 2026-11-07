@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
 <script src="cestis-config.js?v=284ebb2a"></script>
-<script src="cestis-core.js?v=ab952e89"></script>
+<script src="cestis-core.js?v=f6140aa4"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CESTIS - School Fee Management System</title>
     
@@ -6891,7 +6891,9 @@
                 // read parsed the skill areas and the deletion lists again).
                 const _centres = feeTrainingCentres();
                 const _lmsIdx = (window.CESTISCore && typeof CESTISCore.twinIndex === 'function') ? CESTISCore.twinIndex(lmsStudents) : null;
-                const _del = new Set(delIds);   // same strict matching as indexOf
+                const _del = new Set(delIds.map(String));   // same strict matching as indexOf
+                let _delTimes = {};
+                try { _delTimes = CESTISCore.readDeletedStudentTimes(CESTISStore) || {}; } catch (e) { _delTimes = {}; }
 
                 students.forEach(sf => {
                     if (!sf || !sf.name) return;
@@ -6902,10 +6904,11 @@
                     const feeSid = (window.CESTISCore && typeof CESTISCore.stableStudentId === 'function')
                         ? CESTISCore.stableStudentId({ name: sf.name, course: sf.skillArea }) : null;
                     // Skip if removed on the dashboard (twin id, raw fee id, stable id, or linked lms id).
-                    if (_del.has(linkId) ||
-                        _del.has(sf.id) ||
-                        (feeSid && _del.has(feeSid)) ||
-                        (sf.lmsId && _del.has(sf.lmsId))) return;
+                    // (A fee record added AFTER that deletion is a new enrolment
+                    // of the same name and is mirrored: CESTISCore.feeRecordTombstoned.)
+                    if (window.CESTISCore && typeof CESTISCore.feeRecordTombstoned === 'function'
+                        ? CESTISCore.feeRecordTombstoned(sf, _del, _delTimes)
+                        : (_del.has(linkId) || _del.has(sf.id) || (feeSid && _del.has(feeSid)) || (sf.lmsId && _del.has(sf.lmsId)))) return;
 
                     // Where does this record belong on the dashboard? The rule is
                     // shared (CESTISCore.lmsMirrorTarget) and it obeys VocTrain:
@@ -6981,6 +6984,8 @@
                         enrolmentDate: sf.enrollmentDate || '',
                         fiscalYear: sf.fiscalYear || null
                     });
+                    // A new enrolment: an earlier deletion of the same name does not hide it.
+                    try { CESTISCore.markEnrolment(lmsStudents[lmsStudents.length - 1], CESTISStore); } catch (e) {}
                     if (_lmsIdx) _lmsIdx.add(lmsStudents[lmsStudents.length - 1]);
                     changed = true;
                 });

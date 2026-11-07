@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <script src="cestis-config.js?v=284ebb2a"></script>
-<script src="cestis-core.js?v=ab952e89"></script>
+<script src="cestis-core.js?v=f6140aa4"></script>
 <script src="cestis-form-modal.js?v=74020c38" defer></script>
 <!-- Inert until a page registers: the CMC Board registers as a READ-ONLY reader
      so the operating pages' books reach its dashboards without anyone syncing. -->
@@ -26915,14 +26915,18 @@ function syncStudentsFromLocalFeeSystem(force) {
       // records disagreeing on both, and adding "again" would split one trainee
       // into two.
       if (twins.find(fee)) return;
-      if (deleted[studentId]) return;                 // removed on the dashboard
-      if (feeSid && deleted[feeSid]) return;          // tombstoned under its stable id
-      if (deleted['SF-' + norm(fee.id)]) return;      // tombstoned under the fee twin id
+      // Removed on the dashboard (under its own id, its mirror id, its linked
+      // id or its stable id) — unless this fee record was ADDED after that
+      // deletion: a new enrolment of the same name, which used to be ignored
+      // for good (CESTISCore.feeRecordTombstoned).
+      if (CESTISCore.feeRecordTombstoned ? CESTISCore.feeRecordTombstoned(fee, deleted, (typeof _getDeletedStudentTimes === 'function' ? _getDeletedStudentTimes() : CESTISCore.readDeletedStudentTimes(CESTISStore)))
+          : (deleted[studentId] || (feeSid && deleted[feeSid]) || deleted['SF-' + norm(fee.id)])) return;
       if (existingIds[studentId]) return;             // already present by id
       // A trainee who already has a sign-in account already has a record —
       // on this device or not yet on it. Enrolling them again made a second
       // record under a new id, and for it a second, email-less account.
       if (traineeRecordExistsElsewhere({ name: name, programme: course, email: norm(fee.email),
+                                         nationalId: norm(fee.nationalId), dateOfBirth: norm(fee.dateOfBirth),
                                          ids: [studentId, norm(fee.lmsId), feeSid] })) return;
 
       // The shared rule (see CESTISCore.lmsMirrorTarget). This dashboard's
@@ -26971,6 +26975,22 @@ function syncStudentsFromLocalFeeSystem(force) {
         instructor: assignedInstructor,
         source: 'schoolfee'
       };
+      // Its training centre's course dates and financial year, from the date
+      // the fee page enrolled it (the dashboard's year bar reads these), and
+      // the new-enrolment mark that keeps an earlier deletion of the same name
+      // from hiding it.
+      try {
+        var _feeOn = norm(fee.enrollmentDate || fee.enrolmentDate) || localDateStr();
+        var _cs = CESTISCore.enrolment.enrolmentStamp(CESTISCore.enrolment.findCentre(skillAreas, course, { exact: true }), _feeOn);
+        if (_cs) {
+          _newStudent.centreId = _cs.centreId; _newStudent.centreName = _cs.centreName;
+          _newStudent.courseStart = _cs.courseStart; _newStudent.courseEnd = _cs.courseEnd;
+          _newStudent.enrolmentDate = _cs.enrolmentDate; _newStudent.fiscalYear = _cs.fiscalYear;
+        } else if (norm(fee.enrollmentDate || fee.enrolmentDate)) {
+          _newStudent.enrolmentDate = norm(fee.enrollmentDate || fee.enrolmentDate);
+        }
+      } catch(e) {}
+      try { CESTISCore.markEnrolment(_newStudent, CESTISStore); _delStudentAtMemo = null; } catch(e) {}
       twins.add(_newStudent);
       existingIds[studentId] = true;
 

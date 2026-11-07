@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
 <script src="cestis-config.js?v=284ebb2a"></script>
-<script src="cestis-core.js?v=ab952e89"></script>
+<script src="cestis-core.js?v=f6140aa4"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CESTIS - Student Progress</title>
 
@@ -301,6 +301,7 @@ td.sp-sel-cell { text-align:center; }
 .sp-bulk-row .items { margin-top:3px; color:var(--text-muted); line-height:1.5; }
 .sp-pending-note { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px; padding:10px 14px; border-radius:var(--radius-sm, 8px);
   background:rgba(52,152,219,0.12); border:1px solid rgba(52,152,219,0.35); color:var(--text-primary); font-size:13px; }
+.sp-fee-note { background:rgba(240,165,0,0.10); border-color:rgba(240,165,0,0.35); }
 .sp-pending-note[hidden] { display:none; }
 </style>
 </head>
@@ -326,6 +327,7 @@ td.sp-sel-cell { text-align:center; }
 </div>
 
 <div id="spPendingNote" class="sp-pending-note" role="status" hidden></div>
+<div id="spFeeOnlyNote" class="sp-pending-note sp-fee-note" role="status" hidden></div>
 <div class="pipeline" style="margin-bottom:20px;">
   <div class="pipeline-stage s-test"><span class="count" id="pTest2">0</span>Testing</div>
   <div class="pipeline-stage s-interview"><span class="count" id="pInterview2">0</span>Interview</div>
@@ -1247,11 +1249,51 @@ function spRenderPendingNote() {
     (inDashboard ? ' <button class="btn btn-sm btn-secondary" onclick="spOpenVerifyUsers()">Open Verify Users</button>' : '');
   el.hidden = false;
 }
+/* Trainees added in School Fee whose programme has no training centre here:
+   the fee page may price any programme, but only a training centre enrols
+   anybody, so they stay off this roll (CESTISCore.lmsMirrorTarget). That used
+   to be silent; now it is said, with what to do. Nothing is changed here. */
+function spFeeOnlyTrainees() {
+  var out = [];
+  try {
+    if (!window.CESTISCore || typeof CESTISCore.lmsMirrorTarget !== 'function') return out;
+    var fee = safeJsonParse(CESTISStore.getItem('cestiSchoolFeeStudents'), []);
+    if (!Array.isArray(fee) || !fee.length) return out;
+    var del = {};
+    (safeJsonParse(CESTISStore.getItem('voctrain_deletedStudentIds'), []) || []).forEach(function (id) { if (id) del[String(id)] = true; });
+    var times = {};
+    try { times = CESTISCore.readDeletedStudentTimes(CESTISStore) || {}; } catch (e) { times = {}; }
+    var idx = CESTISCore.twinIndex(students);
+    fee.forEach(function (f) {
+      if (!f || !f.name) return;
+      if (CESTISCore.feeRecordTombstoned && CESTISCore.feeRecordTombstoned(f, del, times)) return;
+      var t = CESTISCore.lmsMirrorTarget(f, students, skillAreas, { findCentre: CESTISCore.enrolment.findCentre, twinIndex: idx,
+        on: f.enrollmentDate || f.enrolmentDate || f.createdAt || '' });
+      if (t.action === 'skip' && t.reason === 'no-training-centre') out.push({ name: f.name, programme: f.skillArea || f.course || '' });
+    });
+  } catch (e) { return []; }
+  return out;
+}
+function spRenderFeeOnlyNote() {
+  var el = document.getElementById('spFeeOnlyNote');
+  if (!el) return;
+  var list = spFeeOnlyTrainees();
+  if (!list.length) { el.hidden = true; el.innerHTML = ''; return; }
+  var progs = {};
+  list.forEach(function (x) { var p = x.programme || '(no programme)'; progs[p] = (progs[p] || 0) + 1; });
+  var progText = Object.keys(progs).slice(0, 4).map(function (p) { return spEscapeHtml(p) + ' (' + progs[p] + ')'; }).join(', ') + (Object.keys(progs).length > 4 ? ', …' : '');
+  var names = list.slice(0, 3).map(function (x) { return spEscapeHtml(x.name); }).join(', ') + (list.length > 3 ? ' and ' + (list.length - 3) + ' more' : '');
+  el.innerHTML = '<span><strong>' + list.length + ' trainee' + (list.length === 1 ? '' : 's') + ' in School Fee ' + (list.length === 1 ? 'is' : 'are') + ' not on this list</strong> (' + names + '): ' +
+    (list.length === 1 ? 'the programme does' : 'their programme does') + ' not match a training centre — ' + progText + '. ' +
+    'Add the training centre, or choose one of the Centre\u2019s programmes for them in School Fee; they then appear here.</span>';
+  el.hidden = false;
+}
 function spOpenVerifyUsers() {
   try { window.parent.postMessage({ type: 'cestis-sp-verify-users' }, '*'); } catch (e) {}
 }
 function updatePipelineCounts() {
   try { spRenderPendingNote(); } catch (e) {}
+  try { spRenderFeeOnlyNote(); } catch (e) {}
   var stagePipelineIds = {
     testing:'pTest2', interview:'pInterview2', training:'pTraining2',
     certified:'pCertified2', collected:'pCollected2', nyc:'pNyc2', incomplete:'pIncomplete2'

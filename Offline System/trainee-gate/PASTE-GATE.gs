@@ -868,7 +868,8 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
       }
       var want = Core.normName(cand.name);
       if (!want) return {};
-      var same = list.filter(function (a) { return Core.normName(a.name) === want && programmesAgree(a.programme, cand.programme); });
+      var same = list.filter(function (a) { return Core.normName(a.name) === want && programmesAgree(a.programme, cand.programme) &&
+        !(Core.identityConflict && Core.identityConflict(a, cand)); });
       if (same.length === 1) return { match: same[0], by: 'name' };
       if (!same.length) return {};
       if (cand.programme) {

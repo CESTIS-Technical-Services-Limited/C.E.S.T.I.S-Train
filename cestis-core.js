@@ -564,6 +564,10 @@
       var cand = nameCandidates(name);
       return (cand && cand.length) ? list[cand[0]] : null;
     }
+    function allByName(name) {
+      var cand = nameCandidates(name);
+      return cand ? cand.map(function (i) { return list[i]; }) : [];
+    }
 
     function add(student) {
       if (!student) return;
@@ -573,7 +577,7 @@
       index(student, list.length - 1);
     }
 
-    return { find: find, findByName: findByName, add: add, get size() { return list.length; } };
+    return { find: find, findByName: findByName, allByName: allByName, add: add, get size() { return list.length; } };
   };
 
   /* --- Edit recency -------------------------------------------------------
@@ -728,13 +732,26 @@
        nobody put them on. Pointing the other way the dashboard IS the authority,
        so a second enrolment it holds has to reach the fee roll and be priced —
        which is why only that direction tests the programme. */
-    var byName = idx ? idx.findByName(fee.name) : null;
-    if (!idx) {
+    /* ...but only a namesake who can be this person: not one already linked
+       to ANOTHER fee record (that record is their fee account, so this one is
+       somebody else's), and not one whose email, TRN or date of birth differs.
+       A second John Brown added in School Fee on Plumbing used to be linked to
+       the Welding John Brown — never put on the roll, and the Welding man's
+       link to his own fee record moved onto the newcomer's. */
+    var namesakes;
+    if (idx && typeof idx.allByName === 'function') namesakes = idx.allByName(fee.name);
+    else if (idx) namesakes = idx.findByName(fee.name) ? [idx.findByName(fee.name)] : [];
+    else {
       var want = Core.normName(fee.name);
-      for (i = 0; i < list.length; i++) {
-        if (list[i] && Core.normName(list[i].name) === want) { byName = list[i]; break; }
-      }
+      namesakes = list.filter(function (s) { return s && Core.normName(s.name) === want; });
     }
+    var feeId = hasId(fee.id) ? String(fee.id) : '';
+    var byName = namesakes.filter(function (s) {
+      if (!s) return false;
+      if (hasId(s.schoolFeeId) && feeId && String(s.schoolFeeId) !== feeId) return false;
+      if (Core.identityConflict && Core.identityConflict(s, fee)) return false;
+      return true;
+    })[0] || null;
     if (byName) {
       return { action: 'link', match: byName, course: byName.course || '',
         centreCourse: centreCourse, reason: 'already-enrolled-elsewhere' };
@@ -1635,6 +1652,24 @@
      tombstone left by an earlier deletion of the same person does not hide
      it. A deletion that has no time yet is given one just before this
      enrolment — it still hides every older copy of the record. */
+  /* Is a School Fee record one the dashboard deleted? Its dashboard forms are
+     its mirror id ('SF-' + id), its own id, its linked id and the stable id
+     of its name and programme. A fee record ADDED after that deletion is a new
+     enrolment of the same person (as Core.isStudentTombstoned rules for a
+     record marked enrolled): it is not hidden by it. A record with no date
+     of its own is taken as older than the deletion. */
+  Core.feeRecordTombstoned = function (fee, deletedIds, times) {
+    if (!fee) return false;
+    var del = deletedIds || {};
+    var has = function (id) { return id != null && id !== '' && (del instanceof Set ? del.has(String(id)) : del[String(id)] === true); };
+    var ids = ['SF-' + fee.id, fee.id, fee.lmsId, Core.stableStudentId({ name: fee.name, course: fee.skillArea || fee.course || '' })];
+    var hit = ids.filter(has);
+    if (!hit.length) return false;
+    var made = Date.parse(fee.createdAt || '') || 0;
+    if (!made) return true;
+    times = times || {};
+    return hit.some(function (id) { var t = Date.parse(times[String(id)] || '') || 0; return !t || t >= made; });
+  };
   Core.markEnrolment = function (student, store, nowIso) {
     if (!student) return student;
     var nowMs = Date.parse(nowIso || '') || Date.now();
@@ -9093,7 +9128,8 @@
       }
       var want = Core.normName(cand.name);
       if (!want) return {};
-      var same = list.filter(function (a) { return Core.normName(a.name) === want && programmesAgree(a.programme, cand.programme); });
+      var same = list.filter(function (a) { return Core.normName(a.name) === want && programmesAgree(a.programme, cand.programme) &&
+        !(Core.identityConflict && Core.identityConflict(a, cand)); });
       if (same.length === 1) return { match: same[0], by: 'name' };
       if (!same.length) return {};
       if (cand.programme) {
