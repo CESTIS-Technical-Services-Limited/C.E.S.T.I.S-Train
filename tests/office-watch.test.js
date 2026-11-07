@@ -90,7 +90,7 @@ function fn(name) {
   assert(/Registers not taken on [^<]*: 1 class<\/div>/.test(html) && /Wiring Practical \(Electrical Installation, 13:00, Errol Grant\)/.test(html), 'the office sees the register not taken, with the class, time and instructor');
   assert(/waiting to be marked, the oldest for \d+ days/.test(html) && /<strong>Ian Barrett<\/strong>/.test(html) && /<strong>Errol Grant<\/strong>/.test(html), 'and the marking: how many, how old, waiting on whom (the test\'s author named from the instructor records)');
   assert(/Past due, never handed in \(\d+\)/.test(html) && /Shanice Brown/.test(html), 'and who never handed in work past due');
-  const adm = fn('buildAdminPages');
+  const adm = fn('dashAlertsHtml');
   assert(/id="dashRegistersNotTaken" onclick="showPage\('attendance'\)"/.test(adm) && /id="dashMarkingBacklog" onclick="showPage\('a-assignments'\)"/.test(adm), 'the administrator\'s dashboard alerts both, each opening its page');
   assert(/bl\.innerHTML = officeWatchHtml\(\{ registers: false \}\)/.test(fn('renderAdminAssignments')), 'the Assignments page carries the backlog');
   assert(/ow\.innerHTML = officeWatchHtml\(\)/.test(fn('renderNeedsAttention')) && /if \(pageId !== 'i-needs-attention'\) sec\.insertAdjacentHTML/.test(fn('ensureAttentionPage')), 'and the office\'s Needs Attention page (so Admin Staff see both)');
