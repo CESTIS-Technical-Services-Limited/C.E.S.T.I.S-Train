@@ -96,7 +96,7 @@ for (const page of PAGES) {
 
   console.log('The chat save never writes fewer rooms of history than it holds (' + w + ')');
   {
-    const names = ['lmsChatStoreReady', 'lmsChatKeepStoredRooms', 'trimLmsChatHistory', 'saveLmsChatData'];
+    const names = ['lmsChatStoreReady', 'lmsChatKeepStoredRooms', 'trimLmsChatHistory', 'lmsChatStoreProfiles', 'saveLmsChatData'];
     const src = names.map(n => extractFunction(page.src, n, w)).join('\n') + '\nvar LMS_CHAT_MAX_MESSAGES_PER_ROOM = 500;';
     const mk = (stored, ready) => {
       const data = Object.assign({}, stored);
@@ -149,7 +149,7 @@ for (const page of PAGES) {
     assert(/if \(lmsChatStoreReady\(\)\) lmsChatEnsureMembership\(\);/.test(block), w + ': membership is not saved from the start-up read before the store is ready');
     assert(/CESTISStore\.whenReady\(function\(\) \{[\s\S]*reloadNotificationsFromStore\(\)[\s\S]*lmsChatReloadFromStore\(\)/.test(block), w + ': both are read again when the store is ready');
     // lmsChatReloadFromStore merges, never replaces.
-    const names = ['lmsChatReloadFromStore'];
+    const names = ['lmsChatAttachPictures', 'lmsChatReloadFromStore'];
     const fnSrc = names.map(n => extractFunction(src, n, w)).join('\n');
     const data = {
       voctrain_chatRooms: JSON.stringify([{ id: 'chat-admin', name: 'Admin' }, { id: 'dm-1', type: 'dm' }]),

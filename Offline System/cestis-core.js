@@ -10859,7 +10859,7 @@
     }
 
     return { FIELD: FS, FLOOR: FLOOR, valueHash: valueHash, parse: parse, format: fmt, stampFor: stampFor, floorOf: floorOf,
-             hasStamps: hasStamps, pick: pick, settle: settle, stamp: stamp, restampOwnFields: restampOwnFields };
+             hasStamps: hasStamps, pick: pick, settle: settle, stamp: stamp, restampOwnFields: restampOwnFields, restHash: restHash };
   })();
 
   /* The trainee record's rules for the detail stamps above — one definition
@@ -10888,6 +10888,312 @@
     return Core.sync.fields.stamp(list, function (r) { return r && r.id != null ? String(r.id) : undefined; },
       index || null, nowIso || '', { skip: R.skip, gate: R.gate, rebase: !!rebase });
   };
+
+  /* ==========================================================================
+     PERSONAL PROFILES — what an account holder changes about themselves is
+     never undone by an older copy, a default or a sign-out.
+
+     What a person edits about themselves lives in three maps, keyed by the
+     account (chat) or by the trainee / instructor:
+       chatProfiles[account]       picture, status, status message, about —
+                                   shown to everyone in the chat and the top bar;
+       studentProfiles[trainee]    e-mail, phone, emergency contact;
+       instructorProfiles[staff]   e-mail, phone, specialisation, about.
+     They used to be merged WHOLE, the copy with the newer updatedAt winning
+     and the loser's fields deleted. A chat profile's date moves every time its
+     owner is seen online, and the device kept profiles without their pictures,
+     so a device that had just seen its owner online held a NEWER copy with no
+     picture and an old status message — which deleted the picture and put
+     the old message back on every device. The owner's chosen status was
+     overwritten by "online"/"offline" at every sign-in and sign-out, since
+     presence wrote the same field.
+
+     Now:
+       - an edit stamps the details it changed (touch — the same per-detail
+         stamps as trainee records, Core.sync.fields, under _fs), so a detail
+         changed later wins over an older copy whatever its record date says;
+       - a detail is decided on its own (mergeRecord): by its stamps, else by
+         the record date; a detail one copy simply does not hold is NEVER a
+         deletion — only a dated removal is (a picture taken off is '' with a
+         stamp, never a missing key);
+       - presence (status shown, lastSeen) is decided by lastSeen alone, and
+         the person's choice is its own detail (statusChoice), never touched
+         by presence;
+       - pictures are kept on a device apart from the profiles (picturesOf,
+         attachPictures — the store key voctrain_chatPictures), each with the
+         stamp of the value it holds.
+     A trainee at home signs in through the trainee gate, which takes only her
+     profile record (studentProfiles, its fields fixed by the gate:
+     Core.gate PROFILE_FIELDS). Her own chat details travel inside it, in
+     preferences.chat (chatPart), with their own stamps; the office takes
+     them into the chat profiles (takeChatPart), and her published records
+     carry them back to her (Core.gate.sliceFor).
+     ========================================================================== */
+  Core.profiles = (function () {
+    var CHAT_OWN = ['profilePic', 'statusMsg', 'bio', 'statusChoice'];
+    var PRESENCE = ['status', 'lastSeen'];
+    var STATUSES = { online: 1, away: 1, offline: 1 };
+    var NEVER = { _fs: 1, updatedAt: 1, profileAt: 1, _plaintextPw: 1 };
+    // Each map's rules. Presence and the copied identity (name, role,
+    // programme) are not the person's edits: they are left out of the detail
+    // stamps (skip), so their constant change never spoils them. A chat
+    // profile's record date moves with presence, so the date its unstamped
+    // details are judged by (dateField) is when its owner last edited it
+    // (profileAt), which presence never moves.
+    var RULES = {
+      chatProfiles: { presence: PRESENCE, dateField: 'profileAt', skip: { status: 1, lastSeen: 1, name: 1, role: 1, programme: 1, profileAt: 1 } },
+      studentProfiles: { skip: {} },
+      instructorProfiles: { skip: {} }
+    };
+    var PIC = /^data:image\/(png|jpe?g|gif|webp);base64,[A-Za-z0-9+\/=]+$/;
+    function isObj(v) { return !!v && typeof v === 'object' && !Array.isArray(v); }
+    function copy(v) { return v === undefined ? undefined : JSON.parse(JSON.stringify(v)); }
+    function ms(v) { var t = Date.parse(v || ''); return isNaN(t) ? 0 : t; }
+    function blank(v) { return v === undefined || v === null || v === ''; }
+    function same(a, b) {
+      if (a === b) return true;
+      if ((a && typeof a === 'object') || (b && typeof b === 'object')) return JSON.stringify(a === undefined ? null : a) === JSON.stringify(b === undefined ? null : b);
+      return false;
+    }
+    function rulesOf(name) { return RULES[name] || RULES.studentProfiles; }
+    function nowMsOf(opts) { return (opts && typeof opts.nowMs === 'number' && !isNaN(opts.nowMs)) ? opts.nowMs : Core.sync.now(); }
+    function sortedMap(m) { var o = {}; Object.keys(m).sort().forEach(function (k) { o[k] = m[k]; }); return o; }
+
+    /* The person changed these details of `rec` just now: stamp each (never
+       earlier than the stamp it carries), set the floor the first time (the
+       record's date before this edit: nothing unstamped is newer), and date
+       the record. `name`: which map (its skip list). Returns rec. */
+    function touch(rec, fields, nowIso, name) {
+      if (!isObj(rec)) return rec;
+      var Fs = Core.sync.fields, FS = Fs.FIELD, FLOOR = Fs.FLOOR;
+      var R = rulesOf(name), skip = R.skip, dateField = R.dateField || 'updatedAt';
+      var nowMs = ms(nowIso) || Core.sync.now();
+      var before = ms(rec[dateField]);
+      var first = !Fs.hasStamps(rec);
+      var m = isObj(rec[FS]) ? rec[FS] : {};
+      (fields || []).forEach(function (f) {
+        if (NEVER[f] || skip[f]) return;
+        var t = nowMs, p = Fs.parse(m[f]);
+        if (p && Core.sync.trusted(p.t, nowMs) && p.t >= t) t = p.t + 1;   // never backwards
+        m[f] = Fs.format(t, Fs.valueHash(rec[f]));
+      });
+      rec[FS] = m;
+      var fp = Fs.parse(m[FLOOR]);
+      m[FLOOR] = Fs.format(first || !fp ? (before || 1) : fp.t, Fs.restHash(rec, { skip: skip }));
+      rec[FS] = sortedMap(m);
+      rec.updatedAt = Core.sync.laterStamp(new Date(nowMs).toISOString(), rec.updatedAt, nowMs);
+      if (dateField !== 'updatedAt') rec[dateField] = Core.sync.laterStamp(new Date(nowMs).toISOString(), rec[dateField], nowMs);
+      return rec;
+    }
+    /* When `f` of this copy was set (ms): its own stamp when that describes
+       the value held, else 0. */
+    function fieldTime(rec, f, nowMs) { return Core.sync.fields.stampFor(rec, f, nowMs); }
+
+    /* Merge the copy `c` into the copy `l` (in place), detail by detail.
+       opts: { name: 'chatProfiles' | 'studentProfiles' | 'instructorProfiles',
+       nowMs, preferCloud (a tie of record dates goes to c) }. Returns whether
+       `l` changed. */
+    function mergeRecord(l, c, opts) {
+      if (!isObj(l) || !isObj(c)) return false;
+      opts = opts || {};
+      var Fs = Core.sync.fields;
+      var R = rulesOf(opts.name), skip = R.skip || {}, presence = R.presence || [];
+      var nowMs = nowMsOf(opts);
+      var dateField = R.dateField || 'updatedAt';
+      var fo = { stamp: dateField, skip: skip, nowMs: nowMs };
+      var a = copy(l);
+      var lt = Core.sync.trusted(ms(a.updatedAt), nowMs), ct = Core.sync.trusted(ms(c.updatedAt), nowMs);
+      var cloudNewer = ct > lt || (ct === lt && opts.preferCloud === true);
+      var changed = false;
+      var take = function (f) {
+        if (c[f] === undefined) { if (Object.prototype.hasOwnProperty.call(l, f)) { delete l[f]; changed = true; } return; }
+        if (!same(l[f], c[f])) { l[f] = copy(c[f]); changed = true; }
+      };
+      // Presence: whoever was seen last (the record's date only between two
+      // copies that never saw anyone).
+      if (presence.length) {
+        var ls = Core.sync.trusted(ms(a.lastSeen), nowMs), cs = Core.sync.trusted(ms(c.lastSeen), nowMs);
+        var cw = cs > ls || (!ls && !cs && cloudNewer);
+        presence.forEach(function (f) {
+          if (c[f] === undefined) return;
+          if (cw || a[f] === undefined) take(f);
+        });
+      }
+      var seen = {};
+      Object.keys(a).concat(Object.keys(c)).forEach(function (f) {
+        if (seen[f]) return;
+        seen[f] = 1;
+        if (NEVER[f] || presence.indexOf(f) !== -1) return;
+        var x = a[f], y = c[f];
+        if (same(x, y)) return;
+        var who = skip[f] ? null : Fs.pick(a, c, f, fo);
+        if (who === null) {
+          // Not decided by stamps: a detail one copy does not hold is never
+          // a deletion; otherwise the newer record, and a blank is filled.
+          if (y === undefined) who = 'local';
+          else if (x === undefined) who = 'cloud';
+          else if (cloudNewer) who = 'cloud';
+          else if (ct === lt && blank(x) && !blank(y)) who = 'cloud';
+          else who = 'local';
+        }
+        if (who === 'cloud') take(f);
+      });
+      var before = JSON.stringify(l[Fs.FIELD] === undefined ? null : l[Fs.FIELD]);
+      Fs.settle(l, a, c, fo);
+      if (JSON.stringify(l[Fs.FIELD] === undefined ? null : l[Fs.FIELD]) !== before) changed = true;
+      if (ct > lt && c.updatedAt !== l.updatedAt) { l.updatedAt = c.updatedAt; changed = true; }
+      if (dateField !== 'updatedAt' && Core.sync.trusted(ms(c[dateField]), nowMs) > Core.sync.trusted(ms(a[dateField]), nowMs)) { l[dateField] = c[dateField]; changed = true; }
+      return changed;
+    }
+
+    /* A whole map merged into `local` (in place): { added, updated, removed },
+       as Core.sync.mergeMap, honouring tombstones (opts.tombs). */
+    function mergeMap(local, cloud, opts) {
+      opts = opts || {};
+      var out = { added: 0, updated: 0, removed: 0 };
+      if (!isObj(local)) return out;
+      var tombs = opts.tombs || {};
+      Object.keys(local).forEach(function (k) {
+        if (Core.sync.deletedAfter(tombs, k, local[k], opts.nowMs)) { delete local[k]; out.removed++; return; }
+        if (isObj(local[k]) && Core.sync.restampOwn(local[k], ['updatedAt'], opts.nowMs)) out.updated++;
+      });
+      Object.keys(isObj(cloud) ? cloud : {}).forEach(function (k) {
+        var c = cloud[k];
+        if (!isObj(c)) { if (local[k] === undefined) { local[k] = c; out.added++; } return; }
+        if (Core.sync.deletedAfter(tombs, k, c, opts.nowMs)) return;
+        var l = local[k];
+        if (!isObj(l)) { var fresh = copy(c); delete fresh._plaintextPw; local[k] = fresh; out.added++; return; }
+        if (mergeRecord(l, c, opts)) out.updated++;
+      });
+      return out;
+    }
+    /* Two copies of one record as values (the Centre's network merges values,
+       not live objects): the merged copy; neither is changed. */
+    function mergedCopy(local, cloud, opts) {
+      if (!isObj(local)) return copy(cloud);
+      if (!isObj(cloud)) return copy(local);
+      var out = copy(local);
+      mergeRecord(out, cloud, opts);
+      return out;
+    }
+
+    /* The person's chosen status ('online' | 'away' | 'offline'), which
+       presence shows while they are about. Never presence itself. */
+    function chosenStatus(rec) {
+      if (isObj(rec) && STATUSES[rec.statusChoice]) return rec.statusChoice;
+      return 'online';
+    }
+
+    /* ---- Pictures, kept on a device apart from the profiles ---- */
+    /* { account: { pic, at, fs } } for every profile holding a picture (or a
+       dated removal: pic ''). fs: the picture's own stamp when it describes
+       the picture held; at: when it was set (that stamp, or the record date). */
+    function picturesOf(map) {
+      var out = {};
+      Object.keys(isObj(map) ? map : {}).forEach(function (uid) {
+        var r = map[uid];
+        if (!isObj(r) || typeof r.profilePic !== 'string') return;
+        // A picture with no stamp of its own (set before pictures were dated)
+        // is as old as the last edit known, never as new as presence.
+        var t = fieldTime(r, 'profilePic');
+        out[uid] = { pic: r.profilePic, at: new Date(t || ms(r.profileAt) || 1).toISOString() };
+        if (t) out[uid].fs = r._fs.profilePic;
+      });
+      return out;
+    }
+    /* The profiles without their pictures (what the device's profile list
+       holds). A picture taken off ('') stays: it is a dated removal. */
+    function stripPictures(map) {
+      var out = {};
+      Object.keys(isObj(map) ? map : {}).forEach(function (uid) {
+        var r = map[uid];
+        if (!isObj(r)) { out[uid] = r; return; }
+        var c = {};
+        Object.keys(r).forEach(function (f) { if (f !== 'profilePic' || r[f] === '') c[f] = r[f]; });
+        out[uid] = c;
+      });
+      return out;
+    }
+    /* Put kept pictures back on the profiles (in place), each by the detail
+       rule: a picture changed or taken off since is never replaced by an
+       older one. Returns how many profiles changed. */
+    function attachPictures(map, pics, opts) {
+      var n = 0;
+      if (!isObj(map)) return 0;
+      Object.keys(isObj(pics) ? pics : {}).forEach(function (uid) {
+        var e = pics[uid];
+        if (!isObj(e) || typeof e.pic !== 'string') return;
+        if (!isObj(map[uid])) map[uid] = {};
+        var r = map[uid];
+        if (r.profilePic === e.pic) return;
+        var c = { profilePic: e.pic, updatedAt: e.at || '', profileAt: e.at || '' };
+        // The picture is all this copy says: nothing else of it is dated (floor 1).
+        if (e.fs) { c._fs = { profilePic: e.fs }; c._fs[Core.sync.fields.FLOOR] = Core.sync.fields.format(1, Core.sync.fields.restHash(c, { skip: RULES.chatProfiles.skip })); }
+        if (mergeRecord(r, c, { name: 'chatProfiles', nowMs: opts && opts.nowMs })) n++;
+      });
+      return n;
+    }
+    /* Two kept-picture maps: per account, the later one (into `local`); the
+       same picture with the same stamp is no change. */
+    function mergePictures(local, cloud) {
+      var changed = 0;
+      if (!isObj(local)) return 0;
+      Object.keys(isObj(cloud) ? cloud : {}).forEach(function (uid) {
+        var c = cloud[uid], l = local[uid];
+        if (!isObj(c) || typeof c.pic !== 'string') return;
+        if (!isObj(l) || (ms(c.at) > ms(l.at) && (l.pic !== c.pic || (l.fs || '') !== (c.fs || '')))) { local[uid] = copy(c); changed++; }
+      });
+      return changed;
+    }
+
+    /* ---- A trainee's own chat details inside her profile record ---- */
+    /* Her picture, status, status message and about, with their stamps —
+       what travels in studentProfiles[her].preferences.chat. null when she
+       has set none of them. */
+    function chatPart(rec) {
+      if (!isObj(rec)) return null;
+      var out = {}, any = false, best = 0, fs = {};
+      CHAT_OWN.forEach(function (f) {
+        if (rec[f] === undefined) return;
+        out[f] = copy(rec[f]); any = true;
+        var t = fieldTime(rec, f);
+        if (t) { fs[f] = rec._fs[f]; if (t > best) best = t; }
+      });
+      if (!any) return null;
+      if (Object.keys(fs).length) out._fs = fs;
+      out.updatedAt = new Date(best || ms(rec.profileAt) || ms(rec.updatedAt) || 1).toISOString();
+      return out;
+    }
+    /* A chat part merged into the chat profile `rec` (in place), only the
+       person's own details, each by the detail rule. A picture must be a
+       picture. Returns whether `rec` changed. */
+    function takeChatPart(rec, part, opts) {
+      if (!isObj(rec) || !isObj(part)) return false;
+      var c = {};
+      CHAT_OWN.forEach(function (f) { if (part[f] !== undefined) c[f] = part[f]; });
+      if (c.statusChoice !== undefined && !STATUSES[c.statusChoice]) delete c.statusChoice;
+      if (c.profilePic !== undefined && (typeof c.profilePic !== 'string' || (c.profilePic && !PIC.test(c.profilePic)))) delete c.profilePic;
+      ['statusMsg', 'bio'].forEach(function (f) { if (c[f] !== undefined && typeof c[f] !== 'string') delete c[f]; });
+      if (!Object.keys(c).length) return false;
+      if (isObj(part._fs)) c._fs = copy(part._fs);
+      c.updatedAt = c.profileAt = typeof part.updatedAt === 'string' ? part.updatedAt : '';
+      return mergeRecord(rec, c, { name: 'chatProfiles', nowMs: opts && opts.nowMs });
+    }
+    /* The newest of two chat parts, detail by detail. */
+    function mergeChatParts(a, b) {
+      if (!isObj(a)) return isObj(b) ? copy(b) : null;
+      if (!isObj(b)) return copy(a);
+      var out = copy(a);
+      mergeRecord(out, b, { name: 'chatProfiles' });
+      return out;
+    }
+    function isPicture(v) { return typeof v === 'string' && PIC.test(v); }
+
+    return { CHAT_OWN: CHAT_OWN, PRESENCE: PRESENCE, RULES: RULES, touch: touch, mergeRecord: mergeRecord, mergeMap: mergeMap,
+             mergedCopy: mergedCopy, chosenStatus: chosenStatus, picturesOf: picturesOf, stripPictures: stripPictures,
+             attachPictures: attachPictures, mergePictures: mergePictures, chatPart: chatPart, takeChatPart: takeChatPart,
+             mergeChatParts: mergeChatParts, isPicture: isPicture };
+  })();
 
   /* ==========================================================================
      CASHBOOK: one merge rule for every quarter, on every path.
@@ -11848,11 +12154,17 @@
       { key: 'voctrain_support_messages', type: 'list', tombs: 'supportMessages', id: byId },
       { key: 'voctrain_notifications', type: 'list', tombs: 'notifications', id: byId, maps: 'notifications' },
       { key: 'voctrain_documentHubFiles', type: 'list', tombs: 'documentHubFiles', id: byId },
-      { key: 'voctrain_studentProfiles', type: 'map', tombs: 'studentProfiles' },
-      { key: 'voctrain_instructorProfiles', type: 'map', tombs: 'instructorProfiles' },
+      // A person's own profile: detail by detail, a detail one copy lacks is
+      // never a deletion, presence by when they were last seen
+      // (Core.profiles.mergeRecord) — the rule of every other path.
+      { key: 'voctrain_studentProfiles', type: 'map', tombs: 'studentProfiles', profile: 'studentProfiles' },
+      { key: 'voctrain_instructorProfiles', type: 'map', tombs: 'instructorProfiles', profile: 'instructorProfiles' },
       { key: 'voctrain_adrStaffMeta', type: 'map', tombs: 'adrStaffMeta' },
       { key: 'voctrain_certTemplates', type: 'map', tombs: 'certTemplates' },
-      { key: 'voctrain_chatProfiles', type: 'map' },
+      { key: 'voctrain_chatProfiles', type: 'map', profile: 'chatProfiles' },
+      // Profile pictures, kept apart from the profiles: per account, the one
+      // set last; a picture taken off ('') is a dated entry like any other.
+      { key: 'voctrain_chatPictures', type: 'map', stamps: ['at'], whole: true },
       // The School Fee roll, trainee by trainee. Its whole list used to be one
       // value, newest write wins — so a new PC whose dashboard had just made a
       // placeholder for every trainee (dated now) kept its placeholders over the
@@ -12065,7 +12377,7 @@
           var cand;
           if (a === undefined) cand = b;
           else if (b === undefined) cand = a;
-          else if (isObj(a) && isObj(b)) cand = newer(a, b, spec.stamps);
+          else if (isObj(a) && isObj(b)) cand = spec.profile ? Core.profiles.mergedCopy(a, b, { name: spec.profile, preferCloud: !!preferCloud }) : newer(a, b, spec.stamps);
           else cand = preferCloud ? b : a;
           if (isObj(cand) && Core.sync.deletedAfter(tombs, k, cand)) return;
           out[k] = cand;
@@ -18516,6 +18828,18 @@
         return val == null ? null : val;
       };
     }
+    /* A trainee's own chat details (picture, status, status message, about)
+       as the Centre holds them: her chat profile with its picture, kept apart
+       (Core.profiles.chatPart). null when she has set none. */
+    function ownChatPart(ctx, acct) {
+      if (!acct || !Core.profiles) return null;
+      var cp = ctx.chatProfiles && ctx.chatProfiles[acct], pic = ctx.chatPictures && ctx.chatPictures[acct];
+      if (!isObj(cp) && !isObj(pic)) return null;
+      var one = {};
+      one[acct] = isObj(cp) ? copy(cp) : {};
+      if (isObj(pic)) { var pics = {}; pics[acct] = pic; Core.profiles.attachPictures(one, pics, { nowMs: ctx.now }); }
+      return Core.profiles.chatPart(one[acct]);
+    }
 
     /* Can this account sign in through the gate at all (and so need a
        slice)? A password that works, or no password yet but an email to sign
@@ -18695,6 +19019,10 @@
       var ctx = { now: now, opts: opts, L: {}, M: {} };
       LISTS.forEach(function (k) { ctx.L[k] = read(k, 'list'); });
       MAPS.forEach(function (k) { ctx.M[k] = read(k, 'map'); });
+      // The trainees' own chat details (ownChatPart) — read apart from MAPS:
+      // a profile's presence changes all day and says nothing about records.
+      ctx.chatProfiles = read('voctrain_chatProfiles', 'map');
+      ctx.chatPictures = read('voctrain_chatPictures', 'map');
       ctx.settings = read('voctrain_systemSettings', 'map');
       ctx.offset = str(ctx.settings.centreUtcOffset) || Core.exams.DEFAULT_OFFSET;
       ctx.tombs = read('voctrain_syncTombstones', 'map');
@@ -18784,6 +19112,9 @@
       LISTS.forEach(function (k) { ctx.L[k].forEach(see); });
       MAPS.forEach(function (k) { Object.keys(ctx.M[k]).forEach(function (mk) { see(ctx.M[k][mk]); }); });
       allAccounts.forEach(see); allStudents.forEach(see); see(ctx.settings);
+      // Of a chat profile, only when its owner last edited it (never presence).
+      Object.keys(ctx.chatProfiles).forEach(function (k) { var t = Core.sync.trusted(msOf(ctx.chatProfiles[k] && ctx.chatProfiles[k].profileAt), now); if (t > s) s = t; });
+      Object.keys(ctx.chatPictures).forEach(function (k) { var t = Core.sync.trusted(msOf(ctx.chatPictures[k] && ctx.chatPictures[k].at), now); if (t > s) s = t; });
       var seeTimes = function (m) {
         Object.keys(isObj(m) ? m : {}).forEach(function (k) { var t = Core.sync.trusted(msOf(m[k]), now); if (t > s) s = t; });
       };
@@ -19158,6 +19489,22 @@
           if (!hasOwn.call(d[k], t.stu) && hasOwn.call(ctx.M[k], x)) d[k][t.stu] = copy(ctx.M[k][x]);
         });
       });
+      // Her own picture, status, status message and about (Core.profiles):
+      // the newest of what her profile record carries and what the Centre's
+      // chat holds, inside her record (preferences.chat), so the device she
+      // signs in on at home shows them — never one of somebody else's.
+      var ownChat = ownChatPart(ctx, t.acct);
+      if (ownChat) {
+        var spKey = hasOwn.call(d.voctrain_studentProfiles, t.stu) || !hasOwn.call(d.voctrain_studentProfiles, t.acct) ? t.stu : t.acct;
+        var spRec = isObj(d.voctrain_studentProfiles[spKey]) ? d.voctrain_studentProfiles[spKey] : (d.voctrain_studentProfiles[spKey] = {});
+        var prefs = isObj(spRec.preferences) ? spRec.preferences : {};
+        var both = Core.profiles.mergeChatParts(isObj(prefs.chat) ? prefs.chat : null, ownChat);
+        if (both) {
+          prefs.chat = both;
+          spRec.preferences = prefs;
+          if (msOf(both.updatedAt) > msOf(spRec.updatedAt)) spRec.updatedAt = both.updatedAt;
+        }
+      }
       // Prepared assessments (Core.assessments): her own photos and sign-offs
       // (hers to change), her own practical results and filed papers (what the
       // office keeps of where a paper is, never); and each group she is in, as
