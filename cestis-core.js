@@ -22722,6 +22722,212 @@
       deviceLabel: deviceLabel, stampDevice: stampDevice, mergeDevices: mergeDevices, devices: devices, health: health, restorePreview: restorePreview };
   })();
 
+  /* ==========================================================================
+     STUDY KITS — notes and a practice test for one unit, for trainees and
+     staff, opened from the Resources page (study-kits/kit.html).
+
+     A kit is a data file in the repository, study-kits/<folder>/<unit>.json,
+     at the same path as the unit's exam bank under assessments/ (format:
+     study-kits/SCHEMA.md), listed in study-kits/index.json by
+     tools/build-study-kit-index.js. Nothing in a kit is HTML: the page shows
+     every piece of text as written, **words** in bold.
+
+     The practice questions are not the exam's: overlap() compares each with
+     the unit's exam bank, and the index tool refuses a kit with one too close.
+     ========================================================================== */
+  Core.studyKits = (function () {
+    var FORMAT = 'cestis-study-kit', VERSION = 1;
+    var MIN_SECTIONS = 5, MAX_SECTIONS = 12, MIN_QUESTIONS = 15, MAX_QUESTIONS = 40;
+    var MAX_BYTES = 200 * 1024;
+    var BLOCKS = ['p', 'h', 'ul', 'ol', 'table', 'note', 'flow', 'terms'];
+    var BEST_PREFIX = 'cestis_kit_best:';     // + the kit's file: { grade, at } on this device
+    var PASS = 70;
+
+    function str(v) { return v == null ? '' : String(v); }
+    function trim(v) { return str(v).replace(/\s+/g, ' ').trim(); }
+    function isObj(v) { return !!v && typeof v === 'object' && !Array.isArray(v); }
+    function list(v) { return Array.isArray(v) ? v : []; }
+    function filled(v) { return typeof v === 'string' && trim(v) !== ''; }
+
+    /* ---- Checking a kit ------------------------------------------------ */
+    function cellOk(c) { return filled(c) || (Array.isArray(c) && c.length > 0 && c.every(filled)); }
+    function blockProblem(b) {
+      if (!isObj(b)) return 'is not a block';
+      var keys = Object.keys(b).filter(function (k) { return k !== 'label'; });
+      if (keys.length !== 1 || BLOCKS.indexOf(keys[0]) === -1) return 'has ' + (keys.join(', ') || 'nothing') + ' (one of ' + BLOCKS.join(', ') + ' expected)';
+      var k = keys[0], v = b[k];
+      if (b.label != null && (k !== 'note' || !filled(b.label))) return 'has a label that is not a note\'s';
+      if (k === 'p' || k === 'h' || k === 'note') return filled(v) ? '' : 'is empty';
+      if (k === 'ul' || k === 'ol' || k === 'flow') return Array.isArray(v) && v.length && v.every(filled) ? '' : 'is an empty or broken list';
+      if (k === 'terms') return Array.isArray(v) && v.length && v.every(function (t) { return Array.isArray(t) && t.length === 2 && filled(t[0]) && filled(t[1]); }) ? '' : 'has a term without its meaning';
+      if (k === 'table') {
+        if (!isObj(v) || !Array.isArray(v.head) || v.head.length < 2 || !v.head.every(filled)) return 'is a table without its headings';
+        if (!Array.isArray(v.rows) || !v.rows.length) return 'is a table without rows';
+        for (var i = 0; i < v.rows.length; i++) {
+          var r = v.rows[i];
+          if (!Array.isArray(r) || r.length !== v.head.length || !r.every(cellOk)) return 'is a table whose row ' + (i + 1) + ' does not fit its headings';
+        }
+      }
+      return '';
+    }
+    /* Everything a kit must hold, said plainly. -> { ok, problems:[text],
+       counts:{ sections, questions, cases } }. text: the file as read (its
+       size is checked when given). */
+    function checkKit(kit, text) {
+      var p = [];
+      if (!isObj(kit)) return { ok: false, problems: ['The file is not a study kit.'], counts: { sections: 0, questions: 0, cases: 0 } };
+      if (kit.format !== FORMAT) p.push('format must be "' + FORMAT + '".');
+      if (kit.version !== VERSION) p.push('version must be ' + VERSION + '.');
+      if (kit.status !== 'to-check' && kit.status !== 'ready') p.push('status must be "to-check" or "ready".');
+      if (!filled(kit.programme)) p.push('programme is missing.');
+      if (!isObj(kit.qualification) || !filled(kit.qualification.title)) p.push('qualification.title is missing.');
+      if (!isObj(kit.unit) || !filled(kit.unit.code) || !filled(kit.unit.title)) p.push('unit.code and unit.title are needed.');
+      if (!filled(kit.summary)) p.push('summary is missing.');
+      if (text != null && str(text).length > MAX_BYTES) p.push('The file is ' + Math.round(str(text).length / 1024) + ' KB; a kit is at most ' + (MAX_BYTES / 1024) + ' KB.');
+      var secs = list(kit.sections);
+      if (secs.length < MIN_SECTIONS || secs.length > MAX_SECTIONS) p.push('A kit has ' + MIN_SECTIONS + ' to ' + MAX_SECTIONS + ' sections (this one has ' + secs.length + ').');
+      secs.forEach(function (s, i) {
+        var at = 'Section ' + (i + 1);
+        if (!isObj(s) || !filled(s.title)) { p.push(at + ' has no title.'); return; }
+        var bl = list(s.blocks);
+        if (!bl.length) p.push(at + ' (' + trim(s.title) + ') is empty.');
+        bl.forEach(function (b, j) { var why = blockProblem(b); if (why) p.push(at + ', block ' + (j + 1) + ' ' + why + '.'); });
+      });
+      var cases = isObj(kit.cases) ? kit.cases : {};
+      Object.keys(cases).forEach(function (k) {
+        if (!isObj(cases[k]) || !filled(cases[k].title) || !filled(cases[k].text)) p.push('Case ' + k + ' needs a title and its text.');
+      });
+      var qs = list(kit.questions), ids = {}, used = {};
+      if (qs.length < MIN_QUESTIONS || qs.length > MAX_QUESTIONS) p.push('A kit has ' + MIN_QUESTIONS + ' to ' + MAX_QUESTIONS + ' practice questions (this one has ' + qs.length + ').');
+      qs.forEach(function (q, i) {
+        var at = 'Question ' + (isObj(q) && filled(q.id) ? q.id : i + 1);
+        if (!isObj(q)) { p.push(at + ' is not a question.'); return; }
+        if (!filled(q.id)) p.push('Question ' + (i + 1) + ' has no id.');
+        else if (ids[q.id]) p.push('Two questions are both ' + q.id + '.');
+        ids[q.id] = 1;
+        if (!filled(q.q)) p.push(at + ' has no question.');
+        var o = list(q.o);
+        if (o.length !== 4 || !o.every(filled)) p.push(at + ' needs four options.');
+        else {
+          var seen = {};
+          o.forEach(function (x) { var k = trim(x).toLowerCase(); if (seen[k]) p.push(at + ' has the option "' + trim(x) + '" twice.'); seen[k] = 1; });
+        }
+        if (!(q.a === 0 || q.a === 1 || q.a === 2 || q.a === 3)) p.push(at + ': a must be 0, 1, 2 or 3.');
+        if (!filled(q.why)) p.push(at + ' has no explanation (why).');
+        if (q.c != null && !cases[q.c]) p.push(at + ' refers to case ' + q.c + ', which the kit does not have.');
+        if (q.c != null) used[q.c] = 1;
+      });
+      Object.keys(cases).forEach(function (k) { if (!used[k]) p.push('No question uses case ' + k + '.'); });
+      return { ok: !p.length, problems: p, counts: { sections: secs.length, questions: qs.length, cases: Object.keys(cases).length } };
+    }
+
+    /* ---- Practice questions are not the exam's ------------------------- */
+    var STOP = {};
+    ('the a an and or of to in on at for with by from is are was were be been being it its this that these those which what when where who whom why how ' +
+      'you your yours they them their he she his her we our us i me my not no do does did can could should would will shall may might must has have had ' +
+      'as if than then so such into onto out up down over under about after before during while most best first one two three four each any all some ' +
+      'following true false correct statement describes example likely main reason').split(' ').forEach(function (w) { STOP[w] = 1; });
+    function words(s) {
+      var out = {};
+      str(s).toLowerCase().replace(/&/g, ' and ').split(/[^a-z0-9]+/).forEach(function (w) { if (w.length > 2 && !STOP[w]) out[w] = 1; });
+      return Object.keys(out);
+    }
+    function closeness(a, b) {
+      if (!a.length || !b.length) return 0;
+      var inB = {}, both = 0;
+      b.forEach(function (w) { inB[w] = 1; });
+      a.forEach(function (w) { if (inB[w]) both++; });
+      return { jac: both / (a.length + b.length - both), cover: both / Math.min(a.length, b.length), small: Math.min(a.length, b.length) };
+    }
+    function bankItems(bank) {
+      var out = [];
+      list(bank && bank.theory1 && bank.theory1.questions).forEach(function (q) {
+        if (isObj(q)) out.push({ id: str(q.id), stem: str(q.stem), key: list(q.options)[q.answer] });
+      });
+      var t2 = (bank && bank.theory2) || {};
+      list(t2.shortAnswers).concat(list(t2.essays)).forEach(function (q) {
+        if (isObj(q)) out.push({ id: str(q.id), stem: str(q.question || q.stem || q.prompt), key: '' });
+      });
+      return out;
+    }
+    /* -> [{ id, with, why }]: practice questions too close to one of the exam
+       bank's — nearly the same wording, or the same answer to a question
+       about the same thing. */
+    function overlap(kit, bank) {
+      var items = bankItems(bank).map(function (b) { return { id: b.id, w: words(b.stem), stem: trim(b.stem).toLowerCase(), key: trim(b.key).toLowerCase() }; });
+      var out = [];
+      list(kit && kit.questions).forEach(function (q) {
+        if (!isObj(q)) return;
+        var stem = trim(q.q).toLowerCase(), w = words(q.q), key = trim(list(q.o)[q.a]).toLowerCase(), kw = words(key);
+        for (var i = 0; i < items.length; i++) {
+          var b = items[i];
+          if (stem && stem === b.stem) { out.push({ id: str(q.id), with: b.id, why: 'the same question' }); return; }
+          var c = closeness(w, b.w);
+          if (!c) continue;
+          if (c.jac >= 0.6 || (c.small >= 4 && c.cover >= 0.85)) { out.push({ id: str(q.id), with: b.id, why: 'nearly the same question' }); return; }
+          if (b.key && kw.length >= 3 && key === b.key && c.jac >= 0.3) { out.push({ id: str(q.id), with: b.id, why: 'the same answer to a question about the same thing' }); return; }
+        }
+      });
+      return out;
+    }
+
+    /* ---- Which kit answers to one of the Centre's units ---------------- */
+    function entries(index) { return list(index && index.kits ? index.kits : index).filter(isObj); }
+    function matchKit(index, qual, unit) { return Core.assessments.matchBank(entries(index), qual, unit); }
+    /* The programmes a trainee (or an instructor) is on, with each unit and
+       its kit. catalogs: the Qualification Plan's qualifications; course: the
+       person's programme; match(a, b): the app's programme rule. ->
+       [{ qual, units:[{ code, title, kit (index entry or null) }] }] */
+    /* "Welding and Fabrication Level 2" -> 2; no level named -> null. */
+    function levelOf(course) {
+      var m = /\b(?:level|lvl|l)\s*-?\s*([1-6])\b/i.exec(str(course));
+      return m ? Number(m[1]) : null;
+    }
+    function forCourse(index, catalogs, course, match) {
+      var A = Core.assessments;
+      var c = trim(course), lvl = levelOf(c);
+      var m = function (a) { return !!a && !!c && ((typeof match === 'function' && match(a, c)) || A.normTitle(a) === A.normTitle(c)); };
+      var levelOk = function (l) { return lvl == null || l == null || l === '' || Number(l) === lvl; };
+      var out = A.unitsFrom(catalogs, {
+        only: function (q) { return !c || ((m(q.skillArea) || m(q.title)) && levelOk(q.level)); }
+      }).map(function (p) {
+        return { qual: p.qual, units: p.units.map(function (u) { return { code: u.code, title: u.title, kit: matchKit(index, p.qual, u) }; }) };
+      });
+      if (out.length || !c) return out;
+      // The Qualification Plan names the programme differently: the kits' own
+      // programme and qualification, as the index lists them.
+      var byQual = {};
+      entries(index).forEach(function (e) {
+        if (!(m(e.programme) || m(e.qualTitle)) || !levelOk(e.level)) return;
+        var k = e.qualId || e.qualTitle || e.programme;
+        if (!byQual[k]) byQual[k] = { qual: { id: str(e.qualId), title: trim(e.qualTitle), skillArea: trim(e.programme), level: e.level == null ? '' : e.level, code: trim(e.qualCode) }, units: [] };
+        byQual[k].units.push({ code: trim(e.unitCode), title: trim(e.unitTitle), kit: e });
+      });
+      return Object.keys(byQual).sort().map(function (k) { return byQual[k]; });
+    }
+    /* The page that shows a kit, for the file named in the index. */
+    function safeFile(file) { return /^[a-z0-9-]+\/[a-z0-9]+\.json$/.test(str(file)) ? str(file) : null; }
+    function pageUrl(file, opts) {
+      var f = safeFile(file);
+      if (!f) return null;
+      var q = 'study-kits/kit.html?u=' + encodeURIComponent(f);
+      if (opts && opts.view) q += '#' + (opts.view === 'test' ? 'test' : opts.view === 'notes' ? 'notes' : 'home');
+      return q;
+    }
+    /* The best grade on this device, as the kit page keeps it. store: an
+       object with getItem. -> { grade, at } or null */
+    function bestOf(store, file) {
+      try {
+        var v = JSON.parse((store && store.getItem(BEST_PREFIX + file)) || 'null');
+        return isObj(v) && typeof v.grade === 'number' && isFinite(v.grade) ? v : null;
+      } catch (e) { return null; }
+    }
+
+    return { FORMAT: FORMAT, VERSION: VERSION, BLOCKS: BLOCKS, BEST_PREFIX: BEST_PREFIX, PASS: PASS, MAX_BYTES: MAX_BYTES,
+      MIN_QUESTIONS: MIN_QUESTIONS, MAX_QUESTIONS: MAX_QUESTIONS, MIN_SECTIONS: MIN_SECTIONS, MAX_SECTIONS: MAX_SECTIONS,
+      checkKit: checkKit, overlap: overlap, words: words, matchKit: matchKit, levelOf: levelOf, forCourse: forCourse, safeFile: safeFile, pageUrl: pageUrl, bestOf: bestOf };
+  })();
+
   root.CESTISCore = Core;
 
   if (typeof module !== 'undefined' && module.exports) {

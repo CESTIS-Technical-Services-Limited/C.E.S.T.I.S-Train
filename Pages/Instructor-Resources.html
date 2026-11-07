@@ -4,15 +4,17 @@
   ----------------------------------------------------------------------------
   Fetched by index.html and injected into the mount slot
   (<div class="cestis-mount" data-feature="i-resources" data-prefix="instructor">).
-  Rendered on mount by: cestisSafe('renderInstructorCustomResources') (in index.html).
+  Rendered on mount by: cestisSafe('renderInstructorCustomResources') (in index.html),
+  which also lists the study kits for her programme(s) in #iStudyKits.
   All JS and CSS remain in index.html. Injected via innerHTML — <script> won't run.
   ============================================================================
 -->
     <div style="display:flex;gap:12px;margin-bottom:18px;">
-      <button class="btn btn-primary" onclick="openModal('driveUploadModal')" title="A file (PDF, Word, video, slides, pictures) or a link, for your programme's trainees">+ Upload File</button>
+      <button class="btn btn-primary" onclick="openModal('driveUploadModal')" title="A file (PDF, Word, video, slides, pictures, a learner guide) or a link, for your programme's trainees">+ Upload File</button>
       <button class="btn btn-secondary" onclick="openModal('uploadResourceModal')">+ Add Link</button>
       <button class="btn btn-secondary" onclick="openModal('createFolderModal')">+ New Folder</button>
     </div>
+    <div id="iStudyKits"></div>
     <div id="iCustomResourcesList" style="margin-bottom:18px;"></div>
     <div class="card" style="text-align:center;padding:32px;" id="instructorNoResourcesMsg">
       <div style="font-size:48px;margin-bottom:12px;opacity:0.3;">📁</div>

@@ -5,7 +5,8 @@
   Fetched by index.html and injected into the mount slot
   (<div class="cestis-mount" data-feature="s-resources" data-prefix="student">).
   On mount renderStudentResourcesPage() paints the programme welcome banner
-  (#sResWelcomeBanner) from the current student's skill area, then
+  (#sResWelcomeBanner) from the current student's skill area, the study kits
+  for her programme's units (#sResStudyKits), then
   renderStudentDriveResources() fills #studentDriveResources with Drive items.
   All JS and CSS remain in index.html. Injected via innerHTML — <script> won't run.
   ============================================================================
@@ -14,6 +15,8 @@
 
     <div class="tabs" id="sResourceTabs">
       <div class="tab active" onclick="filterStudentResources('all',this)">All Materials</div>
+      <div class="tab" onclick="filterStudentResources('kits',this)">Study Kits</div>
+      <div class="tab" onclick="filterStudentResources('learner-guide',this)">Learner Guides</div>
       <div class="tab" onclick="filterStudentResources('video',this)">Videos</div>
       <div class="tab" onclick="filterStudentResources('document',this)">Documents</div>
       <div class="tab" onclick="filterStudentResources('worksheet',this)">Worksheets</div>
@@ -23,6 +26,9 @@
       <label for="sResSearch" style="font-size:13px;font-weight:600;color:var(--text-secondary);">Search resources</label>
       <input type="text" class="form-control" id="sResSearch" placeholder="Name or resource ID" style="max-width:340px;" oninput="renderStudentDriveResources()">
     </div>
+
+    <!-- Study kits for the units of this trainee's programme (renderStudyKitsInto) -->
+    <div id="sResStudyKits"></div>
 
     <!-- Drive-uploaded resources for this student's class -->
     <div id="studentDriveResources"></div>

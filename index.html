@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <script src="cestis-config.js?v=284ebb2a"></script>
-<script src="cestis-core.js?v=09be8752"></script>
+<script src="cestis-core.js?v=89f482e3"></script>
 <script src="cestis-form-modal.js?v=74020c38" defer></script>
 <!-- Inert until a page registers: the CMC Board registers as a READ-ONLY reader
      so the operating pages' books reach its dashboards without anyone syncing. -->
@@ -1594,6 +1594,36 @@ textarea.form-control { resize:vertical; min-height:80px; }
 }
 .material-item:hover { background:var(--w-03); border-color:var(--border-light); }
 .material-icon { width:38px; height:38px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
+/* Study kits (one per unit: notes and a practice test) and learner guides, on
+   every Resources page. The kit and the guide open in .cestis-viewer. */
+.kit-card { margin-bottom:14px; border-left:3px solid var(--blue); }
+.kit-card .card-header h3 { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.kit-count { font-size:12px; font-weight:400; color:var(--blue); background:var(--blue-dim); padding:2px 10px; border-radius:10px; }
+.kit-intro { font-size:13px; color:var(--text-secondary); margin:-4px 0 12px; }
+.kit-find { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
+.kit-find label { font-size:13px; font-weight:600; color:var(--text-secondary); }
+.kit-find input { max-width:320px; }
+.kit-prog { margin-bottom:10px; }
+.kit-prog > summary { cursor:pointer; font-weight:600; font-size:14px; padding:8px 4px; list-style-position:inside; }
+.kit-prog-h { font-size:13px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:.04em; margin:6px 0 8px; }
+.kit-row { cursor:default; }
+.kit-row .material-icon { background:var(--blue-dim); color:var(--blue); }
+.kit-unit { font-size:13.5px; line-height:1.35; }
+.kit-code { display:inline-block; font-family:monospace; font-size:11px; font-weight:700; color:var(--blue); background:var(--blue-dim); padding:1px 6px; border-radius:8px; margin-right:6px; }
+.kit-meta { font-size:11.5px; color:var(--text-muted); margin-top:2px; }
+.kit-best { color:var(--green); font-weight:600; }
+.kit-check { color:var(--orange); font-weight:600; }
+.kit-acts { display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
+.kit-more { margin-top:4px; }
+@media (max-width:600px) { .kit-row { flex-wrap:wrap; } .kit-acts { width:100%; justify-content:flex-start; padding-left:52px; } }
+.cestis-viewer { position:fixed; inset:0; z-index:4000; display:none; flex-direction:column; background:var(--bg-primary); }
+.cestis-viewer.open { display:flex; }
+.cestis-viewer .cv-bar { display:flex; align-items:center; gap:10px; padding:8px max(12px, env(safe-area-inset-left, 0px)); padding-top:max(8px, env(safe-area-inset-top, 0px)); background:var(--bg-card); border-bottom:1px solid var(--border); }
+.cestis-viewer .cv-title { flex:1; min-width:0; font-weight:600; font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cestis-viewer .cv-wrap { flex:1; min-height:0; position:relative; }
+.cestis-viewer iframe { position:absolute; inset:0; width:100%; height:100%; border:0; background:#fff; }
+.cestis-viewer .cv-msg { padding:40px 20px; text-align:center; color:var(--text-secondary); }
+@media (max-width:560px) { .cestis-viewer .cv-tab { display:none; } }
 #driveFileDropZone.drag-over { border-color:var(--accent) !important; background:var(--accent-dim) !important; }
 .btn-danger { background:var(--red-dim); color:var(--red); border:1px solid rgba(231,76,60,0.3); }
 .btn-danger:hover { background:var(--red); color:#fff; }
@@ -6792,17 +6822,22 @@ details.tidy-more > summary { cursor:pointer; font-weight:600; color:var(--text-
     <div class="form-group"><label>Resource Name *</label><input type="text" class="form-control" id="driveResName" placeholder="e.g. Safety Procedures & PPE Training"></div>
     <div class="grid-2col" style="gap:12px;">
       <div class="form-group"><label>Programme / Class *</label>
-        <select class="form-control" id="driveResCourse">
+        <select class="form-control" id="driveResCourse" onchange="driveUploadTypeChanged()">
           <option value="">— Select Programme —</option>
         </select>
       </div>
       <div class="form-group"><label>Resource Type *</label>
-        <select class="form-control" id="driveResCategory">
+        <select class="form-control" id="driveResCategory" onchange="driveUploadTypeChanged()">
           <option value="video">Video</option>
           <option value="document">Document</option>
           <option value="worksheet">Worksheet</option>
+          <option value="learner-guide">Learner Guide</option>
         </select>
       </div>
+    </div>
+    <div class="form-group" id="driveResUnitWrap" style="display:none;"><label for="driveResUnit">Unit (optional)</label>
+      <select class="form-control" id="driveResUnit"><option value="">— The whole programme —</option></select>
+      <small style="color:var(--text-muted);font-size:11px;">A guide for one unit is shown beside that unit's study kit. A learner guide can be a PDF, a Word or PowerPoint file, or a web page (HTML) up to 5 MB.</small>
     </div>
     <div class="grid-2col" style="gap:12px;">
       <div class="form-group"><label>File Format</label>
@@ -6814,6 +6849,7 @@ details.tidy-more > summary { cursor:pointer; font-weight:600; color:var(--text-
           <option value="PPT">PPT / Presentation</option>
           <option value="Link">External Link</option>
           <option value="Image">Image</option>
+          <option value="HTML">Web page (HTML)</option>
         </select>
       </div>
       <div class="form-group"><label>Resource ID</label>
@@ -6824,10 +6860,10 @@ details.tidy-more > summary { cursor:pointer; font-weight:600; color:var(--text-
       <div id="driveFileDropZone" style="border:2px dashed var(--border-light);border-radius:var(--radius-sm);padding:28px;text-align:center;cursor:pointer;transition:all 0.25s ease;background:var(--bg-input);" onclick="document.getElementById('driveFileInput').click()">
         <div style="font-size:32px;margin-bottom:8px;opacity:0.5;">📤</div>
         <div style="font-size:13px;color:var(--text-secondary);">Click to select a file or drag & drop here</div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Supports PDF, DOC, MP4, XLSX, PPT, Images up to 100MB</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Supports PDF, DOC, MP4, XLSX, PPT, Images up to 100MB, and learner guides made as web pages (HTML)</div>
         <div id="driveFileSelected" style="margin-top:10px;font-size:13px;color:var(--accent);font-weight:600;display:none;"></div>
       </div>
-      <input type="file" id="driveFileInput" style="display:none" onchange="handleDriveFileSelect(event)" accept=".pdf,.doc,.docx,.mp4,.avi,.mov,.xlsx,.xls,.ppt,.pptx,.png,.jpg,.jpeg,.gif,.webp">
+      <input type="file" id="driveFileInput" style="display:none" onchange="handleDriveFileSelect(event)" accept=".pdf,.doc,.docx,.mp4,.avi,.mov,.xlsx,.xls,.ppt,.pptx,.png,.jpg,.jpeg,.gif,.webp,.html,.htm">
     </div>
     <div class="form-group"><label>External Link (if no file upload)</label><input type="text" class="form-control" id="driveResUrl" placeholder="https://..."></div>
     <div class="form-group"><label>Description</label><textarea class="form-control" id="driveResDesc" rows="2" placeholder="Brief description of this resource..."></textarea></div>
@@ -16751,6 +16787,12 @@ function renderStudentResourcesPage(){
         '</div>' +
       '</div>';
   }
+  // Her programme's study kits; the list of kits arrives once, then the page is drawn again.
+  var kitsEl = document.getElementById('sResStudyKits');
+  if(kitsEl && s && typeof renderStudyKitsInto === 'function'){
+    renderStudyKitsInto(kitsEl, s.course, { filterId: 'sKits', after: function(){ try{ renderStudentDriveResources(); }catch(e){} } });
+    kitsEl.style.display = (_sResFilter === 'all' || _sResFilter === 'kits') ? '' : 'none';
+  }
   if(typeof renderStudentDriveResources === 'function'){ try{ renderStudentDriveResources(); }catch(e){} }
 }
 
@@ -24119,6 +24161,12 @@ function renderInstructorCustomResources() {
   const container = document.getElementById('iCustomResourcesList');
   if(!container) return;
   const ins = currentInstructor;
+  // The study kits for her programme(s).
+  var iKits = document.getElementById('iStudyKits');
+  if (iKits && typeof renderStudyKitsInto === 'function') {
+    var iCourses = (typeof importExamInstructorCourses === 'function' ? importExamInstructorCourses() : null) || (ins && ins.course ? [ins.course] : []);
+    renderStudyKitsInto(iKits, iCourses.length ? iCourses : '', { staff: true, filterId: 'iKits' });
+  }
   const myResources = instructorResources.filter(function(r) {
     if(r.createdBy === ins?.name) return true;
     if(!r.course || !ins?.course) return false;
@@ -24145,8 +24193,8 @@ function renderInstructorCustomResources() {
 
   // Render admin-uploaded drive resources first
   if (adminResources.length > 0) {
-    var adminCatIcons = { video:'📹', document:'📄', worksheet:'📝' };
-    var adminCatLabels = { video:'Video Lectures', document:'Documents', worksheet:'Worksheets' };
+    var adminCatIcons = { video:'📹', document:'📄', worksheet:'📝', 'learner-guide':'📗' };
+    var adminCatLabels = { video:'Video Lectures', document:'Documents', worksheet:'Worksheets', 'learner-guide':'Learner Guides' };
     var adminGrouped = {};
     adminResources.forEach(function(r) {
       var key = r.category || 'document';
@@ -24167,11 +24215,13 @@ function renderInstructorCustomResources() {
             '<div style="font-size:13.5px;">' + escapeHtml(r.name) + '</div>' +
             '<div style="font-size:11px;color:var(--text-muted);">' +
               '<span style="background:var(--accent-dim);color:var(--accent);padding:1px 6px;border-radius:8px;font-size:10px;font-weight:700;font-family:monospace;margin-right:4px;">' + escapeHtml(r.resourceId) + '</span>' +
-              escapeHtml(adminCatLabels[r.category]||r.category) + ' &bull; ' + escapeHtml(r.format) + ' &bull; Added ' + escapeHtml(dateStr) + (r.uploadedBy && r.uploadedBy !== 'Admin' ? ' by ' + escapeHtml(r.uploadedBy) : '') +
+              escapeHtml(adminCatLabels[r.category]||r.category) + (r.unitCode ? ' for ' + escapeHtml(r.unitCode) : '') + ' &bull; ' + escapeHtml(r.format) + ' &bull; Added ' + escapeHtml(dateStr) + (r.uploadedBy && r.uploadedBy !== 'Admin' ? ' by ' + escapeHtml(r.uploadedBy) : '') +
               (r.description ? ' &bull; ' + escapeHtml(r.description) : '') +
             '</div>' +
           '</div>';
-        if (safeUrl(r.url)) {
+        if (r.category === 'learner-guide') {
+          html += learnerGuideButton(r, 'Open');
+        } else if (safeUrl(r.url)) {
           html += '<button class="btn btn-sm btn-secondary" onclick="window.open(' + jsArg(safeUrl(r.url)) + ',\'_blank\')">' + (r.category==='video'?'▶ Play':'Open') + '</button>';
         }
         html += '</li>';
@@ -24287,6 +24337,8 @@ function generateResourceId() {
         if (typeof driveUploadLimitCourses === 'function') driveUploadLimitCourses();
       }
       document.getElementById('driveResId').value = generateResourceId();
+      if (typeof studyKitLoadIndex === 'function') studyKitLoadIndex().then(function() { driveUploadTypeChanged(); });
+      driveUploadTypeChanged();
       _driveSelectedFile = null;
       var selEl = document.getElementById('driveFileSelected');
       if (selEl) { selEl.style.display = 'none'; selEl.textContent = ''; }
@@ -24316,8 +24368,31 @@ function handleDriveFileSelect(e) {
   // Auto-detect format
   const ext = file.name.split('.').pop().toLowerCase();
   const formatMap = { pdf:'PDF', doc:'DOC', docx:'DOC', mp4:'Video', avi:'Video', mov:'Video', webm:'Video',
-    xlsx:'XLSX', xls:'XLSX', ppt:'PPT', pptx:'PPT', png:'Image', jpg:'Image', jpeg:'Image', gif:'Image', webp:'Image' };
+    xlsx:'XLSX', xls:'XLSX', ppt:'PPT', pptx:'PPT', png:'Image', jpg:'Image', jpeg:'Image', gif:'Image', webp:'Image', html:'HTML', htm:'HTML' };
   if (formatMap[ext]) document.getElementById('driveResFormat').value = formatMap[ext];
+  // A web page is only ever a learner guide (it opens in a sealed frame).
+  if (formatMap[ext] === 'HTML') { document.getElementById('driveResCategory').value = 'learner-guide'; driveUploadTypeChanged(); }
+}
+
+/* Upload Resource: a Learner Guide may name one unit of the chosen
+   programme (the Qualification Plan's units, as the study kits list them). */
+function driveUploadTypeChanged() {
+  var cat = (document.getElementById('driveResCategory') || {}).value;
+  var wrap = document.getElementById('driveResUnitWrap'), sel = document.getElementById('driveResUnit');
+  if (!wrap || !sel) return;
+  wrap.style.display = cat === 'learner-guide' ? '' : 'none';
+  if (cat !== 'learner-guide') return;
+  var course = (document.getElementById('driveResCourse') || {}).value || '';
+  var was = sel.value;
+  var progs = course ? CESTISCore.studyKits.forCourse(studyKitIndex(), studyKitCatalogs(), course, instructorCourseMatch) : [];
+  var opts = '<option value="">— The whole programme —</option>';
+  progs.forEach(function(p) {
+    opts += '<optgroup label="' + escapeAttr(p.qual.title || p.qual.skillArea) + '">' + p.units.map(function(u) {
+      return '<option value="' + escapeAttr(u.code) + '" data-title="' + escapeAttr(u.title) + '">' + escapeHtml((u.code ? u.code + ' ' : '') + u.title) + '</option>';
+    }).join('') + '</optgroup>';
+  });
+  sel.innerHTML = opts;
+  if (was) sel.value = was;
 }
 
 // Setup drag & drop
@@ -24517,6 +24592,7 @@ function recategorizeDriveResources() {
   var fixed = 0;
   driveResources.forEach(function(r) {
     if (!r.driveFileName && !r.name) return;
+    if (r.category === 'learner-guide') return;   // chosen by whoever uploaded it, with its unit
     var fname = (r.driveFileName || r.name || '').toLowerCase();
 
     // Strip VT prefix to get content name
@@ -24707,6 +24783,13 @@ async function uploadResourceToDrive() {
     return;
   }
   if (!_driveSelectedFile && !url) { showToast('Please select a file or enter a link'); return; }
+  // A web page (HTML) is a learner guide, at most 5 MB (it opens in a sealed frame, through the gate at home too).
+  var _isPage = !!_driveSelectedFile && /\.html?$/i.test(_driveSelectedFile.name || '');
+  if (_isPage && category !== 'learner-guide') { showToast('A web page (HTML) can be uploaded as a Learner Guide: choose that type.', 'warning'); return; }
+  if (_isPage && _driveSelectedFile.size > 5 * 1024 * 1024) { showToast('A learner guide made as a web page can be at most 5 MB.', 'warning'); return; }
+  var _unitSel = document.getElementById('driveResUnit');
+  var _unitCode = category === 'learner-guide' && _unitSel ? _unitSel.value : '';
+  var _unitOpt = _unitCode && _unitSel.selectedOptions ? _unitSel.selectedOptions[0] : null;
   // Only a web link: a javascript: "link" ran in whoever clicked Open.
   if (url && !/^https?:\/\//i.test(url)) { showToast('The link must start with http:// or https://'); return; }
 
@@ -24759,6 +24842,9 @@ async function uploadResourceToDrive() {
       driveFileName: driveFileName || '',
       classFolderId: folderId,
       description: desc || '',
+      unitCode: _unitCode || '',
+      unitTitle: _unitOpt ? (_unitOpt.getAttribute('data-title') || '') : '',
+      mime: _driveSelectedFile ? (_driveSelectedFile.type || (_isPage ? 'text/html' : '')) : '',
       uploadedBy: currentRole === 'instructor' && currentInstructor ? currentInstructor.name : 'Admin',
       uploadedByRole: currentRole || 'admin',
       uploadedAt: new Date().toISOString()
@@ -24782,6 +24868,7 @@ async function uploadResourceToDrive() {
       document.getElementById('driveResUrl').value = '';
       document.getElementById('driveResDesc').value = '';
       document.getElementById('driveFileInput').value = '';
+      if (_unitSel) _unitSel.value = '';
       _driveSelectedFile = null;
       var selEl = document.getElementById('driveFileSelected');
       if (selEl) { selEl.style.display = 'none'; selEl.textContent = ''; }
@@ -24822,6 +24909,15 @@ function renderAdminResources() {
   const filterType = document.getElementById('arFilterType')?.value || 'all';
   const searchTerm = (document.getElementById('arSearch')?.value || '').toLowerCase().trim();
 
+  // The study kits of the chosen programme (every programme's, folded, for All).
+  var arKits = document.getElementById('arStudyKits');
+  if (arKits && typeof renderStudyKitsInto === 'function') {
+    if (filterType === 'all' || filterType === 'kits') renderStudyKitsInto(arKits, filterCourse === 'all' ? '' : filterCourse, { staff: true, filterId: 'aKits', open: filterCourse !== 'all',
+      empty: filterType === 'kits' ? 'No study kits for this programme yet.' : '' });
+    else arKits.innerHTML = '';
+  }
+  if (filterType === 'kits') { container.innerHTML = ''; return; }
+
   var _arFiled = (filterCourse !== 'all' && typeof programmeFilterFiler === 'function') ? programmeFilterFiler() : null;
   let filtered = driveResources.filter(function(r) {
     if (filterCourse !== 'all') {
@@ -24856,8 +24952,8 @@ function renderAdminResources() {
     grouped[r.course].push(r);
   });
 
-  const catIcons = { video:'📹', document:'📄', worksheet:'📝' };
-  const catLabels = { video:'Video', document:'Document', worksheet:'Worksheet' };
+  const catIcons = { video:'📹', document:'📄', worksheet:'📝', 'learner-guide':'📗' };
+  const catLabels = { video:'Video', document:'Document', worksheet:'Worksheet', 'learner-guide':'Learner guide' };
   const courseSkill = function(courseName) {
     return findSkillAreaForCourse(courseName);
   };
@@ -24877,11 +24973,13 @@ function renderAdminResources() {
           '<div style="font-size:13.5px;font-weight:600;">' + escapeHtml(r.name) + '</div>' +
           '<div style="font-size:11px;color:var(--text-muted);">' +
             '<span style="background:var(--accent-dim);color:var(--accent);padding:1px 8px;border-radius:10px;font-size:10px;font-weight:700;font-family:monospace;margin-right:6px;">' + escapeHtml(r.resourceId) + '</span>' +
-            escapeHtml(catLabels[r.category]||r.category) + ' &bull; ' + escapeHtml(r.format) + ' &bull; Added ' + escapeHtml(dateStr) +
+            escapeHtml(catLabels[r.category]||r.category) + (r.unitCode ? ' for ' + escapeHtml(r.unitCode) : '') + ' &bull; ' + escapeHtml(r.format) + ' &bull; Added ' + escapeHtml(dateStr) +
             (r.description ? ' &bull; ' + escapeHtml(r.description) : '') +
           '</div>' +
         '</div>';
-      if (safeUrl(r.url)) {
+      if (r.category === 'learner-guide') {
+        html += learnerGuideButton(r, 'Open');
+      } else if (safeUrl(r.url)) {
         html += '<button class="btn btn-sm btn-secondary" onclick="window.open(' + jsArg(safeUrl(r.url)) + ',\'_blank\')" title="Open resource">' + (r.category==='video'?'▶ Play':'Open') + '</button>';
       }
       html += '<button class="btn btn-sm btn-primary" style="margin-left:4px;font-size:10px;" onclick="assignResourceAsAssignment('+jsArg(r.resourceId || r.id)+')" title="Assign as student assignment">📋 Assign</button>';
@@ -24965,6 +25063,8 @@ function getResourceById(resourceId) {
 var _sResFilter = 'all';
 function filterStudentResources(type, tabEl) {
   _sResFilter = type;
+  var kitsEl = document.getElementById('sResStudyKits');
+  if (kitsEl) kitsEl.style.display = (type === 'all' || type === 'kits') ? '' : 'none';
   // Update tab active states
   document.querySelectorAll('#sResourceTabs .tab').forEach(t => t.classList.remove('active'));
   if (tabEl) tabEl.classList.add('active');
@@ -24997,6 +25097,7 @@ function renderStudentDriveResources() {
   var myDriveResources = driveResources.filter(function(r) {
     if (!courseMatches(r.course, s.course)) return false;
     if (_sResFilter !== 'all' && r.category !== _sResFilter) return false;
+    if (searchTerm && r.category === 'learner-guide' && (r.unitCode||'').toLowerCase().indexOf(searchTerm) !== -1) return true;
     if (searchTerm && (r.name||'').toLowerCase().indexOf(searchTerm) === -1 && (r.resourceId||'').toLowerCase().indexOf(searchTerm) === -1) return false;
     return true;
   });
@@ -25010,16 +25111,19 @@ function renderStudentDriveResources() {
   });
 
   var noResMsg = document.getElementById('studentNoResourcesMsg');
+  // The Study Kits tab shows the kits only; with kits listed, "nothing yet" is not said.
+  var hasKits = typeof studyKitProgrammes === 'function' && studyKitProgrammes(s.course).length > 0;
+  if (_sResFilter === 'kits') { container.innerHTML = ''; if (noResMsg) noResMsg.style.display = hasKits ? 'none' : ''; return; }
   if (myDriveResources.length === 0 && myInstructorResources.length === 0) {
     container.innerHTML = '';
-    if (noResMsg) noResMsg.style.display = '';
+    if (noResMsg) noResMsg.style.display = hasKits && _sResFilter === 'all' ? 'none' : '';
     return;
   }
   if (noResMsg) noResMsg.style.display = 'none';
 
   var sk = findSkillAreaForCourse(s.course);
-  var catIcons = { video:'📹', document:'📄', worksheet:'📝', guide:'📄', rubric:'📊' };
-  var catLabels = { video:'Video Lectures', document:'Documents', worksheet:'Worksheets', guide:'Study Guides', rubric:'Assessments' };
+  var catIcons = { video:'📹', document:'📄', worksheet:'📝', guide:'📄', rubric:'📊', 'learner-guide':'📗' };
+  var catLabels = { video:'Video Lectures', document:'Documents', worksheet:'Worksheets', guide:'Study Guides', rubric:'Assessments', 'learner-guide':'Learner Guides' };
 
   var html = '';
 
@@ -25043,10 +25147,12 @@ function renderStudentDriveResources() {
             '<div style="font-size:13.5px;">' + escapeHtml(r.name) + '</div>' +
             '<div style="font-size:11px;color:var(--text-muted);">' +
               '<span style="background:var(--accent-dim);color:var(--accent);padding:1px 6px;border-radius:8px;font-size:10px;font-weight:700;font-family:monospace;margin-right:4px;">' + escapeHtml(r.resourceId) + '</span>' +
-              'Course material &bull; ' + escapeHtml(r.format) +
+              (r.category === 'learner-guide' ? 'Learner guide' + (r.unitCode ? ' for ' + escapeHtml(r.unitCode) : '') : 'Course material') + ' &bull; ' + escapeHtml(r.format) +
             '</div>' +
           '</div>';
-        if (safeUrl(r.url)) {
+        if (r.category === 'learner-guide') {
+          html += learnerGuideButton(r, 'Open');
+        } else if (safeUrl(r.url)) {
           html += '<button class="btn btn-sm btn-secondary" onclick="window.open(' + jsArg(safeUrl(r.url)) + ',\'_blank\')">' + (r.category==='video'?'▶ Play':'Download') + '</button>';
         }
         html += '</li>';
@@ -25089,6 +25195,256 @@ function renderStudentDriveResources() {
   }
 
   container.innerHTML = html;
+}
+
+// ============================== STUDY KITS & LEARNER GUIDES ==============================
+/* A STUDY KIT is one unit's notes and practice test (CESTISCore.studyKits;
+   the files in study-kits/, listed in study-kits/index.json). Every
+   Resources page lists the kits for the person's programme — the trainee
+   and the instructor their own, the office every programme — and a kit
+   opens in the viewer below (study-kits/kit.html). The best practice grade
+   is kept on the device and shown here.
+
+   A LEARNER GUIDE is a file the Administrator or the programme's instructor
+   uploads (Upload Resource, type "Learner Guide", with its unit if it has
+   one): a PDF, Word or PowerPoint file opens like any other resource; a web
+   page (HTML) is fetched — through the trainee gate at home, with the
+   Centre's sign-in on an office PC — and shown in a sealed frame, where its
+   own scripts run but can never reach this page or what the device keeps.
+   A guide opened once opens again without a connection on that device. */
+var _studyKitIndex = null, _studyKitIndexAt = 0, _studyKitIndexLoading = null;
+var STUDY_KIT_PREVIEW_ROWS = 6;
+var GUIDE_CACHE = 'cestis-guides-v1';
+function studyKitIndex() { return _studyKitIndex || { kits: [] }; }
+function studyKitLoadIndex(force) {
+  if (_studyKitIndexLoading) return _studyKitIndexLoading;
+  if (_studyKitIndex && !force && Date.now() - _studyKitIndexAt < 10 * 60 * 1000) return Promise.resolve(_studyKitIndex);
+  _studyKitIndexLoading = fetch('study-kits/index.json', { cache: 'no-cache' })
+    .then(function(r) { if (!r.ok) throw new Error('index ' + r.status); return r.json(); })
+    .then(function(j) { _studyKitIndex = j && Array.isArray(j.kits) ? j : { kits: [] }; _studyKitIndexAt = Date.now(); return _studyKitIndex; })
+    .catch(function() { return _studyKitIndex || { kits: [], failed: true }; })
+    .then(function(v) { _studyKitIndexLoading = null; return v; });
+  return _studyKitIndexLoading;
+}
+function studyKitCatalogs() {
+  var raw = null;
+  try { raw = JSON.parse(CESTISStore.getItem('voctrain_unitCatalogs') || 'null'); } catch (e) { raw = null; }
+  try { return CESTISCore.Transcript.ensureSeeded(Array.isArray(raw) ? raw : []); } catch (e) { return Array.isArray(raw) ? raw : []; }
+}
+/* The programmes for a programme name ('' = every programme), each with the
+   units that have a kit. */
+function studyKitProgrammes(course) {
+  var courses = Array.isArray(course) ? course.filter(Boolean) : [course || ''];
+  if (!courses.length) courses = [''];
+  var seen = {}, out = [];
+  courses.forEach(function(c) {
+    CESTISCore.studyKits.forCourse(studyKitIndex(), studyKitCatalogs(), c, instructorCourseMatch).forEach(function(p) {
+      var k = p.qual.id || p.qual.title;
+      if (seen[k]) return;
+      seen[k] = 1;
+      var units = p.units.filter(function(u) { return !!u.kit; });
+      if (units.length) out.push({ qual: p.qual, units: units });
+    });
+  });
+  return out;
+}
+function learnerGuidesFor(course) {
+  var courses = Array.isArray(course) ? course.filter(Boolean) : (course ? [course] : []);
+  return (driveResources || []).filter(function(r) {
+    if (!r || r.category !== 'learner-guide') return false;
+    if (!courses.length) return true;
+    return courses.some(function(c) { return CESTISCore.coursework.resourceVisible(r.course, c, instructorCourseMatch); });
+  });
+}
+function learnerGuideIsPage(r) {
+  var f = String((r && (r.driveFileName || r.name)) || '').toLowerCase();
+  return !!r && (r.format === 'HTML' || /\.html?$/.test(f) || /^text\/html/.test(String(r.mime || '')));
+}
+function learnerGuideButton(r, label) {
+  if (!r) return '';
+  return '<button class="btn btn-sm btn-secondary" onclick="openLearnerGuide(' + jsArg(r.id) + ')" title="Open the learner guide">' + (label || 'Open') + '</button>';
+}
+/* opts: { staff, guides, filterId, open: true (programmes open), empty: text } */
+function studyKitsCardHtml(progs, opts) {
+  opts = opts || {};
+  var K = CESTISCore.studyKits;
+  var guides = opts.guides || [];
+  var total = 0;
+  progs.forEach(function(p) { total += p.units.length; });
+  if (!total) return opts.empty ? '<div class="card kit-card"><div class="card-header"><h3>📘 Study Kits</h3></div><p class="kit-intro">' + escapeHtml(opts.empty) + '</p></div>' : '';
+  var many = progs.length > 1;
+  var html = '<div class="card kit-card" id="' + escapeAttr(opts.filterId || 'kits') + 'Card">' +
+    '<div class="card-header"><h3>📘 Study Kits <span class="kit-count">' + total + ' unit' + (total === 1 ? '' : 's') + '</span></h3></div>' +
+    '<p class="kit-intro">Notes for each unit, and a practice test with the answers explained. ' + (opts.staff ? 'Open one to teach from it or to see what your trainees see.' : 'Read the notes, then try the test as often as you like.') + '</p>';
+  if (total > STUDY_KIT_PREVIEW_ROWS) {
+    html += '<div class="kit-find"><label for="' + escapeAttr(opts.filterId) + 'Find">Find a unit</label><input type="search" class="form-control" id="' + escapeAttr(opts.filterId) + 'Find" placeholder="Unit code or title" oninput="studyKitFilter(' + jsArg(opts.filterId) + ')"></div>';
+  }
+  progs.forEach(function(p, pi) {
+    var rows = p.units.map(function(u, ui) {
+      var e = u.kit, best = K.bestOf(window.localStorage, e.file);
+      var mine = guides.filter(function(g) { return g.unitCode && CESTISCore.assessments.normCode(g.unitCode) === CESTISCore.assessments.normCode(u.code); });
+      var meta = ['Notes', (e.questions || 0) + '-question practice test'];
+      if (best) meta.push('<span class="kit-best">Best ' + Math.round(best.grade) + '%' + (best.grade >= K.PASS ? ' ✓' : '') + '</span>');
+      if (opts.staff && e.status !== 'ready') meta.push('<span class="kit-check">Not yet checked</span>');
+      var hidden = !opts.showAll && ui >= STUDY_KIT_PREVIEW_ROWS && !many ? ' data-kit-extra="1" hidden' : '';
+      return '<li class="material-item kit-row" data-kit-q="' + escapeAttr((u.code + ' ' + u.title).toLowerCase()) + '"' + hidden + '>' +
+        '<div class="material-icon">📘</div>' +
+        '<div style="flex:1;min-width:0;"><div class="kit-unit">' + (u.code ? '<span class="kit-code">' + escapeHtml(u.code) + '</span>' : '') + escapeHtml(u.title) + '</div>' +
+        '<div class="kit-meta">' + meta.join(' &bull; ') + '</div></div>' +
+        '<div class="kit-acts">' + mine.map(function(g) { return learnerGuideButton(g, '📗 Learner guide'); }).join('') +
+        '<button class="btn btn-sm btn-secondary" onclick="openStudyKit(' + jsArg(e.file) + ',\'test\')">Practice test</button>' +
+        '<button class="btn btn-sm btn-primary" onclick="openStudyKit(' + jsArg(e.file) + ')">Open</button></div></li>';
+    }).join('');
+    var list = '<ul class="material-list">' + rows + '</ul>';
+    if (many) {
+      html += '<details class="kit-prog"' + (opts.open || pi === 0 && progs.length <= 2 ? ' open' : '') + '><summary>' + escapeHtml(p.qual.title || p.qual.skillArea) + ' <span class="kit-count">' + p.units.length + '</span></summary>' + list + '</details>';
+    } else {
+      html += (opts.staff ? '<div class="kit-prog-h">' + escapeHtml(p.qual.title || p.qual.skillArea) + '</div>' : '') + list;
+      if (p.units.length > STUDY_KIT_PREVIEW_ROWS && !opts.showAll) html += '<button type="button" class="btn btn-sm btn-secondary kit-more" onclick="studyKitShowAll(this)">Show all ' + p.units.length + ' units</button>';
+    }
+  });
+  return html + '</div>';
+}
+function studyKitShowAll(btn) {
+  var card = btn && btn.closest('.kit-card');
+  if (!card) return;
+  card.querySelectorAll('[data-kit-extra]').forEach(function(li) { li.hidden = false; li.removeAttribute('data-kit-extra'); });
+  btn.remove();
+}
+function studyKitFilter(filterId) {
+  var input = document.getElementById(filterId + 'Find'), card = document.getElementById(filterId + 'Card');
+  if (!input || !card) return;
+  var q = input.value.toLowerCase().trim();
+  var more = card.querySelector('.kit-more');
+  if (q && more) studyKitShowAll(more);
+  card.querySelectorAll('.kit-row').forEach(function(li) { li.hidden = !!q && li.getAttribute('data-kit-q').indexOf(q) === -1; });
+  if (q) card.querySelectorAll('details.kit-prog').forEach(function(d) { d.open = !!d.querySelector('.kit-row:not([hidden])'); });
+}
+/* Fill one Resources page's kit list. el: the element; course: the
+   programme ('' = all); opts as studyKitsCardHtml. The list of kits is
+   fetched once; the page is filled again when it arrives. */
+function renderStudyKitsInto(el, course, opts) {
+  if (!el) return;
+  var draw = function() {
+    var progs = studyKitProgrammes(course);
+    opts = Object.assign({ guides: learnerGuidesFor(course) }, opts || {});
+    el.innerHTML = studyKitsCardHtml(progs, opts);
+  };
+  draw();
+  if (!_studyKitIndex) studyKitLoadIndex().then(function() {
+    if (!document.body.contains(el)) return;
+    draw();
+    if (opts && typeof opts.after === 'function') { try { opts.after(); } catch (e) {} }
+  });
+}
+
+function cestisViewerClose() {
+  var ov = document.getElementById('cestisViewer');
+  if (!ov) return;
+  ov.classList.remove('open');
+  var wrap = ov.querySelector('.cv-wrap');
+  if (wrap) wrap.innerHTML = '';
+  document.body.style.overflow = '';
+  // The best grade may have changed: the lists show it.
+  try { if (currentRole === 'student') renderStudentResourcesPage(); else if (currentRole === 'instructor') renderInstructorCustomResources(); } catch (e) {}
+}
+/* o: { title, src } (one of this site's pages) or { title, html } (a learner
+   guide: sealed — its scripts run, but in a frame of its own that can never
+   reach this page or the device's storage) or { title, message }. */
+function cestisViewerOpen(o) {
+  var ov = document.getElementById('cestisViewer');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'cestisViewer'; ov.className = 'cestis-viewer';
+    ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true');
+    ov.innerHTML = '<div class="cv-bar"><button type="button" class="btn btn-secondary btn-sm cv-back" onclick="cestisViewerClose()">← Back to Resources</button><div class="cv-title"></div><a class="btn btn-secondary btn-sm cv-tab" target="_blank" rel="noopener">Open in a new tab</a></div><div class="cv-wrap"></div>';
+    document.body.appendChild(ov);
+    document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && ov.classList.contains('open')) cestisViewerClose(); });
+  }
+  ov.querySelector('.cv-title').textContent = o.title || '';
+  ov.setAttribute('aria-label', o.title || 'Viewer');
+  var tab = ov.querySelector('.cv-tab');
+  tab.hidden = !o.src;
+  if (o.src) tab.href = o.src; else tab.removeAttribute('href');
+  var wrap = ov.querySelector('.cv-wrap');
+  wrap.innerHTML = '';
+  if (o.message != null) {
+    wrap.innerHTML = '<div class="cv-msg">' + escapeHtml(o.message) + '</div>';
+  } else {
+    var f = document.createElement('iframe');
+    f.title = o.title || 'Viewer';
+    if (o.html != null) {
+      f.setAttribute('sandbox', 'allow-scripts allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads');
+      f.setAttribute('referrerpolicy', 'no-referrer');
+      f.srcdoc = String(o.html);
+    } else {
+      f.src = o.src;
+    }
+    wrap.appendChild(f);
+  }
+  ov.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  try { ov.querySelector('.cv-back').focus(); } catch (e) {}
+  return ov;
+}
+function openStudyKit(file, view) {
+  var K = CESTISCore.studyKits;
+  var url = K.pageUrl(file, { view: view });
+  if (!url) return false;
+  if (currentRole && currentRole !== 'student') url = url.replace('kit.html?', 'kit.html?staff=1&');
+  var e = (studyKitIndex().kits || []).filter(function(k) { return k.file === file; })[0];
+  cestisViewerOpen({ title: e ? (e.unitCode ? e.unitCode + ' · ' : '') + e.unitTitle : 'Study kit', src: url });
+  return true;
+}
+
+/* A learner guide's page (HTML), as text: kept on this device after the
+   first time (Cache Storage, never sent anywhere), else through the trainee
+   gate, else with the Centre's sign-in. */
+async function learnerGuideText(r) {
+  var id = r && r.driveFileId;
+  if (!id) throw new Error('no-file');
+  var key = 'study-kits/guide-cache/' + encodeURIComponent(id);
+  var cache = null;
+  try { if (window.caches) { cache = await caches.open(GUIDE_CACHE); var hit = await cache.match(key); if (hit) return await hit.text(); } } catch (e) { cache = null; }
+  var text = null;
+  if (typeof cestisGateSession === 'function' && cestisGateSession() && window.CESTISGate) {
+    var res = await CESTISGate.fileGet(id);
+    if (!res || res.ok !== true || !res.base64) throw new Error((res && res.error) || 'not-available');
+    var bin = atob(res.base64), bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    text = new TextDecoder('utf-8').decode(bytes);
+  } else if (isCloudConnected && googleAccessToken) {
+    var resp = await fetch('https://www.googleapis.com/drive/v3/files/' + encodeURIComponent(id) + '?alt=media', { headers: { 'Authorization': 'Bearer ' + googleAccessToken } });
+    if (!resp.ok) throw new Error('drive ' + resp.status);
+    text = await resp.text();
+  } else {
+    throw new Error('offline');
+  }
+  try { if (cache) await cache.put(key, new Response(text, { headers: { 'Content-Type': 'text/html; charset=utf-8' } })); } catch (e) {}
+  return text;
+}
+async function openLearnerGuide(resId) {
+  var r = (driveResources || []).filter(function(x) { return x && x.id === resId; })[0];
+  if (!r) { showToast('This learner guide is no longer listed.', 'warning'); return false; }
+  var title = (r.unitCode ? r.unitCode + ' · ' : '') + (r.name || 'Learner guide');
+  if (!learnerGuideIsPage(r)) {
+    var u = safeUrl(r.url);
+    if (u) { window.open(u, '_blank', 'noopener'); return true; }
+    showToast('This learner guide has no file to open.', 'warning');
+    return false;
+  }
+  cestisViewerOpen({ title: title, message: 'Opening the learner guide…' });
+  try {
+    var html = await learnerGuideText(r);
+    cestisViewerOpen({ title: title, html: html });
+    return true;
+  } catch (e) {
+    var why = String(e && e.message || '');
+    cestisViewerOpen({ title: title, message: why === 'too-large' ? 'This guide is too big to open here. Ask your instructor for a copy.'
+      : why === 'offline' ? 'This guide opens with a connection the first time. After that it opens on this device without one.'
+      : 'This guide cannot be opened right now. Try again later.' });
+    return false;
+  }
 }
 
 // ============================== SHARED PROFILE PIC HELPERS ==============================
@@ -52382,6 +52738,9 @@ function buildAdminStaffSidebar() {
 // ============================== BUILD ADMIN STAFF PAGES ==============================
 // ---- Admin-Staff feature page renderers (fill data rows after fragment mount) ----
 function renderAsResources(){
+  // Every programme's study kits, folded by programme.
+  var asKits=document.getElementById('asStudyKits');
+  if(asKits && typeof renderStudyKitsInto === 'function') renderStudyKitsInto(asKits, '', { staff: true, filterId: 'asKits' });
   var tb=document.getElementById('asResBody'); if(!tb) return;
   var html=(driveResources.length > 0 ? driveResources.map(function(r){ return '<tr><td>'+escapeHtml(r.name)+'</td><td>'+escapeHtml(r.type||'File')+'</td><td>'+escapeHtml(r.course||'General')+'</td><td>'+escapeHtml(r.date||'N/A')+'</td></tr>'; }).join('') : '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);">No resources available</td></tr>')
     + (instructorResources.length > 0 ? instructorResources.map(function(r){ return '<tr><td>'+escapeHtml(r.title||r.name||'Untitled')+'</td><td>'+escapeHtml(r.type||'File')+'</td><td>'+escapeHtml(r.course||'General')+'</td><td>'+escapeHtml(r.date||'N/A')+'</td></tr>'; }).join('') : '');
