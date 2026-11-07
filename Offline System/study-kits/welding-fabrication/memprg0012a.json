@@ -1,0 +1,1963 @@
+{
+  "format": "cestis-study-kit",
+  "version": 1,
+  "status": "to-check",
+  "written": "2026-11-07",
+  "programme": "Welding & Fabrication",
+  "qualification": {
+    "id": "QUAL-WEL-L2",
+    "title": "WELDING LEVEL 2",
+    "code": "MEM22423"
+  },
+  "level": 2,
+  "unit": {
+    "code": "MEMPRG0012A",
+    "title": "Apply introductory machine programming techniques"
+  },
+  "summary": "This unit introduces CNC (computer numerical control) programming for a fabrication shop, mostly on a CNC plasma cutting table. You will learn how CNC machines move, how to read and write a simple program in G-code with the common G-codes and M-codes, and how to allow for kerf, lead-ins and the order of cuts. You will also learn to check a program by plotting and simulation, set up and dry run it safely, cut and measure a part, and save the program with a set-up sheet.",
+  "sections": [
+    {
+      "title": "Unit overview",
+      "blocks": [
+        {
+          "p": "This unit is part of the Welding Level 2 qualification (MEM22423). It introduces **CNC programming**: how a computer-controlled machine moves, how a program is written in **G-code**, and how to check, set up and run a simple program safely. Most of the examples use a **CNC plasma cutting table**, the CNC machine you are most likely to meet in a fabrication shop."
+        },
+        {
+          "p": "Jamaican fabrication shops use CNC plasma tables to cut base plates, gussets, brackets, flanges, decorative panels for gates and grills, and signs. Larger shops may also have CNC oxy-fuel cutters, press brakes, routers, mills and lathes. At this level you write short programs by hand, read and correct programs that CAM software makes, and run them under supervision."
+        },
+        {
+          "p": "**Who it is for:** trainees on the Welding Level 2 programme at HEART/NSTA Trust and other training centres. You need basic measuring and drawing-reading skills and simple arithmetic with plus and minus numbers. No computer programming experience is needed."
+        },
+        {
+          "table": {
+            "head": [
+              "What you must be able to do",
+              "What this means in the workshop"
+            ],
+            "rows": [
+              [
+                "Work safely with CNC equipment",
+                "Know the hazards of moving machines and plasma cutting, keep guards in place, find and test the emergency stop, wear the right PPE, and run nothing until the assessor has checked the set-up."
+              ],
+              [
+                "Use axes and coordinates",
+                "Name the X, Y and Z axes, tell machine home from work zero, and work out the X and Y values of any point on a drawing."
+              ],
+              [
+                "Read and write program blocks",
+                "Know what each letter in a block means (N, G, M, X, Y, Z, I, J, R, F, S, T), use the common G-codes and M-codes, and write comments."
+              ],
+              [
+                "Write a simple program",
+                "Use absolute and incremental modes, straight moves and arcs to cut a simple flat part from a drawing."
+              ],
+              [
+                "Program for plasma cutting",
+                "Use the cut chart, allow for kerf, put lead-ins in the scrap, and cut holes before the outside edge."
+              ],
+              [
+                "Explain CAD/CAM",
+                "Describe how a drawing becomes a toolpath in CAM and a program through the post-processor."
+              ],
+              [
+                "Check and prove a program",
+                "Find errors by reading, plotting and simulating; dry run in single block at a low feed override."
+              ],
+              [
+                "Set up and run a part",
+                "Home the machine, hold the plate, set work zero, run the first part under supervision and measure it against the drawing."
+              ],
+              [
+                "Save, record and finish",
+                "Name and store programs with version numbers, fill in a set-up sheet, clean the machine and report problems."
+              ]
+            ]
+          }
+        },
+        {
+          "h": "How you will be assessed"
+        },
+        {
+          "ul": [
+            "A **multiple-choice theory paper** on CNC basics, axes, coordinates, absolute and incremental moves, G-codes and M-codes, program words, plasma programs, CAD/CAM, checking, safety and saving programs.",
+            "A **written paper** with short answers (exact codes and terms, such as G90, M08, dry run, machine home, kerf) and longer answers in full sentences, including writing and explaining a short program.",
+            "**Practical tasks** in a group: writing, plotting and simulating a program for a flat bracket; then setting up, dry running and cutting the part (or doing it in simulation if the Centre has no CNC machine), measuring it and filling in a set-up sheet."
+          ]
+        },
+        {
+          "note": "Codes differ a little from one machine to another. This kit uses the standard codes that most controls follow (often called ISO or standard G-code). Your machine's manual and the Centre's code list have the final say, especially for the plasma torch on and off codes.",
+          "label": "Tip"
+        }
+      ]
+    },
+    {
+      "title": "CNC machines and safe working",
+      "blocks": [
+        {
+          "h": "What CNC means"
+        },
+        {
+          "p": "**CNC** stands for **computer numerical control**. The machine's control is a computer that reads a **program**: lines of letters and numbers. It turns each line into signals for the motors, which move the tool or torch to exact positions at set speeds. The same program cuts the same part again and again, to the same size."
+        },
+        {
+          "table": {
+            "head": [
+              "Why shops use CNC",
+              "Points to watch"
+            ],
+            "rows": [
+              [
+                [
+                  "Accurate and repeatable: the 50th part matches the first",
+                  "Curves, holes and complicated shapes are as easy as straight lines",
+                  "Parts can be nested close together on a plate, so less steel is wasted",
+                  "Less tiring for the operator; faster for batches of parts"
+                ],
+                [
+                  "The machine and software cost money and need trained people",
+                  "The machine does exactly what the program says: one wrong number is repeated on every part",
+                  "A wrong move can wreck a tool, the machine or the part, or injure someone, so every new program is checked before it cuts"
+                ]
+              ]
+            ]
+          }
+        },
+        {
+          "h": "CNC machines in fabrication"
+        },
+        {
+          "table": {
+            "head": [
+              "Machine",
+              "What it does",
+              "Axes (typical)"
+            ],
+            "rows": [
+              [
+                "CNC plasma table",
+                "Cuts shapes from steel, stainless steel and aluminium plate with a plasma arc",
+                "X and Y across the table; Z raises and lowers the torch"
+              ],
+              [
+                "CNC oxy-fuel cutter",
+                "Cuts thick steel plate with a flame",
+                "X and Y; Z for the torch height"
+              ],
+              [
+                "CNC router",
+                "Cuts and engraves wood, plastic and aluminium sheet with a spinning cutter",
+                "X, Y and Z"
+              ],
+              [
+                "CNC mill",
+                "Cuts metal with rotating cutters: faces, slots, pockets and holes",
+                "X, Y and Z, with Z along the spindle"
+              ],
+              [
+                "CNC lathe",
+                "Turns round parts such as shafts and bushes",
+                "Z along the spindle (the length of the job); X across it (the diameter)"
+              ],
+              [
+                "CNC press brake",
+                "Bends sheet and plate to set angles and lengths",
+                "Axes for the back gauge and the ram; the names vary by maker"
+              ]
+            ]
+          }
+        },
+        {
+          "h": "Main parts of a CNC plasma table"
+        },
+        {
+          "table": {
+            "head": [
+              "Part",
+              "Its job"
+            ],
+            "rows": [
+              [
+                "Control (the CNC)",
+                "The computer, screen and keys that store and run the program. It has cycle start, feed hold, the override knobs and the emergency stop."
+              ],
+              [
+                "Gantry and drive motors",
+                "The gantry carries the torch over the table. Motors drive it along racks, belts or screws."
+              ],
+              [
+                "Home (limit) switches",
+                "Tell the machine where its axes are when it is homed, and stop it running past the ends of its travel."
+              ],
+              [
+                "Torch lifter (Z axis)",
+                "Raises and lowers the torch. Many tables touch or sense the plate before each pierce to find its surface."
+              ],
+              [
+                "Torch height control (THC)",
+                "Senses the arc voltage while cutting and moves the torch up or down to keep the same cut height over a wavy plate."
+              ],
+              [
+                "Plasma power source and air supply",
+                "Makes the plasma arc. It needs clean, dry compressed air at the pressure in the maker's manual."
+              ],
+              [
+                "Slat table with water table or downdraft",
+                "Steel slats hold the plate. Water under the plate, or extraction drawing air down, catches fumes, dust and sparks."
+              ]
+            ]
+          }
+        },
+        {
+          "h": "Hazards and how to control them"
+        },
+        {
+          "table": {
+            "head": [
+              "Hazard",
+              "What can happen",
+              "How you control it"
+            ],
+            "rows": [
+              [
+                "Moving parts: gantry, spindle, cutters, chuck",
+                "Crushing between the gantry and a fixed object; gloves, sleeves, rags, hair or rings caught and dragged in by a rotating spindle or cutter",
+                [
+                  "Guards, doors and interlocks in place and never bypassed",
+                  "Hands and tools clear while the program runs",
+                  "No gloves, rings, loose sleeves or long loose hair near rotating parts",
+                  "Stay at the machine while it runs"
+                ]
+              ],
+              [
+                "Unexpected moves",
+                "A wrong number sends the torch or cutter the wrong way, into a clamp, a tipped part or the table",
+                [
+                  "Program checked and simulated first",
+                  "Dry run in single block at low feed override",
+                  "One person with a hand near the emergency stop"
+                ]
+              ],
+              [
+                "Plasma arc light",
+                "Arc eye and burns to bare skin, as with arc welding",
+                [
+                  "Filter lens of the shade the maker gives",
+                  "Screens round the table",
+                  "Skin covered"
+                ]
+              ],
+              [
+                "Fumes and dust",
+                "Metal fume and dust, worse from galvanised, painted or oily plate",
+                [
+                  "Water table or downdraft extraction working",
+                  "Coatings removed or extra controls, as the instructor says"
+                ]
+              ],
+              [
+                "Electricity",
+                "The plasma system uses high voltages, often a few hundred volts DC at the torch when the arc starts",
+                [
+                  "Switch off and isolate before changing the nozzle, electrode or shield or touching the torch",
+                  "Damaged leads and torch cables reported, not used"
+                ]
+              ],
+              [
+                "Hot parts, slag and sharp edges",
+                "Burns and cuts when unloading parts and the plate skeleton",
+                [
+                  "Let parts cool",
+                  "Pliers or tongs; leather gloves to handle parts away from the machine",
+                  "Remove burrs and dross"
+                ]
+              ],
+              [
+                "Noise",
+                "Plasma cutting and routers are loud",
+                "Ear plugs or muffs"
+              ],
+              [
+                "Fire",
+                "Sparks and hot slag set light to rags, paper or oil near the table",
+                [
+                  "Keep the table and floor clear of rubbish",
+                  "Water at the right level in a water table",
+                  "Extinguisher at hand"
+                ]
+              ],
+              [
+                "Compressed air",
+                "Chips and dust blown into eyes; air forced into skin",
+                "Never blow chips towards people or clean yourself with an air gun; use a brush"
+              ]
+            ]
+          }
+        },
+        {
+          "note": "Find the **emergency stop** before you start, and check that it works. Press it at once if anything moves in a way you did not expect, if someone is in danger, or if a fire starts. After an emergency stop the machine must be reset and usually homed again, and you tell your instructor what happened.",
+          "label": "Safety"
+        },
+        {
+          "h": "Rules at the Centre"
+        },
+        {
+          "ul": [
+            "Only trainees who have been trained on the machine, and have the instructor's permission, may use it.",
+            "The assessor checks the set-up before the machine runs any program.",
+            "One person is in charge of the machine and stands at the emergency stop; everyone else stays outside the marked area.",
+            "Never bypass a guard, a door switch or any other interlock.",
+            "Stop the machine and isolate it, as the procedure says, before you clear chips, change a tool or consumable, or reach into the machine. Feed hold alone is not safe: the program can start again.",
+            "Report every fault, alarm you do not understand, or near miss to the instructor."
+          ]
+        },
+        {
+          "note": "Two local problems affect CNC machines. **Power cuts and voltage dips**: if the power goes off during a program, switch off as the procedure says. When it comes back, the machine has lost its position, so home it, check the work zero, and restart only as the instructor directs. **Humid air**: water collects in the compressor tank and air lines and ruins plasma nozzles and electrodes. Drain the tank and the filter's water trap as the procedure says, often daily, and keep any air dryer working.",
+          "label": "Jamaica"
+        }
+      ]
+    },
+    {
+      "title": "Axes, zero points and coordinates",
+      "blocks": [
+        {
+          "p": "Every CNC machine moves along straight lines called **axes**. A position along each axis is a number, in millimetres, measured from a zero point. Each point the tool must reach is given by its **coordinates**: its X value and its Y value (and Z, if the height changes)."
+        },
+        {
+          "table": {
+            "head": [
+              "Axis",
+              "On a plasma table or a vertical mill",
+              "Plus (+) direction (usual)"
+            ],
+            "rows": [
+              [
+                "X",
+                "Left to right, usually the long way of the table",
+                "To the right"
+              ],
+              [
+                "Y",
+                "Front to back",
+                "Away from the operator, towards the back"
+              ],
+              [
+                "Z",
+                "Up and down, along the torch or the spindle",
+                "Up, **away from the work**"
+              ]
+            ]
+          }
+        },
+        {
+          "note": "On every machine, **+Z moves the tool away from the work** and −Z moves it towards the work. A missing minus sign, or one too many, on a Z value can drive a cutter into the job or the table. Check every Z value twice.",
+          "label": "Remember"
+        },
+        {
+          "ul": [
+            "**Right-hand rule:** hold your right hand with the thumb pointing along +X and the first finger along +Y; your middle finger, bent upwards, points along +Z.",
+            "**Rotary axes** A, B and C turn around X, Y and Z. You will meet them only on some machines.",
+            "**CNC lathe:** Z runs along the spindle (the length of the job), with −Z towards the chuck; X runs across the job and sets the diameter."
+          ]
+        },
+        {
+          "h": "Machine home and work zero"
+        },
+        {
+          "table": {
+            "head": [
+              "Point",
+              "What it is",
+              "Who sets it",
+              "When it changes"
+            ],
+            "rows": [
+              [
+                "**Machine home** (machine zero or reference point)",
+                "A fixed point the machine finds with its home switches, so that it knows where its slides are",
+                "The maker",
+                "Never. The machine is homed each time it is switched on, and after an emergency stop or a power cut."
+              ],
+              [
+                "**Work zero** (part zero, program zero or datum)",
+                "A point on the part or plate that every position in the program is measured from",
+                "The programmer chooses it; the operator sets it on the machine",
+                "For each job, and each time a new plate is placed"
+              ]
+            ]
+          }
+        },
+        {
+          "p": "To set work zero, the operator jogs the torch or tool to the chosen point on the plate, such as its bottom-left corner, and stores that position, often as a **work offset** (G54 on many controls) or with a \"set zero\" key. From then on, X0 Y0 in the program means that point on the plate."
+        },
+        {
+          "note": "Put work zero where the drawing's dimensions start, often the **bottom-left corner** of the part. Then every X and Y value is positive and can be read almost straight off the drawing.",
+          "label": "Tip"
+        },
+        {
+          "h": "Reading coordinates from a drawing"
+        },
+        {
+          "p": "With work zero at the bottom-left corner, moving right is +X and moving up the drawing is +Y. Example: a plate 160 mm wide and 100 mm high with three holes."
+        },
+        {
+          "table": {
+            "head": [
+              "Point",
+              "How it is dimensioned on the drawing",
+              "X",
+              "Y"
+            ],
+            "rows": [
+              [
+                "Bottom-left corner (work zero)",
+                "—",
+                "0",
+                "0"
+              ],
+              [
+                "Bottom-right corner",
+                "Plate width 160",
+                "160",
+                "0"
+              ],
+              [
+                "Top-right corner",
+                "Width 160, height 100",
+                "160",
+                "100"
+              ],
+              [
+                "Hole A centre",
+                "25 from the left edge, 20 from the bottom",
+                "25",
+                "20"
+              ],
+              [
+                "Hole B centre",
+                "30 from the **right** edge, 20 from the bottom",
+                "130 (160 − 30)",
+                "20"
+              ],
+              [
+                "Hole C centre",
+                "In the middle of the plate",
+                "80 (160 ÷ 2)",
+                "50 (100 ÷ 2)"
+              ]
+            ]
+          }
+        },
+        {
+          "ul": [
+            "When a size is given from the right-hand edge or the top edge, **subtract** it from the plate's width or height.",
+            "When a drawing gives the spacing between holes (the pitch) instead of each position, **add** the spacings up: holes 20 mm from the left, then 35 mm apart, are at X20, X55 and X90.",
+            "Make a table of every point's X and Y before you write any program lines, and check it against the drawing."
+          ]
+        },
+        {
+          "h": "Minus values"
+        },
+        {
+          "p": "If work zero is in the **centre** of the part, points to the left of it have minus X values and points below it have minus Y values. For a plate 100 mm × 60 mm with work zero in the centre, the corners are X-50 Y-30, X50 Y-30, X50 Y30 and X-50 Y30. Minus values are normal; leaving out a minus sign is one of the commonest program errors."
+        }
+      ]
+    },
+    {
+      "title": "Program words, blocks and codes",
+      "blocks": [
+        {
+          "p": "A CNC program is a list of lines called **blocks**. The control reads them one at a time, from the top. Each block is made of **words**: a letter (the **address**) followed by a number."
+        },
+        {
+          "p": "Example block: **N60 G01 X85 Y40 F1200**"
+        },
+        {
+          "table": {
+            "head": [
+              "Word",
+              "Meaning in this block"
+            ],
+            "rows": [
+              [
+                "N60",
+                "Block (sequence) number 60. It helps people find the line; many controls do not need it."
+              ],
+              [
+                "G01",
+                "A preparatory code: cut in a straight line at the feed rate"
+              ],
+              [
+                "X85 Y40",
+                "The end point of the move: X85, Y40"
+              ],
+              [
+                "F1200",
+                "Feed rate: 1200 mm per minute"
+              ]
+            ]
+          }
+        },
+        {
+          "h": "The letter addresses"
+        },
+        {
+          "table": {
+            "head": [
+              "Letter",
+              "Meaning",
+              "Example"
+            ],
+            "rows": [
+              [
+                "O",
+                "Program number (on many controls)",
+                "O1001"
+              ],
+              [
+                "N",
+                "Block number",
+                "N10"
+              ],
+              [
+                "G",
+                "Preparatory code: the type of move or a mode",
+                "G01"
+              ],
+              [
+                "M",
+                "Miscellaneous code: switches things on and off, ends the program",
+                "M05"
+              ],
+              [
+                "X, Y, Z",
+                "Position on each axis",
+                "X40.5 Y-12"
+              ],
+              [
+                "I, J (and K)",
+                "Distance in X and Y (and Z) from the start of an arc to its centre",
+                "I10 J0"
+              ],
+              [
+                "R",
+                "Radius of an arc",
+                "R15"
+              ],
+              [
+                "F",
+                "Feed rate, in mm per minute on most mills and cutting tables",
+                "F1500"
+              ],
+              [
+                "S",
+                "Spindle speed, in revolutions per minute (rpm)",
+                "S2400"
+              ],
+              [
+                "T",
+                "Tool number",
+                "T02"
+              ],
+              [
+                "H, D",
+                "Offset numbers: tool length (H) and cutter or kerf compensation (D)",
+                "H02"
+              ],
+              [
+                "P",
+                "A value for some codes, such as a dwell time; how it is written depends on the control",
+                "G04 P…"
+              ],
+              [
+                "( )",
+                "A **comment**: the control ignores it; people read it",
+                "(CUT HOLES FIRST)"
+              ]
+            ]
+          }
+        },
+        {
+          "note": "Most G-codes, and the F word, are **modal**: they stay in force until another code of the same kind replaces them. After G01 F1200, every later block with only X and Y in it is a G01 cut at 1200 mm/min. So if you write G00 to reach the start of a cut and forget to write G01 before cutting, the next move is a rapid, possibly straight through the work.",
+          "label": "Remember"
+        },
+        {
+          "h": "Common G-codes"
+        },
+        {
+          "table": {
+            "head": [
+              "Code",
+              "What it does (on most controls)",
+              "Notes"
+            ],
+            "rows": [
+              [
+                "G00",
+                "**Rapid** move to a point, not cutting",
+                "As fast as the machine can go. The path may not be a straight line. Use it only where the tool is clear of the work and clamps, with the torch off."
+              ],
+              [
+                "G01",
+                "**Straight-line cutting** move at the feed rate F",
+                "Straight edges, slots, lead-ins"
+              ],
+              [
+                "G02",
+                "**Clockwise** arc at the feed rate",
+                "Needs the end point and R, or I and J"
+              ],
+              [
+                "G03",
+                "**Anticlockwise** arc at the feed rate",
+                "Needs the end point and R, or I and J"
+              ],
+              [
+                "G04",
+                "Dwell: a timed pause",
+                "Used for a pierce delay on some plasma controls; the time is given with P or X, depending on the control"
+              ],
+              [
+                "G17",
+                "Arcs in the **XY plane**",
+                "The normal plane for plasma and most milling (G18 = XZ, G19 = YZ)"
+              ],
+              [
+                "G20 / G21",
+                "Units: **G20 inches, G21 millimetres**",
+                "Jamaica works in millimetres: use G21"
+              ],
+              [
+                "G40",
+                "Cancel cutter or kerf compensation",
+                "Put it in the start block"
+              ],
+              [
+                "G41 / G42",
+                "Cutter or kerf compensation to the **left** (G41) or **right** (G42) of the path, looking along the direction of travel",
+                "The offset size is stored in the control"
+              ],
+              [
+                "G43",
+                "Apply a tool length offset (mills and routers)",
+                "With an H number, such as G43 H02"
+              ],
+              [
+                "G54",
+                "Use work offset 1 (the stored work zero)",
+                "G55 to G59 are further work offsets"
+              ],
+              [
+                "G90 / G91",
+                "**Absolute** (G90) or **incremental** (G91) positions",
+                "See the next section"
+              ]
+            ]
+          }
+        },
+        {
+          "h": "Common M-codes"
+        },
+        {
+          "table": {
+            "head": [
+              "Code",
+              "What it usually does"
+            ],
+            "rows": [
+              [
+                "M00",
+                "Program stop: the machine waits until the operator presses cycle start"
+              ],
+              [
+                "M01",
+                "Optional stop: stops only if the optional-stop switch is on"
+              ],
+              [
+                "M02",
+                "End of program"
+              ],
+              [
+                "M03",
+                "Spindle on, clockwise; on many plasma controls, **torch on**"
+              ],
+              [
+                "M04",
+                "Spindle on, anticlockwise"
+              ],
+              [
+                "M05",
+                "Spindle stop; on many plasma controls, **torch off**"
+              ],
+              [
+                "M06",
+                "Tool change (with a T word, such as T02 M06)"
+              ],
+              [
+                "M08",
+                "Coolant on"
+              ],
+              [
+                "M09",
+                "Coolant off"
+              ],
+              [
+                "M30",
+                "End of program and **rewind** to the start, ready for the next part"
+              ]
+            ]
+          }
+        },
+        {
+          "note": "Plasma controls do not all use the same torch codes. Many use M03 to switch the torch on and M05 to switch it off; others use different codes, such as M07 and M08. On such a machine M08 may switch the torch **off**, not the coolant on. Always use the code list for the machine in front of you.",
+          "label": "Remember"
+        },
+        {
+          "h": "How a program is laid out"
+        },
+        {
+          "flow": [
+            "Program number and a comment naming the part, material, thickness, version and programmer",
+            "Safe start block: units, absolute mode, XY plane, compensation cancelled (for example G21 G90 G17 G40)",
+            "Tool or torch settings, feed rate, and the spindle or coolant on (mill or router)",
+            "The cutting moves, section by section, each with a comment",
+            "Torch or spindle off, coolant off",
+            "Move clear of the part",
+            "M30: end and rewind"
+          ]
+        },
+        {
+          "note": "Two small typing errors cause big trouble. **The letter O and the figure 0** look alike: X1O0 is not X100. And **decimal points**: on some controls a number without a decimal point is read in thousandths of a millimetre, so X50 means 0.05 mm and X50.0 means 50 mm. If your control works like this, the manual will say so, and you must write the decimal point every time.",
+          "label": "Tip"
+        }
+      ]
+    },
+    {
+      "title": "Writing a program: moves, arcs, absolute and incremental",
+      "blocks": [
+        {
+          "h": "Absolute (G90) and incremental (G91)"
+        },
+        {
+          "p": "In **absolute** mode (G90) every X, Y and Z value says **where to go**, measured from the work zero. In **incremental** mode (G91) every value says **how far to move** from where the tool is now, with a minus sign for a move in the minus direction."
+        },
+        {
+          "p": "Example: a row of four holes along Y40, the first at X15, then every 25 mm."
+        },
+        {
+          "table": {
+            "head": [
+              "Hole",
+              "Absolute (G90)",
+              "Incremental (G91), from the hole before"
+            ],
+            "rows": [
+              [
+                "1",
+                "X15 Y40",
+                "Go to the first hole in G90, then switch to G91"
+              ],
+              [
+                "2",
+                "X40 Y40",
+                "X25 Y0"
+              ],
+              [
+                "3",
+                "X65 Y40",
+                "X25 Y0"
+              ],
+              [
+                "4",
+                "X90 Y40",
+                "X25 Y0"
+              ]
+            ]
+          }
+        },
+        {
+          "p": "Working out moves:"
+        },
+        {
+          "ul": [
+            "**Incremental:** the tool is at X40 Y40 and the next block in G91 is X25 Y-15. It ends at X65 Y25 (40 + 25 = 65; 40 − 15 = 25).",
+            "**Absolute:** the tool is at X65 Y25 and the next block in G90 is X20 Y25. It moves 45 mm in the minus X direction (65 − 20 = 45) and does not move in Y.",
+            "**Changing absolute to incremental:** subtract the old position from the new one. From X20 Y30 to X55 Y10 is an incremental move of X35 Y-20."
+          ]
+        },
+        {
+          "table": {
+            "head": [
+              "Point",
+              "Absolute (G90)",
+              "Incremental (G91)"
+            ],
+            "rows": [
+              [
+                "Each value is measured from",
+                "The work zero",
+                "Where the tool is now"
+              ],
+              [
+                "Checking against a drawing dimensioned from one datum",
+                "Easy: the values are on the drawing",
+                "Harder: each move must be worked out"
+              ],
+              [
+                "Effect of one wrong value",
+                "Only that point is wrong",
+                "Every later point is shifted too"
+              ],
+              [
+                "Good for",
+                "Most programs; beginners",
+                "Repeated patterns of holes or shapes"
+              ]
+            ]
+          }
+        },
+        {
+          "note": "Write in absolute unless your instructor says otherwise. If you switch to G91 for a pattern, switch back to G90 straight after it. Leaving G91 on by mistake is a common and dangerous error: the following absolute values are read as distances, and the tool goes somewhere you never meant.",
+          "label": "Tip"
+        },
+        {
+          "h": "Straight moves: G00 and G01"
+        },
+        {
+          "ul": [
+            "Use **G00** to go to the start of a cut, or to move clear at the end. On a plasma table the torch is off and raised.",
+            "Use **G01** with an F value for every cutting move. Put G01 back after every G00, before the cut starts.",
+            "The feed rate (F) comes from the cut chart (plasma) or the cutting data for the tool and material (mill or router)."
+          ]
+        },
+        {
+          "h": "Arcs: G02 and G03"
+        },
+        {
+          "p": "The direction of an arc is judged **looking down on the work from above** (from +Z): **G02 is clockwise, G03 is anticlockwise**. An arc block gives the **end point** of the arc and either the **radius (R)** or the **centre (I and J)**."
+        },
+        {
+          "p": "**I** is the distance in X, and **J** the distance in Y, from the **start** of the arc to its **centre**, with a minus sign if the centre is in the minus direction. On most controls I and J are measured this way even in G90."
+        },
+        {
+          "table": {
+            "head": [
+              "Arc",
+              "Start",
+              "End",
+              "Centre",
+              "Block"
+            ],
+            "rows": [
+              [
+                "Rounded bottom-right corner, going along the bottom then up the right side",
+                "X70 Y0",
+                "X80 Y10",
+                "X70 Y10",
+                "G03 X80 Y10 R10 (or G03 X80 Y10 I0 J10)"
+              ],
+              [
+                "Rounded top-left corner, going up the left side then along the top",
+                "X0 Y50",
+                "X10 Y60",
+                "X10 Y50",
+                "G02 X10 Y60 R10 (or G02 X10 Y60 I10 J0)"
+              ],
+              [
+                "Full circle for a 20 mm hole centred at X50 Y30",
+                "X40 Y30",
+                "X40 Y30 (back to the start)",
+                "X50 Y30",
+                "G03 X40 Y30 I10 J0"
+              ]
+            ]
+          }
+        },
+        {
+          "note": "**R** works for arcs less than a full circle (on many controls a minus R means an arc of more than half a circle). A **full circle** cannot be given with R, because the start and end points are the same: use I and J.",
+          "label": "Remember"
+        },
+        {
+          "p": "To check the direction: sketch the arc, put your pencil on the start point and follow the arc to the end. If your pencil turns the way a clock's hands go, it is G02; the other way, G03."
+        },
+        {
+          "h": "A complete program, line by line"
+        },
+        {
+          "p": "Part: a mounting plate 100 mm × 60 mm, 6 mm mild steel, with one 20 mm hole whose centre is 30 mm from the left edge and 30 mm from the bottom. Work zero: bottom-left corner. Machine: a plasma table that uses M03 and M05 for the torch."
+        },
+        {
+          "table": {
+            "head": [
+              "Block",
+              "What it does"
+            ],
+            "rows": [
+              [
+                "O0101 (MOUNTING PLATE 100X60 6MM MS V1)",
+                "Program number and a comment naming the part, material and version"
+              ],
+              [
+                "N10 G21 G90 G17 G40",
+                "Millimetres, absolute, XY plane, no compensation"
+              ],
+              [
+                "N20 G00 X30 Y30",
+                "Rapid to the centre of the hole: the pierce point is in the scrap disc"
+              ],
+              [
+                "N30 M03",
+                "Torch on: the arc pierces the plate (the control applies the pierce delay)"
+              ],
+              [
+                "N40 G01 X20 Y30 F1000",
+                "Lead-in from the centre to the edge of the hole, at a feed of 1000 mm/min (an example; use the cut chart)"
+              ],
+              [
+                "N50 G03 X20 Y30 I10 J0",
+                "Full circle, anticlockwise, back to the same point; the centre is 10 mm in +X"
+              ],
+              [
+                "N60 M05",
+                "Torch off"
+              ],
+              [
+                "N70 G00 X-5 Y10",
+                "Rapid to a pierce point 5 mm outside the left edge, in the scrap"
+              ],
+              [
+                "N80 M03",
+                "Torch on"
+              ],
+              [
+                "N90 G01 X0 Y10",
+                "Lead-in onto the left edge"
+              ],
+              [
+                "N100 X0 Y60",
+                "Cut up the left edge (G01 and F1000 are still in force)"
+              ],
+              [
+                "N110 X100 Y60",
+                "Cut along the top"
+              ],
+              [
+                "N120 X100 Y0",
+                "Cut down the right edge"
+              ],
+              [
+                "N130 X0 Y0",
+                "Cut along the bottom"
+              ],
+              [
+                "N140 X0 Y10",
+                "Cut back up to where the edge cut started"
+              ],
+              [
+                "N150 M05",
+                "Torch off"
+              ],
+              [
+                "N160 G00 X0 Y0",
+                "Rapid back to work zero, clear of the cut"
+              ],
+              [
+                "N170 M30",
+                "End of program and rewind"
+              ]
+            ]
+          }
+        },
+        {
+          "p": "Notice that the hole is cut **before** the outside, the hole is cut anticlockwise and the outside clockwise, and both pierces are in the scrap. This simple program has **no kerf compensation**: the torch runs on the drawing lines, so the plate will come out about one kerf width smaller each way and the hole about one kerf width larger. The next section shows how that is put right."
+        },
+        {
+          "h": "Plotting a program on graph paper"
+        },
+        {
+          "flow": [
+            "Draw the X and Y axes and mark the work zero; choose full size or half size",
+            "Plot the end point of each block in order, writing the block number beside it",
+            "Join the points: straight lines for G01, arcs with a compass for G02 and G03, dashed lines for G00 rapids",
+            "Compare the plot with the drawing: shape, sizes, hole positions, lead-ins in the scrap, holes cut first",
+            "Mark any error on the program sheet, correct it and plot that part again"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Programs for CNC plasma cutting",
+      "blocks": [
+        {
+          "h": "The cut chart"
+        },
+        {
+          "p": "The plasma maker's **cut chart** gives, for each material and thickness: the current (amps), the nozzle and other consumables, the air pressure, the **cut speed** (your F value), the **pierce height**, the **pierce delay**, the **cut height**, the arc voltage for the torch height control, and often the **kerf width**. Settings in your program come from the chart, not from guesswork; your instructor may fine-tune them after a test cut."
+        },
+        {
+          "h": "What happens for each cut"
+        },
+        {
+          "flow": [
+            "Rapid (G00) to the pierce point, in the scrap",
+            "The torch lowers to the pierce height (many tables first touch or sense the plate surface)",
+            "Torch-on code: the arc starts",
+            "Pierce delay: the torch stays still for a moment until the arc has cut right through",
+            "The torch drops to the cut height and moves along the lead-in",
+            "It cuts the shape at the cut speed while the torch height control keeps the height steady",
+            "Lead-out, then the torch-off code",
+            "The torch lifts and rapids to the next pierce point"
+          ]
+        },
+        {
+          "p": "The pierce height is higher than the cut height, so that molten metal blown up during the pierce does not hit the nozzle. The pierce delay is a fraction of a second on thin plate and longer on thick plate. Take both from the cut chart."
+        },
+        {
+          "h": "Kerf and kerf compensation"
+        },
+        {
+          "p": "**Kerf** is the width of metal removed by the cut. On small air plasma systems it is often around 1 to 2 mm, depending on the current, nozzle, speed and plate. If the centre of the torch runs exactly on the drawing line, **half the kerf** comes off each side of the line."
+        },
+        {
+          "table": {
+            "head": [
+              "Example: kerf 1.6 mm, torch on the line",
+              "Result"
+            ],
+            "rows": [
+              [
+                "Outside edge of a part 100 mm wide",
+                "0.8 mm comes off each side: the part is about **98.4 mm** wide (too small)"
+              ],
+              [
+                "A 20 mm hole",
+                "0.8 mm comes off all round: the hole is about **21.6 mm** (too big)"
+              ]
+            ]
+          }
+        },
+        {
+          "p": "**Kerf compensation** moves the torch path half a kerf width to the **scrap side** of the line: **outside the line for the outside edge, inside the line for holes**. Then the full kerf falls in the scrap and the part comes out at drawing size. It is set in the CAM software (the usual way) or with G41 or G42 and a kerf value stored in the control; G40 cancels it."
+        },
+        {
+          "note": "Measure the first part. If the outside sizes are short, and the holes large, by about one kerf width, compensation is missing. If they are wrong by about twice that, it is on the wrong side of the line. If every size is out by a small, even amount, the kerf value needs adjusting.",
+          "label": "Tip"
+        },
+        {
+          "h": "Lead-ins and lead-outs"
+        },
+        {
+          "p": "The pierce leaves a rough crater and a spray of dross. A **lead-in** is a short cut that starts at a pierce point in the scrap and runs onto the part line, so the pierce mark never touches the part. A **lead-out** carries the cut off the line into the scrap at the end. For a hole, pierce near the centre of the hole; for the outside, pierce a few millimetres outside the edge. Keep lead-ins short, so they stay in the scrap and do not waste time, but long enough to keep the pierce clear of the part."
+        },
+        {
+          "h": "Cut order and direction"
+        },
+        {
+          "ul": [
+            "**Cut holes and other inside shapes first.** While they are cut, the part is still held by the plate around it. Once the outside is cut, the part is loose: it can drop or tilt on the slats, so holes cut afterwards land in the wrong place, and the torch can hit a tipped part.",
+            "When several parts are nested on one plate, the CAM software orders the cuts so the torch does not travel over parts already cut free.",
+            "**Direction:** most plasma torches swirl the gas so that the squarer, cleaner edge is on the **right** of the direction of travel. That is why the outside edge is usually cut **clockwise** and holes **anticlockwise**: the good edge is then on the part, and the poorer edge on the scrap. Check the maker's manual, as a few torches swirl the other way."
+          ]
+        },
+        {
+          "h": "Cut quality and the program"
+        },
+        {
+          "table": {
+            "head": [
+              "What you see",
+              "Likely cause in the settings",
+              "What to change"
+            ],
+            "rows": [
+              [
+                "Hard, thin dross under the cut; the cut lines curve backwards; the arc may not cut right through",
+                "Cut speed (F) too fast",
+                "Lower F towards the cut chart value"
+              ],
+              [
+                "Heavy, bubbly dross under the cut; wide kerf; rounded top edge",
+                "Cut speed too slow",
+                "Raise F towards the cut chart value"
+              ],
+              [
+                "More bevel on the edge than usual",
+                "Torch too high, worn nozzle, or wrong cut height or arc voltage setting",
+                "Check the consumables and the cut height settings"
+              ],
+              [
+                "Pierce does not go through, or molten metal blows back at the torch",
+                "Pierce delay too short, or pierce height too low",
+                "Use the cut chart's pierce settings"
+              ],
+              [
+                "Rough, wavy edges; nozzles and electrodes wear out fast",
+                "Wet or dirty air, worn consumables",
+                "Drain the air system; replace worn consumables"
+              ]
+            ]
+          }
+        },
+        {
+          "note": "If an arc ends inside the part or a cut does not close, check the last moves of that shape: the cut must come back to where it started (or just past it) before the torch-off code.",
+          "label": "Tip"
+        }
+      ]
+    },
+    {
+      "title": "From drawing to G-code: CAD and CAM",
+      "blocks": [
+        {
+          "p": "Simple parts can be programmed by hand, as in the last two sections. Most shops make programs with software: **CAD** to draw the part and **CAM** to plan the cutting."
+        },
+        {
+          "flow": [
+            "**CAD** (computer-aided design): draw the part to full size from the drawing's dimensions, and save it (often as a DXF file)",
+            "**CAM** (computer-aided manufacturing): open the drawing, choose the material and thickness, and the plasma settings or the tools and feeds",
+            "CAM makes the **toolpaths**: lead-ins and lead-outs, kerf compensation, cut direction, holes first, and the order of the parts",
+            "**Nest** the parts: arrange them close together on the plate to waste as little steel as possible",
+            "Check the toolpath on screen with the CAM simulation",
+            "**Post-process**: the post-processor writes the toolpath out as G-code for this make of machine",
+            "Save the program with a clear name and version, and send it to the control (network, cable or memory stick)",
+            "At the machine: load it, check it on the control's graphics, set up, dry run, then cut"
+          ]
+        },
+        {
+          "table": {
+            "head": [
+              "Term",
+              "What it means"
+            ],
+            "rows": [
+              [
+                "Toolpath",
+                "The path the torch or cutter will follow, including lead-ins and rapid moves"
+              ],
+              [
+                "Nesting",
+                "Fitting many parts onto one plate, with the gap the CAM software or instructor gives between them, to save steel"
+              ],
+              [
+                "Post-processor",
+                "The part of the CAM software that writes the toolpath as G-code in the form one particular control needs: its torch codes, arc format and comments"
+              ],
+              [
+                "Simulation (backplot)",
+                "A drawing on screen of the path the program will follow, used to check it before anything is cut"
+              ],
+              [
+                "DXF",
+                "A common drawing file type that CAD saves and CAM opens"
+              ]
+            ]
+          }
+        },
+        {
+          "p": "Every control reads G-code a little differently. A program made with the wrong post-processor may use the wrong torch codes or arc format, and the machine may stop with an alarm or, worse, move wrongly. Always use the post-processor set up for the Centre's machine."
+        },
+        {
+          "table": {
+            "head": [
+              "Hand programming",
+              "CAM programming"
+            ],
+            "rows": [
+              [
+                [
+                  "Good for simple parts, and for small changes at the machine",
+                  "Teaches you what each line does, so you can read and correct any program"
+                ],
+                [
+                  "Good for curves, many parts and nesting",
+                  "Kerf compensation and lead-ins are added for you",
+                  "You must still read the G-code it makes, to find and fix mistakes"
+                ]
+              ]
+            ]
+          }
+        },
+        {
+          "note": "Use only the Centre's own memory stick to move programs, and keep it scanned for viruses. Keep a backup copy of every proven program on the Centre's computer.",
+          "label": "Tip"
+        }
+      ]
+    },
+    {
+      "title": "Checking, setting up and running a program",
+      "blocks": [
+        {
+          "h": "Check the program before it reaches the machine"
+        },
+        {
+          "table": {
+            "head": [
+              "Check",
+              "What to look for"
+            ],
+            "rows": [
+              [
+                "Start",
+                "Program number and comment; G21, G90, G17, G40 in the start block"
+              ],
+              [
+                "Every X and Y",
+                "Matches your table of points; minus signs right; decimal points if the control needs them"
+              ],
+              [
+                "Moves",
+                "G00 only when the torch is off and the path is clear; G01 written again after each G00 before cutting"
+              ],
+              [
+                "Arcs",
+                "Right direction (G02 or G03); right end point; R, or I and J, right"
+              ],
+              [
+                "Torch or spindle",
+                "Switched on before each cut and off after it, with the codes this machine uses"
+              ],
+              [
+                "Feed",
+                "An F value before the first cutting move, from the cut chart"
+              ],
+              [
+                "Order",
+                "Holes before the outside; every pierce and lead-in in the scrap"
+              ],
+              [
+                "End",
+                "Torch or spindle off, move clear, M30"
+              ]
+            ]
+          }
+        },
+        {
+          "p": "Then **plot** it on graph paper or run the **graphic simulation** on the computer or the control, and compare the picture with the drawing. A wrong number, a missing line or an arc bulging the wrong way shows up at once."
+        },
+        {
+          "h": "Common errors"
+        },
+        {
+          "table": {
+            "head": [
+              "Error",
+              "What happens",
+              "How you find it"
+            ],
+            "rows": [
+              [
+                "Letter O typed for zero (or zero for O)",
+                "Alarm, or a wrong value",
+                "Read the line the alarm names"
+              ],
+              [
+                "Missing decimal point, on a control that needs it",
+                "The tool moves only a tiny distance",
+                "Simulation; dry run"
+              ],
+              [
+                "G91 left on",
+                "Every move is added to the last; the shape drifts off the plate",
+                "Simulation"
+              ],
+              [
+                "G20 instead of G21",
+                "Every move is 25.4 times too long; the machine may alarm at the end of its travel",
+                "Check the start block; simulation"
+              ],
+              [
+                "G02 and G03 swapped",
+                "The arc bulges the wrong way",
+                "Plot or simulation"
+              ],
+              [
+                "Wrong R, I or J",
+                "Alarm (the end point is not on the arc), or the wrong arc",
+                "Alarm message; plot"
+              ],
+              [
+                "No F before the first cutting move",
+                "Alarm on many controls",
+                "Read the start of the program"
+              ],
+              [
+                "Torch-on code missing",
+                "The torch travels the shape but cuts nothing",
+                "Read the program; watch the dry run"
+              ],
+              [
+                "Wrong minus sign",
+                "The cut lands off the plate, or on a clamp",
+                "Simulation; dry run"
+              ]
+            ]
+          }
+        },
+        {
+          "note": "When the control shows an **alarm**, read the message and its number, go to the block it names, and check the blocks just before it too: the mistake is often a line or two earlier. Never just clear the alarm and press cycle start again.",
+          "label": "Tip"
+        },
+        {
+          "h": "Setting up the machine"
+        },
+        {
+          "flow": [
+            "Start the machine as the Centre's procedure says, and **home** it",
+            "Check the air pressure, the consumables, and the water level or extraction",
+            "Load the program; check its name and version, and check it on the control's graphics",
+            "Place the plate square to the axes on the slats; clear tools and off-cuts off the table; hold the plate as the instructor shows",
+            "Jog the torch to the chosen point on the plate and **set the work zero**",
+            "Check the guards, screens and extraction, and test the emergency stop",
+            "The **assessor checks the set-up**",
+            "**Dry run**, then cut"
+          ]
+        },
+        {
+          "h": "Dry run, single block and overrides"
+        },
+        {
+          "table": {
+            "head": [
+              "Control",
+              "What it does",
+              "Why you use it"
+            ],
+            "rows": [
+              [
+                "**Dry run**",
+                "Runs the moves with the torch or spindle off, or with the tool well above the work",
+                "To see that every move goes where it should, without cutting"
+              ],
+              [
+                "**Single block**",
+                "Runs one block each time you press cycle start",
+                "To stop and check between moves"
+              ],
+              [
+                "**Feed override**",
+                "Changes the feed to a percentage of the programmed F",
+                "Turned down for the first run, so there is time to stop a wrong move"
+              ],
+              [
+                "Rapid override",
+                "Slows the G00 rapid moves",
+                "Same reason, for rapids"
+              ],
+              [
+                "**Feed hold**",
+                "Pauses the axes; on some machines the spindle keeps turning",
+                "A short pause; not safe for reaching in"
+              ],
+              [
+                "Optional stop switch",
+                "Makes the machine stop at each M01",
+                "To check the work at set points"
+              ],
+              [
+                "**Emergency stop**",
+                "Stops everything at once",
+                "When anything goes wrong"
+              ]
+            ]
+          }
+        },
+        {
+          "h": "Running the first part"
+        },
+        {
+          "ul": [
+            "Run the first part at a reduced feed override, with one person's hand near the emergency stop.",
+            "Stay at the machine and watch every move; listen for any change in the sound of the cut.",
+            "Stop at once if anything looks wrong, and find out why before you go on.",
+            "Let the part cool, then lift it out with pliers or tongs. Leather gloves are worn for handling hot or sharp parts away from the machine, never near a rotating spindle.",
+            "Check the first part against the drawing before cutting any more."
+          ]
+        },
+        {
+          "note": "Feed hold and a closed program are not the same as a safe machine. Before you reach in to clear dross, remove a part or change a consumable, stop the program, switch off the torch or spindle, and isolate the machine as the procedure says.",
+          "label": "Safety"
+        }
+      ]
+    },
+    {
+      "title": "Measuring, saving and finishing",
+      "blocks": [
+        {
+          "h": "Measuring the part"
+        },
+        {
+          "table": {
+            "head": [
+              "Tool",
+              "Use"
+            ],
+            "rows": [
+              [
+                "Steel rule",
+                "Quick checks of sizes up to its length, to about 0.5 mm"
+              ],
+              [
+                "Tape measure",
+                "Long sizes; less accurate than a rule"
+              ],
+              [
+                "Vernier caliper",
+                "Outside sizes, hole diameters and hole positions, to about 0.02 mm or 0.05 mm, depending on the caliper"
+              ]
+            ]
+          }
+        },
+        {
+          "p": "To read a vernier caliper: read the whole millimetres on the main scale just before the vernier's zero line, then find the vernier line that lines up exactly with a main-scale line and add its value. Example: 82 mm on the main scale, and the vernier line worth 0.36 mm lines up, gives 82.36 mm."
+        },
+        {
+          "p": "Record each size in a table and compare it with the drawing and the **tolerance** (how far a size may be from the drawing size and still be accepted; your instructor gives it)."
+        },
+        {
+          "table": {
+            "head": [
+              "Size",
+              "Drawing (mm)",
+              "Measured (mm)",
+              "Difference",
+              "OK?"
+            ],
+            "rows": [
+              [
+                "Width",
+                "100",
+                "99.6",
+                "−0.4",
+                "Yes (tolerance ±1)"
+              ],
+              [
+                "Height",
+                "60",
+                "59.7",
+                "−0.3",
+                "Yes"
+              ],
+              [
+                "Hole diameter",
+                "20",
+                "21.4",
+                "+1.4",
+                "No: check kerf compensation"
+              ]
+            ]
+          }
+        },
+        {
+          "h": "Saving programs"
+        },
+        {
+          "ul": [
+            "Give each program a **clear name** that says the part, material and version, for example GUSSET-150X100-6MS-V2.",
+            "Save it in the **set folder** for programs, with a backup copy, so it is not lost if a computer or control fails.",
+            "Never save a change over a proven program. Save it as a **new version** and note what changed and why.",
+            "Write **comments** in the program so the next person knows what each section does.",
+            "Delete or clearly mark old, wrong or test programs, so nobody runs them by mistake."
+          ]
+        },
+        {
+          "h": "The set-up sheet"
+        },
+        {
+          "p": "A **set-up sheet** goes with each program, so anyone can set up and run the job the same way next time."
+        },
+        {
+          "table": {
+            "head": [
+              "The set-up sheet records",
+              "Example"
+            ],
+            "rows": [
+              [
+                "Part name, drawing number and program name",
+                "Gusset, drawing G-14, GUSSET-150X100-6MS-V2"
+              ],
+              [
+                "Material and thickness",
+                "Mild steel, 6 mm"
+              ],
+              [
+                "Where the work zero is",
+                "Bottom-left corner of the part"
+              ],
+              [
+                "How the work is held",
+                "Plate on the slats, squared to the X axis, weighted at two corners"
+              ],
+              [
+                "Cut settings or tools",
+                "Amps, nozzle, air pressure, cut height and pierce delay, from the cut chart; or tools and their offsets"
+              ],
+              [
+                "Feeds and speeds",
+                "F value; S value for a spindle"
+              ],
+              [
+                "Special points",
+                "Holes first; check the hole size on the first part"
+              ]
+            ]
+          }
+        },
+        {
+          "h": "Finishing up"
+        },
+        {
+          "flow": [
+            "Run the last part and check it",
+            "Torch or spindle off; move the gantry to its park position; shut down as the procedure says",
+            "Remove the parts and the plate skeleton carefully: they are hot and sharp",
+            "Clean dross and slag off the slats; check the water level or empty the dust tray",
+            "Save the program and the set-up sheet, and record the sizes measured",
+            "Report problems: worn consumables, alarms, damaged slats, faults on the machine",
+            "Sweep the area and return the tools"
+          ]
+        },
+        {
+          "note": "Report a fault even if you got round it. The next group needs to know about an alarm that keeps coming back, a sticking axis or a worn nozzle.",
+          "label": "Remember"
+        }
+      ]
+    },
+    {
+      "title": "Revision",
+      "blocks": [
+        {
+          "p": "Use this checklist to test yourself. If you cannot honestly say \"I can\" to a line, go back to that section and practise it with your instructor."
+        },
+        {
+          "h": "I can ..."
+        },
+        {
+          "ul": [
+            "I can say what CNC stands for and what a CNC machine does.",
+            "I can name the hazards of CNC cutting and machining, and follow the safety rules, including the emergency stop.",
+            "I can name the X, Y and Z axes on a plasma table, a mill and a lathe, and say which way +Z moves.",
+            "I can explain the difference between machine home and work zero, and set work zero on a plate.",
+            "I can work out the X and Y values of any point from a drawing, including minus values.",
+            "I can explain the words in a block (N, G, M, X, Y, Z, I, J, R, F, S, T) and what a modal code is.",
+            "I can say what the common G-codes and M-codes do, and find the torch codes for my machine.",
+            "I can work in absolute (G90) and incremental (G91) mode and convert between them.",
+            "I can write straight moves and arcs, using R or I and J, in the right direction.",
+            "I can write, comment and explain a short program for a flat part with a hole.",
+            "I can explain kerf, kerf compensation, lead-ins, cut direction and why holes are cut first.",
+            "I can use the cut chart to set the feed and pierce settings, and read cut quality.",
+            "I can describe how CAD, CAM and the post-processor turn a drawing into a program.",
+            "I can check a program by reading, plotting and simulating it, and find common errors.",
+            "I can set up the machine, dry run a program in single block at low override, and run the first part safely.",
+            "I can measure a part, compare it with the drawing, and save the program and a set-up sheet."
+          ]
+        },
+        {
+          "h": "Key terms"
+        },
+        {
+          "terms": [
+            [
+              "Absolute (G90)",
+              "Positions measured from the work zero"
+            ],
+            [
+              "Address",
+              "The letter at the start of a word, such as X, F or M"
+            ],
+            [
+              "Block",
+              "One line of a CNC program"
+            ],
+            [
+              "CAD",
+              "Computer-aided design: software for drawing the part"
+            ],
+            [
+              "CAM",
+              "Computer-aided manufacturing: software that makes toolpaths and programs"
+            ],
+            [
+              "CNC",
+              "Computer numerical control"
+            ],
+            [
+              "Cut chart",
+              "The plasma maker's table of settings for each material and thickness"
+            ],
+            [
+              "Dry run",
+              "Running a program with the torch or spindle off, to check the moves"
+            ],
+            [
+              "Dwell",
+              "A timed pause in a program (G04)"
+            ],
+            [
+              "Emergency stop",
+              "The red button that stops the machine at once"
+            ],
+            [
+              "Feed override",
+              "The control that runs the feed at a percentage of the programmed rate"
+            ],
+            [
+              "Feed rate (F)",
+              "The speed of a cutting move, in mm per minute"
+            ],
+            [
+              "G-code",
+              "The code language most CNC machines read; also the preparatory codes that start with G"
+            ],
+            [
+              "Incremental (G91)",
+              "Each move measured from where the tool is now"
+            ],
+            [
+              "Kerf",
+              "The width of metal removed by the cut"
+            ],
+            [
+              "Kerf compensation",
+              "Moving the torch path half a kerf to the scrap side, so the part comes out to size"
+            ],
+            [
+              "Lead-in",
+              "A short cut from a pierce point in the scrap onto the part line"
+            ],
+            [
+              "Machine home",
+              "The fixed point the machine finds with its home switches"
+            ],
+            [
+              "Modal",
+              "A code that stays in force until it is changed"
+            ],
+            [
+              "M-code",
+              "A miscellaneous code that switches things on and off or ends the program"
+            ],
+            [
+              "Nesting",
+              "Arranging parts on a plate to waste as little as possible"
+            ],
+            [
+              "Pierce delay",
+              "The pause after the arc starts, so it cuts through before the torch moves"
+            ],
+            [
+              "Post-processor",
+              "The software that writes a toolpath as G-code for one particular machine"
+            ],
+            [
+              "Set-up sheet",
+              "The record of how a job is set up: material, work zero, holding, settings"
+            ],
+            [
+              "Simulation",
+              "A picture on screen of the path a program will follow"
+            ],
+            [
+              "Single block",
+              "Running a program one block at a time"
+            ],
+            [
+              "Tool length offset",
+              "The stored length of a tool, so the control knows where its tip is"
+            ],
+            [
+              "Torch height control (THC)",
+              "A device that keeps the torch at the right height by sensing the arc voltage"
+            ],
+            [
+              "Work zero",
+              "The point on the part that the program measures from; also called part zero or datum"
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "cases": {
+    "c1": {
+      "title": "Base plates for a carport in Old Harbour",
+      "text": "Kerry-Ann, a Level 2 trainee on placement at a fabrication shop in Old Harbour, St Catherine, must cut 24 base plates for carport posts on the shop's CNC plasma table. Each plate is 160 mm × 120 mm, from 8 mm mild steel, with four 14 mm holes. Every hole centre is 20 mm in from the two nearest edges. She puts the work zero at the bottom-left corner of the plate and writes the program in millimetres and absolute mode. The cut chart gives a kerf of about 1.6 mm."
+    },
+    "c2": {
+      "title": "A hotel sign plate drawn in inches",
+      "text": "Odane works at a small fabrication shop in Ocho Rios, St Ann. A hotel has sent a drawing from its head office overseas for a steel sign plate. The drawing is in inches: the plate is 12 in × 8 in, with each corner rounded to a 1 in radius. Odane converts the sizes to millimetres, draws the plate in CAD with its bottom-left corner at the work zero, and makes the toolpath in CAM. When he opens the program on the control, the first block reads G20 G90 G17 G40."
+    },
+    "c3": {
+      "title": "First cut on the Centre's plasma table",
+      "text": "At a training centre in Morant Bay, St Thomas, four trainees, Tajay, Shanice, Rushane and Nordia, are ready to run their own program on the Centre's CNC plasma table for the first time. The program has passed the simulation on the computer and has been loaded on the control. Tajay has homed the machine and laid a 6 mm plate on the slats. It is the rainy season, and nobody has drained the compressor tank or the air filter's water trap this week."
+    },
+    "c4": {
+      "title": "Name plates on a CNC router in Christiana",
+      "text": "At a sign and fabrication shop in Christiana, Manchester, Damion runs a small CNC router to cut and engrave aluminium name plates. The program uses tool 1, a 6 mm cutter, and tool 2, an engraving cutter. It starts the spindle with M03 S18000 and turns on a mist coolant with M08. Each tool's length is stored in the control's tool length offsets."
+    },
+    "c5": {
+      "title": "The wrong bracket program in Falmouth",
+      "text": "A fabrication shop in Falmouth, Trelawny, keeps its CNC plasma programs on the control. Two programs for the same gate bracket are saved there: BRACKET.nc and BRACKET NEW.nc. Last month someone changed the hole positions in one of them for a different customer, but did not note which. Javon loads BRACKET.nc and cuts ten brackets, and every hole is 15 mm out of place. Neither program has comments, and there is no set-up sheet for the job."
+    }
+  },
+  "questions": [
+    {
+      "id": "P-01",
+      "c": "c1",
+      "q": "What are the X and Y values of the centre of the top-right hole?",
+      "o": [
+        "X160 Y120",
+        "X140 Y20",
+        "X140 Y100",
+        "X20 Y100"
+      ],
+      "a": 2,
+      "why": "Measured from the bottom-left corner, the hole is 20 mm in from the right edge (160 − 20 = 140) and 20 mm down from the top edge (120 − 20 = 100). When a size is given from the far edge, subtract it from the plate size."
+    },
+    {
+      "id": "P-02",
+      "c": "c1",
+      "q": "To check her work, Kerry-Ann works out the incremental move from the centre of the bottom-left hole to the centre of the bottom-right hole. What is it?",
+      "o": [
+        "X120 Y0",
+        "X140 Y20",
+        "X100 Y0",
+        "X160 Y0"
+      ],
+      "a": 0,
+      "why": "The holes are at X20 and X140 on the same Y line, so the move is 140 − 20 = 120 mm in +X and nothing in Y. An incremental value says how far to move, not where to go."
+    },
+    {
+      "id": "P-03",
+      "c": "c1",
+      "q": "Her first plate measures 158.4 mm × 118.4 mm, and its holes measure about 15.6 mm. The hole positions are right. What is the most likely cause?",
+      "o": [
+        "The feed rate was too slow for 8 mm plate",
+        "The work zero was set 1.6 mm from the corner",
+        "The holes were cut after the outside edge",
+        "The toolpath had no kerf compensation"
+      ],
+      "a": 3,
+      "why": "Every outside size is short, and every hole large, by one kerf width (1.6 mm), because the torch ran on the line and half the kerf came off each side. A wrong work zero moves the whole shape; it does not shrink it."
+    },
+    {
+      "id": "P-04",
+      "c": "c1",
+      "q": "The CAM software has put the outside cut before the holes on this plate. What is the most likely result if she runs it as it is?",
+      "o": [
+        "The holes come out smaller because the plate has cooled",
+        "The loose plate shifts, so the holes are cut out of place",
+        "The pierce marks for the holes end up on the plate's edge",
+        "The torch cuts the holes clockwise instead of anticlockwise"
+      ],
+      "a": 1,
+      "why": "Once the outside edge is cut, the part is free and can drop or tilt on the slats. Holes and other inside shapes are cut first, while the part is still held by the plate around it."
+    },
+    {
+      "id": "P-05",
+      "c": "c2",
+      "q": "The program's values are in millimetres. What will happen if Odane runs it with G20 in the first block?",
+      "o": [
+        "The control sees the CAD file was in mm and cuts the plate to size",
+        "Every value is read as inches, so each move is 25.4 times too long",
+        "Only the feed rate changes, so the plate is cut more slowly than planned",
+        "The corner arcs are cut the opposite way round from the drawing"
+      ],
+      "a": 1,
+      "why": "G20 tells the control the numbers are inches; G21 tells it they are millimetres. Read as inches, a 304.8 mm move becomes 304.8 inches, far off the plate and probably past the table's travel. Check the units code before every run."
+    },
+    {
+      "id": "P-06",
+      "c": "c2",
+      "q": "What size is the plate in millimetres?",
+      "o": [
+        "300 mm × 200 mm",
+        "254.0 mm × 203.2 mm",
+        "30.48 mm × 20.32 mm",
+        "304.8 mm × 203.2 mm"
+      ],
+      "a": 3,
+      "why": "One inch is 25.4 mm, so 12 × 25.4 = 304.8 mm and 8 × 25.4 = 203.2 mm. Rounding to 300 × 200 would give a plate that does not match the customer's drawing."
+    },
+    {
+      "id": "P-07",
+      "c": "c2",
+      "q": "The torch comes up the left edge to X0 Y177.8 and must round the top-left corner to finish at X25.4 Y203.2. The arc's centre is at X25.4 Y177.8. Which block cuts this corner?",
+      "o": [
+        "G02 X25.4 Y203.2 R25.4",
+        "G03 X25.4 Y203.2 R25.4",
+        "G02 X0 Y177.8 R25.4",
+        "G01 X25.4 Y203.2 R25.4"
+      ],
+      "a": 0,
+      "why": "Going up the left side and turning right along the top is a clockwise turn seen from above, so it is G02. The block gives the arc's end point (X25.4 Y203.2) and its radius, 1 in = 25.4 mm. G01 cannot cut an arc."
+    },
+    {
+      "id": "P-08",
+      "c": "c3",
+      "q": "The plate is in place on the slats. Which step should the group do next, before the dry run?",
+      "o": [
+        "Cut one test part at full feed to check the cut chart's settings",
+        "Turn the feed override up to 100% so that the dry run is quick",
+        "Jog the torch to the plate's corner and set the work zero there",
+        "Fire the torch over the empty slats to check that the air is dry"
+      ],
+      "a": 2,
+      "why": "The program measures every position from the work zero, so it must be set on this plate before any run. Then come the guard, extraction and emergency-stop checks, the assessor's check and the dry run at low override."
+    },
+    {
+      "id": "P-09",
+      "c": "c3",
+      "q": "Why could the undrained compressor spoil the job?",
+      "o": [
+        "Wet air cools the torch, so it can cut faster than the chart allows",
+        "Water in the line makes the kerf narrower, so the parts come out large",
+        "Damp air only matters for oxy-fuel cutting, so it will not affect this",
+        "Water in the air wears the nozzle and electrode fast and roughens the cut"
+      ],
+      "a": 3,
+      "why": "Plasma needs clean, dry air. In Jamaica's humid weather water collects in the tank and lines; drain the tank and the filter's water trap as the procedure says, often daily."
+    },
+    {
+      "id": "P-10",
+      "c": "c3",
+      "q": "During the dry run in single block, the torch heads for the front clamp instead of the first hole, and Rushane presses the emergency stop. What should the group do before running again?",
+      "o": [
+        "Release the stop and press cycle start, as the control remembers the block",
+        "Correct the error, simulate again, then re-home and re-check work zero",
+        "Move the clamp out of the way and carry on from the same block",
+        "Turn the feed override down further and let the program run through"
+      ],
+      "a": 1,
+      "why": "The wrong move shows a program or set-up error, and it will still be there next time. Correct it and prove it in simulation; after an emergency stop the machine usually has to be reset and homed, and the work zero checked, before it runs."
+    },
+    {
+      "id": "P-11",
+      "c": "c3",
+      "q": "Halfway through the first cut the power goes off for ten minutes. When it comes back, what is the safe way to carry on?",
+      "o": [
+        "Press cycle start, because the control carries on from the last block",
+        "Start the program from the top without homing, as the plate has not moved",
+        "Home the machine, check work zero, and restart only as the instructor says",
+        "Jog the torch by eye to where the cut stopped and press cycle start"
+      ],
+      "a": 2,
+      "why": "After a power cut most machines no longer know exactly where their axes are. Homing restores that; the work zero must be checked; and restarting part-way through a program is done only the way the instructor shows."
+    },
+    {
+      "id": "P-12",
+      "c": "c4",
+      "q": "Chips build up around the cutter part-way through a plate. What is the safe way to clear them?",
+      "o": [
+        "Stop and isolate the machine as the procedure says, then brush",
+        "Brush them away by hand while the spindle is still slowing down",
+        "Blow them off with the air gun while the machine carries on",
+        "Wipe them off with a rag while the feed override is turned low"
+      ],
+      "a": 0,
+      "why": "A rotating cutter can catch a hand, a rag or a brush in an instant. Stop the machine and make it safe before anything goes near the cutter, and never blow chips towards yourself or others."
+    },
+    {
+      "id": "P-13",
+      "c": "c4",
+      "q": "Damion fits a new engraving cutter that sticks out 4 mm further than the old one, but forgets to update its tool length offset. What will most likely happen?",
+      "o": [
+        "It cuts about 4 mm deeper than programmed",
+        "It cuts about 4 mm above the plate",
+        "The control measures it and corrects itself",
+        "Only the spindle speed is wrong"
+      ],
+      "a": 0,
+      "why": "The control still uses the old length, so it brings the holder to the same height and the longer tool reaches 4 mm lower. Every new or reset tool needs its length offset measured and entered."
+    },
+    {
+      "id": "P-14",
+      "c": "c4",
+      "q": "Which pair of codes should come just before M30 at the end of Damion's program?",
+      "o": [
+        "M03 and M08",
+        "M06 and M08",
+        "M05 and M09",
+        "M04 and M09"
+      ],
+      "a": 2,
+      "why": "M05 stops the spindle and M09 turns the coolant off, leaving the machine safe; M30 then ends the program and rewinds it. M03 and M08 are the codes that turn them on."
+    },
+    {
+      "id": "P-15",
+      "c": "c5",
+      "q": "Which check would have caught the problem before any steel was cut?",
+      "o": [
+        "Running the program at full feed so the error showed up sooner",
+        "Comparing the simulated toolpath with this customer's drawing",
+        "Counting the number of blocks in each of the two programs",
+        "Making sure the torch-on code appeared in the program"
+      ],
+      "a": 1,
+      "why": "A simulation or plot shows where every hole will be, so checking it against this job's drawing would have shown the holes out of place. Never assume a saved program is the right one."
+    },
+    {
+      "id": "P-16",
+      "c": "c5",
+      "q": "Which way of saving programs would best stop this happening again?",
+      "o": [
+        "Short names such as BRACKET, so programs are quick to find and type",
+        "Each change saved over the old file, so only one copy is ever kept",
+        "Each program kept on the USB stick of the person who wrote it",
+        "Part, material and version number in each name, with changes noted"
+      ],
+      "a": 3,
+      "why": "A name such as GATEBRKT-6MS-V3 says which part, material and version it is, and a note of each change says what was altered. Overwriting loses the proven program, and private copies get lost or mixed up."
+    },
+    {
+      "id": "P-17",
+      "c": "c5",
+      "q": "Which of these belongs on the set-up sheet for the bracket?",
+      "o": [
+        "The customer's address and the price quoted for the brackets",
+        "Where the work zero is on the plate and how the plate is held",
+        "The names of the trainees who used the machine that week",
+        "The control's full alarm history for the past month"
+      ],
+      "a": 1,
+      "why": "A set-up sheet lets anyone set up the job the same way: part and drawing, material and thickness, work zero, work holding, cut settings or tools, feeds and special points. Prices and addresses belong on the job's other papers."
+    },
+    {
+      "id": "P-18",
+      "c": null,
+      "q": "Work zero is at the centre of a plate. In absolute mode, a block reads N70 G01 X60 Y-15. Where does the move end?",
+      "o": [
+        "60 mm right of the centre and 15 mm below it on the drawing",
+        "60 mm left of the centre and 15 mm above it on the drawing",
+        "60 mm right of where the torch is now and 15 mm below it",
+        "60 mm right of the bottom-left corner and 15 mm below it"
+      ],
+      "a": 0,
+      "why": "In absolute mode every value is measured from the work zero, here the centre of the plate. A plus X value lies to the right of it, and a minus Y value below it."
+    },
+    {
+      "id": "P-19",
+      "c": null,
+      "q": "Which block is a sensible safe start for a program in millimetres, in absolute mode, with arcs in the XY plane and no compensation left on?",
+      "o": [
+        "G20 G90 G17 G40",
+        "G21 G91 G17 G41",
+        "G21 G90 G18 G42",
+        "G21 G90 G17 G40"
+      ],
+      "a": 3,
+      "why": "G21 sets millimetres, G90 absolute, G17 the XY plane, and G40 cancels cutter or kerf compensation. Putting them at the start means the program does not depend on what the last program left switched on."
+    },
+    {
+      "id": "P-20",
+      "c": null,
+      "q": "A programmer cuts a row of holes in incremental mode (G91), then writes the outside edge in absolute values but forgets to put G90 back. What will happen?",
+      "o": [
+        "The control goes back to absolute by itself at the first move of the edge",
+        "The edge is cut in the right place, but at the feed rate used for the holes",
+        "Each edge move is added on from the last hole, so the edge is misplaced",
+        "The control refuses to run, because G91 may only be used for rows of holes"
+      ],
+      "a": 2,
+      "why": "G90 and G91 are modal: each stays in force until the other is given. Left in G91, every absolute value is read as a distance from where the torch is, which can send it off the part or into a clamp."
+    }
+  ]
+}
