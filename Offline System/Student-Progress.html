@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
 <script src="cestis-config.js?v=284ebb2a"></script>
-<script src="cestis-core.js?v=33000641"></script>
+<script src="cestis-core.js?v=f860413e"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CESTIS - Student Progress</title>
 
@@ -1029,12 +1029,26 @@ function populateCourseDropdowns() {
   });
   // Refresh filterCourse dropdown. It keeps the archived names: without them
   // the trainees recorded under a deleted centre could not be listed at all.
+  // Each programme is listed once: a leftover spelling that agrees with
+  // exactly one live programme at the same level ("WELDING L2" beside
+  // "Welding and Fabrication Level 2") is filed under it, and the filter finds
+  // its trainees there (CESTISCore.catalogue.filer); only the rest stay
+  // archived. The edit list above keeps every archived name, as before.
   var filt = document.getElementById('filterCourse');
   if(filt){
     var prev = filt.value;
+    var filterArchived = archived;
+    try {
+      var _vals = [];
+      if(students) students.forEach(function(s){ if(s && s.course) _vals.push(s.course); });
+      if(typeof userAccounts !== 'undefined' && userAccounts) userAccounts.forEach(function(u){ if(u && u.programme) _vals.push(u.programme); });
+      filterArchived = CESTISCore.catalogue.filterOptions(skillAreas, _vals, CESTISStore).archived;
+    } catch(e) { filterArchived = archived; }
     filt.innerHTML = '<option value="all">All Courses</option>' +
       courses.map(function(c){ return '<option value="'+spEscapeHtml(c)+'">'+spEscapeHtml(c)+'</option>'; }).join('') +
-      archivedHtml;
+      (filterArchived.length ? '<optgroup label="Archived — no training centre">' + filterArchived.map(function(c){
+        return '<option value="' + spEscapeHtml(c) + '">' + spEscapeHtml(c) + '</option>';
+      }).join('') + '</optgroup>' : '');
     // A filter left pointing at a course that has just gone falls back to
     // "All", rather than silently showing an empty table.
     if(!restoreSelection(filt, prev)) filt.value = 'all';
@@ -1207,10 +1221,14 @@ function filteredStudents() {
   var course = document.getElementById('filterCourse') ? document.getElementById('filterCourse').value : 'all';
   var search = ((document.getElementById('studentSearch') ? document.getElementById('studentSearch').value : '') || '').toLowerCase().trim();
   if(stage && stage !== 'all') filtered = filtered.filter(function(s){ return s.stage === stage; });
+  var filed = null;
+  if(course && course !== 'all') { try { filed = CESTISCore.catalogue.filer(skillAreas, CESTISStore); } catch(e) { filed = null; } }
   if(course && course !== 'all') filtered = filtered.filter(function(s){
     if(!s.course) return false;
     if(s.course === course) return true;
     if(s.course.toLowerCase().trim() === course.toLowerCase().trim()) return true;
+    // Filed under this programme in the menu (a leftover spelling of it).
+    if(filed && filed.matches(s.course, course)) return true;
     var studentSkill = findSkillAreaForCourse(s.course);
     var filterSkill = findSkillAreaForCourse(course);
     if(studentSkill && filterSkill && studentSkill.id && filterSkill.id && studentSkill.id === filterSkill.id) return true;
@@ -1641,6 +1659,15 @@ function confirmDeleteStudent() {
   // Their login is removed — and written down as deleted — by the dashboard,
   // which owns the accounts, when it receives the 'deleted' notice below.
   recordDeletedStudent(sid);
+  // A trainee whose programme was renamed keeps the id its old name gave
+  // (idCourse); the id of the name it reads now is written down as well, so
+  // a copy renamed on another computer without that note stays deleted too.
+  try {
+    if (s.idCourse && window.CESTISCore) {
+      var _nowSid = CESTISCore.stableStudentId({ name: s.name, course: s.course });
+      if (_nowSid && _nowSid !== sid) recordDeletedStudent(_nowSid);
+    }
+  } catch (e) {}
   closeModal('deleteStudentModal');
   filterStudents();
   updatePipelineCounts();

@@ -54,6 +54,11 @@ never say where things are kept; this page does, so that you know.
 - **Empty the Drive trash** afterwards (deleted files keep using space for 30 days until then).
   Large Gmail attachments use the same 15 GB.
 - Glance at the **Storage** line again. If it stays above 80% after this, ask the maintainer.
+- **A programme listed twice in the course menus?** (for example "Welding & Fabrication" and
+  "Welding and Fabrication Level 2"): Administration → **Tidy Programme Names**. Pick the one name to
+  keep for each programme, look at *What will change*, then **Rename now**. No training centre or
+  trainee is deleted, nobody's sign-in, marks or fees change, and **Undo last tidy** (on the computer
+  that made it) puts every name back. Do it on the Administrator's own PC while it is online.
 
 ## Every year
 

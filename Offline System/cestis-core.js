@@ -413,14 +413,24 @@
      'Welding & Fabrication' and '01. Welding & Fabrication' the same person,
      while the id generator considered them two, so the dedup merged them and
      the id generator split them straight back apart on the next load. That
-     loop is the "fixes it, then duplicates it again". */
+     loop is the "fixes it, then duplicates it again".
+
+     `idCourse` — the programme a record's id was made from, when its
+     programme has since been RENAMED (Core.programmeTidy, a training centre
+     renamed on the Training Centres page). The name of a programme is not
+     the person: renaming "WELDING L2" to "Welding and Fabrication Level 2"
+     used to move every trainee on it to a new id, and with it everything
+     that hangs off the id (accounts, attendance, results, certificate
+     approvals, fee links, coursework grades, deletions). A renamed record
+     keeps the spelling its id was made from here, so its id stays put. */
   Core.naturalKey = function (student) {
     if (!student) return '';
     var n = Core.normName(student.name);
     if (!n) return ''; // no usable identity — caller should keep the existing id
-    var c;
-    try { c = Core.programmeIdentity(student, 'course').bare; }
-    catch (e) { c = Core.normCourse(student.course); }
+    var c, from = student;
+    if (student.idCourse != null && String(student.idCourse).trim() !== '') from = { course: student.idCourse };
+    try { c = Core.programmeIdentity(from, 'course').bare; }
+    catch (e) { c = Core.normCourse(from.course); }
     return n + '|' + c;
   };
 
@@ -779,7 +789,11 @@
     // A deliberate re-enrolment after the person's earlier record was deleted
     // (see Core.isReEnrolment). Lose it in a merge and the new enrolment is
     // dropped as though it were the deleted record coming back.
-    'reEnrolledAt'];
+    'reEnrolledAt',
+    // The programme a renamed record's id was made from (Core.naturalKey). A
+    // copy from a computer that has not seen the rename yet lacks it; losing
+    // it would move the id and leave every link behind.
+    'idCourse'];
 
   Core.mergeStudentRecords = function (a, b) {
     var aMod = a && a.lastModified ? new Date(a.lastModified).getTime() : 0;
@@ -968,8 +982,14 @@
     if (!rec || Core.isKeptSeparate(rec)) return false;
     var sid = Core.stableStudentId(rec);
     if (!sid) return false;
+    // The name and programme as they read NOW, too: a trainee whose programme
+    // was renamed keeps the id its old spelling gave (idCourse), and is still
+    // the same name on the same programme as far as the clean-up is concerned.
+    var plain = function (r) { return Core.stableStudentId({ name: r.name, course: r.course }); };
+    var psid = plain(rec);
     var other = (Array.isArray(roll) ? roll : []).some(function (s) {
-      return s && s !== rec && String(s.id) !== String(rec.id) && (String(s.id) === sid || Core.stableStudentId(s) === sid);
+      return s && s !== rec && String(s.id) !== String(rec.id) &&
+        (String(s.id) === sid || Core.stableStudentId(s) === sid || (!!psid && plain(s) === psid));
     });
     if (other) rec.keepSeparate = true;
     return other;
@@ -1104,7 +1124,9 @@
           if (v !== undefined && v !== null && v !== '') winner[k] = v;
         }
       };
-      Object.keys(loser).forEach(function (k) { if (!STAMPS[k]) fill(k); });
+      // The programme the WINNER's id was made from is the winner's own: the
+      // loser's (Core.naturalKey) would move the survivor's id for nothing.
+      Object.keys(loser).forEach(function (k) { if (!STAMPS[k] && k !== 'idCourse') fill(k); });
       // A certificate number is never lost in a merge: the loser's, when it
       // differs from the winner's, rides along as an alias (as
       // mergeStudentRecords does), so a certificate printed under it still
@@ -5181,6 +5203,15 @@
       var exact = keys.filter(function (k) { return bareCourse(k) === want; });
       if (exact.length === 1) return exact[0];
       if (exact.length > 1) return mapped || course;
+      // The Centre's mapping for the programme written with an intake key in
+      // front ("01. Welding and Fabrication Level 2" maps as the programme
+      // does). Tidy Programme Names maps a renamed programme to the design it
+      // had, so the design keeps its pictures under the name it was made.
+      if (courseMap && !mapped) {
+        var viaBare = Object.keys(courseMap).filter(function (k) { return bareCourse(k) === want && templates[courseMap[k]]; })
+          .map(function (k) { return courseMap[k]; });
+        if (viaBare.length && viaBare.every(function (t) { return t === viaBare[0]; })) return viaBare[0];
+      }
       var lvl = levelOf(course);
       var loose = keys.filter(function (k) {
         var b = bareCourse(k);
@@ -6470,6 +6501,75 @@
       };
     }
 
+    /* FILTER menus only: where a name left on records is filed.
+
+       "WELDING L2" on old trainee records is the Centre's shorthand for the
+       live "Welding and Fabrication Level 2"; listing it separately under
+       "Archived" made one programme show up twice in the filter. A leftover
+       name that agrees with exactly ONE live programme at the same level —
+       both stating the same NVQ level, or neither stating one
+       (Core.enrolment.programmesAgree / programmeLevel) — is filed under that
+       programme: the filter lists the programme once and finds its trainees
+       under either spelling. A name that could be two programmes ("Electrical
+       Installation" beside a Level 2 and a Level 3), or none, stays archived.
+       Enrolment dropdowns are not touched: they offer live centres only.
+
+         var f = catalogue.filer(areas, store)
+         f.under(written)          -> the live programme it is filed under, or ''
+         f.matches(written, chosen) -> does a record written so belong under
+                                       the filter entry `chosen`?
+         catalogue.filterOptions(areas, values, store)
+           -> { courses, archived, filed: { liveName: [names filed under it] } } */
+    function filer(areas, store) {
+      var E = Core.enrolment;
+      var names = courseNames(areas, store);
+      var live = {};
+      names.forEach(function (n) { live[norm(n)] = n; });
+      var cache = {};
+      function bareOf(v) { try { return E.parseCentreLabel(v).name; } catch (e) { return String(v == null ? '' : v); } }
+      function levelOf(v) { try { return E.programmeLevel(v) || ''; } catch (e) { return ''; } }
+      function under(written) {
+        var k = norm(written);
+        if (!k) return '';
+        if (Object.prototype.hasOwnProperty.call(cache, k)) return cache[k];
+        var out = '';
+        if (live[k]) out = live[k];
+        else {
+          var bare = bareOf(written), bk = norm(bare);
+          if (live[bk]) out = live[bk];
+          else if (bk) {
+            var lvl = levelOf(bare);
+            var hits = names.filter(function (n) {
+              if (levelOf(n) !== lvl) return false;
+              try { return E.programmesAgree(n, bare); } catch (e) { return false; }
+            });
+            if (hits.length === 1) out = hits[0];
+          }
+        }
+        cache[k] = out;
+        return out;
+      }
+      function matches(written, chosen) {
+        var w = norm(written), c = norm(chosen);
+        if (!w || !c) return false;
+        if (w === c) return true;
+        var u = under(written);
+        return !!u && norm(u) === c;
+      }
+      return { under: under, matches: matches, courses: names };
+    }
+
+    function filterOptions(areas, values, store) {
+      var f = filer(areas, store);
+      var archived = [], filed = {};
+      orphanNames(areas, values, store).forEach(function (o) {
+        var u = f.under(o);
+        if (u) (filed[u] = filed[u] || []).push(o);
+        else archived.push(o);
+      });
+      return { courses: f.courses, archived: archived, filed: filed };
+    }
+
     /* The id for a NEW training centre: one more than any id this Centre has
        ever used — live centres AND deleted ones.
 
@@ -6506,7 +6606,655 @@
       courseNames: courseNames,
       isLive: isLive,
       orphanNames: orphanNames,
-      options: options
+      options: options,
+      filer: filer,
+      filterOptions: filterOptions
+    };
+  })();
+
+  /* ==========================================================================
+     Core.programmeTidy — Tidy Programme Names, the Administrator's tool for a
+     programme written more than one way.
+
+     WHY THIS EXISTS
+     ---------------
+     The course menus list one entry per training-centre record, then every
+     name left on old records that no live centre answers to. The Centre made
+     differently-named centre records for intakes of one programme
+     ("Electrical Installation" and "Electrical Installation Level 2"), and
+     older imports and School Fee wrote short spellings on records ("WELDING
+     L2", "Welding"), so one programme was listed two or three times.
+
+     This finds every spelling in use (inventory), groups the ones that are
+     clearly one programme by the rules every merge already uses
+     (Core.enrolment.programmesAgree / programmeLevel: a different stated
+     level is a different programme), never guesses about a spelling that
+     could belong to two programmes (it is asked about instead), and — on the
+     Administrator's word — renames every record carrying a chosen spelling
+     to the one name kept (apply). Every change is listed, so a tidy can be
+     undone exactly (undo).
+
+     WHAT A TIDY NEVER DOES
+       - delete or merge a training centre: two intakes stay two centre
+         records, each with its own dates and intake key, sharing one name;
+       - move a trainee's id. The id is a hash of name and programme and every
+         link hangs off it (accounts, attendance, results, attempts,
+         certificate approvals, fee links, coursework grades, deletions, the
+         trainee gate). A renamed record keeps the spelling its id was made
+         from in `idCourse` (Core.naturalKey reads it), so the id stays put;
+       - move a trainee to another intake: wherever the new name will be
+         shared by two intakes, a record that only NAMES its programme is
+         stamped first with the intake it is counted in now;
+       - fold two people into one: two records of one name that the tidy
+         brings onto one programme from DIFFERENT spellings were kept apart
+         until now (the sign-in clean-up joins every pair it may), so both
+         are marked "kept separate" (Core.isKeptSeparate) and stay apart;
+       - rewrite history whose merges decide by marks and decisions (exam
+         results, attendance rows, certificate approvals, live-class
+         registers) — their programme text stays as written;
+       - re-key a certificate design (its pictures are filed under its name):
+         the new name is mapped to the design instead.
+
+     Pure: the page hands in its collections (a bundle) and the clock.
+       inventory(bundle, { today })        -> { spellings: [...] }
+       group(inventory)                    -> { groups: [...], choices: [...] }
+       plan(inventory, grouping, decisions) -> { renames, lines, problems }
+       apply(bundle, renames, { now })      -> { changes, counts, bound, pinned, designs, skipped }
+       undo(bundle, applied, { now })       -> { restored, kept, counts }
+     bundle: { centres, students, feeStudents, feePayments, feeStructure,
+       feeDeletedKeys, feeCarryDeclined, accounts, instructors, exams,
+       assignments, submissions, resources, driveResources, classSessions,
+       calendarEvents, announcements, unitCatalogs, certTemplates,
+       certTemplateCourseMap, chatRooms } — any may be missing.
+     ========================================================================== */
+  Core.programmeTidy = (function () {
+    var LOG_KEY = 'voctrain_programmeTidyLog';
+
+    function E() { return Core.enrolment; }
+    function str(v) { return v == null ? '' : String(v); }
+    function clean(v) { return str(v).trim().replace(/\s+/g, ' '); }
+    function norm(v) { return Core.normCourse(v); }
+    function isObj(v) { return !!v && typeof v === 'object' && !Array.isArray(v); }
+    function copy(v) { return v === undefined ? undefined : JSON.parse(JSON.stringify(v)); }
+    function same(a, b) { return JSON.stringify(a === undefined ? null : a) === JSON.stringify(b === undefined ? null : b); }
+    function cmp(a, b) { a = str(a).toLowerCase(); b = str(b).toLowerCase(); return a < b ? -1 : (a > b ? 1 : 0); }
+    function has(v) { return v != null && str(v).trim() !== ''; }
+
+    /* A written programme: the intake key written in front of it (if any),
+       the name as written (spacing tidied) and the name as compared. */
+    function spell(text) {
+      var p = E().parseCentreLabel(text);
+      var bare = clean(p.name);
+      return { key: p.key || '', bare: bare, norm: norm(bare) };
+    }
+    /* `text` with its programme renamed to `to`, an intake key written in front kept. */
+    function relabel(text, to) {
+      var p = E().parseCentreLabel(text);
+      var name = spell(to).bare;
+      return p.key ? (p.key + '. ' + name) : name;
+    }
+    function levelOf(name) { try { return E().programmeLevel(name) || ''; } catch (e) { return ''; } }
+    function agree(a, b) { try { return !!E().programmesAgree(a, b); } catch (e) { return false; } }
+    function classRoom(r) { return !!r && (r.type === 'class' || /^chat-class-/.test(str(r.id))); }
+
+    /* Everything that carries a programme's name. `one`/`many`: the words the
+       preview uses. `also`: fields renamed with the record when they spell a
+       renamed programme, but not counted. `asIs`: counted, never renamed (a
+       class chat room is renamed with its training centre by itself; a
+       certificate design keeps its key, and the new name is mapped to it). */
+    var KINDS = [
+      { kind: 'centres', one: 'training centre', many: 'training centres', fields: ['name'] },
+      { kind: 'students', one: 'trainee', many: 'trainees', fields: ['course'], also: ['centreName', 'centreLabel'] },
+      { kind: 'feeStudents', one: 'fee record', many: 'fee records', fields: ['skillArea'], also: ['centreName', 'centreLabel'] },
+      { kind: 'feePayments', one: 'payment', many: 'payments', fields: ['skillArea'] },
+      { kind: 'feeStructure', one: 'programme fee', many: 'programme fees', mapKeys: true },
+      { kind: 'accounts', one: 'sign-in account', many: 'sign-in accounts', fields: ['programme'] },
+      { kind: 'instructors', one: 'instructor', many: 'instructors', fields: ['course', 'programme'], lists: ['courses'] },
+      { kind: 'exams', one: 'exam', many: 'exams', fields: ['course'] },
+      { kind: 'assignments', one: 'assignment', many: 'assignments', fields: ['course'] },
+      { kind: 'submissions', one: 'handed-in assignment', many: 'handed-in assignments', fields: ['course'] },
+      { kind: 'resources', one: 'resource', many: 'resources', fields: ['course'] },
+      { kind: 'driveResources', one: 'resource', many: 'resources', fields: ['course'] },
+      { kind: 'classSessions', one: 'class', many: 'classes', fields: ['course'] },
+      { kind: 'calendarEvents', one: 'calendar entry', many: 'calendar entries', fields: ['course'] },
+      { kind: 'announcements', one: 'announcement', many: 'announcements', fields: ['course'] },
+      { kind: 'unitCatalogs', one: 'unit list', many: 'unit lists', fields: ['skillArea'] },
+      { kind: 'certTemplates', one: 'certificate design', many: 'certificate designs', mapKeys: true, asIs: true },
+      { kind: 'chatRooms', one: 'class chat room', many: 'class chat rooms', fields: ['name'], asIs: true, only: classRoom }
+    ];
+    var KIND = {};
+    KINDS.forEach(function (K) { KIND[K.kind] = K; });
+
+    function arr(bundle, k) { return (bundle && Array.isArray(bundle[k])) ? bundle[k] : []; }
+    function writtenOf(r, fields) {
+      for (var i = 0; i < fields.length; i++) if (typeof r[fields[i]] === 'string' && has(r[fields[i]])) return r[fields[i]];
+      return '';
+    }
+
+    /* ---- Every spelling in use, with what carries it ---------------------- */
+    function inventory(bundle, opts) {
+      opts = opts || {};
+      bundle = bundle || {};
+      var by = {}, order = [];
+      function slot(text) {
+        var sp = spell(text);
+        if (!sp.norm) return null;
+        var s = by[sp.norm];
+        if (!s) {
+          s = by[sp.norm] = { norm: sp.norm, label: '', level: levelOf(sp.bare), live: false, centres: [],
+            counts: {}, total: 0, forms: {} };
+          order.push(sp.norm);
+        }
+        s.forms[sp.bare] = (s.forms[sp.bare] || 0) + 1;
+        return s;
+      }
+      var today = Core.courseDuration.todayStr(opts.today);
+      arr(bundle, 'centres').forEach(function (c) {
+        if (!c || !has(c.name)) return;
+        var s = slot(c.name);
+        if (!s) return;
+        if (!s.live) s.liveLabel = spell(c.name).bare;
+        s.live = true;
+        var key = '';
+        try { key = E().centreKeyOf(c); } catch (e) { key = ''; }
+        s.centres.push({ id: c.id, name: clean(c.name), key: key, startDate: str(c.startDate), endDate: str(c.endDate),
+          status: Core.courseDuration.status(c.startDate, c.endDate, today) });
+        s.counts.centres = (s.counts.centres || 0) + 1;
+        s.total++;
+      });
+      KINDS.forEach(function (K) {
+        if (K.kind === 'centres') return;
+        var col = bundle[K.kind];
+        if (!col) return;
+        var add = function (s) { s.counts[K.kind] = (s.counts[K.kind] || 0) + 1; if (!K.asIs) s.total++; };
+        if (K.mapKeys) {
+          if (isObj(col)) Object.keys(col).forEach(function (key) { var s = slot(key); if (s) add(s); });
+          return;
+        }
+        if (!Array.isArray(col)) return;
+        col.forEach(function (r) {
+          if (!r || typeof r !== 'object' || (K.only && !K.only(r))) return;
+          var seen = {};
+          var mark = function (v) {
+            if (typeof v !== 'string' || !has(v)) return;
+            var s = slot(v);
+            if (!s || seen[s.norm]) return;
+            seen[s.norm] = true;
+            add(s);
+          };
+          (K.fields || []).forEach(function (f) { mark(r[f]); });
+          (K.lists || []).forEach(function (f) { (Array.isArray(r[f]) ? r[f] : []).forEach(mark); });
+        });
+      });
+      // A name only a class chat room or a certificate design carries is not
+      // a programme anything is filed under: nothing of it would be renamed.
+      var spellings = order.filter(function (n) { return by[n].total > 0; }).map(function (n) {
+        var s = by[n];
+        if (s.liveLabel) s.label = s.liveLabel;
+        else {
+          var best = '', bn = -1;
+          Object.keys(s.forms).forEach(function (f) { if (s.forms[f] > bn || (s.forms[f] === bn && cmp(f, best) < 0)) { best = f; bn = s.forms[f]; } });
+          s.label = best;
+        }
+        delete s.liveLabel;
+        delete s.forms;
+        return s;
+      });
+      return { spellings: spellings };
+    }
+
+    /* ---- Which spellings are one programme -------------------------------
+       Live training centres first (those that state a level, then the
+       rest), then the names on records (level stated first). A spelling
+       joins a group only when it agrees with EVERY spelling already in it —
+       one vague spelling must not bridge two programmes, the same rule the
+       duplicate collapse follows. One that would fit two groups is not
+       guessed: it is returned in `choices` with the groups it could join. */
+    function defaultKeep(members) {
+      function pick(pool) {
+        return pool.slice().sort(function (a, b) { return (b.total - a.total) || ((b.live ? 1 : 0) - (a.live ? 1 : 0)) || cmp(a.label, b.label); })[0];
+      }
+      var liveLevel = members.filter(function (m) { return m.live && m.level; });
+      if (liveLevel.length) return pick(liveLevel).label;
+      var live = members.filter(function (m) { return m.live; });
+      if (live.length) return pick(live).label;
+      var levelled = members.filter(function (m) { return m.level; });
+      return pick(levelled.length ? levelled : members).label;
+    }
+    function group(inv) {
+      var sps = ((inv && inv.spellings) || []).slice();
+      var rank = function (s) { return (s.live ? 0 : 2) + (s.level ? 0 : 1); };
+      sps.sort(function (a, b) { return (rank(a) - rank(b)) || (b.total - a.total) || cmp(a.label, b.label); });
+      var clusters = [], pending = [];
+      var fitting = function (sp) {
+        return clusters.filter(function (c) { return c.members.every(function (m) { return agree(m.label, sp.label); }); });
+      };
+      sps.forEach(function (sp) {
+        var fits = fitting(sp);
+        if (fits.length === 1) fits[0].members.push(sp);
+        else if (fits.length > 1) pending.push(sp);
+        else clusters.push({ members: [sp] });
+      });
+      // Asked again once every group has formed: a spelling that now fits only
+      // one group joins it; one that fits none stands on its own.
+      var choices = [];
+      pending.forEach(function (sp) {
+        var fits = fitting(sp);
+        if (fits.length === 1) fits[0].members.push(sp);
+        else if (!fits.length) clusters.push({ members: [sp] });
+        else choices.push({ spelling: sp, candidates: fits });
+      });
+      clusters.forEach(function (c) {
+        c.id = 'g:' + c.members[0].norm;
+        c.keep = defaultKeep(c.members);
+        c.live = c.members.some(function (m) { return m.live; });
+        c.level = levelOf(c.keep);
+        c.total = c.members.reduce(function (n, m) { return n + m.total; }, 0);
+        c.members.sort(function (a, b) { return ((b.live ? 1 : 0) - (a.live ? 1 : 0)) || (b.total - a.total) || cmp(a.label, b.label); });
+      });
+      clusters.sort(function (a, b) { return cmp(a.keep, b.keep); });
+      return {
+        groups: clusters,
+        choices: choices.map(function (c) {
+          return { spelling: c.spelling, candidates: c.candidates.map(function (g) { return g.id; }) };
+        }).sort(function (a, b) { return cmp(a.spelling.label, b.spelling.label); })
+      };
+    }
+
+    /* "training centre, 2 intakes, 42 trainees, 40 fee records" */
+    function describe(counts) {
+      counts = counts || {};
+      var parts = [];
+      if (counts.centres) parts.push('training centre, ' + counts.centres + ' intake' + (counts.centres === 1 ? '' : 's'));
+      var words = {}, order = [];
+      KINDS.forEach(function (K) {
+        if (K.kind === 'centres' || !counts[K.kind]) return;
+        if (!words[K.many]) { words[K.many] = { n: 0, one: K.one, many: K.many }; order.push(K.many); }
+        words[K.many].n += counts[K.kind];
+      });
+      order.forEach(function (w) { var x = words[w]; parts.push(x.n + ' ' + (x.n === 1 ? x.one : x.many)); });
+      return parts.join(', ');
+    }
+
+    /* ---- What a set of decisions would rename -----------------------------
+       decisions: { keep: { groupId: name kept or typed },
+                    skip: { spelling: true }        (left exactly as it is),
+                    choose: { spelling: groupId } } (a spelling that needs a
+       choice, or a name no centre uses filed under a programme; '' leaves it). */
+    function plan(inv, grouping, decisions) {
+      decisions = decisions || {};
+      var keep = decisions.keep || {}, skip = decisions.skip || {}, choose = decisions.choose || {};
+      var groups = (grouping && grouping.groups) || [], byId = {};
+      groups.forEach(function (g) { byId[g.id] = g; });
+      var target = function (g) {
+        var t = keep[g.id];
+        t = (t != null && clean(t)) ? spell(t).bare : g.keep;
+        return t || g.keep;
+      };
+      var dest = {}, sps = [];
+      groups.forEach(function (g) { g.members.forEach(function (m) { dest[m.norm] = g; sps.push(m); }); });
+      ((grouping && grouping.choices) || []).forEach(function (c) {
+        var gid = choose[c.spelling.norm];
+        dest[c.spelling.norm] = (gid && byId[gid] && c.candidates.indexOf(gid) !== -1) ? byId[gid] : null;
+        sps.push(c.spelling);
+      });
+      groups.forEach(function (g) {
+        if (g.members.length !== 1) return;
+        var gid = choose[g.members[0].norm];
+        if (gid && byId[gid] && gid !== g.id) dest[g.members[0].norm] = byId[gid];
+      });
+      var renames = [];
+      sps.forEach(function (sp) {
+        var g = dest[sp.norm];
+        if (!g || skip[sp.norm]) return;
+        var to = target(g);
+        if (!to || norm(to) === sp.norm) return;
+        renames.push({ from: sp.norm, fromLabel: sp.label, to: to, group: g.id, counts: sp.counts, total: sp.total,
+          centres: sp.centres, live: sp.live, level: sp.level });
+      });
+      renames.sort(function (a, b) { return cmp(a.to, b.to) || (b.total - a.total) || cmp(a.fromLabel, b.fromLabel); });
+      var problems = [], renamedAway = {};
+      renames.forEach(function (r) { renamedAway[r.from] = r.to; });
+      var seenTo = {};
+      renames.forEach(function (r) {
+        var t = norm(r.to);
+        if (renamedAway[t] && !seenTo[t]) {
+          seenTo[t] = true;
+          problems.push({ blocking: true, text: '"' + r.to + '" is the name kept for one programme, but it is also being changed to "' + renamedAway[t] + '". Keep one name for both, or leave one of them as it is.' });
+        }
+        var tl = levelOf(r.to);
+        if (r.level && tl && r.level !== tl) {
+          problems.push({ blocking: false, text: '"' + r.fromLabel + '" says Level ' + r.level + ', but "' + r.to + '" says Level ' + tl + '. Check this is the same programme.' });
+        }
+      });
+      var lines = [], byTo = {};
+      renames.forEach(function (r) {
+        var k = norm(r.to);
+        if (!byTo[k]) { byTo[k] = { to: r.to, items: [] }; lines.push(byTo[k]); }
+        byTo[k].items.push({ label: r.fromLabel, what: describe(r.counts), centres: r.centres });
+      });
+      return { renames: renames, lines: lines, problems: problems };
+    }
+
+    /* ---- Rename, on the Administrator's word ------------------------------ */
+    function ref(rec, i) { return (rec && rec.id != null && rec.id !== '') ? 'id:' + rec.id : '#' + i; }
+    function findRef(list, r) {
+      if (!Array.isArray(list) || typeof r !== 'string') return null;
+      if (r.indexOf('id:') === 0) {
+        var id = r.slice(3);
+        for (var i = 0; i < list.length; i++) if (list[i] && list[i].id != null && String(list[i].id) === id) return list[i];
+        return null;
+      }
+      return list[parseInt(r.slice(1), 10)] || null;
+    }
+    function feeKey(s) { return str(s).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim(); }
+    function withoutStamp(v) { if (!isObj(v)) return v; var c = copy(v); delete c.updatedAt; return c; }
+
+    /* Date every record a tidy (or its undo) changed, so the change wins the
+       merge on every other computer: trainee records detail by detail (the
+       _fs stamps, Core.stampStudentFields — `base` is the baseline taken
+       before anything changed), training centres by nameModified, the rest
+       by updatedAt. */
+    function stampTouched(bundle, touched, base, now) {
+      Object.keys(touched).forEach(function (kind) {
+        touched[kind].forEach(function (r) {
+          if (kind === 'students') r.lastModified = now;
+          else if (kind === 'centres') r.nameModified = now;
+          else r.updatedAt = now;
+        });
+      });
+      if (touched.students && touched.students.length) {
+        try { Core.stampStudentFields(arr(bundle, 'students'), base, now); } catch (e) {}
+      }
+    }
+
+    function apply(bundle, renames, opts) {
+      opts = opts || {};
+      bundle = bundle || {};
+      var now = opts.now || new Date().toISOString();
+      var map = {};
+      (renames || []).forEach(function (r) {
+        if (!r || !r.from || !clean(r.to)) return;
+        var to = spell(r.to).bare;
+        if (norm(to) !== r.from && !map[r.from]) map[r.from] = to;
+      });
+      var out = { at: now, changes: [], counts: {}, bound: 0, pinned: [], designs: [], skipped: [] };
+      if (!Object.keys(map).length) return out;
+      var changes = out.changes, touched = {};
+      var fsBase = null;
+      try { fsBase = Core.stampStudentFields(arr(bundle, 'students'), null, '', true); } catch (e) { fsBase = null; }
+      function touch(kind, rec) {
+        var l = touched[kind] || (touched[kind] = []);
+        if (l.indexOf(rec) === -1) l.push(rec);
+      }
+      function setField(kind, rec, i, f, val) {
+        var had = Object.prototype.hasOwnProperty.call(rec, f);
+        if (had && same(rec[f], val)) return false;
+        var ch = { k: kind, r: ref(rec, i), f: f, a: copy(val) };
+        if (had) ch.b = copy(rec[f]); else ch.n = 1;       // n: the detail was not there
+        rec[f] = val;
+        changes.push(ch);
+        touch(kind, rec);
+        return true;
+      }
+      function targetNorm(text) { var sp = spell(text); return map[sp.norm] ? norm(map[sp.norm]) : sp.norm; }
+      var centres = arr(bundle, 'centres').filter(function (c) { return c && has(c.name); });
+
+      // 1. Nobody moves intake. Where the new name will be carried by two or
+      //    more intakes, a record that only names its programme is stamped
+      //    with the intake it is counted in now (Core.transfer's own rule),
+      //    before any name changes.
+      var before = {}, after = {};
+      centres.forEach(function (c) { var sp = spell(c.name); before[sp.norm] = (before[sp.norm] || 0) + 1; var t = targetNorm(c.name); after[t] = (after[t] || 0) + 1; });
+      function bind(kind, fields) {
+        arr(bundle, kind).forEach(function (r, i) {
+          if (!r || typeof r !== 'object') return;
+          if (has(r.centreKey) || has(r.centreId)) return;
+          var written = writtenOf(r, fields.concat(['course', 'skillArea']));
+          var sp = spell(written);
+          if (!sp.norm) return;
+          var t = map[sp.norm] ? norm(map[sp.norm]) : sp.norm;
+          if ((after[t] || 0) < 2) return;
+          if (!map[sp.norm] && (before[t] || 0) >= after[t]) return;   // no more shared than it was
+          var on = r.enrolmentDate || r.enrollmentDate || r.enrollDate || r.createdAt || '';
+          var found = null;
+          try { found = E().findCentre(centres, written, { on: on, today: opts.today, nowMs: opts.nowMs }); } catch (e) { found = null; }
+          if (!found) return;
+          try { if (Core.transfer.enrolledBeforeIntake(r, found)) return; } catch (e) {}
+          var key = '';
+          try { key = E().centreKeyOf(found); } catch (e) { key = ''; }
+          var did = false;
+          if (key) did = setField(kind, r, i, 'centreKey', key) || did;
+          if (found.id != null) did = setField(kind, r, i, 'centreId', found.id) || did;
+          if (did) out.bound++;
+        });
+      }
+      bind('students', ['course']);
+      bind('feeStudents', ['skillArea']);
+
+      // 2. Nobody is folded into somebody else. Two records of one name that
+      //    the tidy brings onto one programme from DIFFERENT spellings were
+      //    kept apart until now: they are marked kept separate, so the
+      //    clean-up never joins them.
+      function pin(kind, fields) {
+        var groups = {}, order = [];
+        arr(bundle, kind).forEach(function (r, i) {
+          if (!r || typeof r !== 'object' || Core.keepsOwnId(r)) return;
+          var n = Core.normName(r.name);
+          if (!n) return;
+          var sp = spell(writtenOf(r, fields.concat(['course', 'skillArea'])));
+          if (!sp.norm) return;
+          var gk = n + '|' + (map[sp.norm] ? norm(map[sp.norm]) : sp.norm);
+          var g = groups[gk];
+          if (!g) { g = groups[gk] = { from: {}, renamed: false, recs: [] }; order.push(gk); }
+          g.from[sp.norm] = sp.bare;
+          if (map[sp.norm]) g.renamed = true;
+          g.recs.push({ r: r, i: i });
+        });
+        order.forEach(function (gk) {
+          var g = groups[gk];
+          if (!g.renamed || g.recs.length < 2 || Object.keys(g.from).length < 2) return;
+          g.recs.forEach(function (x) { setField(kind, x.r, x.i, 'keepSeparate', true); });
+          out.pinned.push({ kind: kind, name: clean(g.recs[0].r.name), count: g.recs.length,
+            from: Object.keys(g.from).map(function (k) { return g.from[k]; }) });
+        });
+      }
+      pin('students', ['course']);
+      pin('feeStudents', ['skillArea']);
+
+      // 3. The names.
+      function renameText(kind, r, i, f) {
+        if (typeof r[f] !== 'string' || !has(r[f])) return;
+        var to = map[spell(r[f]).norm];
+        if (to) setField(kind, r, i, f, relabel(r[f], to));
+      }
+      KINDS.forEach(function (K) {
+        if (K.asIs || K.mapKeys || K.kind === 'centres') return;
+        arr(bundle, K.kind).forEach(function (r, i) {
+          if (!r || typeof r !== 'object' || (K.only && !K.only(r))) return;
+          if (K.kind === 'students' && typeof r.course === 'string' && map[spell(r.course).norm] && !has(r.idCourse)) {
+            // The programme this record's id was made from (Core.naturalKey).
+            setField('students', r, i, 'idCourse', r.course);
+          }
+          if (K.kind === 'unitCatalogs') {
+            var to = map[spell(r.skillArea).norm], tl = to ? levelOf(to) : '';
+            if (to && has(r.level) && tl && str(r.level).trim() !== tl) {
+              out.skipped.push({ kind: 'unitCatalogs', id: r.id, title: clean(r.title || r.skillArea), why: 'level' });
+              return;
+            }
+          }
+          (K.fields || []).forEach(function (f) { renameText(K.kind, r, i, f); });
+          (K.also || []).forEach(function (f) { renameText(K.kind, r, i, f); });
+          (K.lists || []).forEach(function (f) {
+            if (!Array.isArray(r[f])) return;
+            var moved = false, next = r[f].map(function (v) {
+              var to = (typeof v === 'string') ? map[spell(v).norm] : null;
+              if (!to) return v;
+              moved = true;
+              return relabel(v, to);
+            });
+            if (moved) setField(K.kind, r, i, f, next);
+          });
+        });
+      });
+
+      // 4. The programme fees, under their new names. Where the new name is
+      //    already priced, its own fee stands (a fee only fills an entry that
+      //    has none); the old name is written down as gone, so a copy from
+      //    another computer does not bring it back.
+      var fs = isObj(bundle.feeStructure) ? bundle.feeStructure : null;
+      if (fs) {
+        Object.keys(fs).forEach(function (key) {
+          var to = map[spell(key).norm];
+          if (!to) return;
+          var nk = relabel(key, to);
+          if (nk === key) return;
+          var entry = fs[key];
+          var dest = Object.keys(fs).filter(function (k) { return k !== key && feeKey(k) === feeKey(nk); })[0] || null;
+          var ch = { k: 'feeStructure', m: 'move', from: key, to: dest || nk, bf: copy(entry) };
+          var stamp = function (e) { if (isObj(e)) e.updatedAt = now; return e; };
+          if (dest) {
+            ch.bt = copy(fs[dest]);
+            var destPriced = parseFloat(fs[dest] && fs[dest].total) > 0, mine = parseFloat(entry && entry.total) > 0;
+            if (!destPriced && mine) fs[dest] = stamp(copy(entry));
+          } else {
+            ch.n = 1;
+            fs[nk] = stamp(copy(entry));
+          }
+          ch.a = copy(fs[ch.to]);
+          delete fs[key];
+          if (Array.isArray(bundle.feeDeletedKeys)) bundle.feeDeletedKeys.push(key + '|' + now);
+          if (Array.isArray(bundle.feeCarryDeclined) && bundle.feeCarryDeclined.indexOf(feeKey(key)) !== -1 &&
+              bundle.feeCarryDeclined.indexOf(feeKey(ch.to)) === -1) bundle.feeCarryDeclined.push(feeKey(ch.to));
+          changes.push(ch);
+          out.counts.feeStructure = (out.counts.feeStructure || 0) + 1;
+        });
+      }
+
+      // 5. Certificate designs keep their key (their pictures are filed under
+      //    it); a new name that has no design of its own is mapped to the
+      //    design its old spelling had.
+      var tpl = isObj(bundle.certTemplates) ? bundle.certTemplates : null;
+      var cmap = isObj(bundle.certTemplateCourseMap) ? bundle.certTemplateCourseMap : null;
+      if (tpl && cmap) {
+        var designsOf = {};
+        Object.keys(tpl).forEach(function (k) { var n = spell(k).norm; (designsOf[n] = designsOf[n] || []).push(k); });
+        (renames || []).forEach(function (r) {
+          var to = map[r.from];
+          if (!to || (designsOf[norm(to)] || []).length) return;
+          var own = (designsOf[r.from] || []).slice().sort(function (a, b) { return (spell(a).key ? 1 : 0) - (spell(b).key ? 1 : 0); });
+          if (!own.length || has(cmap[to])) return;
+          var ch = { k: 'certTemplateCourseMap', m: 'set', key: to, a: own[0] };
+          if (Object.prototype.hasOwnProperty.call(cmap, to)) ch.b = copy(cmap[to]); else ch.n = 1;
+          cmap[to] = own[0];
+          changes.push(ch);
+          out.designs.push({ to: to, design: own[0] });
+        });
+      }
+
+      // 6. The training centres themselves: renamed in place, never removed.
+      arr(bundle, 'centres').forEach(function (c, i) {
+        if (!c || !has(c.name)) return;
+        var to = map[spell(c.name).norm];
+        if (to) setField('centres', c, i, 'name', relabel(c.name, to));
+      });
+
+      stampTouched(bundle, touched, fsBase, now);
+      Object.keys(touched).forEach(function (k) { out.counts[k] = (out.counts[k] || 0) + touched[k].length; });
+      return out;
+    }
+
+    /* ---- Put back exactly what one tidy changed ---------------------------
+       Each change is put back only where the record still holds what the
+       tidy wrote; anything changed since is left as it is and reported. */
+    function undo(bundle, applied, opts) {
+      opts = opts || {};
+      bundle = bundle || {};
+      var now = opts.now || new Date().toISOString();
+      var res = { restored: 0, kept: [], counts: {} };
+      var changes = (applied && Array.isArray(applied.changes)) ? applied.changes : [];
+      var touched = {};
+      var fsBase = null;
+      try { fsBase = Core.stampStudentFields(arr(bundle, 'students'), null, '', true); } catch (e) { fsBase = null; }
+      var touch = function (kind, rec) { var l = touched[kind] || (touched[kind] = []); if (l.indexOf(rec) === -1) l.push(rec); };
+      var fs = isObj(bundle.feeStructure) ? bundle.feeStructure : null;
+      var cmap = isObj(bundle.certTemplateCourseMap) ? bundle.certTemplateCourseMap : null;
+      for (var j = changes.length - 1; j >= 0; j--) {
+        var ch = changes[j];
+        if (!ch) continue;
+        if (ch.m === 'move') {
+          if (!fs) { res.kept.push({ k: ch.k, what: ch.from }); continue; }
+          if (!same(withoutStamp(fs[ch.to]), withoutStamp(ch.a))) { res.kept.push({ k: ch.k, what: ch.from }); continue; }
+          var back = copy(ch.bf);
+          if (isObj(back)) back.updatedAt = now;
+          fs[ch.from] = back;
+          if (ch.n) {
+            delete fs[ch.to];
+            if (Array.isArray(bundle.feeDeletedKeys)) bundle.feeDeletedKeys.push(ch.to + '|' + now);
+          } else {
+            var was = copy(ch.bt);
+            if (isObj(was)) was.updatedAt = now;
+            fs[ch.to] = was;
+          }
+          res.restored++;
+          res.counts.feeStructure = (res.counts.feeStructure || 0) + 1;
+          continue;
+        }
+        if (ch.m === 'set') {
+          if (!cmap || !same(cmap[ch.key], ch.a)) { res.kept.push({ k: ch.k, what: ch.key }); continue; }
+          if (ch.n) delete cmap[ch.key]; else cmap[ch.key] = copy(ch.b);
+          res.restored++;
+          continue;
+        }
+        var rec = findRef(bundle[ch.k], ch.r);
+        if (!rec || !same(rec[ch.f], ch.a)) { res.kept.push({ k: ch.k, r: ch.r, f: ch.f }); continue; }
+        if (ch.n) delete rec[ch.f]; else rec[ch.f] = copy(ch.b);
+        res.restored++;
+        touch(ch.k, rec);
+      }
+      stampTouched(bundle, touched, fsBase, now);
+      Object.keys(touched).forEach(function (k) { res.counts[k] = (res.counts[k] || 0) + touched[k].length; });
+      return res;
+    }
+
+    /* ---- The log shown on the page ----------------------------------------
+       One entry per tidy: when, who, each old name -> new name with what it
+       carried, and whether it was undone. It travels with the Centre's
+       records (merged by entry: an undo on any computer stands). */
+    function logEntry(planned, applied, meta) {
+      meta = meta || {};
+      var lines = ((planned && planned.lines) || []).map(function (l) {
+        return { to: l.to, from: l.items.map(function (x) { return { label: x.label, what: x.what }; }) };
+      });
+      var at = meta.at || (applied && applied.at) || new Date().toISOString();
+      var counts = (applied && applied.counts) || {};
+      return {
+        id: 'TIDY-' + Core.hashString(at + '|' + str(meta.by) + '|' + JSON.stringify(lines)),
+        at: at, by: str(meta.by), lines: lines, counts: counts,
+        changed: Object.keys(counts).reduce(function (n, k) { return n + (counts[k] || 0); }, 0),
+        bound: (applied && applied.bound) || 0,
+        pinned: ((applied && applied.pinned) || []).map(function (p) { return { name: p.name, from: p.from, kind: p.kind }; }),
+        designs: (applied && applied.designs) || []
+      };
+    }
+    function mergeLogs(a, b) {
+      var by = {}, out = [];
+      [a, b].forEach(function (list) {
+        (Array.isArray(list) ? list : []).forEach(function (e) {
+          if (!e || !e.id) return;
+          var cur = by[e.id];
+          if (!cur) { cur = by[e.id] = copy(e); out.push(cur); return; }
+          if (e.undoneAt && (!cur.undoneAt || Date.parse(e.undoneAt) > Date.parse(cur.undoneAt))) { cur.undoneAt = e.undoneAt; cur.undoneBy = e.undoneBy; }
+        });
+      });
+      out.sort(function (x, y) { return (Date.parse(y.at) || 0) - (Date.parse(x.at) || 0); });
+      return out.slice(0, 60);
+    }
+
+    return {
+      LOG_KEY: LOG_KEY, KINDS: KINDS, spell: spell, relabel: relabel, describe: describe,
+      inventory: inventory, group: group, defaultKeep: defaultKeep, plan: plan, apply: apply, undo: undo,
+      logEntry: logEntry, mergeLogs: mergeLogs
     };
   })();
 
@@ -9767,6 +10515,18 @@
       return true;
     }
 
+    /* The centre's NAME by the same rule: a rename (the Training Centres
+       page, Tidy Programme Names) stamps nameModified, so a computer that
+       has not heard of it yet cannot put the old name back. With no stamp on
+       either side the cloud copy wins, as it always did. */
+    function nameWins(local, cloud) {
+      var lc = (local && Date.parse(local.nameModified || '')) || 0;
+      var cc = (cloud && Date.parse(cloud.nameModified || '')) || 0;
+      if (cc && lc) return cc >= lc;
+      if (lc) return false;
+      return true;
+    }
+
     /* Merge cloud training centres into the local list, in place. A centre the
        Centre has deleted stays deleted — without this every sync brought it
        back, along with its chat room and its place in the course lists.
@@ -9790,11 +10550,13 @@
         if (!local) { localList.push(sa); out.added++; return; }
 
         CENTRE_IDENTITY.forEach(function (f) {
+          if (f === 'name' && !nameWins(local, sa)) return;
           if (sa[f] !== undefined && sa[f] !== null && sa[f] !== '' && sa[f] !== local[f]) {
             local[f] = sa[f];
             out.updated++;
           }
         });
+        if (sa.nameModified && sa.nameModified !== local.nameModified && nameWins(local, sa)) local.nameModified = sa.nameModified;
 
         if (durationWins(local, sa)) {
           CENTRE_DURATION.forEach(function (f) {
@@ -10932,7 +11694,7 @@
     groups: [
       ['stage', 'stageSetByUser', 'progress', 'certCollected', 'certDate', 'completionDate',
        'courseEndState', 'courseEndReason', 'readyToCertifyAt', '_nycAuto', '_nycForCourseEnd'],
-      ['name', 'course', 'centreKey', 'centreId', 'centreName', 'courseStart', 'courseEnd', 'fiscalYear']
+      ['name', 'course', 'centreKey', 'centreId', 'centreName', 'courseStart', 'courseEnd', 'fiscalYear', 'idCourse']
     ]
   };
   /* Stamp the trainee details edited here since `index`; returns the new
