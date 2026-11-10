@@ -1,0 +1,1906 @@
+{
+  "format": "cestis-study-kit",
+  "version": 1,
+  "status": "to-check",
+  "written": "2026-11-07",
+  "programme": "Welding & Fabrication",
+  "qualification": {
+    "id": "QUAL-WEL-L3",
+    "title": "WELDING LEVEL 3",
+    "code": "MEM30215"
+  },
+  "level": 3,
+  "unit": {
+    "code": "ITICOR0011B",
+    "title": "Carry out data entry and retrieval procedures"
+  },
+  "summary": "This unit teaches you to key data into a computer accurately and to get the right information back out when it is needed, as a Level 3 welder, team leader, storekeeper or quality officer. You will learn to plan and set up data files for a fabrication shop, build in validation checks, prepare and key source documents, verify and correct records, find, sort, filter and query data, work out answers with formulas, produce reports and charts, and keep files organised, backed up, secure and private.",
+  "sections": [
+    {
+      "title": "Unit overview",
+      "blocks": [
+        {
+          "p": "This unit is part of the Welding Level 3 qualification (MEM30215). It teaches you to **enter data** into a computer accurately and to **retrieve** it, that is, to get the right information back out when someone needs it."
+        },
+        {
+          "p": "Why does a welder need this? A fabrication shop runs on records: job cards, quotations, time sheets, stock lists, material certificates, welder qualification records and weld inspection logs. Clients and codes ask for **traceability**: which welder made each weld, to which welding procedure specification (WPS), with which batch of electrodes, and whether it passed inspection. At Level 3 you key some of these records, check other people's, design the files, and pull out answers for the manager, the client or the inspector. One wrong figure can mean a welder working outside his or her qualification, a client billed wrongly, or steel ordered too late."
+        },
+        {
+          "p": "**Who it is for:** Welding Level 3 trainees at HEART/NSTA Trust and other training centres, and welders who keep records as team leaders, storekeepers or quality staff. The skills are the same in any spreadsheet or database program; the menus differ a little, so your instructor will show you the ones on the Centre's computers."
+        },
+        {
+          "table": {
+            "head": [
+              "What you must be able to do",
+              "What this means in a fabrication shop"
+            ],
+            "rows": [
+              [
+                "Plan and set up data files",
+                "Decide the records and fields a job needs, lay them out in a table, choose data types and unique IDs, and link lists so that details are typed once."
+              ],
+              [
+                "Build in checks",
+                "Set validation rules (required fields, ranges, drop-down lists, lists of valid IDs) so that impossible data is refused as it is keyed."
+              ],
+              [
+                "Prepare and key data",
+                "Check the source documents, query anything unclear, work out batch totals, and key accurately at a comfortable workstation."
+              ],
+              [
+                "Verify and correct data",
+                "Check the records against the documents and the batch totals, put errors and duplicates right, and record every change."
+              ],
+              [
+                "Retrieve information",
+                "Find, sort and filter records, write conditions with AND and OR, use saved queries, and work out answers with formulas such as COUNT and SUMIF."
+              ],
+              [
+                "Produce reports and charts",
+                "Give the manager or client exactly what they asked for: checked, clearly laid out, and printed or sent in the right format."
+              ],
+              [
+                "Look after the files",
+                "Name, store and version files so that the team uses the right one; back them up, test the backups and archive old records."
+              ],
+              [
+                "Keep data secure and private",
+                "Use passwords and access rights, protect personal data as Jamaica's data protection law expects, and spot fraud and malware."
+              ],
+              [
+                "Deal with problems and lead others",
+                "Report faults correctly, plan and share keying work, write simple keying rules, and check other people's data entry."
+              ]
+            ]
+          }
+        },
+        {
+          "h": "How you will be assessed"
+        },
+        {
+          "ul": [
+            "A **multiple-choice paper** (45 questions) on setting up files, checks, source documents, keying, verifying, sorting and filtering, correcting data, file management, backups, security, privacy, reports and the workstation.",
+            "A **written paper**: short answers that need exact terms (record, field, cell, validation, transposition, source document, backup, ascending, COUNT, SUMIF, CSV, PDF, TRN, two-factor authentication), and longer answers in full sentences.",
+            "Two **group practicals** on the Centre's computers: designing a weld inspection log and keying, checking and backing up a batch of inspection sheets; and answering a manager's questions from a job and stock file, correcting hidden errors and producing a one-page report with a chart. Each member shows their own share, and the group photographs the screen at each stage."
+          ]
+        },
+        {
+          "note": "In the practicals the assessor watches how you work, not only the result: querying unclear sheets instead of guessing, saving often, keeping rows together when you sort, clearing filters, checking each other's work, naming files clearly, backing up, and keeping a good posture.",
+          "label": "Tip"
+        }
+      ]
+    },
+    {
+      "title": "Planning and setting up a data file",
+      "blocks": [
+        {
+          "p": "A good design makes keying quick, stops many mistakes before they happen, and lets anyone sort, filter and total the data later. A poor design (everything in one cell, notes mixed with numbers, a new sheet for every job) traps the information so that nobody can get it out."
+        },
+        {
+          "h": "Data, records and fields"
+        },
+        {
+          "p": "**Data** is raw facts: a weld size, a date, a welder's stamp. **Information** is data organised to answer a question, such as \"Which welds on job J-3020 needed repair?\""
+        },
+        {
+          "table": {
+            "head": [
+              "Term",
+              "Meaning",
+              "Example in a weld inspection log"
+            ],
+            "rows": [
+              [
+                "Table",
+                "A set of records about one kind of thing, in rows and columns",
+                "The inspection log"
+              ],
+              [
+                "Record",
+                "One row: all the details about one item, person or event",
+                "One inspected weld"
+              ],
+              [
+                "Field",
+                "One column: one kind of detail, the same for every record",
+                "Welder stamp; Weld size (mm)"
+              ],
+              [
+                "Cell",
+                "The box where one row and one column meet; it holds one entry",
+                "The result for one weld"
+              ],
+              [
+                "Primary key",
+                "A field whose value is different in every record, so it picks out one record only",
+                "Record number"
+              ],
+              [
+                "Data type",
+                "The kind of data a field holds: text, number, currency, date, yes/no",
+                "Date inspected: a date"
+              ]
+            ]
+          }
+        },
+        {
+          "p": "A **spreadsheet** suits one list or a few lists with calculations and charts: a stock list, time sheets, a small inspection log. A **database** suits several linked tables, many records and several users at once, with forms that check every field and saved queries and reports: a job register linked to clients, or the inspection records for a large contract."
+        },
+        {
+          "h": "Rules for a good data table"
+        },
+        {
+          "ul": [
+            "Start from the questions people will ask and from the source document; make each detail they need one field, with a short heading that includes the unit, such as \"Weld size (mm)\".",
+            "**One row per record and one column per field**, with a single heading row at the top. Put the fields in the same order as the paper form, so the keyer's eyes move down the form as the cursor moves across.",
+            "**One fact per cell.** Do not type \"W07 Andre Brown 3G\" in one cell: the stamp, the name and the position are three fields.",
+            "**One kind of data per column.** Key 6 in \"Weld size (mm)\", not \"6mm\" or \"6?\". Comments go in a separate Notes field.",
+            "**No blank rows or columns, merged cells or subtotals inside the table.** They break sorting and filtering. Put totals and reports on another sheet.",
+            "**A unique ID for every record**, never reused, and codes kept to one length and style: W07, not w7; J-0025, not J25."
+          ]
+        },
+        {
+          "note": "The test of a good layout: can you sort it by any column, filter it on any field and total any number column without tidying it up first?",
+          "label": "Remember"
+        },
+        {
+          "h": "Choosing the data type"
+        },
+        {
+          "table": {
+            "head": [
+              "Data type",
+              "Use it for",
+              "Examples",
+              "Watch out"
+            ],
+            "rows": [
+              [
+                "Text",
+                "Names, codes, and any \"number\" you will never add up",
+                "Welder stamp 014; job number J-2417; TRN; phone (876) 555-0137",
+                "Keyed into a number column, 014 becomes 14, and a long serial number may show in a form such as 1.2E+11. Set the column to text before keying."
+              ],
+              [
+                "Number",
+                "Quantities and measurements you will add, average or compare",
+                "Packets in stock; hours worked; weld size",
+                "Put the unit in the heading, not in the cell."
+              ],
+              [
+                "Currency",
+                "Money",
+                "Unit cost J$4,850.00",
+                "Key the number only: the format adds the J$ and the commas."
+              ],
+              [
+                "Date",
+                "Dates you will sort, filter or count from",
+                "Date inspected; due date",
+                "A date is stored as a day number. Formatted as a number, it shows as something like 46,330 instead of 04/11/2026: change the format to a date."
+              ],
+              [
+                "Yes/No (logical)",
+                "A field with only two answers",
+                "Certificate seen; Repaired",
+                "In a database it shows as a tick box."
+              ],
+              [
+                "Long text (notes)",
+                "Free comments",
+                "Inspector's remarks",
+                "Cannot be sorted or totalled usefully, so facts people will search for need their own fields."
+              ]
+            ]
+          }
+        },
+        {
+          "note": "Ask one question of every field: **will I ever do sums with it?** If not, as with a phone number, a TRN or a job number, store it as text.",
+          "label": "Tip"
+        },
+        {
+          "note": "Jamaica writes dates day/month/year, so 04/11/2026 is 4 November. A computer set up with American settings reads it as 11 April. Check the computer's regional setting, or use a format that cannot be misread, such as 04-Nov-2026.",
+          "label": "Jamaica"
+        },
+        {
+          "h": "Unique IDs and linked lists"
+        },
+        {
+          "p": "Two welders can share a name, and one client's name can be spelt three ways. A **unique ID** (a stamp, a job number, an item code, a client code) picks out exactly one record. Search, sort and link on the ID, not on the name."
+        },
+        {
+          "p": "When the same details belong to many records, keep them in one place and **link** to them. In a database, a Clients table holds each client's code, name, address and phone once, and the Jobs table holds only the client code. The code is the Clients table's **primary key**; in the Jobs table it is a **foreign key**. One client can have many jobs: a **one-to-many** relationship. The name is typed once and spelt the same on every job, a new address is changed in one place, and a filter on the code finds every job. In a spreadsheet, the same idea is a client list on its own sheet, with a drop-down to pick the code and a lookup formula to show the name."
+        },
+        {
+          "h": "Making the file easy and safe to use"
+        },
+        {
+          "ul": [
+            "**Freeze the heading row**, so the headings stay in view as you scroll.",
+            "**Lock and protect** the heading row and any formula cells, so they cannot be typed over.",
+            "Keep the drop-down lists (results, positions, valid welder stamps, item codes) on a separate **Lists** sheet that only the file's owner changes.",
+            "Add a **data dictionary** sheet that gives each field's type, allowed values and who keys it, and save a blank, tested copy as a **template**."
+          ]
+        },
+        {
+          "h": "Data files in a fabrication shop"
+        },
+        {
+          "table": {
+            "head": [
+              "File",
+              "Typical fields"
+            ],
+            "rows": [
+              [
+                "Job register",
+                "Job no., client code, item, parish, due date, value (J$), status"
+              ],
+              [
+                "Weld inspection log",
+                "Record no., job no., weld ID (from the weld map), welder stamp, WPS no., process, position, weld size, inspection method, result, inspector, date, NCR (non-conformance report) no."
+              ],
+              [
+                "Welder qualification register",
+                "Stamp, name, process, positions (1G–6G, 1F–4F), thickness range, test date, certificate no., date each process was last used"
+              ],
+              [
+                "Consumables stock list",
+                "Item code, description, size, batch or lot no., quantity, reorder level, unit cost (J$)"
+              ],
+              [
+                "Material receiving record",
+                "Date, supplier, material and size, heat number, mill certificate no., job no."
+              ]
+            ]
+          }
+        },
+        {
+          "note": "Inspection methods are usually recorded by their short names: VT (visual), PT (penetrant), MT (magnetic particle), UT (ultrasonic) and RT (radiography). Agree the abbreviations once and put them in a drop-down list.",
+          "label": "Remember"
+        }
+      ]
+    },
+    {
+      "title": "Building checks into the file (validation)",
+      "blocks": [
+        {
+          "p": "**Validation** is a check that the program makes as data is entered. It refuses, or warns about, an entry that breaks a rule set up in the file. It stops impossible data, such as a date of 31/02 or a 60 mm weld on 6 mm plate, from getting in. It cannot tell whether a sensible-looking entry is true."
+        },
+        {
+          "table": {
+            "head": [
+              "Check",
+              "What it does",
+              "Fabrication shop example"
+            ],
+            "rows": [
+              [
+                "Presence (required)",
+                "The record cannot be saved while this field is empty",
+                "Every inspection record must have a job number and a welder stamp"
+              ],
+              [
+                "Type",
+                "Only one kind of data is accepted",
+                "Hours must be a number; Date inspected must be a date"
+              ],
+              [
+                "Range",
+                "The value must lie between set limits",
+                "Preheat temperature (°C) within the limits on the WPS"
+              ],
+              [
+                "Format (pattern)",
+                "The entry must follow a set pattern",
+                "Job number: J, a dash and four digits (J-2417)"
+              ],
+              [
+                "Length",
+                "The entry must have a set number of characters",
+                "A TRN has 9 digits"
+              ],
+              [
+                "List (drop-down)",
+                "Only an entry from a set list is accepted",
+                "Result: Accept, Reject or Repair; process: MMAW, GMAW, FCAW or GTAW"
+              ],
+              [
+                "Lookup (existence)",
+                "The value must already exist in another list",
+                "The welder stamp must be in the welder register"
+              ],
+              [
+                "Uniqueness",
+                "No two records may share the value",
+                "Record number; job number in the job register"
+              ],
+              [
+                "Consistency (cross-field)",
+                "Two fields must agree",
+                "A repair date cannot be before the inspection date; a Reject must have an NCR number"
+              ],
+              [
+                "Check digit",
+                "The last digit is worked out from the others, so a misread or swapped digit is caught",
+                "The bar codes on stock items"
+              ]
+            ]
+          }
+        },
+        {
+          "h": "Setting up a check in a spreadsheet"
+        },
+        {
+          "flow": [
+            "Select the cells of the column below the heading",
+            "Open the data validation tool, usually on the Data menu or tab",
+            "Choose what to allow (whole number, decimal, list, date, text length or a custom rule) and set the limits, or point the list at its range on the Lists sheet",
+            "Write an input message that tells the keyer what is allowed",
+            "Choose the error alert: Stop refuses the entry; Warning and Information let it through after a message",
+            "Test it with a good entry, a bad entry and an empty cell before anyone uses the file"
+          ]
+        },
+        {
+          "note": "Use **Stop** for values that are impossible, such as a weld size of 0 or a result that is not on the list. Use **Warning** for values that are unusual but possible, such as 14 hours on one job in one day, so the keyer looks again without being blocked.",
+          "label": "Tip"
+        },
+        {
+          "h": "What validation cannot do"
+        },
+        {
+          "ul": [
+            "It cannot check that the data is **true**. If the inspector wrote 6 mm and you key 8 mm, a range check of 3 to 12 mm lets it through. Only checking against the source (verification) finds that.",
+            "It usually checks only **new typing**. Data pasted into a checked cell can skip the rule, or even wipe it out, and data keyed before the rule was set is not checked at all. Many programs can mark existing entries that break the rules: use this after a big paste or import.",
+            "**Rules that are too tight** make people cheat, for example by typing 01/01/2000 when a date is not known. Give a proper way to mark \"query\", and set limits from the real job, the WPS or the manager.",
+            "Rules go out of date: when the shop starts a new process or stocks a new item, someone must update the list."
+          ]
+        },
+        {
+          "note": "Validation asks: **is this entry allowed?** Verification asks: **is this entry what the document says?** You need both. When you design a file for others, decide the checks field by field and write them in the data dictionary.",
+          "label": "Remember"
+        }
+      ]
+    },
+    {
+      "title": "The workstation, source documents and keying in",
+      "blocks": [
+        {
+          "h": "Setting up your workstation"
+        },
+        {
+          "table": {
+            "head": [
+              "Part",
+              "How to set it"
+            ],
+            "rows": [
+              [
+                "Chair",
+                "Feet flat on the floor or on a footrest; thighs about level; lower back supported; sit right back in the seat"
+              ],
+              [
+                "Screen",
+                "Top of the screen at or a little below eye level, about an arm's length away, side-on to windows to avoid glare"
+              ],
+              [
+                "Keyboard and mouse",
+                "Close to you, so your elbows rest by your sides with forearms about level and wrists straight"
+              ],
+              [
+                "Source documents",
+                "On a document holder beside the screen, at about the same height and distance, so you do not keep twisting your neck or lose your place"
+              ],
+              [
+                "Desk and area",
+                "Clear of clutter; drinks away from the keyboard; cables tidy and off the walkways; good light"
+              ]
+            ]
+          }
+        },
+        {
+          "h": "Working without strain"
+        },
+        {
+          "ul": [
+            "Take **short, frequent breaks**, such as a few minutes every hour, or change to another task such as filing or checking.",
+            "Rest your eyes: every 20 minutes or so, look at something at least 6 metres away for about 20 seconds, and remember to blink.",
+            "Stretch your hands, shoulders and neck. Do not rest your wrists on the hard edge of the desk while you type.",
+            "Report aches, tingling or numbness in the hands, wrists, neck or back early: strain injuries from repeated movements (RSI) are easier to treat early.",
+            "Work at a **steady pace**. Rushing causes errors that take longer to find than to prevent. If a deadline cannot be met accurately, tell your supervisor early and agree what comes first."
+          ]
+        },
+        {
+          "note": "The office computer in a fabrication shop sits close to grinding dust, fumes, heat and humidity, and the power can go off or surge, especially in stormy weather. Keep the office door shut, keep the computer out of the line of sparks and dust, plug it into a surge protector or a UPS (uninterruptible power supply), and save often.",
+          "label": "Jamaica"
+        },
+        {
+          "h": "Source documents"
+        },
+        {
+          "p": "The **source document** is the form you key from: an inspection report, a time sheet, a delivery note, a job card, a stores issue slip, a mill certificate. The record on the computer can only be as good as the form, and as the care you take in reading it. Prepare each batch before you key it:"
+        },
+        {
+          "flow": [
+            "Collect the batch and count the documents",
+            "Sort them into a sensible order, such as by date or job number",
+            "Check that each one is complete, signed and readable",
+            "Put aside any that are unclear or incomplete, and list them on a query list",
+            "Query each one with the person who wrote or signed it (the inspector, storekeeper or foreman); never guess",
+            "Work out the batch totals from the paper, and write them, the batch number, the date and your name on a batch sheet"
+          ]
+        },
+        {
+          "table": {
+            "head": [
+              "Batch total",
+              "What it is",
+              "Example"
+            ],
+            "rows": [
+              [
+                "Record count",
+                "The number of documents in the batch",
+                "25 inspection sheets"
+              ],
+              [
+                "Control total",
+                "The total of an important figure on the documents",
+                "The total of the weld sizes, the hours or the quantities"
+              ],
+              [
+                "Hash total",
+                "A total of figures that mean nothing when added, used only as a check",
+                "The total of the delivery note numbers"
+              ]
+            ]
+          }
+        },
+        {
+          "note": "Never guess a figure, never \"correct\" the paper yourself, and never key a blank as 0. A query goes back to the person who wrote the form, and their answer is noted on the query list: what they said, who said it and when.",
+          "label": "Remember"
+        },
+        {
+          "h": "Keying in"
+        },
+        {
+          "flow": [
+            "Open the right file from its proper place, and check its name and date to be sure it is the latest version",
+            "Check the keying rules: the date format, the units, the codes, how to mark a query",
+            "Key one document at a time, in order, field by field",
+            "Tick each document as soon as it is keyed, so none is missed or keyed twice",
+            "Save often (Ctrl+S), or check that automatic saving is on",
+            "At the end, compare the count and totals with the batch sheet, and find any difference",
+            "File the documents with the batch sheet, and back up the file"
+          ]
+        },
+        {
+          "table": {
+            "head": [
+              "Keying rule",
+              "Why"
+            ],
+            "rows": [
+              [
+                "One date format for the whole file, such as dd/mm/yyyy",
+                "Mixed formats sort and filter wrongly"
+              ],
+              [
+                "One unit per field, shown in the heading and never typed in the cell",
+                "\"6mm\" is text and cannot be totalled"
+              ],
+              [
+                "Codes in capitals with no spaces, picked from the list: W07, not w 07",
+                "Filters and lookups need an exact match"
+              ],
+              [
+                "An unclear or missing figure is left empty and the record marked \"Query\"",
+                "A guessed figure or a 0 looks real"
+              ]
+            ]
+          }
+        },
+        {
+          "h": "Keyboard skills"
+        },
+        {
+          "ul": [
+            "**Tab** moves to the next field or cell across the row (**Shift+Tab** goes back); **Enter** confirms the entry and moves down, or on to the next record in a form.",
+            "The **number pad** keys long runs of figures quickly with one hand (Num Lock must be on).",
+            "**Ctrl+S** saves, **Ctrl+Z** undoes, **Ctrl+F** finds, **Ctrl+H** finds and replaces, and **Ctrl+;** puts today's date in a spreadsheet cell. **Windows key+L** locks the screen on a Windows computer."
+          ]
+        },
+        {
+          "p": "Data also arrives by **importing a file**, often a CSV (comma-separated values) file from another program or a supplier. Use the program's import command and set each column's type, so that codes keep their leading zeros and dates are read the right way round. Bar code scanners, downloads from inspection instruments and forms on a site tablet save keying, but their data still needs the same checks."
+        },
+        {
+          "h": "Leading a keying job (Level 3)"
+        },
+        {
+          "ul": [
+            "**Plan the time.** For example, 300 records at about 1½ minutes each is about 7½ hours of keying, before any checking. If the deadline does not allow for it, say so before you start.",
+            "**Share the work** in batches, each with its own batch sheet, and decide who checks whose work.",
+            "**Write down the rules** and go through them with new keyers, then check their first records at once, so a misunderstanding is caught after 10 records, not 300.",
+            "**Measure the error rate**: errors found ÷ entries checked × 100. For example, 8 errors in 500 entries is 8 ÷ 500 × 100 = 1.6%. Use it to find causes (unclear forms, poor light, rushing, a confusing field), not to blame people."
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Verifying and correcting data",
+      "blocks": [
+        {
+          "p": "**Verification** is checking that the data entered matches the source it came from. Validation can only tell you that an entry is allowed; verification tells you that it is right."
+        },
+        {
+          "table": {
+            "head": [
+              "Point",
+              "Validation",
+              "Verification"
+            ],
+            "rows": [
+              [
+                "The question it asks",
+                "Is this entry allowed by the rules?",
+                "Does this entry match the source document?"
+              ],
+              [
+                "Who or what does it",
+                "The program, as the data is keyed",
+                "People (or a second keying), after the data is keyed"
+              ],
+              [
+                "Example",
+                "A drop-down list for the result; a range check on weld size",
+                "A second person reads each record against its sheet; batch totals are compared"
+              ]
+            ]
+          }
+        },
+        {
+          "h": "Ways to verify"
+        },
+        {
+          "table": {
+            "head": [
+              "Method",
+              "How it works",
+              "Best for"
+            ],
+            "rows": [
+              [
+                "Proofreading",
+                "Read each record on screen against its document, field by field, ticking as you go",
+                "Small batches; your own work before you hand it on"
+              ],
+              [
+                "Second-person check",
+                "Someone who did not key the batch checks it against the documents",
+                "Important records: inspection results, pay, stock"
+              ],
+              [
+                "Double keying",
+                "Two people key the same batch; the computer lists every difference to be checked",
+                "Large batches where errors are costly"
+              ],
+              [
+                "Batch totals",
+                "The count and totals on the computer are compared with those worked out from the paper",
+                "Every batch: they show that there is an error"
+              ],
+              [
+                "Spot checks",
+                "Check, say, one record in ten; if errors turn up, check them all",
+                "Large routine batches from a keyer with a good record"
+              ]
+            ]
+          }
+        },
+        {
+          "note": "Your own eye tends to see what you meant to type. A second person, or one person reading the figures aloud while another follows the paper, catches far more.",
+          "label": "Tip"
+        },
+        {
+          "h": "Common keying errors"
+        },
+        {
+          "table": {
+            "head": [
+              "Error",
+              "Example",
+              "Usually caught by"
+            ],
+            "rows": [
+              [
+                "Transposition: two characters swapped",
+                "35 keyed as 53; stamp W16 keyed as W61",
+                "A second-person check; a control total out by a multiple of 9"
+              ],
+              [
+                "Transcription: one character misread",
+                "5 read as S, 0 as O, 1 as 7, 6 as 8 in poor handwriting",
+                "Proofreading; format and lookup checks"
+              ],
+              [
+                "Omission: a record or field left out",
+                "A delivery note skipped",
+                "Record count too low; required fields"
+              ],
+              [
+                "Duplication: a record keyed twice",
+                "One time sheet keyed by two people",
+                "Record count too high; uniqueness check"
+              ],
+              [
+                "Wrong row or field",
+                "Hours booked to the wrong job",
+                "Proofreading; cross-field checks"
+              ],
+              [
+                "Wrong unit or format",
+                "Inches keyed as mm; 04/11 read as 11 April",
+                "Range checks; keying rules"
+              ]
+            ]
+          }
+        },
+        {
+          "note": "If a control total is out by an amount that divides exactly by 9 (such as 9, 18, 27 or 90), look first for two swapped digits. If it is out by exactly the figure on one document, look for a missing or doubled record.",
+          "label": "Tip"
+        },
+        {
+          "h": "Finding errors already in a file"
+        },
+        {
+          "ul": [
+            "**Sort** each number or date column both ways: impossible values (a 0, 600 instead of 6.00, a date in 2062) come to the top or the bottom.",
+            "**Open the filter list** on a text column to see every different entry: variants such as St Ann, St. Ann and Saint Ann show up side by side.",
+            "**Highlight** duplicates or out-of-range values with conditional formatting, or use a formula such as =COUNTIF(A:A,A2)>1, which shows TRUE beside any ID that appears more than once."
+          ]
+        },
+        {
+          "h": "Correcting data safely"
+        },
+        {
+          "flow": [
+            "Confirm the error against the source document (and recount, for stock)",
+            "Report it before changing anything that others rely on: stock, pay, invoices, inspection results",
+            "Save a backup copy before any large change",
+            "Make the correction, one record at a time or with Find and Replace",
+            "Record the change: what was changed, from what to what, why, when, and who approved it",
+            "Check the result (the count, the totals and a few changed records) and tell the people who use the data"
+          ]
+        },
+        {
+          "p": "Correct; do not cover up. Do not type a shelf count over a stock record: enter an adjustment with the reason (\"2 packets damp, scrapped\"), the date and who approved it. A change to an inspection result or an issued certificate needs the inspector's or quality manager's approval and a record of why. Where the program allows it, mark a wrong record as cancelled, with a note, rather than deleting its history."
+        },
+        {
+          "h": "Find and Replace with care"
+        },
+        {
+          "p": "Find and Replace (Ctrl+H) can correct hundreds of records in seconds, and spoil hundreds just as fast. Replacing \"MAG\" with \"GMAW\" without care also changes the start of \"Magnetic particle\" in the inspection method column. Back up first, select only the column to change, use **Find All** to see every match, tick **Match entire cell contents** and **Match case** where they help, and check the result (Ctrl+Z undoes it at once)."
+        },
+        {
+          "h": "Duplicates"
+        },
+        {
+          "p": "Duplicates double-count stock, invoice a job twice and make inspection figures wrong. But check before you delete: two deliveries of the same item on the same day are two real records if they have different delivery note numbers. Remove only **true duplicates** (same ID, same details, same source document), keep the most complete copy, and note what was removed."
+        },
+        {
+          "h": "When stock records do not match the shelf"
+        },
+        {
+          "flow": [
+            "Recount carefully, with a second person if you can",
+            "Check the source documents since the last correct count: delivery notes, issue slips, job cards, returns",
+            "Look for the cause: a delivery keyed twice, an issue not recorded, the wrong item code, swapped digits, damaged stock thrown away without a record",
+            "Report the difference to your supervisor before changing anything",
+            "Correct the record with a noted, approved adjustment",
+            "Suggest a fix (issue slips signed at the counter, item codes picked from a list, regular spot counts) and check that the next count agrees"
+          ]
+        },
+        {
+          "note": "As a team leader, look for the cause in the system before blaming a person: an unclear form, a confusing field, poor light, or a deadline that forces rushing. Fixing the cause stops the error for everyone.",
+          "label": "Tip"
+        }
+      ]
+    },
+    {
+      "title": "Retrieving information: find, sort, filter and query",
+      "blocks": [
+        {
+          "p": "Retrieving data means getting exactly the records or figures you need, quickly, without changing or losing anything. Start by choosing the right tool for the question."
+        },
+        {
+          "table": {
+            "head": [
+              "The question",
+              "Best tool",
+              "Example"
+            ],
+            "rows": [
+              [
+                "Where is the one record I can identify?",
+                "Find (Ctrl+F)",
+                "Job J-2417 in a list of thousands"
+              ],
+              [
+                "In what order?",
+                "Sort",
+                "Jobs by due date, earliest first"
+              ],
+              [
+                "Which records meet a condition?",
+                "Filter",
+                "Inspections with the result Repair"
+              ],
+              [
+                "The same question every week, or across linked tables",
+                "A saved query",
+                "This month's repairs by welder, with each welder's name"
+              ],
+              [
+                "How many? How much?",
+                "A formula",
+                "The number of open jobs"
+              ],
+              [
+                "Totals for each group",
+                "A pivot table or grouped report",
+                "Open jobs by parish"
+              ]
+            ]
+          }
+        },
+        {
+          "h": "Find"
+        },
+        {
+          "ul": [
+            "Search on the **unique ID** (job number, stamp, item code), not on a name that may be spelt several ways.",
+            "**Find All** lists every match, so you can see how many there are.",
+            "Use **Match case** and **Match entire cell contents** (so that W1 does not also find W10 to W19) where they help.",
+            "Wildcards: * stands for any number of characters, including none (E70* finds E7016, E7018 and E7024); ? stands for exactly one character (W0? finds W01 to W09, but not W10)."
+          ]
+        },
+        {
+          "h": "Sort"
+        },
+        {
+          "ul": [
+            "**Ascending** order is A to Z, smallest to largest, earliest to latest. **Descending** is the reverse.",
+            "Click one cell inside the table, or select the whole table, before sorting. Never select one column on its own: that column would be sorted alone, and the details would no longer match their rows. If the program warns about data next to your selection, choose to **expand the selection**.",
+            "Tell the program the table has a heading row, so the headings stay at the top. Sort on more than one level when needed, for example by client and then by due date.",
+            "Keep a record number column: sorting by it gets the original order back.",
+            "Check the data type first. Dates stored as text sort by their first characters (01/12/2026 comes before 02/01/2026), and text codes sort one character at a time (ITEM-10 comes before ITEM-9). Store dates as dates, and give codes a fixed number of digits."
+          ]
+        },
+        {
+          "h": "Filter"
+        },
+        {
+          "ul": [
+            "Turn on the filter buttons in the heading row. Each column then offers its list of values, and filters for text (begins with, contains), numbers (less than, between) and dates (this week, next month).",
+            "Filters on two columns work together as **AND**: Result = Repair AND Welder = W07. Ticking two values in one column gives **OR**: Process = GMAW OR FCAW.",
+            "A filter **hides** rows; it never deletes them. The status bar often shows how many are showing, such as \"8 of 212 records found\".",
+            "**SUM** still adds the hidden rows of a filtered list. Use SUBTOTAL, for example =SUBTOTAL(9,F2:F213), to total only the rows on show.",
+            "**Clear every filter** when you finish, or the next person may take the part list for the whole file."
+          ]
+        },
+        {
+          "h": "Conditions"
+        },
+        {
+          "table": {
+            "head": [
+              "Sign",
+              "Means",
+              "Example"
+            ],
+            "rows": [
+              [
+                "=",
+                "Equal to",
+                "Result = Repair"
+              ],
+              [
+                "<>",
+                "Not equal to",
+                "Status <> Closed"
+              ],
+              [
+                "<",
+                "Less than",
+                "Packets < 10 (9 or fewer)"
+              ],
+              [
+                "<=",
+                "Less than or equal to (at most)",
+                "Packets <= reorder level"
+              ],
+              [
+                ">",
+                "More than",
+                "Hours > 10"
+              ],
+              [
+                ">=",
+                "More than or equal to (at least)",
+                "Due date >= 01/12/2026"
+              ]
+            ]
+          }
+        },
+        {
+          "note": "Read the words carefully. \"Fewer than 10\" is < 10; \"10 or fewer\" and \"no more than 10\" are <= 10. \"Between 3 and 12\" usually includes 3 and 12: >= 3 AND <= 12.",
+          "label": "Tip"
+        },
+        {
+          "h": "AND, OR and NOT"
+        },
+        {
+          "table": {
+            "head": [
+              "Join",
+              "A record is found when...",
+              "Example"
+            ],
+            "rows": [
+              [
+                "AND",
+                "Every condition is true (fewer records)",
+                "Process = GMAW AND Result = Repair"
+              ],
+              [
+                "OR",
+                "Any one of the conditions is true (more records)",
+                "Welder = W03 OR Welder = W08"
+              ],
+              [
+                "NOT",
+                "The condition is false",
+                "NOT Status = Closed, the same as Status <> Closed"
+              ]
+            ]
+          }
+        },
+        {
+          "p": "Everyday speech can mislead. \"The repairs by W03 and W08\" means repairs by either welder: each weld has one welder, so the welder condition is OR. When AND and OR are mixed, put the OR part in brackets: Result = Repair AND (Welder = W03 OR Welder = W08)."
+        },
+        {
+          "h": "Queries in a database"
+        },
+        {
+          "ul": [
+            "A **query** is a saved question. It runs on the data as it is now, so this week's answer is up to date and found the same way as last week's.",
+            "In a query grid, conditions on the **same row** are joined by AND; conditions on **different rows** (the \"or\" row) are joined by OR.",
+            "A query can join linked tables, such as inspections with the welder's name. A **parameter query** asks for a value each time it runs, such as \"Enter welder stamp\"."
+          ]
+        },
+        {
+          "note": "Check an answer before you hand it over. Does the number make sense? Do the counts of a filter and of its opposite add up to the whole? Do a few records match their source documents? Were variants such as \"St. Ann\" missed? Say when the data was taken, because the file keeps changing.",
+          "label": "Remember"
+        }
+      ]
+    },
+    {
+      "title": "Answering questions with formulas",
+      "blocks": [
+        {
+          "p": "A **formula** starts with = and works out an answer from cells; it works it out again by itself when the data changes. **Functions** are ready-made formulas, such as SUM and COUNT. A range such as G2:G201 means every cell from G2 down to G201. The examples below use a job register with A Job no., B Client code, D Parish, F Due date, G Value (J$) and H Status in rows 2 to 201."
+        },
+        {
+          "table": {
+            "head": [
+              "Function",
+              "What it gives",
+              "Example"
+            ],
+            "rows": [
+              [
+                "SUM",
+                "The total of the numbers",
+                "=SUM(G2:G201) value of all the jobs"
+              ],
+              [
+                "COUNT",
+                "How many cells hold numbers",
+                "=COUNT(G2:G201) jobs with a value keyed"
+              ],
+              [
+                "COUNTA",
+                "How many cells are not empty",
+                "=COUNTA(A2:A201) how many records"
+              ],
+              [
+                "COUNTIF",
+                "How many cells meet one condition",
+                "=COUNTIF(H2:H201,\"Open\") open jobs"
+              ],
+              [
+                "COUNTIFS",
+                "How many rows meet several conditions (AND)",
+                "=COUNTIFS(D2:D201,\"St Ann\",H2:H201,\"Open\")"
+              ],
+              [
+                "SUMIF",
+                "The total of the cells that meet one condition",
+                "=SUMIF(B2:B201,\"C014\",G2:G201) value of client C014's jobs"
+              ],
+              [
+                "SUMIFS",
+                "The total of the cells that meet several conditions",
+                "=SUMIFS(G2:G201,B2:B201,\"C014\",H2:H201,\"Open\")"
+              ],
+              [
+                "AVERAGE, MIN, MAX",
+                "The mean, the smallest, the largest",
+                "=MAX(G2:G201) the largest job"
+              ],
+              [
+                "IF",
+                "One result if a test is true, another if not",
+                "=IF(H2=\"Open\",G2,0) the job's value if it is open, otherwise 0"
+              ],
+              [
+                "VLOOKUP (or XLOOKUP)",
+                "Finds a code in a table and gives a value from the same row",
+                "See the worked example below"
+              ],
+              [
+                "TODAY",
+                "Today's date",
+                "=F2<TODAY() shows TRUE when a due date has passed"
+              ]
+            ]
+          }
+        },
+        {
+          "note": "In **SUMIF** the range to add comes **last**: =SUMIF(range to test, condition, range to add). In **SUMIFS** it comes **first**. Conditions with signs or text go in quotation marks: \"<10\", \"Open\", \"E70*\".",
+          "label": "Remember"
+        },
+        {
+          "h": "A worked example"
+        },
+        {
+          "p": "Part of a consumables stock sheet (the prices are made up). Column G holds =D2*F2, copied down."
+        },
+        {
+          "table": {
+            "head": [
+              "Row",
+              "A Code",
+              "B Item",
+              "C Size (mm)",
+              "D Qty",
+              "E Reorder level",
+              "F Unit cost (J$)",
+              "G Value (J$)"
+            ],
+            "rows": [
+              [
+                "2",
+                "EL-6013-25",
+                "E6013 electrode",
+                "2.5",
+                "12",
+                "10",
+                "3,900",
+                "46,800"
+              ],
+              [
+                "3",
+                "EL-6013-32",
+                "E6013 electrode",
+                "3.2",
+                "8",
+                "10",
+                "4,200",
+                "33,600"
+              ],
+              [
+                "4",
+                "EL-7018-32",
+                "E7018 electrode",
+                "3.2",
+                "15",
+                "6",
+                "6,500",
+                "97,500"
+              ],
+              [
+                "5",
+                "WR-70S6-09",
+                "ER70S-6 MIG wire, 15 kg spool",
+                "0.9",
+                "4",
+                "3",
+                "14,800",
+                "59,200"
+              ],
+              [
+                "6",
+                "GD-115",
+                "Grinding disc",
+                "115",
+                "60",
+                "50",
+                "350",
+                "21,000"
+              ]
+            ]
+          }
+        },
+        {
+          "table": {
+            "head": [
+              "Question",
+              "Formula",
+              "Answer"
+            ],
+            "rows": [
+              [
+                "Total value of this stock?",
+                "=SUM(G2:G6)",
+                "J$258,100"
+              ],
+              [
+                "How many E6013 lines?",
+                "=COUNTIF(B2:B6,\"E6013*\")",
+                "2"
+              ],
+              [
+                "Value of all the 3.2 mm items?",
+                "=SUMIF(C2:C6,3.2,G2:G6)",
+                "J$131,100 (rows 3 and 4)"
+              ],
+              [
+                "Lines with fewer than 10 in stock?",
+                "=COUNTIF(D2:D6,\"<10\")",
+                "2 (rows 3 and 5)"
+              ],
+              [
+                "Does row 3 need reordering?",
+                "=IF(D3<=E3,\"Reorder\",\"OK\")",
+                "Reorder (8 is at or below 10)"
+              ],
+              [
+                "Unit cost of GD-115?",
+                "=VLOOKUP(\"GD-115\",A2:G6,6,FALSE)",
+                "J$350 (F is the 6th column of A to G; FALSE means an exact match)"
+              ]
+            ]
+          }
+        },
+        {
+          "p": "Notice that \"fewer than 10 in stock\" picks row 5 (4 spools), yet row 5 is still above its own reorder level of 3, while row 3 is not. One fixed figure is no substitute for each item's own reorder level."
+        },
+        {
+          "h": "Relative and absolute references"
+        },
+        {
+          "p": "When you copy =D2*F2 down a column, it becomes =D3*F3, =D4*F4 and so on: the references are **relative**. To keep one cell fixed, such as a cell holding the GCT rate, put $ signs in it: =G2*$K$1 always uses K1. This is an **absolute** reference."
+        },
+        {
+          "h": "Error messages in cells"
+        },
+        {
+          "table": {
+            "head": [
+              "Shows",
+              "Usually means"
+            ],
+            "rows": [
+              [
+                "#####",
+                "The column is too narrow for the number or date: widen it"
+              ],
+              [
+                "#N/A",
+                "A lookup could not find the value: check the spelling, extra spaces, or a code stored as text in one list and as a number in the other"
+              ],
+              [
+                "#VALUE!",
+                "Text where a number was expected, such as a quantity keyed as \"12 pkts\""
+              ],
+              [
+                "#REF!",
+                "A cell the formula used has been deleted"
+              ]
+            ]
+          }
+        },
+        {
+          "p": "A **pivot table** summarises a whole table in a few clicks: the number of open jobs by parish, the value of work by client, the repairs by welder and month. It does not change the data. Refresh it after the data changes, and check its grand total against a simple COUNT or SUM."
+        },
+        {
+          "note": "Check every formula answer a second way: a filter and the count in the status bar, or a rough sum in your head. Numbers stored as text are skipped by SUM and COUNT; some programs mark them with a small triangle in the corner of the cell.",
+          "label": "Tip"
+        }
+      ]
+    },
+    {
+      "title": "Reports, charts and output",
+      "blocks": [
+        {
+          "p": "A report turns retrieved data into information someone can act on. A good report answers exactly the question asked, is correct, and is easy to read."
+        },
+        {
+          "flow": [
+            "Find out what is needed: who it is for, the question, which details, the period, the order or grouping, the format and the deadline",
+            "Retrieve the data with a filter, a query or a formula",
+            "Keep only the useful columns, and sort or group the rows",
+            "Add a title (such as \"Jobs due 9–13 November 2026, by client\"), the date the data was taken, page numbers, your name, and a note of anything left out or under query",
+            "Check it: counts against the full file, a few records against their source documents, totals, spelling",
+            "Look at it in Print Preview",
+            "Print it, or save it as a PDF and send it, and keep a copy"
+          ]
+        },
+        {
+          "h": "Choosing a chart"
+        },
+        {
+          "table": {
+            "head": [
+              "To show",
+              "Use",
+              "Example"
+            ],
+            "rows": [
+              [
+                "Amounts compared between groups",
+                "Column chart, or a bar chart for long names",
+                "Open jobs by parish"
+              ],
+              [
+                "Change over time",
+                "Line chart (or columns for a few periods)",
+                "Electrode use month by month"
+              ],
+              [
+                "Parts of one whole",
+                "Pie chart, with only a few slices that add up to 100%",
+                "Last month's repairs by type of defect"
+              ]
+            ]
+          }
+        },
+        {
+          "p": "Give every chart a title and label the axes, with units. Start the value axis of a column or bar chart at zero, or small differences look huge, and leave out 3-D effects."
+        },
+        {
+          "note": "A pie chart is only for the parts of **one whole**. Rates or percentages for separate groups, such as the percentage of each crew's jobs finished on time, do not add up to a whole: they belong in a column or bar chart.",
+          "label": "Remember"
+        },
+        {
+          "h": "Rates and percentages"
+        },
+        {
+          "p": "Many reports give a rate: the part ÷ the whole × 100. If 240 welds were inspected and 9 needed repair, the repair rate is 9 ÷ 240 × 100 = 3.75%. Say how the rate was worked out: some clients count repairs by the number of welds, others by the length of weld repaired."
+        },
+        {
+          "h": "Printing"
+        },
+        {
+          "ul": [
+            "Always use **Print Preview** first: check the page breaks, and that no column runs onto a page of its own.",
+            "To print part of a sheet, select the rows and print the **selection**, or set a **print area**.",
+            "Use **landscape** and **fit all columns on one page** for wide tables, and set the heading row to **repeat at the top of every page**.",
+            "Put the file name, the date and \"Page X of Y\" in the header or footer, and collect a printout of personal or pay details at once."
+          ]
+        },
+        {
+          "h": "Electronic output"
+        },
+        {
+          "table": {
+            "head": [
+              "Format",
+              "Choose it when",
+              "Points to know"
+            ],
+            "rows": [
+              [
+                "PDF (Portable Document Format)",
+                "The reader should see the report exactly as laid out, and not change it: clients, records, notices",
+                "Opens on any computer or phone; the layout stays fixed; hard, but not impossible, to edit"
+              ],
+              [
+                "Spreadsheet file",
+                "The reader must work with the data",
+                "Easy to change by mistake; may carry hidden sheets or columns"
+              ],
+              [
+                "CSV (comma-separated values)",
+                "Another program must import the data",
+                "Plain text, one record per line, fields separated by commas; no formatting, formulas or extra sheets"
+              ]
+            ]
+          }
+        },
+        {
+          "ul": [
+            "Before you email a report, check the address and open the attachment: is it the right file and the final version?",
+            "Send personal data only to people entitled to it, from the business's account. Protect a sensitive file with a password, and give the password another way, such as by phone.",
+            "Keep a copy of what was sent. If you find a mistake afterwards, tell the reader at once and send a corrected version, clearly marked."
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Managing files, backups, security and privacy",
+      "blocks": [
+        {
+          "h": "Naming and storing files"
+        },
+        {
+          "p": "Agree one naming rule and use it every time. A good name says **what** the file is, its **date** and its **version**, with the year first so that files sort in date order. Do not use \\ / : * ? \" < > or | in file names: most computers will not accept them."
+        },
+        {
+          "table": {
+            "head": [
+              "Poor name",
+              "Why it is poor",
+              "Better"
+            ],
+            "rows": [
+              [
+                "Document1",
+                "Says nothing about the file",
+                "2026-11_Job-Register_v1"
+              ],
+              [
+                "inspection log NEW final FINAL",
+                "Nobody can tell which is the latest",
+                "2026-11_J-3020_Inspection-Log_v3"
+              ],
+              [
+                "stock 3/11/26",
+                "A / cannot be used, and the date could be read two ways",
+                "2026-11-03_Stock-Count"
+              ]
+            ]
+          }
+        },
+        {
+          "p": "Store files in a clear folder structure on a shared drive or business cloud folder that is backed up, for example Jobs, then 2026, then the client code, then the job number. Do not keep business files on the desktop or in personal folders."
+        },
+        {
+          "h": "One master copy"
+        },
+        {
+          "ul": [
+            "Keep **one master copy** of each working file, and tell the team where it is.",
+            "People open and edit the master (several can work in it at once if the program allows) rather than emailing copies around. Two copies edited separately soon hold different changes, and someone's work is lost or clashes.",
+            "If two copies already exist, compare them, bring any missing changes into the master with care, then archive the stray copy.",
+            "Raise the version number for real changes (v3 to v4), keep a short note of what changed, and give edit rights only to the people who change the file."
+          ]
+        },
+        {
+          "h": "Archiving"
+        },
+        {
+          "p": "Old job records, inspection logs and certificates are **archived**, not deleted. They may be needed for a warranty claim, a dispute, an audit, tax, or a client's later question about who welded what. Keep them for as long as the law, the contract or the business's policy requires (ask your manager), in a labelled, read-only archive that is still backed up; then delete the files securely and shred paper records."
+        },
+        {
+          "h": "Backups"
+        },
+        {
+          "p": "Data can be lost through a failed hard drive, a power cut or surge, a virus or ransomware, a stolen or dropped laptop, fire or flood, or someone deleting or overwriting a file by mistake. A **backup** is a separate copy, kept in a second place, from which the data can be restored."
+        },
+        {
+          "table": {
+            "head": [
+              "Good practice",
+              "Why"
+            ],
+            "rows": [
+              [
+                "Back up on a schedule (daily for files that change daily), automatically if possible, with one named person responsible",
+                "Backups that depend on someone remembering soon stop happening"
+              ],
+              [
+                "Follow the 3-2-1 rule: 3 copies, on 2 different kinds of storage, with 1 kept away from the premises",
+                "One fire, theft or flood cannot destroy every copy"
+              ],
+              [
+                "Keep at least one copy offline (disconnected), and keep older dated copies for a time",
+                "Ransomware scrambles every drive it can reach, and a problem found late can be undone from an older copy"
+              ],
+              [
+                "Test-restore now and then: restore a file or two to a test folder (never over the working files), open them, check they are complete, and record the result",
+                "A backup that has never been restored may fail when it is needed"
+              ]
+            ]
+          }
+        },
+        {
+          "note": "A folder that **syncs** to the cloud is not a backup on its own: a deletion, an overwrite or a file scrambled by ransomware is copied across straight away.",
+          "label": "Remember"
+        },
+        {
+          "h": "Security"
+        },
+        {
+          "table": {
+            "head": [
+              "Risk",
+              "What you do"
+            ],
+            "rows": [
+              [
+                "Someone uses your login",
+                "Use your own login and a strong password (a long passphrase, not a name or a birthday); never share it or write it near the computer; use two-factor authentication (a password plus a code sent to your phone or an app) where offered"
+              ],
+              [
+                "People reading your screen",
+                "Angle the screen away from the counter and visitors; lock it every time you leave the desk"
+              ],
+              [
+                "Fake emails (phishing) and fraud",
+                "Do not open links or attachments you did not expect; check any request to change bank details or pay urgently by phoning a known contact from the existing records"
+              ],
+              [
+                "Unknown USB sticks",
+                "Do not plug them in; have them scanned or approved by your supervisor or IT first"
+              ],
+              [
+                "Viruses, theft and disposal",
+                "Keep anti-virus and updates switched on; lock laptops away; protect phones and tablets with a PIN; shred old paper and have old drives wiped"
+              ]
+            ]
+          }
+        },
+        {
+          "h": "Access rights"
+        },
+        {
+          "table": {
+            "head": [
+              "Level",
+              "Can",
+              "Typical holder"
+            ],
+            "rows": [
+              [
+                "Read only",
+                "Open and view",
+                "Most staff, for job lists and price lists"
+              ],
+              [
+                "Edit",
+                "Add and change records",
+                "The clerk or storekeeper who keys that file"
+              ],
+              [
+                "Full control",
+                "Change the structure, the checks and other people's rights",
+                "The file's owner or the manager"
+              ]
+            ]
+          }
+        },
+        {
+          "note": "Give each person the least access their job needs. It prevents mistakes and dishonest changes, and the record of who changed what (an **audit trail**) only works when everyone has their own login.",
+          "label": "Tip"
+        },
+        {
+          "h": "Privacy and the law"
+        },
+        {
+          "p": "**Personal data** is any information about a person who can be identified: name, address, phone number, date of birth, photograph, **TRN** (Taxpayer Registration Number), NIS number, pay, bank details, health information. Jamaica's **data protection law** protects it, and misuse can harm people and get the business into trouble. In plain words, the law expects a business to collect only the personal data it needs, for a clear and lawful purpose; use it only for that purpose; keep it accurate and up to date; keep it no longer than needed; keep it secure; let people see the data held about them and have mistakes corrected; and send it out of Jamaica only where the law allows."
+        },
+        {
+          "ul": [
+            "Never give personal details to a caller or visitor because they sound genuine. Take a message and pass the request to your supervisor.",
+            "Do not discuss workers' pay, health or disciplinary records where others can hear.",
+            "Share only what the purpose needs: a quality report can name welders by their stamps without giving their home addresses."
+          ]
+        },
+        {
+          "note": "The TRN is issued by Tax Administration Jamaica, and employers need it for pay and tax. Store TRNs and NIS numbers as text, limit who can see them, and never give them out.",
+          "label": "Jamaica"
+        },
+        {
+          "h": "When something goes wrong"
+        },
+        {
+          "table": {
+            "head": [
+              "Problem",
+              "What to do"
+            ],
+            "rows": [
+              [
+                "An error message when a file or program opens",
+                "Note the exact words (or take a screenshot), what you were doing and the time; report it; do not delete the file or download \"repair\" programs"
+              ],
+              [
+                "\"File locked for editing by another user\"",
+                "Someone else has it open: wait, ask them to close it, or open it read-only to look; do not save a separate copy to work in"
+              ],
+              [
+                "A file seems to be missing",
+                "Search for it by name and date, and check the recycle bin and the shared folder; ask before restoring from a backup"
+              ],
+              [
+                "A virus warning, or a lost laptop, phone or USB stick",
+                "Stop, and report it at once, so the damage can be limited and passwords changed"
+              ],
+              [
+                "A power cut while keying",
+                "When the power returns, check what was saved, re-key from the last ticked document, and check the batch totals again"
+              ]
+            ]
+          }
+        },
+        {
+          "p": "Whatever the problem: do nothing that could make it worse, report it to your supervisor or whoever looks after the computers, write it in the fault log if there is one, and follow it up until it is put right."
+        }
+      ]
+    },
+    {
+      "title": "Revision",
+      "blocks": [
+        {
+          "p": "Use this checklist to test yourself. If you cannot honestly say \"I can\" to a line, go back to that section and practise it with your instructor."
+        },
+        {
+          "h": "I can ..."
+        },
+        {
+          "ul": [
+            "I can explain why accurate records matter in a fabrication shop, including traceability.",
+            "I can plan a data table from a source document, with one record per row, one field per column and clear headings.",
+            "I can choose the data type for each field, and say why codes, phone numbers and TRNs are stored as text.",
+            "I can give each record a unique ID, and explain how a linked list keeps details typed only once.",
+            "I can set up validation checks and say what validation cannot catch.",
+            "I can set up my workstation and work without strain.",
+            "I can prepare a batch of source documents, query unclear ones and work out batch totals.",
+            "I can key data accurately with Tab, Enter, the number pad and shortcuts, and save often.",
+            "I can verify data by proofreading, a second-person check, double keying and batch totals.",
+            "I can name common keying errors, including transposition, and find them in a file.",
+            "I can correct data safely, with a backup and a record of each change, and deal with duplicates and stock differences.",
+            "I can find, sort and filter data, keep rows together and clear filters afterwards.",
+            "I can write conditions with <, <=, >, >=, <>, AND, OR and wildcards.",
+            "I can use SUM, COUNT, COUNTIF, SUMIF, IF and a lookup to answer questions, and check the answers.",
+            "I can produce a clear, checked report with a suitable chart, as a printout, a PDF or a spreadsheet.",
+            "I can name, store and version files so that the team uses one master copy.",
+            "I can back up data, test a restore and archive old records.",
+            "I can keep data secure and protect personal data as Jamaica's data protection law expects.",
+            "I can report problems and faults correctly.",
+            "I can plan a keying job, share it out, check other people's work and measure the error rate."
+          ]
+        },
+        {
+          "h": "Key terms"
+        },
+        {
+          "terms": [
+            [
+              "Access rights",
+              "What each user may see or change in a file or system"
+            ],
+            [
+              "Archive",
+              "Older records kept in safe, read-only storage, no longer in daily use"
+            ],
+            [
+              "Ascending order",
+              "A to Z, smallest to largest, earliest to latest"
+            ],
+            [
+              "Audit trail",
+              "A record of who changed what, and when"
+            ],
+            [
+              "Backup",
+              "A separate copy of data kept in a second place, so it can be restored if the original is lost"
+            ],
+            [
+              "Batch total",
+              "A count or total worked out from a batch of source documents and compared with the computer's after keying"
+            ],
+            [
+              "Cell",
+              "The box where a row and a column meet in a spreadsheet"
+            ],
+            [
+              "Control total",
+              "The total of an important figure, such as hours or quantities, across a batch"
+            ],
+            [
+              "CSV",
+              "Comma-separated values: a plain-text file with one record per line and the fields separated by commas"
+            ],
+            [
+              "Data type",
+              "The kind of data a field holds: text, number, currency, date, yes/no"
+            ],
+            [
+              "Descending order",
+              "Z to A, largest to smallest, latest to earliest"
+            ],
+            [
+              "Field",
+              "One kind of detail, held in one column, such as Date inspected"
+            ],
+            [
+              "Filter",
+              "A tool that shows only the records that meet a condition and hides the rest"
+            ],
+            [
+              "Foreign key",
+              "A field in one table that holds the primary key of another table, linking the two"
+            ],
+            [
+              "Hash total",
+              "A total of figures that mean nothing when added, such as document numbers, used only as a check"
+            ],
+            [
+              "PDF",
+              "Portable Document Format: a file that keeps its layout and is hard to change"
+            ],
+            [
+              "Personal data",
+              "Information about a person who can be identified"
+            ],
+            [
+              "Primary key",
+              "A field with a different value in every record, used to pick out one record"
+            ],
+            [
+              "Query",
+              "A saved question that retrieves the matching records from a database"
+            ],
+            [
+              "Range check",
+              "A check that a value lies between set limits"
+            ],
+            [
+              "Record",
+              "One row: all the details about one item, person or event"
+            ],
+            [
+              "Source document",
+              "The form that data is keyed from"
+            ],
+            [
+              "Transposition error",
+              "Two characters swapped while keying, such as 35 keyed as 53"
+            ],
+            [
+              "TRN",
+              "Taxpayer Registration Number: Jamaica's tax number for a person or a business"
+            ],
+            [
+              "Two-factor authentication",
+              "A login that needs a password and a second proof, such as a code sent to your phone"
+            ],
+            [
+              "Validation",
+              "Checks made by the program as data is entered, to refuse or warn about data that breaks a rule"
+            ],
+            [
+              "Verification",
+              "Checking that entered data matches its source"
+            ],
+            [
+              "Wildcard",
+              "A character that stands for others in a search: * for any number of characters, ? for exactly one"
+            ],
+            [
+              "Yes/No field",
+              "A field with only two possible values, such as Certificate seen"
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "cases": {
+    "c1": {
+      "title": "A welder register in Old Harbour",
+      "text": "Odane is the Level 3 team leader at a structural steel shop in Old Harbour, St Catherine. The manager has asked him to turn the paper welder qualification cards into a spreadsheet register. A clerk has made a start: welder stamps such as 014 and 027 now show as 14 and 27; the Position column holds entries such as 3G, 3g, 3 G and \"3G vert\"; and each welder's TRN and home phone number sit in the same sheet as the qualifications. The file is on the shop's shared drive, which all 30 staff can open."
+    },
+    "c2": {
+      "title": "Time sheets in Savanna-la-Mar",
+      "text": "Shanique, a Level 3 trainee on work experience at a fabrication shop in Savanna-la-Mar, Westmoreland, keys the weekly time sheets into the job-costing file. Each of the 42 sheets gives one welder's hours on one job for the week. On one sheet the hours for job J-3108 are smudged and could be 7 or 9, and the foreman who signed it is on a site in Negril until tomorrow. Shanique lists that sheet on her query list and adds up the other 41 on a calculator: 1,624.5 hours. After keying, the file shows 41 records and 1,633.5 hours. The file's hours field has a range check of 0 to 60. The batch is due with the manager by 3 p.m. today."
+    },
+    "c3": {
+      "title": "A stock sheet in Port Antonio",
+      "text": "Garfield runs the store at a marine fabrication yard in Port Antonio, Portland. His stock sheet has a heading row and one row for each of 60 items, in rows 2 to 61. The columns are A Item code, B Description, C Qty in stock, D Reorder level, E Unit cost (J$) and F Value (J$), where F holds =C*E. Every item has its own reorder level. Each description starts with the product, for example \"E7018 electrode 3.2 mm\" or \"ER70S-6 MIG wire 0.9 mm\". The supplier's price list is on another sheet, named Prices, with the item codes in column A and the prices in column B."
+    },
+    "c4": {
+      "title": "Balcony rails for a hotel in Ocho Rios",
+      "text": "Kerry-Ann is the quality officer at a fabrication shop in Ocho Rios, St Ann. A hotel's engineer has asked for a report on the welding of new stainless steel balcony rails: the repair rate for each welder, with a chart. The log on the shared drive, \"2026-10_Rails-Inspection-Log_v4\", holds 480 inspected welds, each with the welder's stamp, the date and the result (Accept or Repair). On the office desktop she also finds \"Rails log\", which holds 486 records."
+    },
+    "c5": {
+      "title": "The office of a grille shop in Half Way Tree",
+      "text": "Mrs Walters runs the office of a gate and grille business in Half Way Tree, St Andrew. All the job records and quotations are on one laptop, which copies every change to a cloud folder straight away; she says this means they need no other backup. This morning an email that seems to come from the business's steel supplier says its bank account has changed, and asks her to update the supplier record before this week's invoice is paid. Later, when she opens the job register on the shared folder, a message says the file is locked for editing by another user."
+    }
+  },
+  "questions": [
+    {
+      "id": "P-01",
+      "c": "c1",
+      "q": "Why have stamps such as 014 turned into 14, and how should Odane stop it happening?",
+      "o": [
+        "It is a number column; set it to text, then key the stamps",
+        "The column is too narrow; widen it so that the zeros can show",
+        "The font drops leading zeros; change it to a plainer font",
+        "The sheet is locked; unprotect it so the zeros can be kept"
+      ],
+      "a": 0,
+      "why": "A number column reads 014 as the number 14 and drops the zero. Stamps are labels that are never added up, so the column is set to text before keying; the zeros then stay, and filters and lookups match each stamp exactly."
+    },
+    {
+      "id": "P-02",
+      "c": "c1",
+      "q": "The manager filters the Position column for 3G and gets 9 welders, but the paper cards show 14 welders qualified in 3G. What is the most likely reason?",
+      "o": [
+        "A filter can show only a limited number of rows at a time",
+        "The same position was keyed in several different ways",
+        "Five of the cards were never keyed into the register at all",
+        "The filter shows only the welders with the newest certificates"
+      ],
+      "a": 1,
+      "why": "A filter matches what is actually in the cell, so 3g, 3 G and \"3G vert\" are different values from 3G. Odane should clean up the old entries and add a drop-down list of the AWS position names, so that new entries are always the same."
+    },
+    {
+      "id": "P-03",
+      "c": "c1",
+      "q": "Which field must the register have so that Odane can spot welders whose qualifications may lapse under the code the shop works to?",
+      "o": [
+        "The date each welder first started work at the shop",
+        "The number of repairs each welder has had this year",
+        "The date each welder last used the qualified process",
+        "Each welder's date of birth and number of years in the trade"
+      ],
+      "a": 2,
+      "why": "Welding codes, including the AWS code the Centre uses, let a qualification lapse if the welder has not used that process for a set period (often six months). A \"last used\" date for each process lets a filter or formula list the welders close to that limit."
+    },
+    {
+      "id": "P-04",
+      "c": "c1",
+      "q": "What is the best way to deal with the TRNs and home phone numbers in the register?",
+      "o": [
+        "Hide those two columns so that other staff cannot see them",
+        "Delete them, as a fabrication shop may not keep workers' TRNs",
+        "Leave them, as everyone who can open the drive is on the staff",
+        "Move them to a separate file that only named staff can open"
+      ],
+      "a": 3,
+      "why": "Personal data should be open only to the people whose work needs it. Hidden columns can be unhidden by anyone who opens the file, so the private details go in a restricted file, linked by the stamp. The shop does need TRNs for pay and tax, so deleting them is wrong."
+    },
+    {
+      "id": "P-05",
+      "c": "c2",
+      "q": "The record counts agree, but the computer's hours are 9.0 more than the calculator total. What should Shanique look for first?",
+      "o": [
+        "A time sheet that was keyed into the file twice by mistake",
+        "An entry with two digits swapped, such as 34 keyed as 43",
+        "A time sheet that was left out of the batch while keying",
+        "A rounding error made by the file when it added the hours"
+      ],
+      "a": 1,
+      "why": "Equal record counts rule out a missing or doubled sheet. A difference that divides exactly by 9 is the classic sign of a transposition, two digits swapped, so she checks the entries against their sheets for one."
+    },
+    {
+      "id": "P-06",
+      "c": "c2",
+      "q": "It is 2 p.m., and the foreman cannot be reached until tomorrow. What should Shanique do about the batch?",
+      "o": [
+        "Hold back the whole batch until the foreman can answer the query",
+        "Copy that welder's hours on the job from the previous week's sheet",
+        "Send the 41 records on time and tell the manager one is under query",
+        "Key 8 hours, between the two readings, so that the batch is complete"
+      ],
+      "a": 2,
+      "why": "A guessed figure goes into the job costs as if it were true, and holding the whole batch delays 41 good records. She sends what is checked, tells the manager the batch is one sheet short, and keys the last sheet once the foreman confirms the figure."
+    },
+    {
+      "id": "P-07",
+      "c": "c2",
+      "q": "Why did the range check of 0 to 60 hours not stop the wrong entry?",
+      "o": [
+        "Range checks only stop the figures that are below zero",
+        "The range check runs only when the file is saved",
+        "Range checks work only on dates, not on numbers",
+        "The wrong figure was still a sensible number of hours"
+      ],
+      "a": 3,
+      "why": "Validation tests only whether an entry fits the rules, and the wrong figure fits 0 to 60 just as well as the right one. Only verification against the source, here through the batch totals, can show that an allowed figure is wrong."
+    },
+    {
+      "id": "P-08",
+      "c": "c2",
+      "q": "In a later week, the manager checks 200 of Shanique's entries against the sheets and finds 3 errors. What is her error rate?",
+      "o": [
+        "1.5%",
+        "3%",
+        "0.15%",
+        "15%"
+      ],
+      "a": 0,
+      "why": "Error rate = errors ÷ entries checked × 100 = 3 ÷ 200 × 100 = 1.5%. Tracked over several batches, it shows whether a change, such as clearer forms or better light, has cut the errors."
+    },
+    {
+      "id": "P-09",
+      "c": "c3",
+      "q": "Which formula gives the total value of all the MIG wire in stock, whatever its grade or size?",
+      "o": [
+        "=SUMIF(F2:F61,\"*MIG wire*\",B2:B61)",
+        "=COUNTIF(B2:B61,\"*MIG wire*\")",
+        "=SUMIF(B2:B61,\"MIG wire\",F2:F61)",
+        "=SUMIF(B2:B61,\"*MIG wire*\",F2:F61)"
+      ],
+      "a": 3,
+      "why": "SUMIF tests the first range (the descriptions) and adds the matching cells of the last range (the values). The descriptions start with the wire grade, so \"*MIG wire*\" (any characters, MIG wire, any characters) is needed; \"MIG wire\" alone matches only a cell holding exactly those words."
+    },
+    {
+      "id": "P-10",
+      "c": "c3",
+      "q": "Garfield needs a list of every item at or below its own reorder level. What is the simplest reliable way?",
+      "o": [
+        "Add an IF column comparing C with D on each row, then filter it",
+        "Filter the Qty column to show only the quantities less than 10",
+        "Sort by Qty, smallest first, and reorder the first ten items listed",
+        "Use =COUNT(C2:C61) to find how many of the items are running low"
+      ],
+      "a": 0,
+      "why": "Each item has its own reorder level, so one fixed figure such as 10 is wrong for most rows. A helper column such as =IF(C2<=D2,\"Reorder\",\"OK\"), copied down, compares each row with its own level, and a filter on that column gives the list."
+    },
+    {
+      "id": "P-11",
+      "c": "c3",
+      "q": "=COUNT(C2:C61) gives 58, although every item has a quantity written on its stock card. What is the most likely reason?",
+      "o": [
+        "COUNT leaves out the first and the last cell of a range",
+        "Two items have a quantity of zero, which COUNT ignores",
+        "Two quantities were keyed as text, such as \"12 pkts\"",
+        "COUNT shows only the items that are above reorder level"
+      ],
+      "a": 2,
+      "why": "COUNT counts only cells that hold numbers, and a zero is still a number. An entry such as \"12 pkts\" is text, so COUNT and SUM skip it and its Value cell shows an error. Key the quantity as a number, with the unit in the heading."
+    },
+    {
+      "id": "P-12",
+      "c": "c3",
+      "q": "Garfield wants column E to show each item's price from the Prices sheet automatically. Which formula should go in E2?",
+      "o": [
+        "=VLOOKUP(A2,Prices!A:B,1,FALSE)",
+        "=VLOOKUP(A2,Prices!A:B,2,TRUE)",
+        "=VLOOKUP(Prices!A:B,A2,2,FALSE)",
+        "=VLOOKUP(A2,Prices!A:B,2,FALSE)"
+      ],
+      "a": 3,
+      "why": "VLOOKUP looks for A2 in the first column of the table and gives the value from the column number named; the price is in column 2. FALSE asks for an exact match: TRUE allows a near match, which can bring back another item's price when a code is missing or the list is not sorted."
+    },
+    {
+      "id": "P-13",
+      "c": "c4",
+      "q": "What should Kerry-Ann do about the two copies of the log before she builds the report?",
+      "o": [
+        "Use the desktop copy, as it holds more records and must be newer",
+        "Compare them, and merge any missing records into the master",
+        "Report from both copies and send the engineer the two versions",
+        "Use the shared-drive copy and delete the desktop one unopened"
+      ],
+      "a": 1,
+      "why": "Copies that disagree mean some records went into the wrong one. She finds the differences, checks each against its inspection sheet, adds the genuine ones to the master on the shared drive, then archives the stray copy so that nobody keys into it again."
+    },
+    {
+      "id": "P-14",
+      "c": "c4",
+      "q": "Welder W11 made 64 of the inspected welds, and 4 of them needed repair. What repair rate should the report show for W11?",
+      "o": [
+        "4%",
+        "16%",
+        "6.25%",
+        "0.0625%"
+      ],
+      "a": 2,
+      "why": "Repair rate = welds repaired ÷ welds inspected × 100 = 4 ÷ 64 × 100 = 6.25%. 16% comes from dividing the wrong way round. The report should also say whether the rate counts welds or length of weld."
+    },
+    {
+      "id": "P-15",
+      "c": "c4",
+      "q": "Which chart best shows the engineer how the welders' repair rates compare?",
+      "o": [
+        "A pie chart with one slice for each welder's repair rate",
+        "A column chart with one column for each welder's rate",
+        "A line chart joining the welders' rates from left to right",
+        "A pie chart of all the accepted and all the repaired welds"
+      ],
+      "a": 1,
+      "why": "Comparing one value across separate groups is a job for columns or bars, best in order of size. A pie shows the parts of one whole, and repair rates do not add up to a whole; a line suggests a change over time, which there is not here."
+    },
+    {
+      "id": "P-16",
+      "c": "c5",
+      "q": "What is wrong with treating the cloud folder as the only backup?",
+      "o": [
+        "Cloud folders keep files for only a month before clearing them",
+        "A file deleted or spoilt on the laptop is lost in the cloud too",
+        "Files in a cloud folder cannot be opened while the laptop is off",
+        "Business records may not be stored in cloud folders in Jamaica"
+      ],
+      "a": 1,
+      "why": "A sync folder copies every change straight across, including a deletion, an overwrite or files scrambled by ransomware. Some services keep old versions for a while, but a real backup keeps separate, dated copies, one of them offline, and is test-restored."
+    },
+    {
+      "id": "P-17",
+      "c": "c5",
+      "q": "What should Mrs Walters do about the email asking her to change the supplier's bank details?",
+      "o": [
+        "Phone the supplier on the number already on file to check it",
+        "Reply to the email and ask the sender to confirm the change",
+        "Update the record, as the email carries the supplier's logo",
+        "Change the record now, but wait a week before paying the bill"
+      ],
+      "a": 0,
+      "why": "Fake \"change of bank details\" emails are a common fraud, and a reply goes straight back to the fraudster. She checks by phoning a contact from the existing records, and changes the supplier record only when the change is confirmed and approved."
+    },
+    {
+      "id": "P-18",
+      "c": "c5",
+      "q": "What should Mrs Walters do about the \"locked for editing\" message?",
+      "o": [
+        "Save her own copy under a new name and make her changes in it",
+        "Restart the laptop several times until the message clears",
+        "Find out who has it open, then wait or ask them to close it",
+        "Delete the lock file in the folder so she can get straight in"
+      ],
+      "a": 2,
+      "why": "The lock protects the file while someone else is changing it. A private copy splits the records into two versions that clash later. She can open it read-only to look, and make her changes once the other person has saved and closed it."
+    },
+    {
+      "id": "P-19",
+      "c": null,
+      "q": "A manager asks for \"all the open jobs in St Ann and St Mary\". Which conditions give the right list?",
+      "o": [
+        "Status = Open AND (Parish = St Ann OR Parish = St Mary)",
+        "Status = Open AND Parish = St Ann AND Parish = St Mary",
+        "Status = Open OR Parish = St Ann OR Parish = St Mary",
+        "(Status = Open OR Parish = St Ann) AND Parish = St Mary"
+      ],
+      "a": 0,
+      "why": "A job is in only one parish, so \"St Ann and St Mary\" means either parish: an OR, kept in brackets. With AND on both parishes no job is found; with OR throughout, every open job in the island and every closed job in those parishes appears."
+    },
+    {
+      "id": "P-20",
+      "c": null,
+      "q": "A job list sorted A to Z by job number puts J-100 before J-25. Why, and what is the best fix?",
+      "o": [
+        "The sort was descending; sort it again in ascending order",
+        "Only one column was sorted; select the whole table and sort",
+        "The cells are formatted as dates; change them to numbers",
+        "The codes are text; give them all the same number of digits"
+      ],
+      "a": 3,
+      "why": "Codes with letters are text, and text is sorted one character at a time, so every J-1… comes before every J-2…. Codes with a fixed number of digits, such as J-0025 and J-0100, sort into the right order."
+    }
+  ]
+}
