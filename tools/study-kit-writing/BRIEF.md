@@ -96,7 +96,8 @@ service) at the bottom. Never pad.
   J$, GCT "at the current rate" (never a figure); refer to laws by their
   purpose (employment law, the data protection law, procurement rules for
   public bodies), never sections or penalties. Public-sector units (PSS,
-  PSA codes) are set in a ministry, agency or parish council. Work every
+  PSA codes) are set in a ministry, an agency or a municipal corporation
+  (parish councils became municipal corporations in 2016). Work every
   sum twice.
 - **Hospitality**: guests from Jamaica and abroad, J$ and US$, Team Jamaica
   (TPDCo), Jamaican dishes and products where natural.
