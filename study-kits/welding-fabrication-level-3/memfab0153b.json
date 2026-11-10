@@ -1,0 +1,1436 @@
+{
+  "format": "cestis-study-kit",
+  "version": 1,
+  "status": "to-check",
+  "written": "2026-11-07",
+  "programme": "Welding & Fabrication",
+  "qualification": {
+    "id": "QUAL-WEL-L3",
+    "title": "WELDING LEVEL 3",
+    "code": "MEM30215"
+  },
+  "level": 3,
+  "unit": {
+    "code": "MEMFAB0153B",
+    "title": "Perform submerged arc welding to AWS specification"
+  },
+  "summary": "This Level 3 unit teaches you to carry out submerged arc welding (SAW) to an AWS code and a job specification. You will learn how the specification, the code, the WPS, the PQR and the welding operator's qualification fit together; how to read and control AWS wire-flux classifications; how to prepare and weld joints inside a WPS; how procedure test plates are cut, tested and judged; how finished welds are inspected and repaired; and how to keep the records that let every weld be traced.",
+  "sections": [
+    {
+      "title": "Unit overview",
+      "blocks": [
+        {
+          "p": "This unit is part of the Welding Level 3 qualification (MEM30215). It is about doing submerged arc welding **to a specification**: the client's specification names an AWS code, and every weld must then be made, tested, inspected and recorded so that it can be shown to meet that code."
+        },
+        {
+          "p": "How SAW works, its equipment and the effect of each setting are taught in the unit *Weld using submerged arc welding process*. This unit revises them briefly and concentrates on the documents and checks around the weld: procedures, prequalification, operator qualification, consumable classification and traceability, heat input and toughness, test pieces, inspection, acceptance and repair."
+        },
+        {
+          "p": "**Who it is for:** trainees on the Welding Level 3 programme at HEART/NSTA Trust and other training centres, and SAW operators and charge hands working on tanks, pressure vessels, girders and plate structures that are built to a code."
+        },
+        {
+          "table": {
+            "head": [
+              "What you must be able to do",
+              "What this means on the job"
+            ],
+            "rows": [
+              [
+                "Read the specification and the code",
+                "Find what the job's specification and AWS code require for SAW: procedures, qualification, consumables, inspection and acceptance."
+              ],
+              [
+                "Work to a WPS",
+                "Check that a WPS covers the joint; know when a WPS is prequalified and when it needs a procedure test; keep every variable inside its range."
+              ],
+              [
+                "Control consumables",
+                "Read wire-flux classifications such as F7A2-EM12K; check wire and flux against the WPS and their certificates; store, dry, recover and trace them."
+              ],
+              [
+                "Prepare and weld joints",
+                "Fit up to the joint detail and its tolerances, fit tabs, weld, back gouge and complete CJP and PJP welds inside the WPS."
+              ],
+              [
+                "Control heat input and temperature",
+                "Measure current, voltage and travel speed at the work, work out heat input, and control preheat and interpass temperature."
+              ],
+              [
+                "Qualify procedures and operators",
+                "Weld and record a PQR test plate; mark out, cut, test and judge test pieces; understand how a welding operator is qualified and stays qualified."
+              ],
+              [
+                "Inspect and repair",
+                "Know what each inspection method can find; read acceptance limits; follow up a rejected weld; repair it to a WPS."
+              ],
+              [
+                "Keep records and lead",
+                "Keep PQRs, operator records, consumable records and weld maps; stop work that goes outside the WPS; work safely with heavy plate and high currents."
+              ]
+            ]
+          }
+        },
+        {
+          "h": "How you will be assessed"
+        },
+        {
+          "ul": [
+            "A **multiple-choice theory paper** on specifications and WPSs, qualification, wire-flux classification, flux types, toughness, testing and its calculations, joint procedure, inspection, traceability, safety and leading the team.",
+            "A **written paper** with short answers (exact terms such as CJP, PJP, air carbon arc gouging, witness, prequalified, lamination, joule, cladding) and essays that explain a classification, a test, a procedure or a follow-up in full sentences.",
+            "**Practical tasks**: welding (or witnessing) a SAW procedure test plate to a draft WPS and recording the PQR; and inspecting, cutting and testing SAW weld samples and writing a test report."
+          ]
+        },
+        {
+          "note": "Not every centre or shop in Jamaica has a SAW machine. Where yours does not, the procedure test may be done on a visit to a shop that uses SAW, or with a mechanised FCAW or MIG stand-in. The planning, witnessing and recording skills are the same, and the operating skill is assessed later on a SAW machine.",
+          "label": "Jamaica"
+        }
+      ]
+    },
+    {
+      "title": "Specifications, codes and the WPS",
+      "blocks": [
+        {
+          "p": "Work to a code is a chain of documents. Each link answers a different question, and an inspector can ask to see any of them."
+        },
+        {
+          "table": {
+            "head": [
+              "Document",
+              "The question it answers"
+            ],
+            "rows": [
+              [
+                "Specification",
+                "What does this client want for this job, and which code applies?"
+              ],
+              [
+                "Code (for example the AWS structural welding code for steel)",
+                "What are the rules for this kind of work: procedures, qualification, workmanship, inspection and acceptance?"
+              ],
+              [
+                "WPS (welding procedure specification)",
+                "Exactly how is this weld made?"
+              ],
+              [
+                "PQR (procedure qualification record)",
+                "Which test proved the WPS works, with what real values and results?"
+              ],
+              [
+                "Welding operator qualification record",
+                "Who is allowed to run the machine for this WPS?"
+              ],
+              [
+                "Weld record and weld map",
+                "Which operator welded which seam, with which consumables and settings?"
+              ],
+              [
+                "Inspection report",
+                "Was the weld inspected, by what method, and did it meet the acceptance limits?"
+              ]
+            ]
+          }
+        },
+        {
+          "note": "The operator works from the **WPS**, not from the flux bag, the wire supplier's leaflet or the client's order. If the WPS for a joint cannot be found, welding does not start.",
+          "label": "Remember"
+        },
+        {
+          "h": "Prequalified or qualified by test"
+        },
+        {
+          "p": "Many AWS structural codes allow some SAW procedures to be **prequalified**. The code itself has shown that, if every one of its limits is kept, the weld will be sound, so a prequalified WPS needs no PQR test. It must still be written down, checked against every limit, and approved."
+        },
+        {
+          "table": {
+            "head": [
+              "Prequalified WPS",
+              "WPS qualified by test"
+            ],
+            "rows": [
+              [
+                "Joint detail taken from the code's list, within its tolerances",
+                "Any joint detail, as tested"
+              ],
+              [
+                "Base metal and wire-flux combination from the code's matching lists",
+                "Base metal and consumables as used in the test"
+              ],
+              [
+                "Wire size, number of wires, current, bead size and other settings inside the code's limits",
+                "Settings within the ranges the code allows around the PQR values"
+              ],
+              [
+                "Preheat and interpass from the code's table",
+                "Preheat and interpass as tested, within the code's rules"
+              ],
+              [
+                "No procedure test, but written, checked and approved",
+                "PQR test plate welded, tested and recorded first"
+              ]
+            ]
+          }
+        },
+        {
+          "note": "If any condition of a prequalified WPS cannot be met (a joint outside the tolerance, a steel not on the list, a bigger bead than allowed, a different flux), the WPS is no longer prequalified. Either correct the job or **qualify the procedure by test**. Operators must still be qualified and welds must still be inspected either way.",
+          "label": "Remember"
+        },
+        {
+          "h": "Essential variables"
+        },
+        {
+          "p": "The code lists the **essential variables** for each process: changes that affect the weld's properties so much that a new or amended procedure qualification is needed. For SAW these usually include:"
+        },
+        {
+          "ul": [
+            "A change in the wire-flux classification, or in the flux type or brand where the code says so",
+            "Going from one wire to two or more (such as tandem), or a wire size outside the limits",
+            "A change in current type or polarity (for example DCEP to DCEN, or DC to AC)",
+            "Current, voltage or travel speed moved beyond the percentages the code allows",
+            "An increase in heat input, or a change in preheat or interpass temperature, beyond the limits (most important when impact toughness is required)",
+            "A base metal, or a thickness, outside the range the PQR covers",
+            "A change in joint design, such as leaving out backing or back gouging"
+          ]
+        },
+        {
+          "note": "The exact list and limits are in the code your Centre uses. When in doubt, do not change anything: ask the welding engineer or the inspector.",
+          "label": "Tip"
+        },
+        {
+          "h": "Thickness ranges"
+        },
+        {
+          "p": "A PQR test on one thickness qualifies a **range** of production thicknesses, set by a table in the code. Welding material thicker or thinner than that range is outside the WPS, even if every other variable is the same."
+        }
+      ]
+    },
+    {
+      "title": "AWS consumables for SAW",
+      "blocks": [
+        {
+          "h": "The wire-flux classification"
+        },
+        {
+          "p": "AWS classifies carbon steel SAW consumables as a **combination**: a flux used with a given wire. The classification describes the weld metal they make together, and is printed on the flux bag and its certificate."
+        },
+        {
+          "table": {
+            "head": [
+              "Part",
+              "What it means",
+              "In F7A2-EM12K"
+            ],
+            "rows": [
+              [
+                "F",
+                "Flux",
+                "F"
+              ],
+              [
+                "First digit",
+                "Minimum tensile strength of the weld metal, in units of 10 000 psi",
+                "7: 70 000 psi (about 480 MPa)"
+              ],
+              [
+                "A or P",
+                "How the weld metal was tested: A = as welded; P = after post-weld heat treatment",
+                "A: as welded"
+              ],
+              [
+                "Next digit (or Z)",
+                "The temperature at which the weld metal met the impact (Charpy) requirement, usually at least 27 J average",
+                "2: −20 °F (about −29 °C)"
+              ],
+              [
+                "E",
+                "Electrode (the wire)",
+                "E"
+              ],
+              [
+                "Letter after E",
+                "Manganese level of the wire: L = low, M = medium, H = high (a C shows a composite, metal-cored wire)",
+                "M: medium manganese"
+              ],
+              [
+                "Digits",
+                "Nominal carbon content, in hundredths of a per cent",
+                "12: about 0.12% carbon"
+              ],
+              [
+                "K",
+                "Killed: deoxidised with silicon",
+                "K"
+              ]
+            ]
+          }
+        },
+        {
+          "table": {
+            "head": [
+              "Impact digit",
+              "Test temperature"
+            ],
+            "rows": [
+              [
+                "Z",
+                "No impact requirement"
+              ],
+              [
+                "0",
+                "−18 °C (0 °F)"
+              ],
+              [
+                "2",
+                "−29 °C (−20 °F)"
+              ],
+              [
+                "4",
+                "−40 °C (−40 °F)"
+              ],
+              [
+                "5",
+                "−46 °C (−50 °F)"
+              ],
+              [
+                "6",
+                "−51 °C (−60 °F)"
+              ],
+              [
+                "8",
+                "−62 °C (−80 °F)"
+              ]
+            ]
+          }
+        },
+        {
+          "p": "A **lower** test temperature means **tougher** weld metal. A combination that passed at −40 °C (digit 4) can meet a job that needs −29 °C, if the WPS and the code allow it; one tested only at −29 °C (digit 2) does **not** prove the toughness for a −40 °C job."
+        },
+        {
+          "p": "Some classifications add a hydrogen designator such as H4 or H8. Low-alloy combinations (for example with nickel or molybdenum wires) are classified in a separate AWS standard and have longer codes: your instructor will show you any the Centre uses. Strength conversions: 1 ksi is about 6.9 MPa, so 70 ksi is about 480 MPa and 80 ksi about 550 MPa."
+        },
+        {
+          "h": "Flux types"
+        },
+        {
+          "table": {
+            "head": [
+              "Type",
+              "What it does",
+              "Suits",
+              "Watch out"
+            ],
+            "rows": [
+              [
+                "Active",
+                "Adds manganese and silicon to the weld; resists porosity from light rust and scale",
+                "One- or two-pass welds, single-pass fillets",
+                "The alloy it adds rises with arc voltage and builds up pass by pass. On thick multi-pass welds the weld can become too strong, hard and crack-prone, so voltage must stay in the WPS range and passes or thickness may be limited"
+              ],
+              [
+                "Neutral",
+                "Changes the weld chemistry very little, even if the voltage changes",
+                "Thick, multi-pass welds",
+                "The wire must supply the deoxidisers; less tolerant of rust and scale"
+              ],
+              [
+                "Alloy",
+                "Carries alloying elements on purpose, to make an alloy weld metal from a plain carbon steel wire",
+                "Low-alloy welds, hardfacing, overlays",
+                "Chemistry depends closely on the settings, so they must match the WPS exactly"
+              ]
+            ]
+          }
+        },
+        {
+          "p": "Fluxes are also made in two ways. **Fused** fluxes are melted and crushed: they pick up little moisture and recycle well. **Bonded** (agglomerated) fluxes are grains stuck together with a binder: they can carry alloys and deoxidisers and are often more basic, but they take up moisture more easily and break down into fine dust when recycled."
+        },
+        {
+          "p": "**Basicity** describes a flux's chemistry. Highly basic fluxes give weld metal low in oxygen and hydrogen, with good impact toughness, which is why they are named for impact-tested and pressure work. They must be kept very dry."
+        },
+        {
+          "h": "Storage, drying and recovery"
+        },
+        {
+          "table": {
+            "head": [
+              "Stage",
+              "Good practice"
+            ],
+            "rows": [
+              [
+                "Receiving",
+                "Class on every bag and coil matches the WPS and the order; a certificate for each batch; bags undamaged and dry"
+              ],
+              [
+                "Storage",
+                "Sealed bags off the floor in a dry, warm store; classes and batches kept apart and labelled; wire coils kept in their wrapping"
+              ],
+              [
+                "Opened flux",
+                "Kept in a heated hopper or flux oven as the maker says, especially bonded and basic fluxes"
+              ],
+              [
+                "Re-drying",
+                "At the temperature and time the maker gives (for many bonded fluxes somewhere around 250–350 °C for 1–2 hours), and recorded"
+              ],
+              [
+                "Recovery",
+                "Clean, unfused flux from the recovery system is sieved and passed over a magnet to remove slag, fines and mill scale, then mixed with new flux as the maker says"
+              ],
+              [
+                "Rejection",
+                "Wet, caked, contaminated or unlabelled flux, and flux swept off the floor, is set aside and never used"
+              ]
+            ]
+          }
+        },
+        {
+          "note": "Never mix flux classes, or batches that must be traced separately, in a hopper or a recovery unit. Once mixed, nobody can say which batch went into which seam.",
+          "label": "Remember"
+        },
+        {
+          "h": "Matching consumables to the job"
+        },
+        {
+          "flow": [
+            "Read the strength, test condition (A or P) and impact temperature the job needs from the specification and the WPS",
+            "Check the WPS classification meets them: strength at least the minimum; A or P to match any heat treatment; impact temperature at or below the job's",
+            "Check that the delivered wire and flux are exactly the classes on the WPS, with certificates",
+            "Record the wire heat number and the flux batch for each seam"
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Joints, fit-up and making the weld",
+      "blocks": [
+        {
+          "h": "CJP, PJP and fillet welds"
+        },
+        {
+          "table": {
+            "head": [
+              "Weld",
+              "Meaning",
+              "Typical use"
+            ],
+            "rows": [
+              [
+                "Complete joint penetration (CJP)",
+                "Fused through the full thickness of the joint",
+                "Flange and web splices; tank and vessel seams. Usually welded from both sides with back gouging, or from one side onto backing"
+              ],
+              [
+                "Partial joint penetration (PJP)",
+                "Fused only part way through; the drawing and the code set its effective throat",
+                "Joints that do not need full strength, such as some column splices and box sections"
+              ],
+              [
+                "Fillet weld",
+                "A triangular weld in a corner",
+                "Flange-to-web welds of girders; stiffeners"
+              ]
+            ]
+          }
+        },
+        {
+          "h": "Joint details and tolerances"
+        },
+        {
+          "p": "The code's prequalified joint details give the groove type, root face, root gap and groove angle, each with **tolerances** (as drawn, and as fitted in the shop). SAW details have much bigger root faces than MMAW details (often 6 mm or more on thick plate), because the arc penetrates so deeply. If the fit-up is outside the tolerance, correct it, or qualify a procedure by test for that joint."
+        },
+        {
+          "h": "Before welding"
+        },
+        {
+          "ul": [
+            "Check the plates against the drawing and their certificates (grade and heat number).",
+            "On thick plate that a weld will pull through its thickness, the plate edges may be checked by **ultrasonic testing** for **laminations**: layers inside the plate that can open up when welded across.",
+            "Clean the joint to bright metal: SAW is sensitive to rust, scale, paint, oil and moisture.",
+            "Fit up to the joint detail; check root face, gap, angle and alignment, and record them.",
+            "Tack with a process and WPS approved for tacks; tacks are either fully fused into the SAW weld or removed.",
+            "Fit **run-on and run-off tabs** of the same steel, thickness and preparation as the job, so the arc starts and stops off the job and the full length of the joint is sound.",
+            "Preheat if the WPS says, and check it."
+          ]
+        },
+        {
+          "h": "Backing"
+        },
+        {
+          "table": {
+            "head": [
+              "Backing",
+              "Points"
+            ],
+            "rows": [
+              [
+                "Steel backing strip",
+                "Becomes part of the weld; must be the steel and size the WPS says and fitted tight; removed only if the drawing says"
+              ],
+              [
+                "Copper backing bar",
+                "Holds up the pool but does not fuse; must stay tight against the plate; copper melted into the weld can cause cracking"
+              ],
+              [
+                "Flux backing",
+                "A bed of flux pressed against the underside by an air hose or bag"
+              ],
+              [
+                "Ceramic backing",
+                "Tiles clipped or stuck on; give a shaped root bead; removed after welding"
+              ]
+            ]
+          }
+        },
+        {
+          "h": "Double-sided CJP welds and back gouging"
+        },
+        {
+          "flow": [
+            "Weld the first side with the passes the WPS gives, cleaning off all slag after each pass",
+            "Turn the plate, or move to the other side, as the WPS allows",
+            "**Back gouge** the root by air carbon arc gouging (CAC-A) or grinding until sound weld metal from the first side is reached",
+            "Grind the groove smooth and clean, removing the thin carbon-rich skin gouging leaves, with a U-shaped bottom the next pass can fuse into",
+            "Check the groove by eye, and by magnetic particle or dye penetrant testing if the WPS asks",
+            "Weld the second side; on thick joints alternate between the sides as the WPS says, to balance distortion",
+            "Cut off the tabs, grind the ends smooth, and inspect"
+          ]
+        },
+        {
+          "note": "Air carbon arc gouging is very loud (often well over 100 dB) and throws molten metal a long way. Use hearing protection, full face and eye protection and fume extraction, keep the area behind the cut clear of people and anything that burns, and gouge only where the Centre allows, under supervision.",
+          "label": "Safety"
+        },
+        {
+          "h": "Positions"
+        },
+        {
+          "p": "SAW is mainly done in the flat (**1G**, **1F**) and horizontal fillet (**2F**) positions, because the flux must lie on the joint and the pool is large. Horizontal butts (2G) are possible with special flux supports. So SAW procedures and operators are usually qualified for a narrow range of positions."
+        },
+        {
+          "h": "Settings and the WPS"
+        },
+        {
+          "table": {
+            "head": [
+              "Variable",
+              "Effect of an increase",
+              "Why the WPS controls it"
+            ],
+            "rows": [
+              [
+                "Current (wire feed speed)",
+                "Deeper penetration, more deposit",
+                "Too high: burn-through and high heat input. Too low: lack of fusion"
+              ],
+              [
+                "Arc voltage",
+                "Wider, flatter bead; more flux melted",
+                "With an active flux, more alloy picked up; too high also risks undercut and slag problems"
+              ],
+              [
+                "Travel speed",
+                "Narrower bead, less penetration, less heat input",
+                "Too fast: undercut, lack of fusion. Too slow: big pool, high heat input"
+              ],
+              [
+                "Contact tip to work distance (CTWD)",
+                "More resistance heating of the wire; faster melting; less penetration",
+                "Keeps the current and bead shape steady"
+              ],
+              [
+                "Wire size",
+                "At the same current, a thinner wire concentrates the current and penetrates deeper",
+                "Part of the qualified procedure"
+              ],
+              [
+                "Polarity",
+                "DCEP: deepest penetration. DCEN: more deposit, less penetration. AC: in between, with less arc blow",
+                "An essential variable under many codes"
+              ],
+              [
+                "Flux depth",
+                "Too shallow: arc flash and porosity. Too deep: poor bead shape and trapped gas",
+                "Set so the arc is just covered"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "title": "Heat input, toughness and temperature",
+      "blocks": [
+        {
+          "p": "SAW puts a lot of heat into a joint. When toughness matters (bridges, cranes, pressure vessels, cold or shock loading), the specification asks for Charpy impact tests, and the WPS limits **heat input** and the **interpass temperature**."
+        },
+        {
+          "p": "Too much heat means slow cooling. The grains in the weld metal and the heat-affected zone (HAZ) grow coarse, and coarse grains are less tough, so the weld may fail its impact test or crack under shock in service. Letting the joint get very hot between passes has the same effect."
+        },
+        {
+          "h": "Working out heat input"
+        },
+        {
+          "p": "**Heat input (kJ/mm) = volts × amps × 60 ÷ (travel speed in mm/min × 1 000)**"
+        },
+        {
+          "p": "Some codes and specifications also multiply by a thermal efficiency factor (for SAW usually taken as 1.0). Use the method your WPS and code give."
+        },
+        {
+          "table": {
+            "head": [
+              "Example",
+              "Working"
+            ],
+            "rows": [
+              [
+                "32 V, 600 A, 450 mm/min",
+                "32 × 600 × 60 ÷ (450 × 1 000) = 1 152 000 ÷ 450 000 = 2.56 kJ/mm"
+              ],
+              [
+                "Same, but travel slowed to 380 mm/min",
+                "1 152 000 ÷ 380 000 = 3.03 kJ/mm: about 18% more heat"
+              ],
+              [
+                "WPS limit 2.8 kJ/mm",
+                "The slower speed breaks the limit; the faster one is inside it"
+              ]
+            ]
+          }
+        },
+        {
+          "h": "Measuring the real values"
+        },
+        {
+          "ul": [
+            "Measure the **current** with a calibrated clamp meter on the welding cable, and the **voltage** with a calibrated voltmeter connected as close to the arc as possible (at the head and on the work), not from the power source's dial.",
+            "Measure the **travel speed** by timing the head over a measured length with a stopwatch. For example, 500 mm in 66 seconds is 500 ÷ 66 × 60 = about 455 mm/min. Do not trust the dial.",
+            "Measure the **CTWD** with a rule.",
+            "Write the real values for each pass on the PQR or the weld record."
+          ]
+        },
+        {
+          "h": "Preheat and interpass temperature"
+        },
+        {
+          "ul": [
+            "**Minimum preheat:** from the WPS (from the code's table for a prequalified WPS); checked at the distance from the joint that the WPS gives before welding starts, and kept up between passes.",
+            "**Maximum interpass temperature:** on impact-tested work, checked beside the joint before every pass with temperature crayons or a contact thermometer. If the joint is too hot, wait.",
+            "Long, continuous SAW runs on narrow parts build up heat quickly. Plan the passes so that one joint cools while another is welded."
+          ]
+        },
+        {
+          "note": "When an operator wants more weld metal per pass, the answer is not to slow down or turn the heat up beyond the WPS. Use more passes, or have a new procedure qualified for the higher heat input.",
+          "label": "Tip"
+        }
+      ]
+    },
+    {
+      "title": "Testing a procedure: the PQR",
+      "blocks": [
+        {
+          "h": "The procedure test plate"
+        },
+        {
+          "flow": [
+            "Draft the WPS and agree the test with the inspector, who will witness it",
+            "Check the plate, wire and flux against their certificates, and record the heat and batch numbers",
+            "Fit up the test plate with tabs, and record the actual joint dimensions",
+            "Weld it, recording the real current, voltage, timed travel speed, CTWD, preheat and interpass temperature for every pass",
+            "Inspect it visually and, where the code asks, by radiography or ultrasonic testing",
+            "Mark out the test pieces where the code's layout puts them, discarding the ends, and stamp each one",
+            "Cut and prepare the pieces by saw or machining, never by flame close to the weld",
+            "Test them and record the results on the PQR; the witness signs it",
+            "Write the production WPS from the PQR, within the ranges the code allows"
+          ]
+        },
+        {
+          "h": "The tests and what they show"
+        },
+        {
+          "table": {
+            "head": [
+              "Test",
+              "How it is done",
+              "What it shows"
+            ],
+            "rows": [
+              [
+                "Visual",
+                "By eye and with gauges on the finished plate",
+                "Surface faults, bead shape and size"
+              ],
+              [
+                "Radiography or ultrasonic testing",
+                "On the plate before cutting, where the code asks",
+                "Internal faults along the weld"
+              ],
+              [
+                "Transverse tension (reduced section)",
+                "A bar cut across the weld, with the weld in the middle, pulled until it breaks",
+                "The joint is at least as strong as the minimum specified for the base metal"
+              ],
+              [
+                "All-weld-metal tension",
+                "A round bar machined entirely from the weld metal, along the weld",
+                "The strength and stretch (elongation) of the weld metal itself"
+              ],
+              [
+                "Side bend",
+                "A strip about 10 mm thick, cut across the weld, bent round a set former so the full depth of the weld is stretched",
+                "Ductility and soundness through the thickness; open faults on the stretched face are measured"
+              ],
+              [
+                "Charpy V-notch (CVN) impact",
+                "Small notched bars, cooled to the test temperature and broken by a swinging hammer; notches in the weld metal and in the HAZ",
+                "Toughness: the energy needed to break the bar, in joules (J)"
+              ],
+              [
+                "Macro etch",
+                "A section cut across the weld, ground, polished and etched",
+                "The shape of each pass, penetration and fusion, and the size of fillets"
+              ],
+              [
+                "Hardness",
+                "Readings across weld, HAZ and parent metal on a macro section",
+                "Hard zones in the HAZ that could crack in service"
+              ],
+              [
+                "Chemical analysis",
+                "A sample of the weld metal analysed",
+                "That the flux and dilution have not pushed the weld metal outside its required make-up"
+              ]
+            ]
+          }
+        },
+        {
+          "p": "Charpy notches go in the HAZ as well as the weld metal because the heat of welding can make the HAZ less tough than either the weld or the plate."
+        },
+        {
+          "h": "Judging the results"
+        },
+        {
+          "p": "These are typical rules; the code and the specification give the actual figures."
+        },
+        {
+          "table": {
+            "head": [
+              "Test",
+              "Typical acceptance"
+            ],
+            "rows": [
+              [
+                "Transverse tension",
+                "Tensile strength not less than the minimum specified for the base metal. Where the bar breaks (weld or plate) matters less than the strength it reaches"
+              ],
+              [
+                "Side bend",
+                "No open fault on the stretched face longer than the code's limit (often about 3 mm), and a limit on the total"
+              ],
+              [
+                "Charpy",
+                "The average of a set of three is at least the specified value (for example 27 J), and no single bar is below the lower limit the specification sets (often about two-thirds of the average)"
+              ],
+              [
+                "Macro",
+                "Complete fusion where required; no cracks; fillet legs and throat to size; any small faults within limits"
+              ]
+            ]
+          }
+        },
+        {
+          "h": "Working the numbers"
+        },
+        {
+          "table": {
+            "head": [
+              "Calculation",
+              "Example"
+            ],
+            "rows": [
+              [
+                "Tensile strength = breaking load ÷ cross-section area",
+                "Bar 19 mm × 20 mm = 380 mm²; breaks at 205 kN = 205 000 N; 205 000 ÷ 380 = 539 MPa (N/mm²)"
+              ],
+              [
+                "Margin over the minimum",
+                "539 − 450 = 89 MPa above a 450 MPa minimum"
+              ],
+              [
+                "ksi to MPa",
+                "1 ksi is about 6.9 MPa: 60 ksi is about 414 MPa; 80 ksi about 552 MPa"
+              ],
+              [
+                "Charpy average",
+                "46 J, 38 J and 29 J: (46 + 38 + 29) ÷ 3 = 37.7 J"
+              ],
+              [
+                "Mass of test plates (steel about 7 850 kg/m³)",
+                "Two plates 600 × 200 × 20 mm: 0.6 × 0.2 × 0.02 = 0.0024 m³ each × 7 850 = 18.8 kg each; 37.7 kg together, so use a hoist or a team lift"
+              ]
+            ]
+          }
+        },
+        {
+          "note": "A PQR records **what actually happened**: the real measured values and the real results. A witness signs only for what they saw. Never copy the WPS values into the PQR instead of measuring.",
+          "label": "Remember"
+        }
+      ]
+    },
+    {
+      "title": "Qualifying welding operators",
+      "blocks": [
+        {
+          "p": "In AWS terms, a person who welds by hand is a **welder**; a person who sets up and runs mechanised or automatic equipment, such as a SAW tractor, is a **welding operator**. The machine moves the arc, but the operator's set-up and control decide whether the weld is sound, so the operator must be qualified too."
+        },
+        {
+          "table": {
+            "head": [
+              "Point",
+              "Manual welder",
+              "SAW welding operator"
+            ],
+            "rows": [
+              [
+                "What is tested",
+                "Hand skill: controlling the arc, pool and electrode in each position",
+                "Machine control: setting the head, CTWD, flux depth and wire position; setting and adjusting current, voltage and speed; tracking the joint"
+              ],
+              [
+                "The test",
+                "A test plate or pipe in the position(s) to be qualified",
+                "A test plate welded to a qualified WPS on the type of equipment to be used"
+              ],
+              [
+                "Range qualified",
+                "Process, positions, electrode group, thickness and diameter, from the code's tables",
+                "Process, type of equipment (such as single or multiple wires), positions (usually flat and horizontal) and the code's other limits"
+              ],
+              [
+                "How the test plate is judged",
+                "Bend tests or radiography, as the code allows",
+                "Bend tests or radiography, as the code allows; some codes let the PQR plate qualify the operator who welded it"
+              ]
+            ]
+          }
+        },
+        {
+          "note": "Qualification is for a **process**. A welder with MMAW qualifications in every position is not qualified to run a SAW tractor until he passes a SAW operator test.",
+          "label": "Remember"
+        },
+        {
+          "h": "Keeping the qualification in force"
+        },
+        {
+          "ul": [
+            "Under many AWS codes, a qualification stays in force as long as the operator uses the process at least once in every **six months**, shown in a **continuity log**.",
+            "If the operator has not used the process for longer than that, the qualification has lapsed, and he must be requalified before coded work.",
+            "If there is a specific reason to doubt his ability (for example repeated rejected welds), he is retested whatever the log shows."
+          ]
+        },
+        {
+          "h": "The team leader's part"
+        },
+        {
+          "ul": [
+            "Check each operator's record covers the WPS (process, equipment, position) before giving out the work.",
+            "Keep the continuity log up to date and arrange retests before qualifications lapse.",
+            "Record the operator's identity on every seam (on the weld map and the weld record), so each weld can be traced to the person who made it.",
+            "Never sign for another person, and never let an operator weld a coded seam on someone else's qualification."
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Inspection, acceptance and repair",
+      "blocks": [
+        {
+          "h": "Inspection methods"
+        },
+        {
+          "table": {
+            "head": [
+              "Method",
+              "What it finds",
+              "What it cannot do"
+            ],
+            "rows": [
+              [
+                "Visual (VT)",
+                "Surface faults: undercut, poor bead shape, surface cracks, unfilled craters, wrong size",
+                "See inside the weld"
+              ],
+              [
+                "Dye penetrant (PT)",
+                "Fine cracks and pores open to the surface, on any non-porous metal",
+                "Find anything below the surface"
+              ],
+              [
+                "Magnetic particle (MT)",
+                "Surface and just-below-surface cracks in carbon steel",
+                "Find deep faults; work on non-magnetic metals"
+              ],
+              [
+                "Radiography (RT)",
+                "A picture of the inside of a butt weld: slag, porosity, incomplete penetration",
+                "Reliably find thin, flat faults such as lack of side-wall fusion unless the beam lines up with them; needs licensed people and a cleared area"
+              ],
+              [
+                "Ultrasonic testing (UT)",
+                "Flat faults and lack of fusion deep in thick welds; laminations in plate",
+                "Work well on very thin or coarse-grained material; needs a skilled, qualified operator"
+              ]
+            ]
+          }
+        },
+        {
+          "note": "Industrial radiography uses radioactive sources or X-ray sets that must be licensed by Jamaica's radiation regulator. Only licensed, trained people use them. Keep out of the barriered area, and obey the warning signs and signals.",
+          "label": "Jamaica"
+        },
+        {
+          "h": "Spot radiography"
+        },
+        {
+          "p": "**Spot (random) radiography** X-rays set lengths of seam at chosen places, for example one film for every set length of seam or part of it. The number of spots is the seam length divided by the length per spot, **rounded up**. If a spot shows a rejectable fault, the specification usually calls for **extra (tracer) spots** on the same seam, one each side, to find how far the fault runs. If they fail too, more of the seam, or every seam that operator made, may have to be X-rayed."
+        },
+        {
+          "h": "Acceptance limits"
+        },
+        {
+          "p": "The specification and the code set the acceptance limits for each method and type of weld, for example the longest slag line, the size and spacing of pores, and the depth of undercut. Limits are often tighter for welds that carry changing (cyclic) loads, such as crane girders and bridges, than for statically loaded welds. **Cracks are never acceptable.**"
+        },
+        {
+          "h": "Repairs"
+        },
+        {
+          "flow": [
+            "Mark the fault on the seam from the film or report, and confirm it is rejectable",
+            "Find the cause from the weld records: for example slag left between passes, the wire too close to a side wall, damp flux, travel too fast",
+            "Remove the fault by gouging or grinding to sound metal, with sloping ends",
+            "Check the excavation by eye and by MT or PT",
+            "Re-weld to a WPS that covers the repair (often MMAW or FCAW), by a qualified welder or operator, with the preheat it gives",
+            "Inspect again by the same method, and record the repair and the new film or report number"
+          ]
+        },
+        {
+          "note": "Most specifications limit the number of repairs at one place (often one or two) before the engineer must approve a different plan. Each repair adds heat and stress, so repairs are planned, not casual.",
+          "label": "Remember"
+        },
+        {
+          "p": "A weld that does not meet the specification is recorded on a **non-conformance report (NCR)**: what was found, where, the cause, the action taken and who approved it. NCRs help the shop stop the same fault happening again."
+        }
+      ]
+    },
+    {
+      "title": "Traceability, records and leading the team",
+      "blocks": [
+        {
+          "h": "Controlling wire and flux"
+        },
+        {
+          "flow": [
+            "On delivery: check that the class on every coil and bag matches the WPS and the order, and that a certificate came with each batch",
+            "Record the wire heat numbers and flux batch numbers in the store book; file the certificates",
+            "Store flux sealed and dry, wire in its wrapping, with classes and batches apart and labelled",
+            "Issue to the job and record which batches went where",
+            "On the weld record, the operator writes the wire heat and flux batch for each seam",
+            "Keep recovered flux with its own batch; set aside anything damaged, wet or unlabelled"
+          ]
+        },
+        {
+          "h": "The records for a coded job"
+        },
+        {
+          "table": {
+            "head": [
+              "Record",
+              "What it holds"
+            ],
+            "rows": [
+              [
+                "Weld map",
+                "A drawing with every seam numbered"
+              ],
+              [
+                "Weld record",
+                "For each seam: WPS, operator, wire heat, flux batch, real settings, preheat and interpass, date"
+              ],
+              [
+                "PQRs and WPSs",
+                "The procedures used and the tests that support them"
+              ],
+              [
+                "Operator qualification records and continuity log",
+                "Who may weld, and that each is in date"
+              ],
+              [
+                "Inspection and test reports",
+                "Methods, results, film or report numbers, acceptance"
+              ],
+              [
+                "Repairs and NCRs",
+                "What was repaired, how, and the re-inspection"
+              ],
+              [
+                "Consumable and material certificates",
+                "Proof that the steel, wire and flux meet their specifications"
+              ]
+            ]
+          }
+        },
+        {
+          "p": "Keep these records on file after the job is finished, for the time the specification or code sets: the client or inspector may ask for them years later, for example after a failure or before a repair or alteration."
+        },
+        {
+          "h": "Leading the SAW team"
+        },
+        {
+          "ul": [
+            "Brief the team on the WPS, the hazards and each person's role before the first run: operator, flux and tracking, meters and timing, recorder.",
+            "Check the first seam of each job fully: settings measured at the arc, fit-up, bead shape and inspection.",
+            "Stop any operator who moves a setting outside the WPS range, even if the bead looks good, and bring it back. A change that is needed goes to the engineer, not into the seam.",
+            "Make sure the records are filled in as the work is done, not afterwards from memory."
+          ]
+        },
+        {
+          "h": "Safety in SAW work"
+        },
+        {
+          "ul": [
+            "SAW runs at high current for long periods. Cables and connections must be rated for the current and the duty; loose connections overheat.",
+            "The hidden arc can flash through where the flux runs thin: eye protection for the operator and anyone near the head.",
+            "Flux dust and fume when filling hoppers, sieving and gouging: extraction and the dust mask the SDS names.",
+            "Heavy plates, coils and flux bags: work out the mass and use a hoist or team lift.",
+            "Welding inside a tank shell is confined-space work: a permit, ventilation, an air check, a standby person outside and a rescue plan.",
+            "Turning rolls and carriages: stop them before anyone reaches in to clear flux or adjust the seam."
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Revision",
+      "blocks": [
+        {
+          "p": "Use this checklist to test yourself. If you cannot honestly say \"I can\" to a line, go back to that section and work on it with your instructor."
+        },
+        {
+          "h": "I can ..."
+        },
+        {
+          "ul": [
+            "I can explain how a specification, a code, a WPS, a PQR and an operator's qualification fit together.",
+            "I can say when a SAW WPS is prequalified, and what makes it need a procedure test.",
+            "I can give examples of SAW essential variables.",
+            "I can read every part of a wire-flux classification such as F7A2-EM12K, including A and P and the impact digit.",
+            "I can compare active, neutral and alloy fluxes, and fused and bonded fluxes.",
+            "I can store, dry, recover and trace SAW wire and flux.",
+            "I can explain CJP, PJP, backing, tabs and back gouging, and fit up to a joint detail's tolerances.",
+            "I can work out heat input and travel speed from measured values.",
+            "I can explain why heat input and interpass temperature are limited on impact-tested work.",
+            "I can describe a PQR test plate from fit-up to the signed record.",
+            "I can say what each test shows and judge tensile, bend and Charpy results.",
+            "I can explain how a SAW welding operator is qualified and keeps the qualification in force.",
+            "I can say what VT, PT, MT, RT and UT can and cannot find.",
+            "I can work out the number of spot radiographs and explain tracer spots.",
+            "I can plan a repair that will be accepted.",
+            "I can keep the records that make every seam traceable.",
+            "I can lead a SAW team safely and stop work that goes outside the WPS."
+          ]
+        },
+        {
+          "h": "Key terms"
+        },
+        {
+          "terms": [
+            [
+              "Active flux",
+              "A flux that adds manganese and silicon to the weld"
+            ],
+            [
+              "Air carbon arc gouging (CAC-A)",
+              "Cutting a groove with a carbon electrode arc and a jet of compressed air"
+            ],
+            [
+              "Back gouging",
+              "Removing the root from the second side down to sound weld metal before welding that side"
+            ],
+            [
+              "Basicity",
+              "A measure of a flux's chemistry; highly basic fluxes give tough, low-hydrogen weld metal"
+            ],
+            [
+              "Charpy V-notch (CVN)",
+              "An impact test that measures the energy, in joules, to break a notched bar"
+            ],
+            [
+              "CJP",
+              "Complete joint penetration: fused through the full thickness of the joint"
+            ],
+            [
+              "Code",
+              "A published set of rules for a kind of welding work"
+            ],
+            [
+              "Continuity log",
+              "A record showing that a welder or operator keeps using a process"
+            ],
+            [
+              "CTWD",
+              "Contact tip to work distance (stick-out)"
+            ],
+            [
+              "Essential variable",
+              "A change that needs a new or amended procedure qualification"
+            ],
+            [
+              "Heat input",
+              "The energy put into the joint per millimetre of weld, in kJ/mm"
+            ],
+            [
+              "Heat number",
+              "The number of one melt of steel, or one lot of wire, on its certificate"
+            ],
+            [
+              "Lamination",
+              "A layer inside a plate, parallel to its surface"
+            ],
+            [
+              "Macro etch",
+              "A polished and etched section that shows the passes and fusion"
+            ],
+            [
+              "Neutral flux",
+              "A flux that changes the weld chemistry very little"
+            ],
+            [
+              "NCR",
+              "Non-conformance report: the record of work that does not meet the specification"
+            ],
+            [
+              "PJP",
+              "Partial joint penetration: fused only part way through the joint"
+            ],
+            [
+              "PQR",
+              "Procedure qualification record: the record of the test weld and its results"
+            ],
+            [
+              "Prequalified",
+              "Accepted by the code without a procedure test, if all its limits are met"
+            ],
+            [
+              "Run-on and run-off tabs",
+              "Extra pieces at the ends of a seam where the arc starts and stops"
+            ],
+            [
+              "Specification",
+              "The client's or engineer's document for one job"
+            ],
+            [
+              "Spot radiography",
+              "X-raying set lengths of seam at chosen places"
+            ],
+            [
+              "Tracer spots",
+              "Extra radiographs taken each side of a rejected spot"
+            ],
+            [
+              "Welding operator",
+              "A person who sets up and runs mechanised or automatic welding equipment"
+            ],
+            [
+              "Witness",
+              "The person who watches a test and signs that the recorded values are true"
+            ],
+            [
+              "WPS",
+              "Welding procedure specification: how a weld is to be made"
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "cases": {
+    "c1": {
+      "title": "A procedure test for crane girders near Ewarton",
+      "text": "A fabrication shop near Ewarton, St Catherine, must qualify a SAW procedure for the flange splices of crane girders in 20 mm plate, because the joint detail it wants is not on the code's prequalified list. The specification needs Charpy results of at least 27 J average at −29 °C, with no single bar below 20 J. The test plate is welded with F7A2-EM12K on DCEP. One transverse tensile bar breaks in the parent plate, away from the weld, at 500 MPa; the plate's specified minimum is 450 MPa. The three weld-metal Charpy bars give 44 J, 39 J and 17 J. Jermaine is the recorder."
+    },
+    "c2": {
+      "title": "Consumables for LPG vessels near Old Harbour Bay",
+      "text": "A yard near Old Harbour Bay, St Catherine, is building LPG storage vessels. The WPS for the shell seams names F7A4-EM12K with a basic, bonded flux kept in a heated hopper. A delivery arrives: the EM12K wire has its certificate, but the flux bags are marked F7A2-EM12K. One bag is torn and the flux in it is caked. The storeman also wants to tip the flux swept up from the floor back into the recovery hopper 'so nothing is wasted'."
+    },
+    "c3": {
+      "title": "Spot radiography on process vessels at Monymusk",
+      "text": "Fitzroy leads a SAW crew building process vessels for a sugar factory at Monymusk, Clarendon. The specification calls for one spot radiograph for every 10 m of longitudinal seam or part of 10 m, and two extra spots for each rejected film. Vessel 2 has 46 m of seam. One film shows a line of slag along the side wall of the groove, on a multi-pass seam welded by operator 07."
+    },
+    "c4": {
+      "title": "A new tractor operator at a beam shop in Spanish Town",
+      "text": "Delroy has welded with MMAW for years and holds 3G and 4G plate qualifications with E7018. His supervisor at a beam shop in Spanish Town, St Catherine, wants him to run the SAW tractor on flange-to-web fillets made to a qualified WPS. Another operator, Marcia, passed her SAW operator test last year, but she has spent the last eight months on fitting work, and her continuity log shows no SAW since then."
+    },
+    "c5": {
+      "title": "Deck plate butts for a ferry ramp at Port Royal",
+      "text": "A crew is making CJP butt welds in 25 mm plate for a ferry loading ramp at Port Royal, Kingston. The WPS gives a double-V preparation with a 6 mm root face, back gouging by air carbon arc to sound metal, and passes alternating between the sides. After welding the first side, Nadine gouges the root from the second side and finds a short dark line still showing at the bottom of the groove in one place."
+    }
+  },
+  "questions": [
+    {
+      "id": "P-01",
+      "c": "c1",
+      "q": "What do the Charpy results mean for the procedure test?",
+      "o": [
+        "It passes: the average of 33 J is above 27 J",
+        "It fails: one bar is under the 20 J limit",
+        "It passes: two bars out of three are over 27 J",
+        "It fails: the average of the bars is below 27 J"
+      ],
+      "a": 1,
+      "why": "The average is (44 + 39 + 17) ÷ 3 = 33.3 J, which meets 27 J, but the specification also sets a lower limit for any single bar, and 17 J is below 20 J. Both rules must be met."
+    },
+    {
+      "id": "P-02",
+      "c": "c1",
+      "q": "How should the transverse tensile result be judged?",
+      "o": [
+        "It fails: the bar should have broken in the weld metal",
+        "It fails: a break away from the weld tests nothing at all",
+        "It passes only if a second bar also breaks in the plate",
+        "It passes: 500 MPa beats the plate's 450 MPa minimum"
+      ],
+      "a": 3,
+      "why": "A transverse tensile test is judged on the strength it reaches: not less than the minimum specified for the base metal. A break in the parent plate at 500 MPa shows the welded joint is at least as strong as it needs to be."
+    },
+    {
+      "id": "P-03",
+      "c": "c1",
+      "q": "Why must this shop weld a PQR test plate at all, when many SAW joints can be prequalified?",
+      "o": [
+        "Its joint detail is not on the code's list",
+        "SAW is never accepted under the AWS structural codes",
+        "Every crane girder order needs a fresh PQR of its own",
+        "The flux maker insists on a test before every new job"
+      ],
+      "a": 0,
+      "why": "Prequalification applies only when every condition, including the joint detail and its tolerances, comes from the code. A joint that is not on the list must be qualified by test before production welding."
+    },
+    {
+      "id": "P-04",
+      "c": "c1",
+      "q": "Jermaine times the head over a measured 600 mm and gets 90 seconds. What travel speed should he record?",
+      "o": [
+        "540 mm/min",
+        "6.7 mm/min",
+        "400 mm/min",
+        "150 mm/min"
+      ],
+      "a": 2,
+      "why": "Speed = distance ÷ time × 60 = 600 ÷ 90 × 60 = 400 mm/min. Timing the head over a measured length gives the real speed, which is what the PQR must show, whatever the dial says."
+    },
+    {
+      "id": "P-05",
+      "c": "c2",
+      "q": "Can the F7A2 flux be used on these shell seams?",
+      "o": [
+        "Yes: F7A2 and F7A4 have the same tensile strength",
+        "Yes: the wire is still EM12K, so the weld is the same",
+        "No: it is proven only to −29 °C, not −40 °C",
+        "No: the 2 shows it is only for welds of two passes"
+      ],
+      "a": 2,
+      "why": "The digit after the A is the impact test temperature: 2 is −29 °C and 4 is −40 °C. A combination proven only at −29 °C does not show the toughness the WPS needs, so it cannot be used unless the engineer approves a WPS that covers it."
+    },
+    {
+      "id": "P-06",
+      "c": "c2",
+      "q": "What should be done with the torn bag of caked flux?",
+      "o": [
+        "Set it aside, label it and report it",
+        "Break up the lumps and use it on the first seam",
+        "Dry it in the sun and add it to the hopper",
+        "Mix it with fresh flux so the damp is spread thin"
+      ],
+      "a": 0,
+      "why": "Caked flux has taken up moisture or been contaminated, which causes porosity and hydrogen cracking. It is quarantined and reported to the supplier; any re-drying is done only if the maker allows it, in an oven, and recorded."
+    },
+    {
+      "id": "P-07",
+      "c": "c2",
+      "q": "Why must the swept-up flux not go back into the recovery hopper?",
+      "o": [
+        "Flux may be used once only, then it must be scrapped",
+        "Recovered flux may be used only on outside seams",
+        "Flux loses its classification once the bag is opened",
+        "It carries dirt, slag and moisture from the floor"
+      ],
+      "a": 3,
+      "why": "Flux off the floor brings in grit, slag, oil and moisture that cause porosity, inclusions and cracks. Only clean, unfused flux from the recovery system is sieved, passed over a magnet and reused as the maker says."
+    },
+    {
+      "id": "P-08",
+      "c": "c3",
+      "q": "How many spot films are needed for the 46 m of seam on vessel 2?",
+      "o": [
+        "4 films",
+        "5 films",
+        "6 films",
+        "10 films"
+      ],
+      "a": 1,
+      "why": "46 ÷ 10 = 4.6, and the part of 10 m left over needs its own spot, so the answer is rounded up to 5. Rounding down would leave 6 m of seam with no check."
+    },
+    {
+      "id": "P-09",
+      "c": "c3",
+      "q": "What must happen next because of the rejected film?",
+      "o": [
+        "Take two more spots on that seam, one each side",
+        "Take the same film again to confirm the result",
+        "Grind out the slag and accept the rest of the seam",
+        "Retest operator 07 before anything else is done"
+      ],
+      "a": 0,
+      "why": "The extra (tracer) spots show whether the fault is short and local or runs further along the seam. The repair, and any action on the operator, follow once its extent is known."
+    },
+    {
+      "id": "P-10",
+      "c": "c3",
+      "q": "Slag along the side wall of a multi-pass SAW groove most often comes from what?",
+      "o": [
+        "Too much flux on the joint, burying the arc too deep",
+        "Travel so slow that the bead became far too wide",
+        "Wire near the wall, or slag left between passes",
+        "Using DCEP instead of AC on the final cap pass"
+      ],
+      "a": 2,
+      "why": "A wire aimed too near the side wall makes a bead that does not wet onto the wall, leaving a pocket where slag sticks; slag not fully cleaned off between passes is trapped by the next one. The weld records and watching operator 07's next seam will show which."
+    },
+    {
+      "id": "P-11",
+      "c": "c3",
+      "q": "Once its length is known, how should the slag be repaired?",
+      "o": [
+        "Run a SAW cap pass over the area to melt the slag out",
+        "Gouge it out, check, re-weld to a WPS, X-ray again",
+        "Grind the cap flush and X-ray it again to see if it shows",
+        "Leave it if the slag is shorter than the film is wide"
+      ],
+      "a": 1,
+      "why": "A rejectable inclusion is removed to sound metal, the excavation is checked, and it is re-welded to a WPS that covers the repair, then radiographed again. Re-melting from the surface rarely reaches a side-wall inclusion."
+    },
+    {
+      "id": "P-12",
+      "c": "c4",
+      "q": "Can Delroy run the SAW tractor on the coded fillets with his MMAW qualifications?",
+      "o": [
+        "Yes: 3G and 4G cover every easier position, such as 1F",
+        "Yes: the machine moves the arc, so no test is needed",
+        "Yes, as long as an MMAW welder watches each seam",
+        "No: he must first qualify as a SAW welding operator"
+      ],
+      "a": 3,
+      "why": "Qualification is for a process. His MMAW tests prove hand skill with stick electrodes, not the set-up and control of a SAW head, so he must pass a SAW operator test on the kind of equipment he will use."
+    },
+    {
+      "id": "P-13",
+      "c": "c4",
+      "q": "What does Marcia's continuity log mean for her qualification?",
+      "o": [
+        "It is valid for life once the test has been passed",
+        "It is valid if she watches another operator for a day",
+        "It stays valid until the WPS itself is changed",
+        "It has lapsed; she must requalify before coded SAW"
+      ],
+      "a": 3,
+      "why": "Under many AWS codes a qualification stays in force only while the process is used at least every six months, as the continuity log shows. Eight months without SAW means she is requalified before coded work."
+    },
+    {
+      "id": "P-14",
+      "c": "c4",
+      "q": "Delroy later passes his operator test. What should his qualification record show?",
+      "o": [
+        "Only his name and the date the test plate was welded",
+        "The process, equipment, positions and limits",
+        "The plate grade and the brand of tractor he used",
+        "His MMAW positions, copied across onto the SAW record"
+      ],
+      "a": 1,
+      "why": "The record shows exactly what he may do: the process, the type of equipment (for example a single wire), the positions and the other variables the code limits, with the test results and the witness's signature."
+    },
+    {
+      "id": "P-15",
+      "c": "c5",
+      "q": "What should Nadine do about the dark line at the bottom of the gouge?",
+      "o": [
+        "Weld the second side, which will melt the line away",
+        "Leave it, as the 6 mm root face is thick enough",
+        "Grind deeper there, then check with MT or PT",
+        "Fill it with an MMAW pass before the SAW passes"
+      ],
+      "a": 2,
+      "why": "A dark line is most likely slag or unfused root left from the first side. Back gouging must reach sound weld metal, shown by eye and by MT or PT where the WPS asks; otherwise the fault is sealed inside the CJP weld."
+    },
+    {
+      "id": "P-16",
+      "c": "c5",
+      "q": "Why is the gouged groove ground into a smooth U-shape before the second side is welded?",
+      "o": [
+        "So the next pass can fuse it without trapping slag",
+        "So the groove looks neat in the inspector's photographs",
+        "So that less flux is needed on the second side",
+        "So the second side can be welded at a lower current"
+      ],
+      "a": 0,
+      "why": "A narrow, sharp-bottomed gouge is hard for the arc to fuse and traps slag in its corners. A smooth U-shape, with the carbon-rich skin from gouging ground off, gives the second side a clean root to fuse into."
+    },
+    {
+      "id": "P-17",
+      "c": "c5",
+      "q": "Which precautions matter most while Nadine air carbon arc gouges?",
+      "o": [
+        "A dust mask only, as gouging makes no arc light",
+        "Ear and face protection, extraction, clear area",
+        "Gloves only, as the compressed air blows sparks away",
+        "Ear plugs only, as the noise is the only real hazard"
+      ],
+      "a": 1,
+      "why": "Gouging is very loud, throws molten metal a long way, gives off heavy fume and has a bright arc. Hearing protection, face and eye protection, fume extraction and a cleared area behind the cut are all needed."
+    },
+    {
+      "id": "P-18",
+      "c": null,
+      "q": "A flux-wire combination is classified F7P6-EM12K. What does the P tell you?",
+      "o": [
+        "It was tested after post-weld heat treatment",
+        "It is a flux made for pipe welding only",
+        "It was tested on plate of the job's thickness",
+        "It may be used in every welding position"
+      ],
+      "a": 0,
+      "why": "A means the weld metal was tested as welded; P means it was tested after post-weld heat treatment. A vessel that will be stress relieved needs a P classification, because heat treatment changes strength and toughness."
+    },
+    {
+      "id": "P-19",
+      "c": null,
+      "q": "A shop's prequalified SAW WPS lists the steels the code matches with its wire and flux. A client now supplies a steel that is not on the list. What should the shop do?",
+      "o": [
+        "Use the WPS anyway, as the steel looks similar",
+        "Raise the preheat and use the prequalified WPS",
+        "Qualify a WPS by test with that steel first",
+        "Weld it and send one seam for X-ray to prove it"
+      ],
+      "a": 2,
+      "why": "A prequalified WPS covers only the base metals the code lists for that wire and flux. Any other steel takes the job outside prequalification, so a procedure is qualified by test first (or the client is asked to supply a listed steel)."
+    },
+    {
+      "id": "P-20",
+      "c": null,
+      "q": "Which method is best at finding lack of side-wall fusion deep inside a thick SAW butt weld?",
+      "o": [
+        "Dye penetrant testing",
+        "Magnetic particle testing",
+        "Visual inspection with a torch",
+        "Ultrasonic testing"
+      ],
+      "a": 3,
+      "why": "Lack of side-wall fusion is a thin, flat fault. Ultrasonic testing finds flat faults deep in thick welds well; radiography can miss it unless the beam lines up with it, and PT and MT find only faults at or near the surface."
+    }
+  ]
+}
