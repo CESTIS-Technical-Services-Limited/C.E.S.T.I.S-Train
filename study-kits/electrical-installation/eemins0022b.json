@@ -1,0 +1,420 @@
+{
+  "format": "cestis-study-kit",
+  "version": 1,
+  "status": "to-check",
+  "written": "2026-11-07",
+  "programme": "Electrical Installation",
+  "qualification": { "id": "QUAL-EIM-L2", "title": "ELECTRICAL INSTALLATION AND MAINTENANCE LEVEL 2", "code": "EEM20723" },
+  "level": 2,
+  "unit": { "code": "EEMINS0022B", "title": "Perform basic testing and inspection on electrical installations" },
+  "summary": "This unit teaches you to help inspect and test a low-voltage installation before it is used, and to check older installations. You will learn the order of work, safe isolation, the visual inspection, and the dead tests: continuity of protective and bonding conductors, insulation resistance, polarity and earth electrode resistance. You will also learn what the live tests show and who does them, how to deal with a bad result, and how to record results and hand over.",
+  "sections": [
+    {
+      "title": "Unit overview",
+      "blocks": [
+        { "p": "Wiring can look perfect and still be dangerous: an earth conductor can be loose inside a box, a nail can pierce a cable behind the plaster, a switch can be in the neutral. Inspection and testing find these faults before anyone is hurt or a fire starts. This unit is for Level 2 trainees. You will carry out the visual inspection and the dead tests on isolated circuits under supervision, and assist a competent person with the live tests." },
+        { "h": "What you must be able to do" },
+        { "table": { "head": ["Task", "What it looks like on the job"], "rows": [
+          ["Explain why and when we test", "Say what initial verification and periodic inspection are for, and why dead tests come before live tests."],
+          ["Prepare for testing", "Gather the drawings and circuit schedule, get permission, tell the people affected, and choose and check the instruments."],
+          ["Isolate safely", "Switch off, lock off, tag and prove dead with a tester checked before and after, and keep the circuit from being switched on."],
+          ["Inspect visually", "Check the board, earthing and bonding, cables, accessories and GFCI protection with the installation isolated, and record every defect."],
+          ["Test continuity", "Null the leads and measure the continuity of protective and bonding conductors; interpret the readings."],
+          ["Test insulation resistance", "Prepare the circuit, test at the right voltage between the right conductors, and interpret the readings safely."],
+          ["Test polarity and the earth electrode", "Confirm switches and protective devices are in the line and outlets and lampholders are correctly connected; know how an earth rod is tested."],
+          ["Understand the live tests", "Explain earth fault loop impedance, GFCI and functional tests, when they are done and by whom."],
+          ["Deal with faults", "Keep a faulty circuit off, confirm the result, find and report the fault, and retest after repair."],
+          ["Record and hand over", "Write results on the schedule as you go, compare them with the required values, and help complete the certificate and handover."]
+        ] } },
+        { "h": "Testing in Jamaica" },
+        { "ul": [
+          "A new or altered installation, or one that has been disconnected for a long time, must be inspected and certified by a licensed electrical inspector, under the **Government Electrical Regulator (GER)**, before JPS will connect it. The electrician's own inspection and testing comes first, so faults are found and put right before the inspector arrives.",
+          "The code used in Jamaica is based on the US NEC, so you will meet US terms (grounding, equipment grounding conductor, GFCI). Many test instruments and test methods use British terms (earthing, protective conductor, RCD, initial verification). This kit gives both.",
+          "Supplies are 110 V and 220 V, single-phase, 50 Hz, with three-phase in larger buildings."
+        ] },
+        { "note": "At Level 2 you carry out tests only on circuits that are isolated and proved dead, under supervision. Live tests are done by a competent person with the right instrument, and you assist only as they direct.", "label": "Safety" }
+      ]
+    },
+    {
+      "title": "Why we test, the order of work and preparation",
+      "blocks": [
+        { "h": "Why inspect and test" },
+        { "ul": [
+          "To show the installation is **safe** and meets the code, the drawings and the specification.",
+          "To find faults such as loose connections, broken earth paths, damaged insulation and wrong connections **before** the supply is switched on or before they cause harm.",
+          "To give a **record** of the results, so later tests can be compared and changes can be seen."
+        ] },
+        { "table": { "head": ["Kind of inspection", "When"], "rows": [
+          ["**Initial verification** (initial inspection and testing, commissioning tests)", "On a new installation, an addition or an alteration, before it is first used"],
+          ["**Periodic inspection** (periodic inspection and testing)", "On an existing installation every few years, as the code, the owner or the insurer requires; more often for public and commercial buildings. It finds wear, damage and unsafe alterations before they become dangerous."],
+          ["Special inspections", "After a flood, hurricane or fire, a change of use, a long disconnection, or before a sale"]
+        ] } },
+        { "h": "The order of work" },
+        { "flow": [
+          "Prepare: information, permission, instruments",
+          "Isolate safely",
+          "Visual inspection",
+          "Dead test 1: continuity of protective conductors and bonding",
+          "Dead test 2: insulation resistance",
+          "Dead test 3: polarity",
+          "Dead test 4: earth electrode resistance (where there is an earth rod)",
+          "Supply connected, by an authorised person",
+          "Live tests by a competent person: earth fault loop impedance, prospective fault current, GFCI/RCD tests, functional tests",
+          "Record, certify and hand over"
+        ] },
+        { "h": "Why this order" },
+        { "ul": [
+          "**Visual inspection first**: many faults can be seen, and there is no point testing a circuit with a missing cover or a burnt cable.",
+          "**Dead tests before live tests**: dangerous faults are found with no risk from the supply. Switching on a circuit with a broken earth or a short circuit could give someone a shock, or damage the wiring.",
+          "**Continuity first among the dead tests**: the later tests, and the protection of people when the supply is switched on, all rely on a sound earth path. If the protective conductor is broken, it must be found first.",
+          "**Live tests last**: they need the supply on, so they are done only after the dead tests are passed."
+        ] },
+        { "h": "Preparing to test" },
+        { "table": { "head": ["You need", "Why"], "rows": [
+          ["Drawings, circuit details and the **circuit (panel) schedule**", "To know what each circuit supplies, its breaker, its cable and where its points are"],
+          ["The specification and makers' manuals", "For required test values and for equipment that must be disconnected"],
+          ["Previous certificates and test results (for an existing installation)", "To compare readings and see what has changed"],
+          ["**Permission** from the person in charge", "Switching off may stop computers, refrigerators, pumps or a business; agree a time"],
+          ["The right instruments, checked", "Readings can be trusted only from a working, calibrated instrument"],
+          ["PPE: safety glasses, insulating safety boots, close-fitting cotton or flame-resistant clothing, no jewellery", "Protects against the flash of an arc and against shock"]
+        ] } },
+        { "h": "Safe isolation" },
+        { "flow": [
+          "Tell the people affected that the power will be off",
+          "Identify the right breaker from the circuit schedule",
+          "Switch off",
+          "Lock off with a lock-off device and your own padlock; keep the key",
+          "Fix a danger tag: your name, the date and the reason; put up warning signs if needed",
+          "Check the voltage tester on a proving unit (or known live source)",
+          "Test at the point of work between all conductors: line–neutral, line–earth, neutral–earth",
+          "Check the tester again on the proving unit",
+          "Only now begin the inspection or tests"
+        ] },
+        { "note": "Keep the lock and tag on for the whole of the dead testing. Nobody should be able to switch the circuit on by mistake while you have test leads connected. Asking someone to 'remember not to touch it' is not isolation.", "label": "Safety" },
+        { "note": "**Arc flash**: a sudden flash of intense heat and light caused by a fault or a slip in a live panel. It can burn skin and eyes severely. Keep panel covers on, never work live, use the right instrument on the right range, and wear safety glasses and suitable clothing near panels.", "label": "Safety" }
+      ]
+    },
+    {
+      "title": "Test instruments",
+      "blocks": [
+        { "table": { "head": ["Instrument", "Used for", "Notes"], "rows": [
+          ["**Voltage tester (two-pole voltage indicator)** and **proving unit**", "Proving dead during safe isolation", "The proving unit gives a known voltage to show the tester works, before and after the test"],
+          ["**Low-resistance ohmmeter** (continuity tester)", "Continuity of protective, bonding and line conductors; polarity", "Reads small resistances, to about 0.01 Ω; leads must be nulled"],
+          ["**Insulation resistance tester**", "Insulation resistance between conductors and to earth", "Applies a high DC test voltage (250 V, 500 V or 1000 V) and reads in megohms (MΩ)"],
+          ["**Earth electrode resistance tester**", "Resistance of an earth rod to the general mass of earth", "Uses two temporary test spikes driven into the ground"],
+          ["**Earth fault loop impedance tester**", "Loop impedance and prospective fault current", "A live test, by a competent person"],
+          ["**GFCI/RCD tester**", "Checking that a GFCI or RCD trips at the right current and time", "A live test"],
+          ["**Multifunction tester**", "Continuity, insulation, loop, GFCI/RCD and often earth electrode tests in one instrument", "The usual instrument for installation testing"],
+          ["**Multimeter**", "Voltage, current and resistance on many ranges", "Set to the ohms (Ω) range to measure the resistance of an isolated cable. The **buzzer** (audible continuity) beeps when there is a low-resistance path. Never leave it on a current range."],
+          ["Plug-in outlet tester (lamp type)", "A quick check of common wiring faults at an outlet", "Cannot show every fault: never use it in place of proper tests"]
+        ] } },
+        { "h": "Check before use" },
+        { "ul": [
+          "**Case**: no cracks or damage.",
+          "**Battery**: good. A weak battery can give false readings.",
+          "**Calibration date**: not passed. Calibration checks the instrument against a known standard so its readings can be trusted.",
+          "**Leads and probes**: insulation undamaged; probes with **finger guards** and only a small bare tip (about 4 mm or less, often 2 mm); fused leads where the maker says.",
+          "**Function check**: on continuity, touch the leads together and see a reading near 0 Ω; on insulation resistance, with the leads apart, see a very high reading."
+        ] },
+        { "h": "Reading the display" },
+        { "table": { "head": ["Display", "Meaning"], "rows": [
+          ["0.35 Ω", "A low resistance: a good continuous path for a protective conductor"],
+          ["OL, or a very high reading on the continuity range", "Open circuit: no path, or a resistance too high to read"],
+          [">999 MΩ or >200 MΩ", "Insulation resistance higher than the instrument can show: very good insulation"],
+          ["0.00 MΩ on an insulation test", "A short circuit or something connected between the conductors"]
+        ] } },
+        { "h": "Units" },
+        { "ul": [
+          "1 megohm (MΩ) = 1,000,000 Ω. So 2,000,000 Ω = 2 MΩ, and 0.5 MΩ = 500,000 Ω.",
+          "1 milliohm (mΩ) = 0.001 Ω. Conductor resistance tables often give milliohms per metre."
+        ] },
+        { "h": "Looking after instruments" },
+        { "p": "Switch off after use, clean the instrument, coil the leads loosely and store it in its case, dry and away from heat. Keep it in calibration. Report any damage or doubtful reading, and keep the instrument out of use until it has been repaired and checked." }
+      ]
+    },
+    {
+      "title": "Visual inspection",
+      "blocks": [
+        { "p": "The visual inspection is done with the installation **isolated**, before testing. Use a checklist so nothing is missed, and write down every defect as you find it, with its exact location." },
+        { "table": { "head": ["Area", "Check"], "rows": [
+          ["Service and panel (board)", ["Fixed firmly, with a clear space in front", "Cover complete, with blanks in every unused opening, so no live part can be touched", "Each breaker's rating suits its cable and load", "Circuit schedule filled in and correct", "Conductors of the right size and colour, terminals tight, no damaged insulation", "Neutral and earth joined only where the code allows (at the main service)"]],
+          ["Earthing and bonding", ["Earthing (grounding electrode) conductor present and connected to the earth rod", "Main bonding to metal water and gas pipes, with proper clamps and labels", "The main earthing terminal (MET) or earth bar tight and labelled"]],
+          ["Cables and conduit", ["Right type for the place (outdoors, damp, in concrete)", "Supported, protected from damage, not crushed", "Conduit secure, with bushings or smooth ends", "Boxes fixed and covered"]],
+          ["Accessories and fittings", ["Outlets, switches and lights fixed firmly", "Covers not cracked or broken; no bare conductors showing", "Right accessory for the place (weatherproof outside)"]],
+          ["Protection", ["GFCI protection where the code requires it, such as bathrooms, kitchens, outdoors, garages and near sinks", "AFCI protection where required"]],
+          ["General", ["Labels and warning notices present", "Signs of overheating: burn marks, melted insulation, a burning smell", "Signs of water: rust, stains, wet boxes"]]
+        ] } },
+        { "h": "Dealing with defects" },
+        { "ul": [
+          "**Record** every defect: what it is and exactly where (such as 'kitchen, outlet left of sink: cover cracked').",
+          "Do not hide a defect with tape or paint; it must be **put right**.",
+          "Many inspection forms grade defects: **danger present** (make safe at once), **potentially dangerous** (put right urgently), and **improvement recommended**.",
+          "A defect that could give a shock or start a fire must be made safe and reported at once, and that part must not be energised."
+        ] },
+        { "note": "In Jamaica, look carefully for **water** and **corrosion**: rain driven in through outdoor boxes, roof leaks over panels, and salt air near the coast all damage terminals and insulation. Also look for unsafe additions, such as extra outlets wired from an existing one with the wrong cable.", "label": "Jamaica" }
+      ]
+    },
+    {
+      "title": "Continuity of protective and bonding conductors",
+      "blocks": [
+        { "p": "The protective conductor (earth, equipment grounding conductor) carries fault current back to the board so the breaker trips. If it is broken or loose, a fault can leave metal parts live and nothing trips. The continuity test proves the protective conductor is unbroken and of low resistance from the board to every point." },
+        { "h": "Nulling the leads" },
+        { "p": "The test leads have resistance too. Before testing, touch the leads together and press the **null** (zero) button so the instrument subtracts the lead resistance. If your instrument cannot null, write down the lead reading and subtract it from every result." },
+        { "p": "**Example**: leads touching read 0.20 Ω. A conductor then reads 0.73 Ω. Its real resistance is 0.73 − 0.20 = **0.53 Ω**." },
+        { "h": "The R1 + R2 method (line linked to protective conductor)" },
+        { "flow": [
+          "Isolate, lock off and prove the circuit dead",
+          "Set the low-resistance ohmmeter to its lowest ohms range and null the leads",
+          "At the board, disconnect the circuit's line conductor and link it to the circuit's protective conductor with a short lead",
+          "Go to each point on the circuit and measure between the line terminal and the earth terminal",
+          "Every point should read low; the reading rises as you go further from the board",
+          "The **highest reading is at the farthest point**: this is R1 + R2, the resistance of the line and protective conductors together",
+          "Record it and compare it with the expected value",
+          "Remove the link and reconnect the line conductor to its breaker"
+        ] },
+        { "p": "This method also checks **polarity** at the same time: a low reading between the line terminal and earth shows the line conductor really goes to that terminal." },
+        { "h": "The wander lead method (R2 only)" },
+        { "p": "A long test lead, the **wander lead**, is connected to the **main earthing terminal (MET)** at the board. The other instrument lead is touched on the earth terminal of each point in turn, or on exposed metal parts. The reading (after subtracting the wander lead's own resistance) is R2, the protective conductor alone." },
+        { "h": "Main bonding conductors" },
+        { "p": "The main bonding conductors join metal water pipes, gas pipes and steel structures to the main earthing terminal, so they stay at the same voltage as the earthing. Test from the MET to the clamp on each pipe with the wander lead. The result should be a **very low resistance, a small fraction of an ohm**. A high or OL reading means a loose clamp, a corroded joint or a broken conductor." },
+        { "h": "Expected values" },
+        { "p": "Conductor resistance tables give the resistance of copper per metre. Add the line and protective conductors together for R1 + R2, then multiply by the length." },
+        { "table": { "head": ["Copper conductor", "Resistance per metre (about, at 20 °C)"], "rows": [
+          ["14 AWG", "8.3 mΩ/m (0.0083 Ω/m)"],
+          ["12 AWG", "5.2 mΩ/m"],
+          ["10 AWG", "3.3 mΩ/m"],
+          ["1.5 mm²", "12.1 mΩ/m"],
+          ["2.5 mm²", "7.4 mΩ/m"]
+        ] } },
+        { "p": "**Example**: a circuit with a 12 AWG line and a 12 AWG protective conductor, 25 m long. R1 + R2 per metre = 5.2 + 5.2 = 10.4 mΩ/m. Over 25 m: 25 × 10.4 = 260 mΩ = **about 0.26 Ω**. A measured value close to this is good. (Readings in a hot roof space are a little higher, because copper's resistance rises with temperature.)" },
+        { "p": "**Example**: a conductor of 0.01 Ω per metre, 30 m long, has a resistance of 30 × 0.01 = **0.3 Ω**." },
+        { "h": "Interpreting continuity readings" },
+        { "table": { "head": ["Reading", "Likely cause", "Action"], "rows": [
+          ["Close to the expected value, rising along the circuit", "Sound conductors and joints", "Record it"],
+          ["OL or very high", "Broken conductor, a missing or loose connection", "Find and repair; check the points either side of where the reading changes"],
+          ["Higher than expected", "A loose, dirty or corroded joint, or a smaller conductor than shown", "Check terminals and joints along the route"],
+          ["Much lower than expected", "Parallel paths, such as metal conduit or pipes also connecting the points", "Note it; it does not prove the protective conductor itself is sound"]
+        ] } }
+      ]
+    },
+    {
+      "title": "Insulation resistance",
+      "blocks": [
+        { "p": "Insulation keeps current in the conductors. The insulation resistance test applies a high DC voltage between conductors, and from each to earth, and measures how much the insulation resists current leaking through it. Good insulation reads very high, in megohms." },
+        { "h": "Preparing the circuit" },
+        { "flow": [
+          "Isolate, lock off, tag and prove dead",
+          "Remove lamps and unplug appliances",
+          "Disconnect electronic equipment: LED drivers, electronic dimmers and timers, photocells, surge protection devices, and anything the maker says (some GFCI and AFCI devices)",
+          "Put every switch ON so all the switched wiring is included",
+          "Warn everyone nearby that a test voltage will be applied, and make sure nobody can touch the circuit",
+          "Check the instrument works and set the test voltage"
+        ] },
+        { "p": "Electronic equipment can be damaged by the test voltage, and lamps or equipment left connected give a false low reading between line and neutral. If a piece of electronic equipment cannot be disconnected, **link line and neutral together and test only from them to earth**, so the test voltage does not appear across the equipment." },
+        { "h": "Test voltages and minimum values" },
+        { "table": { "head": ["Circuit", "Test voltage (DC)", "Usual minimum"], "rows": [
+          ["Extra-low voltage, up to 50 V", "250 V", "0.5 MΩ"],
+          ["Low voltage up to 500 V, which includes **110 V and 220 V** circuits", "**500 V**", "**1 MΩ**"],
+          ["Above 500 V, up to 1000 V", "1000 V", "1 MΩ"]
+        ] } },
+        { "p": "These are the values in the British wiring regulations used by many instruments and forms; follow the values in the code, specification and test form the Centre uses. A new circuit in good condition usually reads **hundreds of megohms**, often more than the instrument can show. A reading that only just passes, such as 2 MΩ on a new circuit, should be investigated." },
+        { "h": "Which tests" },
+        { "ul": [
+          "Line to neutral",
+          "Line to earth",
+          "Neutral to earth",
+          "On a 220 V circuit with two lines: line 1 to line 2, and each line to earth",
+          "For a whole board, line and neutral can be linked and tested together to earth"
+        ] },
+        { "h": "Safety during the test" },
+        { "ul": [
+          "The tester produces 500 V DC or more. It can give a painful shock, which can cause a fall. **Nobody touches the circuit** while a test is running.",
+          "Long cables store a charge, like a capacitor. After each test, keep the leads connected while the tester discharges the circuit (many do this automatically and show the voltage falling) before you touch anything.",
+          "Afterwards, refit lamps, reconnect equipment, and remove any links."
+        ] },
+        { "h": "Interpreting insulation readings" },
+        { "table": { "head": ["Reading", "Likely cause", "Action"], "rows": [
+          ["Very high (hundreds of MΩ, or '>999 MΩ')", "Good insulation", "Record it"],
+          ["Low line or neutral to earth", "Damaged insulation (a nail or screw through a cable, insulation crushed under a box lid, cable cut when pulled in), moisture in a box or fitting, equipment left connected", "Find the fault by testing in sections"],
+          ["Zero between line and neutral", "Short circuit (line and neutral touching), or a lamp or appliance left connected", "Check that everything is disconnected, then search for the short"],
+          ["Lower when many circuits are tested together", "Each circuit's small leakage adds up in parallel", "Test circuits separately"]
+        ] } },
+        { "h": "Finding an insulation fault" },
+        { "flow": ["Confirm the reading: instrument working, leads good, equipment disconnected", "Split the circuit at a junction box or accessory", "Test each part separately", "Keep halving the faulty part until the fault is found", "Repair, then retest the whole circuit"] }
+      ]
+    },
+    {
+      "title": "Polarity and earth electrode tests",
+      "blocks": [
+        { "h": "What correct polarity means" },
+        { "ul": [
+          "Every fuse, single-pole breaker and single-pole switch is in the **line** conductor, never the neutral.",
+          "The **centre contact** of an Edison screw (ES) lampholder is connected to the **line**; the screw shell is connected to the neutral.",
+          "Outlets are wired with line, neutral and earth on the right terminals. On a 110 V US-style outlet the **narrow slot** (brass screw) is line, the **wide slot** (silver screw) is neutral and the round or U-shaped hole (green screw) is earth."
+        ] },
+        { "h": "Why it matters" },
+        { "ul": [
+          "A switch in the neutral turns the lamp off, but the lampholder stays **live**. Someone changing the lamp with the switch off can get a shock.",
+          "An ES lampholder with the line on the screw shell leaves the shell live: the shell can be touched while a lamp is being screwed in.",
+          "Line and neutral swapped at an outlet can leave switches in appliances in the neutral, so parts are live with the appliance switched off.",
+          "Wrong polarity cannot be found by switching on: the light works the same either way. Only a test shows it."
+        ] },
+        { "h": "Testing polarity dead" },
+        { "flow": [
+          "Isolate and prove dead",
+          "At the board, link the circuit's line conductor to its protective conductor (as for R1 + R2)",
+          "Put all switches ON",
+          "With the low-resistance ohmmeter, test between earth and the terminal that should be line at each switch, lampholder centre contact and outlet",
+          "A low reading confirms the line is in the right place",
+          "Check the neutral terminal does not give that low reading",
+          "Remove the link, reconnect, and record the results"
+        ] },
+        { "p": "Polarity is checked again with the supply on by the competent person, using an approved tester. A plug-in lamp-type outlet tester can show some faults, such as line and neutral reversed or a missing earth, but it **cannot** show others, such as neutral and earth swapped, and it does not measure anything. It never replaces the proper tests." },
+        { "h": "Earth electrode resistance" },
+        { "p": "Where an installation has its own earth rod (grounding electrode), its resistance to the general mass of earth is tested. The usual method uses an earth electrode tester and two temporary spikes driven into the ground in a straight line from the rod, well away from it. The instrument passes a current between the rod and the far spike and measures the voltage at the middle spike, and from these gives the rod's resistance." },
+        { "ul": [
+          "The earthing conductor may be disconnected from the rod for the test **only** when the whole installation is isolated, and it must be reconnected before the supply is restored.",
+          "Under the NEC, a single rod that does not reach **25 Ω or less** must have a supplementary electrode (a second rod at least 1.8 m away is common). Many inspectors simply require two rods.",
+          "Earth resistance changes with the weather: dry soil gives a higher reading than wet soil. Record the date and conditions."
+        ] }
+      ]
+    },
+    {
+      "title": "Live tests, functional tests and faults",
+      "blocks": [
+        { "p": "Live tests need the supply on. They are done only after the visual inspection and all the dead tests have been passed and the supply has been connected by an authorised person. They are carried out by a **competent person** with the right instrument, used as its maker says, following the Centre's rules. You assist only as directed." },
+        { "table": { "head": ["Live test", "What it shows"], "rows": [
+          ["**Earth fault loop impedance**", "The impedance of the whole path a fault current would take: from the supply transformer, along the line conductor to the fault, back through the protective conductor and earthing to the source. If it is low enough, a fault draws a large current and the breaker trips fast, before anyone is harmed. Results are compared with the maximum values for each breaker."],
+          ["**Prospective fault current**", "The largest current that could flow in a fault. Each breaker must be able to break it safely (its breaking capacity, such as 10 kA)."],
+          ["**GFCI / RCD test**", "That the device trips when a small current leaks to earth, and quickly enough to protect a person. The tester leaks a measured current; a GFCI for people trips at about 5 mA, a typical RCD at 30 mA."],
+          ["**Functional tests**", "That switches, dimmers, isolators, interlocks, timers and the GFCI test buttons work as they should."],
+          ["Phase sequence (three-phase)", "That the phases are in the right order, so motors turn the right way"]
+        ] } },
+        { "h": "GFCI test button and GFCI tester" },
+        { "p": "The **TEST button** on a GFCI checks that its tripping mechanism works. Users should press it **regularly, as the label says** (often monthly). The **GFCI tester** used during testing goes further: it shows that the device trips at the right leakage current and within the right time, through the real wiring. A device that passes the button test can still fail the instrument test." },
+        { "h": "When a result is not acceptable" },
+        { "flow": [
+          "Do not switch the circuit on; keep it isolated, locked off and tagged",
+          "Check the result is real: instrument working, leads nulled, right range, test set up correctly; repeat the test",
+          "Find the fault: look for likely causes and test in sections",
+          "Report it to your supervisor",
+          "Put it right as agreed",
+          "Repeat the tests in the correct order",
+          "Record the fault, the repair and the new results"
+        ] },
+        { "note": "If you find a fault that could cause a shock or fire, **make it safe, report it and do not energise it**. Never carry on testing other circuits and 'decide later' with a dangerous fault left in service.", "label": "Safety" }
+      ]
+    },
+    {
+      "title": "Recording results, certification and handover",
+      "blocks": [
+        { "h": "The schedule of test results" },
+        { "p": "Write each result on the schedule **as soon as you take it**, not from memory later. For each circuit the schedule usually records:" },
+        { "table": { "head": ["Column", "Example"], "rows": [
+          ["Circuit number and what it supplies", "Circuit 5: kitchen outlets"],
+          ["Breaker type and rating", "20 A single-pole, GFCI"],
+          ["Conductor sizes (line and protective)", "12 AWG / 12 AWG"],
+          ["Continuity (R1 + R2 or R2)", "0.27 Ω"],
+          ["Insulation resistance (L–N, L–E, N–E)", ">999 MΩ in each case"],
+          ["Polarity", "Correct (tick)"],
+          ["Live test results (by the competent person)", "Loop impedance; GFCI trip time and button test"],
+          ["Remarks", "Any defect or limitation"]
+        ] } },
+        { "p": "Also record the date, the instruments used (with their serial numbers), the earth electrode result, and who did the tests. Compare **every** result with the value the code, the specification or the maker gives, and mark any that are not acceptable. List the defects from the visual inspection." },
+        { "h": "Certification" },
+        { "ul": [
+          "When every result is acceptable and the defects are put right, the certificate is completed and **signed by the person responsible** for the work.",
+          "The circuit schedule in the panel must match the installation.",
+          "Labels are fixed, such as those reminding users to test GFCIs, and the date the next inspection is due.",
+          "In Jamaica, the licensed inspector's inspection and certificate are needed before JPS connects a new or altered installation."
+        ] },
+        { "h": "Handover" },
+        { "flow": ["Give the customer a copy of the certificate and the test results", "Show them the main breaker and how to switch off in an emergency", "Show them how and how often to test the GFCI outlets", "Tell them when the next periodic inspection is due", "Keep a copy of everything on file"] }
+      ]
+    },
+    {
+      "title": "Revision",
+      "blocks": [
+        { "h": "Checklist" },
+        { "p": "Tick each statement only when you can do it without looking at the notes." },
+        { "ul": [
+          "I can explain why installations are inspected and tested, and the difference between initial verification and periodic inspection.",
+          "I can give the order of work and explain why the visual inspection and dead tests come before the live tests.",
+          "I can prepare for testing: information, permission, instruments and PPE.",
+          "I can isolate a circuit safely, with the tester checked before and after, and keep it locked off.",
+          "I can choose the right instrument for each test and check it before use.",
+          "I can carry out a visual inspection with a checklist and record defects clearly.",
+          "I can null the leads and test the continuity of protective and bonding conductors, and work out expected values.",
+          "I can prepare a circuit and test its insulation resistance safely at 500 V DC, and interpret the readings.",
+          "I can explain correct polarity and test it with the circuit dead.",
+          "I can explain how an earth electrode is tested and what the 25 Ω rule means.",
+          "I can explain the live tests, what they show and who does them.",
+          "I can say what to do when a result is not acceptable.",
+          "I can record results on the schedule and help with certification and handover."
+        ] },
+        { "h": "Numbers to remember" },
+        { "table": { "head": ["Figure", "What it is"], "rows": [
+          ["500 V DC, at least 1 MΩ", "Insulation test for 110 V and 220 V circuits, and the usual minimum"],
+          ["Hundreds of MΩ", "Typical insulation reading on a new circuit"],
+          ["1 MΩ = 1,000,000 Ω", "Megohm"],
+          ["Reading − lead reading", "Real resistance when the leads are not nulled"],
+          ["12 AWG ≈ 5.2 mΩ/m; 14 AWG ≈ 8.3 mΩ/m", "Copper resistance per metre, for expected R1 + R2"],
+          ["25 Ω", "NEC figure for a single earth rod; above it, add an electrode"],
+          ["About 5 mA / 30 mA", "Trip level of a GFCI for people / a typical RCD"],
+          ["About 4 mm or less", "Bare tip on test probes, with finger guards"]
+        ] } },
+        { "h": "Key terms" },
+        { "terms": [
+          ["Buzzer (audible continuity)", "A meter setting that beeps when there is a low-resistance path."],
+          ["Calibration", "Checking an instrument against a known standard so its readings can be trusted."],
+          ["Circuit schedule", "The list in a panel of each circuit, its breaker and what it supplies."],
+          ["Continuity", "An unbroken, low-resistance path along a conductor."],
+          ["Dead test", "A test made with the installation isolated from the supply."],
+          ["Earth fault loop impedance", "The impedance of the path a fault current takes from the source, through the fault and back; low enough means the breaker trips fast."],
+          ["Functional test", "A check that switches and devices work as they should."],
+          ["Initial verification", "The inspection and testing of a new installation before it is first used."],
+          ["Insulation resistance", "The resistance of the insulation between conductors and to earth, measured in megohms."],
+          ["Live test", "A test that needs the supply on, done by a competent person."],
+          ["Main earthing terminal (MET)", "The terminal or bar where the earthing conductor and all the bonding conductors meet."],
+          ["Multifunction tester", "An instrument that does continuity, insulation, loop and GFCI/RCD tests in one."],
+          ["Nulling", "Setting the instrument to subtract the resistance of its test leads."],
+          ["Periodic inspection", "The inspection and testing of an existing installation every few years."],
+          ["Polarity", "The correct connection of line, neutral and earth, with switches and protective devices in the line."],
+          ["Proving unit", "A small device giving a known voltage to check a voltage tester works."],
+          ["R1 + R2", "The resistance of the line conductor and the protective conductor of a circuit added together."],
+          ["Short circuit", "A fault in which line and neutral (or two lines) touch."],
+          ["Wander lead", "A long test lead used to reach from the main earthing terminal to distant points."]
+        ] }
+      ]
+    }
+  ],
+  "cases": {
+    "c1": { "title": "A new house in Hopewell", "text": "Trainee Chadwick Ellis is helping licensed electrician Mrs Patricia Lawrence to inspect and test a new three-bedroom house in Hopewell, Hanover, before the inspector's visit. JPS has not yet connected the supply. During the visual inspection Chadwick finds an opening in the panel cover where a breaker was taken out, an outlet on the back verandah with an indoor-type cover instead of a weatherproof one, and a circuit schedule in the panel door that has not been filled in." },
+    "c2": { "title": "Continuity tests at a Gordon Town church hall", "text": "Trainee Shauna-Kay Morgan and electrician Mr Delroy Brown are testing a 20 A radial outlet circuit at a church hall in Gordon Town, St Andrew. The circuit has a 12 AWG line conductor and a 12 AWG protective conductor, and feeds five outlets; the farthest is about 25 m of cable from the panel. Copper of 12 AWG has a resistance of about 5.2 mΩ per metre. Using the R1 + R2 method, the readings rise steadily from outlet 1 to outlet 3, outlet 4 shows 'OL', and outlet 5 reads normally." },
+    "c3": { "title": "An insulation test at a Buff Bay bakery", "text": "Trainee Oshane Grant and electrician Ms Carlene Pinnock are testing the lighting circuits of a bakery in Buff Bay, Portland, during a periodic inspection. One circuit feeds LED panel lights with drivers and an electronic timer for the shop sign, wired in so that it is hard to disconnect. The insulation tester reads 0.4 MΩ between line and earth on the yard lighting circuit, which has a junction box outside. Bakery staff are still working nearby." },
+    "c4": { "title": "Polarity faults in a Spaldings flat", "text": "Trainee Kristoff Lewis and electrician Mr Anthony Gordon are testing a rented flat in Spaldings, Clarendon, after the landlord had some work done by an unknown person. With the line linked to the protective conductor at the panel and all switches on, the bedroom ceiling ES lampholder gives a low reading between earth and its screw shell, not its centre contact. At a 110 V outlet in the living room, the low reading is at the wide slot." },
+    "c5": { "title": "A periodic inspection at a Maggotty farm store", "text": "Trainee Nadine Clarke is assisting with the periodic inspection of a farm store and office in Maggotty, St Elizabeth, wired about 15 years ago. The installation has a single earth rod, which tests at 60 Ω in the dry season. The owner says the GFCI outlet by the wash sink is fine because it trips when he presses its TEST button. Nadine has also found a cracked outlet cover in the office and a cable with no clamp where it enters a box in the store." }
+  },
+  "questions": [
+    { "id": "P-01", "c": "c1", "q": "Why must the opening in the panel cover be dealt with before the house is energised?", "o": ["It lets dust in, so the breakers will wear out faster", "Live busbars and terminals could be touched through it", "It lets the breakers run hotter than they are rated for", "The inspector will only want the cover repainted"], "a": 1, "why": "Every unused opening in a panel cover must be closed with a proper blank, so no live part can be touched. Record it as a defect and fit the blank before the supply is switched on." },
+    { "id": "P-02", "c": "c1", "q": "What should Chadwick do about the verandah outlet with the indoor-type cover?", "o": ["Record it as a defect to be put right before use", "Ignore it, as the verandah has a roof over it", "Leave a note telling the owner to buy a cover later", "Tape plastic over the outlet to keep the rain out"], "a": 0, "why": "An outdoor outlet needs a weatherproof cover suitable for the place, as well as GFCI protection, because wind-driven rain can reach it even under a roof. An indoor cover outside is a defect to be recorded and put right before the installation is used." },
+    { "id": "P-03", "c": "c1", "q": "Why does the blank circuit schedule matter for the testing?", "o": ["It only matters to the owner, who likes neat labels", "The inspector fills it in, so the team can leave it", "It is needed only after the live tests are finished", "Isolation and results may be for the wrong circuit"], "a": 3, "why": "Safe isolation and every test result depend on knowing which breaker feeds which circuit. The schedule must be completed and checked against the installation, and it is part of the record left with the owner." },
+    { "id": "P-04", "c": "c1", "q": "JPS has not connected the supply yet. Which work can Mrs Lawrence's team do now?", "o": ["Only the visual inspection; all tests need the supply", "The visual inspection and all the dead tests", "The live tests, as the house is not yet connected", "None; inspection starts when JPS has connected it"], "a": 1, "why": "The visual inspection and the dead tests (continuity, insulation resistance, polarity, earth electrode) need no supply. Live tests such as loop impedance and GFCI trip tests need the supply on, so they wait until it is safely connected." },
+    { "id": "P-05", "c": "c2", "q": "About what R1 + R2 reading would Shauna-Kay expect at the farthest outlet, 25 m from the panel?", "o": ["About 0.13 Ω", "About 2.6 Ω", "About 0.026 Ω", "About 0.26 Ω"], "a": 3, "why": "R1 + R2 counts both conductors: 5.2 + 5.2 = 10.4 mΩ per metre. Over 25 m: 25 × 10.4 = 260 mΩ, about 0.26 Ω. Using only one conductor would give half that." },
+    { "id": "P-06", "c": "c2", "q": "Outlet 4 reads 'OL', while outlets 3 and 5 read normally. Where should Shauna-Kay look first?", "o": ["At outlet 4's own earth and line connections", "At the breaker, which may be the wrong size", "At outlet 1, as faults start near the panel", "At the link on the board, which must be loose"], "a": 0, "why": "Outlet 5, further along the circuit, reads normally, so the conductors run through past outlet 4. The open circuit is most likely at outlet 4's own connections: a loose or missing earth or line terminal on that outlet." },
+    { "id": "P-07", "c": "c2", "q": "Mr Brown then tests the main bonding conductor from the main earthing terminal to the water pipe clamp with the wander lead. Which reading shows it is sound?", "o": ["At least 1 MΩ, like a good insulation reading", "About 25 Ω, like a good earth rod reading", "A very low reading, a small fraction of an ohm", "OL, showing that no current can flow through it"], "a": 2, "why": "A bonding conductor must give an unbroken, very low-resistance connection, so the pipe stays at the same voltage as the earthing. A high or OL reading means a loose clamp, corrosion or a broken conductor." },
+    { "id": "P-08", "c": "c2", "q": "The continuity tests are finished. What must Shauna-Kay do at the panel before anything else?", "o": ["Leave the link in place so the inspector can see it later", "Switch the breaker on to check the outlets work", "Remove the link and reconnect the line to its breaker", "Tape the link to the panel door for the next test"], "a": 2, "why": "The temporary link joins line to earth. Left in place, it would put a short to earth on the circuit when switched on. Remove it, reconnect the line conductor to its breaker and leave the board as it was found, still locked off." },
+    { "id": "P-09", "c": "c3", "q": "The sign's electronic timer cannot easily be disconnected. How can the circuit still be insulation tested without damaging it?", "o": ["Test at 1000 V DC, so that the timer is bypassed", "Skip the insulation test on this circuit altogether", "Test line to neutral only, at 500 V DC", "Link line and neutral and test them to earth"], "a": 3, "why": "With line and neutral linked, there is no test voltage across the timer, but the insulation of both conductors to earth is still tested. A higher voltage would be more likely to damage it, and testing line to neutral would put the full voltage across it." },
+    { "id": "P-10", "c": "c3", "q": "How should Oshane find which part of the yard lighting circuit gives the low 0.4 MΩ reading?", "o": ["Raise the test voltage until the reading goes up", "Split the circuit at the junction box and test each part", "Switch the circuit on and see whether its breaker trips out", "Replace all of the cable on the circuit straight away"], "a": 1, "why": "Testing in sections narrows the fault down quickly. Here the outside junction box is a likely place for rain to have got in, so splitting the circuit there is a good first step. Never switch on a circuit with a low insulation reading." },
+    { "id": "P-11", "c": "c3", "q": "On two other circuits the tester shows '>999 MΩ' and '250 MΩ'. If the minimum is 1 MΩ, which results are acceptable?", "o": ["Both, as each is far above 1 MΩ", "Only '>999 MΩ', as 250 MΩ is low", "Neither, as insulation should read zero", "Only 250 MΩ, as '>999' shows a fault"], "a": 0, "why": "'>999 MΩ' means higher than the instrument can show, and 250 MΩ is 250 times the minimum. Both show good insulation. A low insulation reading, not a high one, shows a fault." },
+    { "id": "P-12", "c": "c3", "q": "Bakery staff are working nearby. What should Oshane do before he presses TEST on each insulation test?", "o": ["Nothing, as the circuit is already isolated and safe", "Switch the lights on so staff can see the test", "Warn the staff and make sure nobody can touch the circuit", "Hold the far end of the cable to feel that the test is working"], "a": 2, "why": "The insulation tester applies 500 V DC or more, which can give a painful shock and cause a fall. Warn people, keep everyone clear of the circuit and its accessories, and let the tester discharge the circuit afterwards." },
+    { "id": "P-13", "c": "c4", "q": "What does the low reading on the ES lampholder's screw shell show?", "o": ["The polarity is correct, as the shell is the larger contact", "The lamp will not light until the polarity is changed", "The line is on the shell, so the connections must be swapped", "The earth is broken, so the protective conductor needs fixing"], "a": 2, "why": "The low reading shows where the line conductor goes. The line must go to the centre contact and the neutral to the screw shell; otherwise the shell, which can be touched while a lamp is screwed in, is live." },
+    { "id": "P-14", "c": "c4", "q": "Why could Kristoff not find these polarity faults just by switching the lights on and off?", "o": ["Lamps only light when the polarity is correct", "The light works the same with wrong polarity", "The breaker trips at once when polarity is wrong", "Switching on would reverse the polarity again"], "a": 1, "why": "A lamp lights and goes out normally whether the switch or lampholder is wired the right way round or not. The danger is hidden, which is why polarity must be tested with an instrument." },
+    { "id": "P-15", "c": "c4", "q": "At the 110 V living-room outlet, the low reading is at the wide slot. What does this show?", "o": ["Line and neutral are reversed at that outlet", "The outlet is correctly wired for a 110 V supply", "The outlet has no earth connection behind it", "The outlet is wired for 220 V instead of 110 V"], "a": 0, "why": "On a US-style 110 V outlet, the narrow slot (brass screw) should be line and the wide slot (silver screw) neutral. A low reading at the wide slot means line and neutral are swapped, so they must be reconnected correctly." },
+    { "id": "P-16", "c": "c4", "q": "The landlord says a plug-in lamp-type outlet tester shows 'correct' at every outlet. Why is that not enough?", "o": ["Those testers work properly only on 220 V outlets", "It misses some faults, such as neutral and earth swapped", "Those testers may be used only by licensed inspectors", "It shows 'correct' only when nothing is plugged into the outlet"], "a": 1, "why": "A plug-in tester checks only a few conditions and measures nothing. Some faults, such as neutral and earth swapped, or a poor earth, still show 'correct'. Proper dead tests and live tests are needed." },
+    { "id": "P-17", "c": "c5", "q": "The single earth rod tests at 60 Ω. Under the NEC, what does this mean?", "o": ["It is fine, as any reading under 100 Ω is acceptable", "It should be tested again in the rainy season instead", "It is too high, so a supplementary electrode is needed", "It is too low, so the rod should be pulled out a little"], "a": 2, "why": "The NEC requires a single rod that does not reach 25 Ω or less to be supplemented by another electrode, such as a second rod. Dry soil gives higher readings, so a dry-season result is a fair worst case." },
+    { "id": "P-18", "c": "c5", "q": "The owner says the GFCI is fine because it trips with its TEST button. Why is it still tested with a GFCI tester?", "o": ["The tester checks it trips at the right current and time", "The TEST button only works when the outlet has a load", "The tester resets the GFCI so that it lasts a few more years", "The TEST button checks the earth rod, not the GFCI"], "a": 0, "why": "The button shows the tripping mechanism works. The instrument test shows the device trips at the right leakage current and fast enough, through the real wiring. A GFCI can pass one and fail the other." },
+    { "id": "P-19", "c": "c5", "q": "The owner asks Nadine to do the earth fault loop impedance test on her own to save time. What should happen?", "o": ["She does it, as long as she wears insulated gloves", "She does it with the owner's plug-in outlet tester", "The test is skipped, as the dead tests have passed", "A competent person does it; Nadine only assists"], "a": 3, "why": "Loop impedance is a live test. It is done only by a competent person with the right instrument, after the dead tests have passed. A trainee assists as directed and does not do live tests alone." },
+    { "id": "P-20", "c": "c5", "q": "How should Nadine record the cracked outlet cover and the missing cable clamp?", "o": ["Tell the owner by word of mouth, as both are only minor", "Write them on the inspection record with their locations", "Fix them herself and leave them off the written record", "Note only the cracked cover, as cable clamps are not inspected"], "a": 1, "why": "Every defect is written on the inspection record, with exactly what and where, so it can be put right and checked. Even when a defect is repaired on the spot, it is recorded with the action taken." }
+  ]
+}
