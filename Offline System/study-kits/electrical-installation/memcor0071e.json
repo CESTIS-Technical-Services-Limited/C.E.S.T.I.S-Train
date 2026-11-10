@@ -1,0 +1,471 @@
+{
+  "format": "cestis-study-kit",
+  "version": 1,
+  "status": "to-check",
+  "written": "2026-11-07",
+  "programme": "Electrical Installation",
+  "qualification": { "id": "QUAL-EIM-L2", "title": "ELECTRICAL INSTALLATION AND MAINTENANCE LEVEL 2", "code": "EEM20723" },
+  "level": 2,
+  "unit": { "code": "MEMCOR0071E", "title": "Use electrical/electronic measuring devices" },
+  "summary": "This unit teaches you to choose and use electrical measuring instruments safely and correctly. You will learn the quantities and units, Ohm's law and the power formula, and how to measure voltage, current and resistance with a multimeter and a clamp meter. You will also learn to carry out continuity, polarity and insulation resistance tests on dead circuits, read analogue and digital displays, look after and calibrate instruments, and record results properly.",
+  "sections": [
+    {
+      "title": "Unit overview",
+      "blocks": [
+        { "p": "An electrician measures all the time: to check a supply, to prove a circuit dead, to test new work before it is connected and to find faults. A measurement is only useful if the right instrument is used, on the right setting, connected the right way, and if the reading is understood and recorded. A wrong setting can destroy a meter or cause an arc flash in your face. This unit is for Level 2 trainees, who measure on low-voltage training boards and on circuits that are isolated and proved dead, under supervision." },
+        { "h": "What you must be able to do" },
+        { "table": { "head": ["Task", "What it looks like on the job"], "rows": [
+          ["Use quantities, units and Ohm's law", "Name volts, amps, ohms, watts and hertz; change units such as mA to A; use I = V ÷ R and P = V × I to work out and check readings."],
+          ["Choose the right instrument", "Pick a multimeter, clamp meter, insulation tester, continuity tester, energy meter or other instrument for the job, with a suitable CAT rating."],
+          ["Check an instrument before use", "Inspect the case, leads and probes, check the battery and fuses, and check the meter on a known value."],
+          ["Measure voltage", "Set the right function and range, connect the meter in parallel across the part, and read and record the value."],
+          ["Measure current", "Switch off, break the circuit, connect the meter in series in the right socket, then switch on and read; or use a clamp meter round one conductor."],
+          ["Measure resistance and continuity", "Measure only on dead circuits, null the leads, and judge whether a reading shows an unbroken path."],
+          ["Test polarity and insulation resistance", "Check that switches are in the line conductor, and test insulation between conductors with an insulation tester, safely."],
+          ["Read displays and scales", "Read digital displays, signs and symbols, and analogue scales without parallax error."],
+          ["Look after instruments", "Switch off, clean, store and calibrate instruments, replace fuses with the exact type, and take faulty ones out of use."],
+          ["Record and report", "Write each result straight away with its unit, and check and report readings that are not as expected."]
+        ] } },
+        { "note": "Jamaica's supply is **110 V and 220 V at 50 Hz**. At Level 2 you measure on low-voltage training boards (such as 12 V DC) and on circuits that are isolated and proved dead. Measurements on live mains are made only by qualified, authorised people, with instruments and PPE suited to the job.", "label": "Jamaica" },
+        { "h": "How to use this kit" },
+        { "p": "Read the sections in order. Work through each example with a calculator. Then try the practice test and read every explanation, even when you get the answer right. Your instructor will show you the Centre's own meters, whose dials and sockets may differ a little from the ones described here: always read the maker's instructions." }
+      ]
+    },
+    {
+      "title": "Quantities, units and Ohm's law",
+      "blocks": [
+        { "table": { "head": ["Quantity", "Symbol in formulas", "Unit", "Unit symbol", "What it means"], "rows": [
+          ["Voltage (potential difference)", "V", "volt", "V", "The electrical 'push' between two points."],
+          ["Current", "I", "ampere (amp)", "A", "The flow of electric charge through a circuit."],
+          ["Resistance", "R", "ohm", "Ω (the Greek letter omega)", "How much a material or part opposes current."],
+          ["Power", "P", "watt", "W", "How fast energy is used or delivered."],
+          ["Energy", "E", "kilowatt-hour", "kWh", "Power used over time: what the electricity bill charges for."],
+          ["Frequency", "f", "hertz", "Hz", "The number of cycles per second of an alternating current."]
+        ] } },
+        { "h": "AC and DC" },
+        { "ul": [
+          "**DC (direct current)** flows in one direction only. Batteries, solar panels and most electronic circuits give DC. On a meter it is shown by a straight line, often with a dashed line under it (V⎓ or A⎓).",
+          "**AC (alternating current)** changes direction many times a second. The JPS supply is AC at 50 Hz: 50 complete cycles every second. On a meter AC is shown by a wavy line (V~ or A~).",
+          "A mains voltage of 110 V or 220 V is its **RMS** (effective) value: the steady DC voltage that would give the same heating effect. The voltage actually swings to a peak of about 1.4 times this (about 156 V on a 110 V supply) twice in every cycle."
+        ] },
+        { "h": "Prefixes: big and small units" },
+        { "table": { "head": ["Prefix", "Symbol", "Means", "Example"], "rows": [
+          ["mega", "M", "× 1,000,000 (a million)", "2 MΩ = 2,000,000 Ω"],
+          ["kilo", "k", "× 1,000", "4.7 kΩ = 4,700 Ω; 2.2 kW = 2,200 W"],
+          ["milli", "m", "÷ 1,000 (a thousandth)", "350 mA = 0.35 A"],
+          ["micro", "µ", "÷ 1,000,000 (a millionth)", "500 µA = 0.5 mA = 0.0005 A"]
+        ] } },
+        { "ul": [
+          "mA to A: divide by 1,000. A to mA: multiply by 1,000. For example, 0.08 A = 80 mA.",
+          "kΩ to Ω: multiply by 1,000. MΩ to kΩ: multiply by 1,000. For example, 0.5 MΩ = 500 kΩ = 500,000 Ω.",
+          "Always check the prefix on the display: 1.5 kΩ and 1.5 MΩ are a thousand times different."
+        ] },
+        { "h": "Ohm's law" },
+        { "p": "**Ohm's law** links voltage, current and resistance: the current is the voltage divided by the resistance. Cover the quantity you want in the triangle V over I × R:" },
+        { "table": { "head": ["To find", "Formula", "Example"], "rows": [
+          ["Current", "I = V ÷ R", "A 24 Ω lamp on 12 V: I = 12 ÷ 24 = 0.5 A"],
+          ["Voltage", "V = I × R", "0.25 A through a 40 Ω resistor: V = 0.25 × 40 = 10 V"],
+          ["Resistance", "R = V ÷ I", "220 V and 5 A: R = 220 ÷ 5 = 44 Ω"]
+        ] } },
+        { "h": "Power" },
+        { "table": { "head": ["To find", "Formula", "Example"], "rows": [
+          ["Power", "P = V × I", "110 V and 0.5 A: P = 110 × 0.5 = 55 W"],
+          ["Current from a rating", "I = P ÷ V", "A 1,100 W microwave on 110 V: I = 1,100 ÷ 110 = 10 A"],
+          ["Power from current and resistance", "P = I × I × R", "2 A through 10 Ω: P = 2 × 2 × 10 = 40 W"],
+          ["Resistance from a rating", "R = V × V ÷ P", "A 220 V, 2,200 W element: R = 220 × 220 ÷ 2,200 = 22 Ω"]
+        ] } },
+        { "p": "**Energy** = power × time. A 2 kW water heater that runs for 3 hours uses 2 × 3 = **6 kWh**. The JPS meter counts kilowatt-hours, and the bill charges for each one." },
+        { "note": "Use Ohm's law to check your readings. If a lamp is rated 12 V 6 W, it should draw about 6 ÷ 12 = 0.5 A. A reading of 5 A or 0.05 A tells you that something is wrong: the setting, the range, the connection or the circuit.", "label": "Tip" },
+        { "p": "**Hot and cold resistance.** The filament of an ordinary lamp has a much higher resistance when it is glowing than when it is cold: often ten times or more. So a resistance reading taken on a cold lamp will be far lower than V ÷ I worked out while it is lit. Heating elements made of resistance wire change much less." }
+      ]
+    },
+    {
+      "title": "Series and parallel circuits",
+      "blocks": [
+        { "table": { "head": ["Feature", "Series", "Parallel"], "rows": [
+          ["How the parts are joined", "One after another, in a single loop", "Side by side, each across the same two points"],
+          ["Current", "The **same** through every part", "Divides: the branch currents **add up** to the total"],
+          ["Voltage", "Divides: the voltages across the parts **add up** to the supply voltage", "The **same** across every branch"],
+          ["Total resistance", "Add them: R = R1 + R2 + R3", "Less than the smallest one"],
+          ["If one part fails open", "Everything stops", "The other branches keep working"],
+          ["Where you meet it", "A switch and fuse in series with a load; old decorative light strings", "Lights and outlets in a building: every load gets the full supply voltage"]
+        ] } },
+        { "h": "Working out total resistance" },
+        { "ul": [
+          "**Series:** 15 Ω + 25 Ω + 40 Ω = 80 Ω.",
+          "**Two equal resistors in parallel:** half of one. Two 30 Ω in parallel = 15 Ω.",
+          "**Two different resistors in parallel:** product over sum. 20 Ω and 30 Ω: (20 × 30) ÷ (20 + 30) = 600 ÷ 50 = 12 Ω.",
+          "**More in parallel:** 1 ÷ R = 1 ÷ R1 + 1 ÷ R2 + 1 ÷ R3, then turn the answer upside down."
+        ] },
+        { "h": "Worked example: two lamps on a 12 V board" },
+        { "p": "Two identical lamps, each 24 Ω when lit, on a 12 V DC supply. (Real lamps change resistance with brightness, so measured values will differ a little.)" },
+        { "table": { "head": ["Quantity", "In series", "In parallel"], "rows": [
+          ["Total resistance", "24 + 24 = 48 Ω", "24 ÷ 2 = 12 Ω"],
+          ["Total current", "12 ÷ 48 = 0.25 A", "12 ÷ 12 = 1.0 A"],
+          ["Voltage across each lamp", "6 V each (6 + 6 = 12 V)", "12 V each"],
+          ["Current through each lamp", "0.25 A (the same everywhere)", "0.5 A each (0.5 + 0.5 = 1.0 A)"],
+          ["Brightness", "Dim", "Full brightness"]
+        ] } },
+        { "note": "In the practical you measure these values and then compare them with what Ohm's law predicts. Small differences are normal. A large difference means a wrong setting, a poor connection or a fault: find out which before you write it down.", "label": "Tip" }
+      ]
+    },
+    {
+      "title": "Choosing the right instrument",
+      "blocks": [
+        { "table": { "head": ["Instrument", "What it measures", "Notes"], "rows": [
+          ["**Multimeter** (digital or analogue)", "Voltage, current and resistance, often continuity and more", "The everyday instrument. Must be set correctly for each measurement."],
+          ["**Voltmeter**", "Voltage only", "Connected in parallel."],
+          ["**Ammeter**", "Current only", "Connected in series."],
+          ["**Ohmmeter**", "Resistance", "Used only on dead circuits; uses its own battery."],
+          ["**Low-resistance ohmmeter or continuity tester**", "Very small resistances, such as a grounding conductor", "Gives a steady test current and reads to 0.01 Ω."],
+          ["**Insulation resistance tester**", "The resistance of insulation, in megohms (MΩ)", "Makes its own high DC test voltage, such as 250 V, 500 V or 1,000 V. Dead circuits only."],
+          ["**Clamp meter**", "Current, without breaking the circuit", "Jaws go round one conductor; most also measure voltage and resistance through leads."],
+          ["**Two-pole voltage tester and proving unit**", "Whether voltage is present", "The instrument for proving a circuit dead."],
+          ["**Energy (kWh) meter**", "Electrical energy used", "The JPS meter at a building; sub-meters on circuits."],
+          ["**Wattmeter**", "Power in watts", "Also built into some clamp meters and energy monitors."],
+          ["**Tachometer**", "Speed of a shaft in revolutions per minute (rpm)", "Contact type, or optical with reflective tape."],
+          ["**Oscilloscope**", "The shape of a voltage as it changes with time (the waveform)", "Used in electronics; shows, for example, the 50 Hz sine wave of the mains."]
+        ] } },
+        { "h": "Analogue or digital?" },
+        { "table": { "head": ["Feature", "Analogue (needle) meter", "Digital meter"], "rows": [
+          ["How it shows the value", "A needle moving over printed scales", "Numbers on a display"],
+          ["Good points", ["Shows a value rising or falling at a glance", "Useful for watching a changing value", "Some types work without a battery for voltage and current"], ["Easy and quick to read", "Usually more accurate", "Many choose their own range (auto-ranging)", "Shows a minus sign if the leads are reversed on DC", "Often has continuity beep, hold and other functions"]],
+          ["Points to watch", ["Several scales: easy to read the wrong one", "Parallax error if you look from the side", "Must be zeroed before measuring resistance", "Easily damaged if dropped"], ["Needs a battery; a weak one can give wrong readings", "Numbers jump about on a changing value", "Harder to see a slow trend"]]
+        ] } },
+        { "h": "Measurement categories (CAT ratings)" },
+        { "p": "Mains supplies carry short, very high voltage spikes, for example from lightning or switching. A meter's **CAT rating** tells you where in an installation it can safely be used, because the closer you are to the supply, the bigger the spikes. Each rating comes with a voltage, such as **CAT III 600 V**." },
+        { "table": { "head": ["Category", "Where", "Examples"], "rows": [
+          ["CAT IV", "The origin of the supply", "The service drop, the meter, the main breaker"],
+          ["CAT III", "The fixed installation", "Panels, breakers, fixed wiring, permanently connected motors and air-conditioners"],
+          ["CAT II", "Equipment plugged into outlets", "Appliances, portable tools, the outlets' loads"],
+          ["CAT I (or 'O')", "Circuits not connected to the mains", "Protected electronics, low-voltage training boards, battery circuits"]
+        ] } },
+        { "ul": [
+          "Choose a meter, and leads, rated for the **highest category and voltage** where you will use it. A CAT III 600 V meter can be used in CAT II and CAT I places, but a CAT II meter must not be used at a panel.",
+          "The rating of the whole set is that of its lowest-rated part: CAT II leads on a CAT III meter make a CAT II set.",
+          "Probes should have **finger guards** and shrouded tips, with only a short length of metal showing (often 4 mm or less, or with tip caps fitted)."
+        ] },
+        { "h": "Before you choose" },
+        { "flow": [
+          "What must I measure, and is it AC or DC?",
+          "About what size do I expect, and what range covers it?",
+          "Is the circuit live or dead? (Resistance, continuity and insulation tests: dead only)",
+          "Where in the installation am I? Pick a suitable CAT and voltage rating",
+          "Is the instrument in date for calibration, undamaged and working?"
+        ] }
+      ]
+    },
+    {
+      "title": "The multimeter: settings, sockets and readings",
+      "blocks": [
+        { "h": "The dial" },
+        { "table": { "head": ["Symbol", "Function"], "rows": [
+          ["V~ (or VAC)", "AC voltage"],
+          ["V⎓ (or VDC): V with a straight line", "DC voltage"],
+          ["A~ / A⎓, mA, µA", "AC or DC current"],
+          ["Ω", "Resistance"],
+          ["A sound-wave symbol", "Continuity: the meter beeps when the resistance is low"],
+          ["A diode symbol (triangle and bar)", "Diode test"],
+          ["Hz", "Frequency"],
+          ["OFF", "Switches the meter off and saves the battery"]
+        ] } },
+        { "h": "The sockets" },
+        { "table": { "head": ["Socket", "Which lead", "Used for"], "rows": [
+          ["**COM** (common)", "Black lead, always", "Every measurement"],
+          ["**V Ω** (often with other symbols)", "Red lead", "Voltage, resistance, continuity, diode test"],
+          ["**mA** or **µA**", "Red lead", "Small currents, usually up to a few hundred milliamps, through a small internal fuse"],
+          ["**10 A** (or 20 A)", "Red lead", "Larger currents, through a high-energy fuse; often only for a short time"]
+        ] } },
+        { "note": "**The red lead in a current socket turns the meter into almost a short circuit.** If it is then touched across a supply, a large current flows: the fuse blows at best, and at worst the meter bursts in an arc flash. After every current measurement, put the red lead back in the V Ω socket and turn the dial away from amps.", "label": "Safety" },
+        { "h": "Ranges" },
+        { "ul": [
+          "An **auto-ranging** meter picks the range for you; a **manual** meter has several ranges for each function, such as 200 mV, 2 V, 20 V, 200 V and 600 V.",
+          "On a manual meter, if you do not know the size of the value, start on the **highest range** and step down until you get a clear reading. Starting too low can overload the meter.",
+          "The best range is the lowest one that is still higher than the value: 12 V is read best on the 20 V range, not the 200 V range.",
+          "Never turn the dial while the probes are connected to a circuit."
+        ] },
+        { "h": "Reading a digital display" },
+        { "table": { "head": ["You see", "It means"], "rows": [
+          ["**OL** (or 1 on the left)", "Over the range: the value is too big for this range, or, on resistance and continuity, the path is open (broken)"],
+          ["A minus sign before a DC reading", "The leads are the wrong way round; the size of the reading is still right"],
+          ["mV, kΩ, MΩ, mA beside the number", "The prefix: check it every time"],
+          ["A battery symbol", "The meter's battery is low; readings may be wrong. Replace it before going on"],
+          ["H or HOLD", "The display is frozen on the last reading"],
+          ["A number that keeps changing", "A changing value or a poor contact; hold the probes firmly and wait for it to settle"]
+        ] } },
+        { "p": "**Resolution** is the smallest step the display can show. On a 20 V range a typical display shows 12.47 V, a resolution of 0.01 V. On the 200 V range it shows 12.5 V, a resolution of 0.1 V. That is why the lowest suitable range gives the most detail." },
+        { "h": "Reading an analogue scale" },
+        { "p": "An analogue meter has several printed scales. You read the scale whose end figure matches, or divides easily into, the range you have selected, then multiply if needed." },
+        { "ul": [
+          "**Reading = (scale reading ÷ scale full value) × range.** On the 0–250 V range, a needle at 4.4 on the 0–10 scale reads 4.4 ÷ 10 × 250 = **110 V**.",
+          "On the 0–50 V range, a needle half-way across reads 25 V.",
+          "Look **straight at the needle**, with one eye, so that it covers its own reflection in the mirror strip. Looking from one side gives a **parallax error**.",
+          "The **ohms scale** runs backwards (0 Ω at the right, ∞ at the left) and is crowded at the left end. Choose an ohms range that puts the needle near the middle.",
+          "Before measuring resistance, touch the probes together and turn the **zero-adjust** knob until the needle reads 0 Ω. Do this again each time you change the ohms range.",
+          "With the meter switched off and nothing connected, the needle should rest on zero. If not, set it with the small screw under the needle (mechanical zero)."
+        ] }
+      ]
+    },
+    {
+      "title": "Measuring voltage and current",
+      "blocks": [
+        { "h": "Measuring voltage: the meter goes in parallel" },
+        { "p": "Voltage is the difference between two points, so the voltmeter is connected **across** the part, in parallel with it. A voltmeter has a very high resistance, so it takes almost no current and does not change the circuit." },
+        { "flow": [
+          "Check the meter, leads and probes for damage",
+          "Black lead in COM, red lead in V Ω",
+          "Set DC or AC volts, and a range higher than the expected value",
+          "Hold the probes behind the finger guards",
+          "Touch black to the negative (or neutral) side and red to the positive (or line) side",
+          "Read the display when it is steady",
+          "Record the value with its unit; remove the probes; switch off"
+        ] },
+        { "table": { "head": ["Measurement on a 12 V DC board", "What it tells you"], "rows": [
+          ["Across the supply or battery", "Whether the supply is at its rated voltage. A fully charged 12 V lead-acid battery at rest reads about 12.6–12.8 V; about 12.0 V or less means it is well run down (check the maker's table)."],
+          ["Across each lamp in a series circuit", "How the supply voltage is shared. The lamp voltages add up to the supply voltage."],
+          ["Across each lamp in a parallel circuit", "Each should read the full supply voltage."],
+          ["Across a closed switch or a good fuse", "Close to 0 V: little voltage is lost across a good connection."],
+          ["Across an open switch or a blown fuse in a working circuit", "The full supply voltage: the break has the whole voltage across it."]
+        ] } },
+        { "h": "Measuring current: the meter goes in series" },
+        { "p": "Current is the flow **through** a part, so the ammeter must be put **into** the circuit, in series, so that all the current flows through it. An ammeter has a very low resistance, so that it does not reduce the current." },
+        { "flow": [
+          "Switch off the circuit",
+          "Set the dial to DC or AC amps",
+          "Black lead in COM; red lead in the 10 A socket if you are not sure of the size",
+          "Open the circuit at one point, for example by taking one wire off a lamp terminal",
+          "Connect the meter into the gap: red to the side from the supply's positive, black towards the load",
+          "Switch on and read; if the reading is small, switch off and move to the mA socket and a lower range",
+          "Switch off, remove the meter and reconnect the wire",
+          "Put the red lead back in V Ω and turn the dial off amps"
+        ] },
+        { "note": "Never connect an ammeter across a supply or across a part, the way you connect a voltmeter. With almost no resistance, it short-circuits whatever it is placed across.", "label": "Safety" },
+        { "h": "The clamp meter" },
+        { "p": "A clamp meter measures current by sensing the **magnetic field** round a conductor that carries it. The circuit does not have to be switched off or broken. Most clamp meters measure AC current; some, with a different sensor, also measure DC." },
+        { "ul": [
+          "Set the dial to AC amps (A~) for a mains circuit.",
+          "Open the jaws and close them round **one conductor only**, such as the line conductor, with the jaws fully shut. Centre the conductor in the jaws if you can.",
+          "If the line and neutral are both inside the jaws, their currents are equal and opposite, their fields cancel and the meter reads about **zero**. A flexible cord must be split out, or measured with a line-splitter adaptor.",
+          "Keep your hand behind the guard on the clamp body, and never touch bare parts.",
+          "At the Centre, clamp readings on mains circuits are taken only on equipment the instructor has set up for it."
+        ] },
+        { "p": "**Example.** A clamp round the line conductor of a 220 V, 2.2 kW water heater should read about 2,200 ÷ 220 = 10 A. A reading of about 10 A shows the heater is working at its rating; a much lower reading points to a fault, a low supply voltage or the wrong element, and 0 A while the thermostat is calling for heat means no current is flowing at all." }
+      ]
+    },
+    {
+      "title": "Resistance, continuity, polarity and insulation",
+      "blocks": [
+        { "note": "**Every test in this section is done on a dead circuit.** These instruments send their own current or voltage through the circuit. Any outside voltage can damage them and gives false readings, and the insulation tester's own voltage can give you a shock. Isolate, lock off, tag and prove dead first, or work on a board that is not connected to any supply.", "label": "Safety" },
+        { "h": "Measuring resistance" },
+        { "flow": [
+          "Isolate and prove dead, or take the part out of the circuit",
+          "Disconnect at least one end of the part, so that other parts in parallel do not change the reading",
+          "Black lead in COM, red in V Ω; set the dial to Ω",
+          "Touch the probes together: note the lead resistance (digital) or zero the needle (analogue)",
+          "Hold the probes firmly on the two ends, fingers off the metal tips",
+          "Read when steady, check the prefix (Ω, kΩ or MΩ) and take away the lead resistance if it matters",
+          "Compare with the expected value"
+        ] },
+        { "ul": [
+          "Keep your fingers off the probe tips and the part: your body is a resistance in parallel, and it lowers high readings.",
+          "**OL** on a resistance range means the value is higher than the range can show, or the path is open.",
+          "A reading of almost 0 Ω across a part that should have resistance, such as a heater element, suggests a short circuit."
+        ] },
+        { "h": "Continuity" },
+        { "p": "A continuity test checks that a conductor has an **unbroken path** from one end to the other. On a multimeter's continuity setting the meter beeps when the resistance is below a low value set by the maker (often a few tens of ohms). For grounding conductors and other installation tests, a low-resistance ohmmeter is used, because it reads small values accurately." },
+        { "ul": [
+          "**Null the leads** first: touch them together and use the meter's null or zero button, or write down the lead resistance and take it away from each reading.",
+          "To test a long conductor, link it at the far end to another conductor (or use a long 'wander' lead), and measure the loop from the near end.",
+          "For short runs of installation cable, a good conductor reads well under 1 Ω. A high reading or OL means a break or a loose or dirty terminal.",
+          "Check the **grounding conductor** to every metal box, fitting and outlet ground terminal, because it must carry fault current."
+        ] },
+        { "p": "**Example.** The leads read 0.3 Ω when touched together. A grounding conductor run reads 0.8 Ω including the leads. Its own resistance is 0.8 − 0.3 = **0.5 Ω**." },
+        { "h": "Polarity" },
+        { "p": "Polarity tests check that conductors are connected to the right terminals. They are done on the dead circuit with a continuity tester." },
+        { "ul": [
+          "Every **switch must be in the line (hot) conductor**, never in the neutral. A switch in the neutral turns the lamp off but leaves the lamp holder live, so someone changing a lamp could get a shock.",
+          "In a screw-type lamp holder, the **centre contact goes to the switched line** and the outer screw shell to the neutral, because the shell is easier to touch.",
+          "In a standard 110 V outlet of the US type used in Jamaica, the **narrow slot** (brass screw) is line, the **wide slot** (silver screw) is neutral and the **round or D-shaped hole** (green screw) is ground.",
+          "Check that the grounding conductor is connected to every metal box and fitting."
+        ] },
+        { "h": "Insulation resistance" },
+        { "p": "Insulation resistance tests check that the insulation between conductors, and between each conductor and ground, is sound, so that current cannot leak through it. Damaged or damp insulation causes shocks, fires and tripping. The insulation tester makes its own **high DC test voltage**. For 110/220 V circuits **500 V DC** is common; your instructor will give the test voltage to use." },
+        { "flow": [
+          "Isolate, lock off and prove the circuit dead",
+          "Remove lamps, unplug appliances and disconnect equipment the test voltage could damage (electronic switches, dimmers, LED drivers, GFCIs, surge protectors)",
+          "Close the switches so that every part of the circuit is tested",
+          "Check the tester: leads joined should read 0; leads apart should read the top value",
+          "Warn others and keep everyone off the circuit",
+          "Test between line and neutral, line and ground, and neutral and ground",
+          "Keep your hands off the conductors and probe tips during each test",
+          "Let the circuit discharge (most testers do it automatically) before touching it",
+          "Record each result; reconnect the lamps and equipment"
+        ] },
+        { "ul": [
+          "Good insulation gives a **high reading in megohms**. A new circuit often reads hundreds of megohms, or more than the tester's top value (shown as '>' or OL).",
+          "Many test standards accept no less than about 1 MΩ on circuits like these. Any reading much lower than similar circuits should be investigated: your instructor will give the pass value the Centre uses.",
+          "A lamp left in its holder, or an appliance left plugged in, connects line to neutral through its filament or circuit, so that pair reads very low. Remove it and test again.",
+          "A low reading between a conductor and ground usually means damaged insulation, for example a cable nicked by a screw, crushed in a box or wet."
+        ] },
+        { "note": "The insulation tester's test voltage, such as 500 V, can give a painful shock, and long cables can store a charge after the test. Never touch the conductors or probe tips during a test, and let the circuit discharge before you touch it.", "label": "Safety" }
+      ]
+    },
+    {
+      "title": "Safe use, care and calibration",
+      "blocks": [
+        { "h": "Rules for safe measuring" },
+        { "ul": [
+          "Use an instrument with a CAT and voltage rating suitable for where you are measuring, and leads of the same rating.",
+          "Before use, check the case, leads, probes and plugs for cracks, bare metal, burns or loose parts. Damaged leads are taken out of use.",
+          "Check the battery and that the fuses are the type the maker states.",
+          "Check the meter on a **known value** before you trust it: a proving unit, a known battery or a known resistor.",
+          "Set the function and range **before** the probes touch the circuit; never turn the dial while connected.",
+          "Hold the probes behind the finger guards. Keep one hand away from the circuit where you can.",
+          "Resistance, continuity and insulation tests are done on **dead** circuits only.",
+          "Do not measure in wet conditions or with wet hands.",
+          "After use, put the red lead back in V Ω, switch the meter off and put it away."
+        ] },
+        { "h": "Fuses inside meters" },
+        { "p": "The current ranges of a multimeter are protected by fuses. Good meters use special **high-energy (high breaking capacity) fuses**, usually ceramic, rated for a high voltage such as 1,000 V. If the meter is wrongly connected across a supply, this fuse must break a very large current safely." },
+        { "ul": [
+          "Replace a blown fuse **only with the exact type** the maker states: the same current rating, voltage rating and breaking capacity.",
+          "A glass fuse from a car or a cheap fuse of the same amps can shatter or keep arcing, and the meter can explode in your hand.",
+          "Never bridge a fuse holder with wire or foil.",
+          "A blown fuse means the meter was misused: find out what happened and tell your instructor."
+        ] },
+        { "h": "Care and storage" },
+        { "table": { "head": ["Do", "Why"], "rows": [
+          ["Switch off after use; take the battery out if the meter will not be used for a long time", "Saves the battery, and stops a leaking battery from damaging the meter"],
+          ["Replace the battery when the low-battery sign shows", "A weak battery can give wrong readings"],
+          ["Wipe clean with a dry cloth", "Dirt and moisture can make current leak across the case"],
+          ["Store in its case, with the leads coiled loosely, in a cool, dry place", "Protects it from knocks, dust and damp; tight coils crack lead insulation"],
+          ["Keep it away from heavy tools and out of hot vehicles", "Heat in a closed van in the Jamaican sun can damage the display, battery and accuracy"],
+          ["Do not drop it; if it is dropped, check it before use", "A drop can crack the case or upset the readings"]
+        ] } },
+        { "h": "Calibration" },
+        { "p": "Over time, and after knocks, heat or misuse, instruments drift and read wrongly. **Calibration** compares an instrument with a more accurate standard and adjusts it if needed. Instruments are calibrated at set times (often every year, as the Centre's schedule says), and a label shows the date of the last check and when the next is due." },
+        { "ul": [
+          "Check the calibration label before you use an instrument. If it is **out of date**, do not use it: tag it and hand it in.",
+          "Between calibrations, check meters on known values, such as a proving unit, a check box or a known resistor.",
+          "An instrument that is damaged, has been dropped or gives doubtful readings is **tagged out of use** and reported until it has been checked."
+        ] }
+      ]
+    },
+    {
+      "title": "Recording results and checking unexpected readings",
+      "blocks": [
+        { "p": "Write each result on the proper record **straight after** the measurement, so that it is not forgotten or mixed up. A result that is not recorded is a test that was not done." },
+        { "h": "What a good record shows" },
+        { "ul": [
+          "What was tested and where: the circuit, and between which points or conductors.",
+          "The **value with its unit and prefix**: 0.42 Ω, 12.3 V, 250 MΩ.",
+          "The instrument used (and its number), the range or test voltage.",
+          "The date and the name of the person who did the test.",
+          "Pass or fail against the expected value, and any notes."
+        ] },
+        { "table": { "head": ["Circuit / test", "Between", "Reading", "Instrument", "Pass?"], "rows": [
+          ["Lighting circuit 1: ground continuity", "Panel ground bar to light box L2", "0.38 Ω (leads nulled)", "Low-resistance ohmmeter no. 3", "Yes"],
+          ["Lighting circuit 1: insulation at 500 V", "Line to ground", "> 500 MΩ", "Insulation tester no. 1", "Yes"],
+          ["Lighting circuit 1: polarity", "Switch in line conductor", "Correct", "Continuity tester no. 3", "Yes"]
+        ] } },
+        { "h": "When a reading is not what you expected" },
+        { "flow": [
+          "Do not guess and do not change the reading",
+          "Check yourself: function, range, lead sockets, probe contact and prefix",
+          "Check the meter on a known value",
+          "Measure again",
+          "Work out with Ohm's law what the value should be",
+          "If it is still unexpected, record what you found and report it to your supervisor: it may be a fault"
+        ] },
+        { "note": "Never write down the value you expected instead of the value you measured, and never 'round' a fail into a pass. Honest records protect the people who will use the installation, and they protect you.", "label": "Remember" }
+      ]
+    },
+    {
+      "title": "Revision",
+      "blocks": [
+        { "h": "Checklist" },
+        { "p": "Tick each statement only when you can do it without looking at the notes." },
+        { "ul": [
+          "I can name the units of voltage, current, resistance, power, energy and frequency, with their symbols.",
+          "I can change between mA and A, kΩ and Ω, and MΩ and kΩ.",
+          "I can use Ohm's law and the power formulas to work out and check readings.",
+          "I can work out total resistance, current and voltages in simple series and parallel circuits.",
+          "I can choose the right instrument for a measurement, with a suitable CAT rating.",
+          "I can check a meter, its leads and its fuses before use, and check it on a known value.",
+          "I can set the right function, range and sockets on a multimeter.",
+          "I can measure voltage with the meter in parallel, and current with the meter in series, safely.",
+          "I can use a clamp meter round one conductor and explain why the whole cable reads near zero.",
+          "I can read a digital display, including OL, a minus sign and prefixes.",
+          "I can read an analogue scale on any range without parallax error, and zero the ohms scale.",
+          "I can measure resistance and continuity on a dead circuit, nulling the leads.",
+          "I can check polarity on a lighting circuit and an outlet.",
+          "I can carry out an insulation resistance test safely and judge the result.",
+          "I can replace a meter fuse with the right type and look after and store instruments.",
+          "I can explain why instruments are calibrated and what to do with one that is out of date.",
+          "I can record results properly and deal with an unexpected reading."
+        ] },
+        { "h": "Formulas" },
+        { "table": { "head": ["Formula", "Use"], "rows": [
+          ["I = V ÷ R; V = I × R; R = V ÷ I", "Ohm's law"],
+          ["P = V × I; P = I × I × R; P = V × V ÷ R", "Power"],
+          ["kWh = kW × hours", "Energy"],
+          ["R = R1 + R2 + R3", "Resistors in series"],
+          ["R = (R1 × R2) ÷ (R1 + R2)", "Two resistors in parallel"],
+          ["Reading = (scale reading ÷ scale full value) × range", "Analogue meter"]
+        ] } },
+        { "h": "Key terms" },
+        { "terms": [
+          ["Ammeter", "An instrument that measures current; connected in series."],
+          ["Auto-ranging", "A meter that chooses its own range."],
+          ["CAT rating", "A meter's measurement category, which shows where in an installation it can be used safely."],
+          ["Clamp meter", "A meter that measures current by sensing the magnetic field round one conductor, without breaking the circuit."],
+          ["Calibration", "Comparing an instrument with a more accurate standard, and adjusting it if needed."],
+          ["Continuity", "An unbroken path for current from one end of a conductor to the other."],
+          ["Insulation resistance", "The resistance of the insulation between conductors, or between a conductor and ground, measured in megohms."],
+          ["Insulation resistance tester", "An instrument that applies a high DC test voltage to measure insulation resistance on a dead circuit."],
+          ["Kilowatt-hour (kWh)", "The unit of electrical energy: 1 kW used for 1 hour."],
+          ["Multimeter", "An instrument that measures voltage, current and resistance, and often more."],
+          ["Nulling the leads", "Setting the meter to zero with the leads touched together, so that their resistance is not included."],
+          ["Ohm's law", "Current equals voltage divided by resistance: I = V ÷ R."],
+          ["OL", "Over limit: the value is above the range, or the path is open."],
+          ["Parallax error", "A reading error caused by looking at a needle from one side instead of straight on."],
+          ["Parallel", "Connected side by side across the same two points: the same voltage across each."],
+          ["Polarity", "Conductors connected to the correct terminals, with switches in the line conductor."],
+          ["Proving unit", "A small device that gives a known voltage, used to check that a tester works."],
+          ["Range", "The span of values a meter setting can measure, such as 0–20 V."],
+          ["Resolution", "The smallest step a display or scale can show."],
+          ["Series", "Connected one after another in a single path: the same current through each."],
+          ["Voltmeter", "An instrument that measures voltage; connected in parallel."]
+        ] }
+      ]
+    }
+  ],
+  "cases": {
+    "c1": { "title": "A solar lighting kit on a farm near Santa Cruz", "text": "Trainee Akeem is helping Mr Ewan Daley check a solar lighting kit in a chicken house on a farm near Santa Cruz, St Elizabeth. A solar panel charges a 12 V battery, which feeds two 12 V, 10 W filament lamps connected in parallel through a switch and a fuse. Akeem is using a manual-range digital multimeter." },
+    "c2": { "title": "A water heater that trips in Hayes", "text": "Mrs Gayle's water heater in Hayes, Clarendon, keeps tripping the two-pole GFCI breaker that protects it. The heater is rated 3,000 W at 220 V. Electrician Mr Andre Morrison clamps one line conductor while the heater is running and reads 13.6 A. He then isolates and locks off the circuit. With the element disconnected, trainee Tanya measures its resistance as 16.2 Ω. Mr Morrison then tests the insulation between the element terminals and the metal tank at 500 V and reads 0.02 MΩ." },
+    "c3": { "title": "Testing a new lighting circuit in a Junction shop", "text": "Trainee Shamar and his supervisor Ms Joan Francis are testing a new lighting circuit in a shop in Junction, St Elizabeth, before it is connected to the supply. The circuit has a one-way switch, three screw-type lamp holders in metal boxes, and a grounding conductor to each box. The circuit is not connected at the panel, and it has been proved dead. On the low-resistance range, the meter's leads read 0.4 Ω when touched together." },
+    "c4": { "title": "The meter cupboard at a Port Maria workshop", "text": "At a maintenance workshop in Port Maria, St Mary, trainee Kimberly is sorting out the meters before a job. She finds a digital meter whose 10 A fuse has blown, and the only spare is a 10 A glass fuse from a car kit; the meter's label calls for a 10 A, 1,000 V ceramic fuse. She also finds a meter marked CAT II 300 V that a technician wants to use at a distribution panel, an analogue multimeter, and a digital meter that was left on the dashboard of the van all week." }
+  },
+  "questions": [
+    { "id": "P-01", "c": "c1", "q": "On DC volts, the meter reads −12.7 across the battery. What does this tell Akeem?", "o": ["The battery is being charged the wrong way by the solar panel", "The leads are reversed, and the battery is at about 12.7 V", "The meter is on AC volts and the reading cannot be trusted", "The battery is faulty and is giving out a negative voltage"], "a": 1, "why": "On DC a digital meter shows a minus sign when the red probe is on the negative side. The size of the reading is still correct: about 12.7 V, which is normal for a charged 12 V lead-acid battery at rest. Swap the probes for a positive reading." },
+    { "id": "P-02", "c": "c1", "q": "With both lamps on, about what total current should Akeem's meter show?", "o": ["About 0.83 A", "About 20 A", "About 1.7 A", "About 0.42 A"], "a": 2, "why": "Each lamp draws I = P ÷ V = 10 ÷ 12 ≈ 0.83 A. In parallel the branch currents add: 0.83 + 0.83 ≈ 1.7 A. Using Ohm's law first tells you what range and socket to use and whether the reading makes sense." },
+    { "id": "P-03", "c": "c1", "q": "With the battery disconnected, one lamp measures 1.3 Ω, yet 12 V ÷ 0.83 A gives about 14 Ω. Why the difference?", "o": ["A lamp filament has a far lower resistance when it is cold", "The meter's battery is weak, so its reading is ten times low", "The lamp must be short-circuited and should be replaced", "The fuse in the circuit adds about 13 Ω when the lamp is lit"], "a": 0, "why": "A filament's resistance rises steeply as it heats up, often to ten times or more its cold value. The 14 Ω is its resistance when lit; 1.3 Ω cold is normal. This is why the current is high for a moment when a filament lamp is switched on." },
+    { "id": "P-04", "c": "c1", "q": "Akeem has just measured the lamp current in the 10 A socket. What must he do before he measures the battery voltage again?", "o": ["Leave the leads as they are and change only the dial to volts", "Turn the dial to the 10 A range, which also reads volts", "Remove the fuse in the meter, so no current can flow", "Move the red lead back to V Ω and set the dial to DC volts"], "a": 3, "why": "In the current socket the meter is almost a short circuit. Touched across the battery it would blow the meter's fuse or cause an arc. Both the lead and the dial must be changed back before measuring voltage." },
+    { "id": "P-05", "c": "c2", "q": "From the clamp reading of 13.6 A, about how much power is the heater using?", "o": ["About 16 W", "About 0.3 kW", "About 30 kW", "About 3.0 kW"], "a": 3, "why": "P = V × I = 220 × 13.6 ≈ 2,990 W, or about 3.0 kW: the heater's rating. So the element is heating normally when it runs; the trips have another cause." },
+    { "id": "P-06", "c": "c2", "q": "Is Tanya's reading of 16.2 Ω what you would expect for this element?", "o": ["Yes: a 3,000 W, 220 V element is about 16 Ω", "No: a good element should read close to 0 Ω", "No: a good element should read OL, an open path", "No: it should be about 220 Ω, the same as the volts"], "a": 0, "why": "R = V × V ÷ P = 220 × 220 ÷ 3,000 ≈ 16.1 Ω, so 16.2 Ω is right. OL would mean a broken element, and almost 0 Ω a short circuit. Resistance wire changes little with temperature, so the cold reading is close to the working value." },
+    { "id": "P-07", "c": "c2", "q": "What does the insulation reading of 0.02 MΩ between the element and the tank show?", "o": ["The insulation is in good condition, as it reads in megohms", "The tester is faulty, because an element should read near 16 Ω", "The insulation has broken down and current leaks to the tank", "The tank is not grounded and needs a new grounding conductor"], "a": 2, "why": "0.02 MΩ is only 20,000 Ω, far below the usual minimum of about 1 MΩ. Current is leaking from the element through damaged insulation to the grounded tank, which is enough to trip a GFCI. The element must be replaced and the circuit retested." },
+    { "id": "P-08", "c": "c2", "q": "Why does Mr Morrison tell Tanya to keep her hands off the terminals and the tank during the insulation test?", "o": ["Her hands would warm the element and change the reading", "The tester applies about 500 V DC, which can give a shock", "The supply could come back on during the test at any time", "The tank holds hot water that could scald her hands"], "a": 1, "why": "An insulation tester makes its own high DC test voltage, here 500 V, which can give a painful shock, and the circuit can hold a charge after the test. Keep hands off during the test and let the circuit discharge before touching it." },
+    { "id": "P-09", "c": "c3", "q": "The grounding conductor from the panel end to the second lamp box reads 0.9 Ω, including the leads. What is the conductor's own resistance?", "o": ["0.5 Ω", "1.3 Ω", "0.9 Ω", "0.4 Ω"], "a": 0, "why": "The leads add 0.4 Ω to every reading, so take it away: 0.9 − 0.4 = 0.5 Ω. Many meters can null the leads so the display shows the conductor alone. A low value like this shows the conductor is continuous." },
+    { "id": "P-10", "c": "c3", "q": "The insulation test reads very high from line to ground and neutral to ground, but almost 0 MΩ from line to neutral. What is the most likely cause?", "o": ["The grounding conductor is missing from the lamp boxes", "The tester's battery is flat, so it can only read zero", "A lamp is still in a holder, joining line to neutral", "The switch is open, so it blocks the test voltage"], "a": 2, "why": "A lamp's filament connects line to neutral, so with a lamp in place that pair reads almost zero although the insulation may be perfect. Remove every lamp, keep the switch closed, and test again." },
+    { "id": "P-11", "c": "c3", "q": "Which finding during the polarity check means the circuit must be corrected?", "o": ["The centre contact of each lamp holder goes to the switched line", "The grounding conductor is connected to every metal box", "The neutral goes to the screw shell of each lamp holder", "The switch is connected in the neutral, not the line"], "a": 3, "why": "With the switch in the neutral, the lamp goes off but the lamp holder stays live, so someone changing a lamp could get a shock. The switch must be in the line conductor; the other three findings are correct." },
+    { "id": "P-12", "c": "c3", "q": "With the switch closed, the continuity test along the switched line from the switch to the first lamp holder reads OL. What does this mean?", "o": ["The conductor is sound, and OL is the normal result", "A break: perhaps a loose terminal or a broken conductor", "The circuit is live and the meter has detected voltage", "The meter's leads need nulling before a reading can show"], "a": 1, "why": "On a resistance or continuity range, OL means the path is open. There is a break between the two points: a loose or missed terminal, a broken conductor or a faulty switch. Check each joint along that path, put it right and retest." },
+    { "id": "P-13", "c": "c4", "q": "Why must Kimberly not fit the 10 A glass car fuse in the meter?", "o": ["A glass fuse lets the meter read current in one direction only", "It would make the meter read about ten times too high", "It may not break a large fault current safely and could burst", "Glass fuses are only allowed in analogue meters"], "a": 2, "why": "The meter's ceramic high-energy fuse is made to break a very large fault current at up to 1,000 V if the meter is wrongly connected across a supply. A small glass fuse of the same amps can shatter or keep arcing, and the meter can explode. Fit only the exact type stated." },
+    { "id": "P-14", "c": "c4", "q": "Is the CAT II 300 V meter suitable for measuring at the distribution panel?", "o": ["No: a panel is CAT III, so it needs a CAT III meter", "Yes: 300 V is higher than 220 V, so it is safe to use there", "Yes, as long as the technician wears rubber gloves", "No: a CAT II meter may be used only on DC circuits"], "a": 0, "why": "A distribution panel is part of the fixed installation, CAT III, where voltage spikes are larger than at an outlet. The meter and its leads must be rated at least CAT III for the voltage there. The voltage figure alone is not enough." },
+    { "id": "P-15", "c": "c4", "q": "The technician uses the analogue meter on its 0–250 V AC range. The needle stops at 4.4 on the scale marked 0–10. What voltage does it show?", "o": ["4.4 V", "44 V", "220 V", "110 V"], "a": 3, "why": "Reading = scale reading ÷ scale full value × range = 4.4 ÷ 10 × 250 = 110 V. Reading the 0–10 scale without multiplying, or multiplying by the wrong factor, is a common mistake." },
+    { "id": "P-16", "c": "c4", "q": "What should Kimberly do with the digital meter that spent a week on the van's dashboard?", "o": ["Use it as normal, since digital meters are not affected by heat", "Check it on a known value, then store it in its case", "Cool it in the workshop fridge so it reads correctly again", "Leave it switched on overnight so that the battery recovers"], "a": 1, "why": "Strong heat in a closed vehicle can damage a meter's display, battery and accuracy. Check it on a known value, such as a proving unit or known resistor; if it reads wrongly, tag it out of use. Store meters in their cases in a cool, dry place." },
+    { "id": "P-17", "c": null, "q": "Three heater elements of 110 Ω each are wired in parallel across a 220 V supply. What total current do they draw?", "o": ["2 A", "6 A", "0.67 A", "18 A"], "a": 1, "why": "Each element has the full 220 V across it, so each draws 220 ÷ 110 = 2 A. In parallel the branch currents add: 3 × 2 = 6 A. (Working it the other way: three 110 Ω in parallel make about 36.7 Ω, and 220 ÷ 36.7 ≈ 6 A.) 0.67 A would be the current if they were in series." },
+    { "id": "P-18", "c": null, "q": "An air-conditioner uses 1.5 kW and runs for 8 hours. How much energy does it use?", "o": ["9.5 kWh", "1,200 kWh", "12 kWh", "5.3 kWh"], "a": 2, "why": "Energy = power × time = 1.5 kW × 8 h = 12 kWh. This is what the JPS meter counts and the bill charges for." },
+    { "id": "P-19", "c": null, "q": "Two lamps are in series on a 12 V DC board. The voltage across one lamp is 7.5 V. What should the meter read across the other?", "o": ["12 V", "7.5 V", "19.5 V", "4.5 V"], "a": 3, "why": "In a series circuit the voltages across the parts add up to the supply voltage: 12 − 7.5 = 4.5 V. Unequal voltages mean the lamps have different resistances." },
+    { "id": "P-20", "c": null, "q": "Which instrument shows how a voltage changes with time, such as the shape of the 50 Hz mains wave?", "o": ["An oscilloscope", "A tachometer", "An energy meter", "An insulation tester"], "a": 0, "why": "An oscilloscope draws the waveform on a screen, so you can see its shape, its peak value and how long each cycle takes (20 ms at 50 Hz). It is used mostly in electronics work." }
+  ]
+}

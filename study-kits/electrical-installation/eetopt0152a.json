@@ -1,0 +1,495 @@
+{
+  "format": "cestis-study-kit",
+  "version": 1,
+  "status": "to-check",
+  "written": "2026-11-07",
+  "programme": "Electrical Installation",
+  "qualification": { "id": "QUAL-EIM-L2", "title": "ELECTRICAL INSTALLATION AND MAINTENANCE LEVEL 2", "code": "EEM20723" },
+  "level": 2,
+  "unit": { "code": "EETOPT0152A", "title": "Apply the fibre optic technology" },
+  "summary": "This unit teaches you how optical fibre carries signals as light, the main fibre and cable types, and how to work with fibre safely. You will learn to prepare, cleave and join fibres, inspect and clean connectors, install and label a short fibre link, and test it with a visual fault locator, a light source and power meter, and (in outline) an OTDR. You will also learn to find common faults and keep proper records.",
+  "sections": [
+    {
+      "title": "Unit overview",
+      "blocks": [
+        { "p": "Optical fibre carries telephone calls, internet data, CCTV pictures and control signals as pulses of light along thin strands of glass. Electricians are more and more often asked to install fibre beside power and data cables, in offices, hotels, factories, schools and homes. This unit is for Level 2 trainees who will prepare, join, install and test fibre under supervision." },
+        { "h": "What you must be able to do" },
+        { "table": { "head": ["Task", "What it looks like on the job"], "rows": [
+          ["Explain how fibre carries signals", "Describe the core, cladding and coating, how light is kept in the core, and how a transmitter and receiver turn signals into light and back."],
+          ["Identify fibre and cable types", "Tell singlemode from multimode, read markings such as 50/125, and choose indoor or outdoor, tight-buffered or loose-tube cable for a job."],
+          ["Work safely with fibre", "Protect your eyes from invisible light, collect every glass off-cut, keep food away from the bench and handle cleaning alcohol safely."],
+          ["Prepare fibre ends", "Strip the jacket, strength yarn, buffer and coating, clean the bare glass and cleave it flat and square."],
+          ["Join fibres", "Make a fusion splice or a mechanical splice, protect it and store it in a splice tray; fit connectors by the maker's method."],
+          ["Look after connectors", "Inspect every connector end-face with a scope, clean it if needed, inspect it again and only then connect it."],
+          ["Install fibre cable", "Plan the route, pull the cable without exceeding its pulling force or bend radius, fix it without crushing, leave service loops and label both ends."],
+          ["Test a fibre link", "Check continuity with a visual fault locator, measure loss with a light source and power meter, and know what an OTDR shows."],
+          ["Find common faults", "Recognise dirty or damaged connectors, tight bends, crushed cable, breaks and poor splices, and put them right."],
+          ["Record and report", "Record each fibre's loss, wavelength, date and tester, and report faults and unsafe conditions."]
+        ] } },
+        { "h": "Fibre in Jamaica" },
+        { "ul": [
+          "Internet and telephone providers run fibre along roads and to homes and businesses in many towns (fibre to the home, often called FTTH).",
+          "Mobile phone towers, banks, hotels, hospitals and government offices are linked by fibre.",
+          "CCTV cameras at plazas, schools, factories and road junctions often send their pictures over fibre.",
+          "Undersea fibre cables link Jamaica to other countries and carry most of the island's international internet traffic.",
+          "Fibre is often used between buildings and near motors and generators, because it carries no electrical current and is not affected by electrical noise."
+        ] },
+        { "note": "Fibre on JPS poles and in street manholes is installed by authorised crews from the cable's owner. Trainees do not climb poles or enter manholes. Your work in this unit is in the Centre's training bay and inside buildings, under supervision.", "label": "Jamaica" },
+        { "h": "How to use this kit" },
+        { "p": "Read the sections in order: they follow a real job, from understanding the fibre to installing, testing and recording. Then try the practice test and read every explanation. Figures such as strip lengths, bend radii and losses vary between makers: this kit gives typical values, but on the job you follow the maker's data sheet and your instructor." }
+      ]
+    },
+    {
+      "title": "How optical fibre carries signals",
+      "blocks": [
+        { "h": "The fibre link" },
+        { "flow": [
+          "Equipment sends an electrical signal",
+          "The transmitter (a laser or LED) turns it into flashes of light",
+          "The light travels along the glass fibre",
+          "The receiver (a photodiode) turns the light back into an electrical signal",
+          "Equipment at the far end uses the signal"
+        ] },
+        { "p": "The light is switched on and off, or made brighter and dimmer, millions or billions of times a second. Each flash stands for part of the data. In most equipment the transmitter and receiver are in one small plug-in unit called a **transceiver**. A link normally uses **two fibres**: one carries signals one way and the other carries signals back, so each end has a transmit (Tx) port and a receive (Rx) port." },
+        { "h": "The parts of a fibre" },
+        { "table": { "head": ["Part", "Typical size", "What it does"], "rows": [
+          ["**Core**", "About 9 µm (singlemode) or 50 or 62.5 µm (multimode)", "The centre strand of very pure glass that carries the light."],
+          ["**Cladding**", "125 µm across, for almost all telecom fibre", "A layer of glass round the core, made so that light travels slightly faster in it. It keeps the light in the core."],
+          ["**Coating**", "250 µm across", "A thin plastic layer put on the glass as it is made. It protects the glass from scratches and moisture. It is stripped off before splicing."],
+          ["**Tight buffer** (some cables)", "900 µm across", "A thicker plastic layer over the coating, used in indoor cables and patch cords so that the fibre is easier to handle and terminate."]
+        ] } },
+        { "p": "One micrometre (µm) is a thousandth of a millimetre. A human hair is about 50 to 100 µm thick, so the core of a singlemode fibre is much thinner than a hair. That is why a speck of dust on a connector can block so much of the light." },
+        { "h": "Total internal reflection" },
+        { "p": "Light bends when it passes from one material into another. The glass of the core and the glass of the cladding are made slightly different, so that when light in the core strikes the boundary at a shallow, glancing angle, it is reflected back into the core instead of escaping. This is called **total internal reflection**. The light zig-zags (in multimode) or runs almost straight (in singlemode) along the core, even round gentle bends, for many kilometres." },
+        { "p": "If the fibre is bent too tightly, the light hits the boundary at a steeper angle, is no longer reflected and leaks out through the cladding. This is called **bending loss**. Very small kinks, for example from a cable crushed by a tight tie, cause the same problem." },
+        { "h": "The light that is used" },
+        { "table": { "head": ["Wavelength", "Visible?", "Where it is used"], "rows": [
+          ["About 650 nm (red)", "Yes", "Visual fault locators, for checking and finding faults on short lengths."],
+          ["850 nm and 1300 nm", "No: infrared", "Multimode links inside buildings and on campuses."],
+          ["1310 nm and 1550 nm", "No: infrared", "Singlemode links: long distances, networks between towns and fibre to homes."]
+        ] } },
+        { "p": "A nanometre (nm) is a millionth of a millimetre. The light in most working fibre links is **infrared**: you cannot see it, so you cannot tell by looking whether a fibre end is carrying light. This matters for eye safety (see the safety section)." },
+        { "h": "Why the light gets weaker" },
+        { "ul": [
+          "**Attenuation in the glass**: a little light is absorbed and scattered in every metre of fibre. It is given in decibels per kilometre (dB/km).",
+          "**Joints**: every connector pair and every splice loses some light.",
+          "**Bends, kinks and crushing**: light leaks out where the fibre is bent too tightly or squeezed.",
+          "**Dirt and damage**: dust, oil and scratches on connector end-faces block and scatter light."
+        ] },
+        { "p": "The receiver needs a certain amount of light to work. If too much light is lost along the way, the link becomes unreliable or stops. Testing measures this loss." }
+      ]
+    },
+    {
+      "title": "Fibre types and cable construction",
+      "blocks": [
+        { "h": "Singlemode and multimode" },
+        { "table": { "head": ["Feature", "Singlemode (SM)", "Multimode (MM)"], "rows": [
+          ["Core size", "About 9 µm (marked 9/125)", "50 µm or 62.5 µm (marked 50/125 or 62.5/125)"],
+          ["How the light travels", "In a single path (one mode)", "In many paths (many modes) of different lengths"],
+          ["Distance", "Many kilometres: tens of kilometres with suitable equipment", "Up to a few hundred metres at high speeds"],
+          ["Light sources", "Lasers at 1310 nm and 1550 nm", "LEDs or low-cost lasers (VCSELs) at 850 nm; some at 1300 nm"],
+          ["Cost", "Fibre is cheap; the transmitters cost more", "Equipment usually costs less"],
+          ["Typical uses", "Links between towns and buildings far apart, fibre to the home, telecom networks", "Inside buildings and campuses, data centres, short CCTV links"],
+          ["Usual jacket colour", "Yellow (OS1, OS2)", "Orange (OM1, OM2), aqua (OM3, OM4), lime green (OM5)"]
+        ] } },
+        { "p": "**Why multimode is limited.** In multimode fibre the light takes many paths, some straighter and some zig-zagging more. The longer paths arrive slightly later, so each pulse spreads out as it travels. Over a long distance the pulses run into each other and the receiver cannot tell them apart. Singlemode fibre has only one path, so pulses stay sharp over long distances." },
+        { "table": { "head": ["Grade", "Core", "Usual jacket colour", "Notes"], "rows": [
+          ["OM1", "62.5 µm", "Orange", "Older multimode, found in many existing buildings"],
+          ["OM2", "50 µm", "Orange", "Older multimode"],
+          ["OM3", "50 µm", "Aqua", "Laser-optimised; common for 10 gigabit links up to about 300 m"],
+          ["OM4", "50 µm", "Aqua (violet in some countries)", "Laser-optimised; reaches further than OM3"],
+          ["OM5", "50 µm", "Lime green", "Newest multimode grade"],
+          ["OS1, OS2", "About 9 µm", "Yellow", "Singlemode: OS1 mostly indoors, OS2 mostly outdoors"]
+        ] } },
+        { "note": "Colours are a guide, not a guarantee. Read the printing on the jacket (fibre type, core size, fibre count) and the drawing. Never join or patch singlemode to multimode: most of the light is lost.", "label": "Remember" },
+        { "h": "Inside a fibre cable" },
+        { "table": { "head": ["Layer (from the centre out)", "What it does"], "rows": [
+          ["Fibres (core, cladding, coating)", "Carry the light."],
+          ["Buffer: a tight 900 µm buffer on each fibre, or a loose tube holding several fibres", "Protects the fibres from bending, crushing and moisture."],
+          ["Gel or water-blocking tape (outdoor cables)", "Stops water running along the cable."],
+          ["**Strength members**: aramid yarn (yellow threads) or a fibreglass rod", "Take the pulling force during installation, so that the glass is not stretched. Aramid is strong but hard to cut: use special shears."],
+          ["Armour (some outdoor cables)", "Corrugated steel tape or glass yarns that resist rodents and crushing."],
+          ["Outer jacket", "Protects against water, sunlight, oil and wear. Outdoor jackets resist ultraviolet light; indoor jackets are often low-smoke or flame-retardant."]
+        ] } },
+        { "h": "Tight-buffered and loose-tube cable" },
+        { "table": { "head": ["Feature", "Tight-buffered", "Loose-tube"], "rows": [
+          ["Construction", "Each fibre has its own 900 µm buffer", "Bare 250 µm fibres lie loosely in a tube, often filled with gel"],
+          ["Best for", "Indoors: risers, offices, patch cords", "Outdoors: ducts, aerial runs, between buildings"],
+          ["Good points", "Easy to handle and to fit connectors to directly", "Fibres are free of strain as the cable expands and contracts with heat; water-blocked"],
+          ["Points to watch", "Not made for wet locations or long outdoor runs", "Gel must be cleaned off; fibres need a fan-out kit or splicing to pigtails before connectors"]
+        ] } },
+        { "h": "Fibre colour code" },
+        { "p": "Fibres and tubes in a cable are identified by colour, usually in this standard order: **1 blue, 2 orange, 3 green, 4 brown, 5 slate (grey), 6 white, 7 red, 8 black, 9 yellow, 10 violet, 11 rose (pink), 12 aqua**. In a 24-fibre cable the order is repeated in a second tube or with a stripe or mark. When you splice, join colour to colour, so that each fibre arrives at the port the records say it should." },
+        { "h": "Fibre compared with copper" },
+        { "table": { "head": ["Advantages of fibre", "Disadvantages of fibre"], "rows": [
+          [["Carries far more data, over much longer distances", "Not affected by electrical noise from motors, welders, generators or lightning", "Carries no voltage, so it gives no shock path or earth problem between buildings", "Hard to tap into without being noticed, so it is more secure", "Thin and light, and does not corrode in salty coastal air"], ["The transmitters and receivers cost more than copper equipment", "Splicing and fitting connectors need special tools and training", "The glass breaks if it is bent too tightly, crushed or pulled too hard", "It carries no electrical power, so equipment at the far end needs its own supply", "Repairs usually need a splicer and a trained person"]]
+        ] } }
+      ]
+    },
+    {
+      "title": "Working safely with fibre",
+      "blocks": [
+        { "p": "Fibre work has three main hazards: light you cannot see, tiny splinters of glass, and the chemicals and heat used to prepare and join fibres. Follow the Centre's rules and the maker's instructions for every tool." },
+        { "h": "Protect your eyes from the light" },
+        { "ul": [
+          "**Never look into the end of a fibre, a connector or an equipment port**, even when you think nothing is connected. The light in working links is infrared and invisible, so you will not blink or feel it, and some sources are strong enough to damage the eye.",
+          "Before you inspect an end-face, disconnect the fibre from all equipment and light sources, or have the instructor confirm it is dark.",
+          "Inspect end-faces with a **fibre inspection scope**, never with the naked eye or a magnifier held to the eye. A video scope, which shows the end-face on a screen, keeps your eye away from the fibre.",
+          "Keep dust caps on unused connectors and ports. They keep out dirt and keep in light.",
+          "The red light of a visual fault locator is visible but still a laser: look at the glow from the side or on a white card, never into the end."
+        ] },
+        { "h": "Glass splinters" },
+        { "p": "Every time you cleave a fibre you make a short off-cut of bare glass about 125 µm thick. It is almost invisible, very sharp and can go into the skin or the eye, where it is hard to find. Swallowed splinters can harm the throat and stomach." },
+        { "ul": [
+          "Wear **safety glasses** whenever bare fibre is handled.",
+          "Work on a **dark mat**: clear glass shows up against it, so no off-cut is missed.",
+          "Pick up every off-cut at once with **tape or tweezers** and put it in a marked **scrap container with a lid**. Some cleavers have their own scrap bin.",
+          "Never brush off-cuts onto the floor or into an ordinary bin, and never wipe the bench with your hand.",
+          "**No eating, drinking or smoking** at the fibre bench. Wash your hands when you finish, and check your clothes for loose fibres.",
+          "Do not rub your eyes. If a splinter goes into the skin, remove it with tweezers and report it; if one gets into an eye, do not rub it: get first aid at once."
+        ] },
+        { "h": "Chemicals, heat and the splicer" },
+        { "ul": [
+          "Fibre is cleaned with **isopropyl alcohol (IPA)**, which catches fire easily. Keep it in a closed pump dispenser, away from flames, heat and the splicer's arc, and use it where there is good ventilation.",
+          "A fusion splicer makes a very hot electric arc. Never use it where there may be flammable vapour, such as near petrol or gas, or in a manhole until the air has been tested by authorised people.",
+          "The splicer's heat oven gets hot: let splice protectors cool before you handle them.",
+          "Gel from loose-tube cable is greasy and messy: wipe it off with the cleaner the maker recommends and dispose of wipes as the Centre directs."
+        ] },
+        { "h": "Other hazards on site" },
+        { "ul": [
+          "Use steps and ladders safely when working on high trays: keep three points of contact and do not over-reach.",
+          "Keep the floor clear of cable, drums and tools while routing.",
+          "Fibre is often run in the same trays and risers as power cables. The fibre itself carries no current, but nearby cables may be live, and some fibre cables have metal armour or strength members. Do not open panels or touch power cables.",
+          "Lift cable drums with help or with a drum stand; do not roll heavy drums by hand down slopes."
+        ] },
+        { "note": "**Three rules for the fibre bench:** never look into a fibre end; collect every off-cut into the lidded container; nothing to eat or drink on the bench.", "label": "Safety" }
+      ]
+    },
+    {
+      "title": "Tools and preparing a fibre end",
+      "blocks": [
+        { "h": "The fibre toolkit" },
+        { "table": { "head": ["Tool", "What it is for"], "rows": [
+          ["Cable jacket stripper or slitter", "Removing the outer jacket without cutting the fibres inside."],
+          ["Aramid (strength yarn) shears", "Cutting the tough yellow yarn. Ordinary side cutters and knives slip on it and are blunted by it."],
+          ["Buffer tube stripper", "Removing a loose tube or the 900 µm tight buffer."],
+          ["**Precision fibre stripper** (often with three holes)", "Removing the 250 µm coating from the glass without nicking it. Wire strippers and knives scratch the glass and make it snap later."],
+          ["Lint-free wipes and isopropyl alcohol (99% or as the maker says)", "Cleaning the bare glass after stripping."],
+          ["**Fibre cleaver**", "Scoring and breaking the glass so that the end is flat, smooth and square."],
+          ["**Fusion splicer**, splice protectors and splice tray", "Joining fibres by melting them together, then protecting and storing the joint."],
+          ["Mechanical splices or field-installable connectors", "Joining fibres, or fitting a connector, without a splicer."],
+          ["Fibre inspection scope", "Looking at connector end-faces at high magnification."],
+          ["Connector cleaning tools", "One-click (push-type) cleaners, cassette cleaners and lint-free swabs."],
+          ["Visual fault locator (VFL)", "Sending visible red light down a fibre to check continuity and find breaks."],
+          ["Light source and optical power meter", "Measuring the loss of a link."],
+          ["OTDR", "Showing a trace of the fibre with the distance and loss of each joint and fault."]
+        ] } },
+        { "h": "Preparing a fibre end for splicing" },
+        { "flow": [
+          "Put on safety glasses; set out the dark mat, scrap container and tools",
+          "Measure and mark the strip length from the splice tray or maker's guide",
+          "Strip the outer jacket with the jacket stripper, without nicking the fibres",
+          "Cut the aramid yarn back with the special shears",
+          "Remove the buffer tube or tight buffer; wipe off any gel",
+          "Slide a splice protector onto one fibre (fusion splicing)",
+          "Strip the coating in short sections with the precision stripper",
+          "Clean the bare glass once with a wipe and alcohol; do not touch it again",
+          "Cleave at the length the cleaver and splicer maker give",
+          "Put the off-cut straight into the scrap container"
+        ] },
+        { "h": "Stripping the coating" },
+        { "ul": [
+          "Hold the stripper at the angle the maker shows (often about 45° to the fibre) and strip in short pieces, a few centimetres at a time, so that the glass is not bent or snapped.",
+          "Do not squeeze the handles harder than needed. A nicked or scratched fibre may look fine but break in the splicer or later in the tray.",
+          "Keep the blade holes clean: coating left in the stripper scratches the next fibre."
+        ] },
+        { "h": "Cleaning and cleaving" },
+        { "p": "After stripping, wipe the bare glass **once**, pulling it through a lint-free wipe dampened with isopropyl alcohol. You should hear a faint squeak, which shows the glass is clean. From now on, **do not let the bare glass touch anything**: your fingers, the bench or the mat. If it does, clean it again." },
+        { "p": "The cleaver scores the glass with a hard blade and then bends or pulls it, so that it breaks cleanly across. A good cleave gives an end that is **flat, smooth like a mirror and square** to the fibre (most fusion splicers want an angle under about 1°). The fusion splicer's screen shows the end and its angle; a bad end must be cleaved again." },
+        { "table": { "head": ["Problem with the end", "Usual cause", "What to do"], "rows": [
+          ["Angled end (more than about 1°)", "Fibre not lying straight in the cleaver, worn blade", "Re-clean and cleave again; report a worn blade"],
+          ["Chip, lip or rough edge", "Dirty fibre, worn blade, wrong tension", "Cleave again; clean the cleaver's pads"],
+          ["Fibre too short after several tries", "Each new cleave uses more fibre", "Strip back further, or re-prepare from the jacket"],
+          ["Dirt or dust on the end", "The glass touched something after cleaning", "Re-clean and cleave again"]
+        ] } },
+        { "note": "Cleavers and fusion splicers are precision tools that cost a great deal. Keep their lids closed, keep them clean, rotate the cleaver blade only as the maker says, and never force a fibre into them.", "label": "Tip" }
+      ]
+    },
+    {
+      "title": "Joining fibres: splices and connectors",
+      "blocks": [
+        { "h": "Fusion splicing" },
+        { "p": "A fusion splice joins two fibres by melting their ends together with an electric arc, so that they become one piece of glass. It gives the lowest loss and the least reflection of any joint, and it lasts for the life of the cable." },
+        { "flow": [
+          "Clean the splicer's V-grooves and check the electrodes as the maker says",
+          "Place each prepared, cleaved fibre in its holder, without touching the bare end",
+          "Close the lid: the splicer's cameras check the ends and line up the cores",
+          "The splicer fires a short arc and fuses the fibres",
+          "Read the estimated loss on the screen and look at the joint for bubbles or a thin neck",
+          "Lift the fibre out carefully; the splicer may first pull on it gently as a strength test",
+          "Slide the splice protector over the joint and shrink it in the heat oven",
+          "Let it cool, then place it in the splice tray, with the fibre looped gently"
+        ] },
+        { "ul": [
+          "The **splice protector** is a small heat-shrink sleeve with a steel or glass rod inside it. It must be slid onto one fibre **before** splicing: once the fibres are joined it cannot be put on.",
+          "A good fusion splice usually shows an estimated loss well under 0.1 dB. If the splicer shows a high loss, a bubble or a thin spot, cut the splice out and make it again.",
+          "Fusion splicers are expensive and need power, care and training, but each splice is quick once the fibre is prepared."
+        ] },
+        { "h": "Mechanical splicing" },
+        { "p": "A **mechanical splice** is a small housing with a precise groove or sleeve. The two cleaved ends are pushed in until they meet, and a clamp holds them in line. A clear **index-matching gel** inside fills the tiny gap between the ends and reduces reflection. No arc or power is needed and the tools are cheap, but the loss is higher than a fusion splice and the joint is bulkier." },
+        { "table": { "head": ["Feature", "Fusion splice", "Mechanical splice"], "rows": [
+          ["How the ends are joined", "Melted together by an electric arc", "Held end to end in a sleeve, with index-matching gel"],
+          ["Typical loss", "Usually under 0.1 dB", "Usually about 0.1 to 0.5 dB"],
+          ["Reflection", "Almost none", "Small, because of the gel"],
+          ["Equipment", "Costly splicer; needs power and training", "Cheap tools; no power"],
+          ["Best for", "Long links, many joints, telecom networks, permanent work", "Quick repairs, a few joints, places without a splicer"]
+        ] } },
+        { "h": "Connectors" },
+        { "p": "A connector lets a fibre be plugged in and unplugged. The fibre is held in the centre of a **ferrule**, a small precise cylinder (usually ceramic), whose end-face is polished. Two connectors are joined end to end inside an **adaptor** (also called a coupler or bulkhead), so that the cores line up and touch." },
+        { "table": { "head": ["Connector", "How you recognise it", "Where you meet it"], "rows": [
+          ["**LC**", "Small, square, with a latch like a phone plug; 1.25 mm ferrule; often clipped in pairs (duplex)", "Modern switches, transceivers, patch panels"],
+          ["**SC**", "Square, push-pull, 2.5 mm ferrule", "Patch panels, fibre-to-the-home equipment"],
+          ["**ST**", "Round, with a bayonet twist-lock", "Older multimode networks"],
+          ["**FC**", "Round, screws on", "Older singlemode equipment and test instruments"],
+          ["**MPO**", "Rectangular, holds 12 or more fibres in one ferrule", "Data centres and high-density links"]
+        ] } },
+        { "table": { "head": ["Polish", "Usual connector body colour", "Notes"], "rows": [
+          ["UPC (ultra physical contact): end-face polished flat and domed", "Blue (singlemode); beige or aqua (multimode)", "The most common polish."],
+          ["**APC (angled physical contact)**: end-face polished at an angle of about 8°", "Green", "Reflects less light back down the fibre. Used for fibre to the home and video. **APC mates only with APC.**"]
+        ] } },
+        { "note": "Never plug a green APC connector into a blue UPC connector, even though they fit the same adaptor. The angled and flat faces do not meet properly: the loss is high and both end-faces can be damaged.", "label": "Remember" },
+        { "ul": [
+          "**Patch cords** (jumpers) are short factory-made cables with a connector on each end, used to link equipment to a patch panel.",
+          "**Pigtails** have a factory connector on one end only. The bare end is fusion-spliced to the installed cable inside the panel. This is a common way to terminate loose-tube cable.",
+          "**Field-installable connectors** are fitted on site by cleaving the fibre and pushing it into the connector, where a factory-polished stub and gel make the join. Follow the maker's steps exactly.",
+          "**Polarity**: on a duplex link the transmit fibre at one end must arrive at the receive port at the other end. If a link will not work, a swapped pair is a common cause."
+        ] },
+        { "h": "Inspect before you connect" },
+        { "p": "A speck of dust on a 9 µm core can block much of the light, and dirt pressed between two connectors can scratch or pit both end-faces for good. Most connector problems are caused by dirt. So every connector is inspected, and cleaned if needed, **every time** before it is plugged in." },
+        { "flow": [
+          "Make sure no light source is connected",
+          "Inspect the end-face with the scope",
+          "If it is clean, connect it at once",
+          "If it is dirty, clean it: dry first (one-click or cassette cleaner)",
+          "If still dirty, clean with a lint-free wipe and a little alcohol, then a dry wipe",
+          "Inspect again",
+          "Connect only when it is clean; replace it if it is scratched or chipped"
+        ] },
+        { "ul": [
+          "Clean the adaptor or port too, with a one-click cleaner made for ports, or the plug you insert will pick up the dirt.",
+          "Keep **dust caps** on until the moment of connecting, and put them back when a connector is unplugged. Store caps in a clean bag, not in your pocket.",
+          "Never touch an end-face with your finger, wipe it on your clothes or blow on it. Breath leaves moisture and workshop compressed air contains oil.",
+          "Use each part of a wipe only once."
+        ] }
+      ]
+    },
+    {
+      "title": "Installing fibre cable",
+      "blocks": [
+        { "h": "Plan first" },
+        { "p": "Before any cable is pulled, the plan or drawing should show the **route**, both **ends** (rooms, racks and panels), the **fibre type and count**, the **length**, the pull boxes or access points, and the **labels** to be used. Check the route on site for sharp edges, blocked ducts, heat sources and places where the cable could be crushed or walked on." },
+        { "p": "Then read the cable maker's **data sheet**. It gives two figures you must not exceed:" },
+        { "table": { "head": ["Figure", "What it means", "Typical values (always check the data sheet)"], "rows": [
+          ["**Maximum pulling force** (tensile load)", "The most force that may be put on the cable while it is installed", "Small indoor cables may allow only a few hundred newtons; outdoor cables often about 2,700 N (600 lbf)"],
+          ["**Minimum bend radius**", "The tightest curve the cable may be bent to without harm", "A common rule: 20 times the cable's outside diameter while it is being pulled, and 10 times once it is installed and at rest"]
+        ] } },
+        { "p": "**Example.** A cable is 8 mm across. While pulling, its bend radius must be at least 20 × 8 = **160 mm**; once it is fixed and at rest, at least 10 × 8 = **80 mm**. The radius is measured to the inside of the curve. A corner tighter than this can crack the glass or cause high loss." },
+        { "h": "Pulling cable" },
+        { "flow": [
+          "Check the duct is clear, with a pull rope or draw wire already in it",
+          "Fit a pulling grip to the cable's strength members (aramid yarn or rod), not to the fibres or connectors",
+          "Fit a swivel between the rope and the grip so that the rope's twist does not twist the cable",
+          "Station a feeder at the drum to pay the cable off smoothly, without kinks",
+          "Pull slowly and steadily by hand, or with a winch that limits the force",
+          "Use cable lubricant in long ducts if the maker allows it",
+          "At pull boxes and corners, keep bends gentle and do not let the cable rub on sharp edges"
+        ] },
+        { "ul": [
+          "**Never pull with a vehicle.** You cannot feel or control the force, and the fibres can be broken inside an undamaged jacket.",
+          "Pre-terminated cables have their connectors protected in a pulling sock or tube. Never pull on the connectors themselves.",
+          "On long pulls the cable may be pulled out at a middle pull box and laid on the ground in a **figure of eight**, then fed on in the same direction. The figure of eight stops the cable from twisting.",
+          "Do not step on the cable, run trolleys over it or leave it where it can be crushed."
+        ] },
+        { "h": "Fixing, trays and enclosures" },
+        { "ul": [
+          "Lay cable into trays neatly and hold it with **hook-and-loop straps** or loosely fitted ties. Tight ties crush the cable and raise the loss, or break fibres.",
+          "Keep fibre where heavy power cables will not be dropped on it; many sites use a separate tray, a fibre duct (often yellow) or an innerduct.",
+          "Bring cable into patch panels and enclosures through the proper glands, and fix the strength members to the anchor point so that a pull on the cable does not reach the fibres.",
+          "Store splices in **splice trays**, with the fibre looped round the tray's guides, never tighter than the tray allows.",
+          "Leave a **service loop** (a coil of spare cable) at each end and at some access points. It allows the end to be re-terminated or moved later without a new cable. Coil it no tighter than the minimum bend radius."
+        ] },
+        { "h": "Labelling" },
+        { "p": "Label the cable at **both ends**, and at pull boxes and other access points, with the same unique identifier that the drawing and records use. Label every patch panel port too. Good labels let anyone find the right fibre quickly for testing, moving and repairs, and stop people unplugging the wrong link." },
+        { "table": { "head": ["Poor label", "Good label"], "rows": [
+          ["'Fibre' or 'Data'", "'FO-07 Equipment room to Floor 4, 12F OM4'"],
+          ["Handwritten on tape that will fade or fall off", "Printed label made to last, wrapped round the cable"],
+          ["Port numbers that differ at each end", "Port numbers that match the record sheet at both ends"]
+        ] } },
+        { "note": "Heat, strong sun, salt air, hurricanes and rodents all affect fibre installed in Jamaica. Use cable with a jacket made for sunlight outdoors, water-blocked cable in ducts, and armoured or rodent-resistant cable where rats are a problem. Underground ducts survive storms better than aerial cable.", "label": "Jamaica" }
+      ]
+    },
+    {
+      "title": "Testing fibre links and finding faults",
+      "blocks": [
+        { "h": "Visual fault locator (VFL)" },
+        { "p": "A VFL is a small tester that sends bright, visible **red laser light** (about 650 nm) into a fibre through its connector. It is used on short lengths, such as patch cords, links inside a building and the fibres in a splice tray, up to a few kilometres." },
+        { "ul": [
+          "**Continuity**: if the red light comes out of the far end, the fibre is unbroken. Let it shine on a **white card** held in front of the far connector, or look at the end from the side.",
+          "**Finding faults**: at a break, crack, bad splice or tight bend, red light leaks out and the buffer or jacket glows. This shows you exactly where the problem is, through light-coloured jackets and 900 µm buffers. It cannot be seen through black or armoured jackets or inside ducts.",
+          "**Tracing fibres**: it shows which port at the far end belongs to which fibre."
+        ] },
+        { "note": "The VFL cannot measure how much light is lost. A fibre can pass the VFL test and still have too much loss for the equipment to work.", "label": "Remember" },
+        { "h": "Decibels made simple" },
+        { "p": "Optical power is measured in **dBm**: decibels compared with 1 milliwatt. Fibre test powers are small, so readings are usually negative, such as −20.0 dBm. Loss is the difference between two readings and is given in **decibels (dB)**." },
+        { "table": { "head": ["Loss", "Light left at the far end (about)"], "rows": [
+          ["0.1 dB", "98%"],
+          ["1 dB", "79%"],
+          ["3 dB", "Half (50%)"],
+          ["10 dB", "One tenth (10%)"],
+          ["20 dB", "One hundredth (1%)"]
+        ] } },
+        { "h": "Measuring loss with a light source and power meter" },
+        { "flow": [
+          "Set the light source and power meter to the same wavelength, for example 850 nm for multimode or 1310 nm for singlemode",
+          "Switch on the source and let it warm up for the time the maker gives",
+          "Inspect and clean the test cords",
+          "Set the reference: connect the source to the meter with the test cord(s) as instructed, and record the reading (or store it as the meter's zero)",
+          "Connect the source to one end of the fibre under test and the meter to the other end, with the test cords",
+          "Read the meter when it is steady",
+          "Work out the loss: reference minus reading",
+          "Compare the loss with the loss budget; record the result"
+        ] },
+        { "p": "**Example.** The reference is −18.5 dBm. At the far end of a fibre the meter reads −20.9 dBm. Loss = −18.5 − (−20.9) = −18.5 + 20.9 = **2.4 dB**. Taking away a negative number is the same as adding it. If your answer comes out negative, you have the numbers the wrong way round." },
+        { "h": "Loss budget: what loss to expect" },
+        { "p": "A **loss budget** adds up the most loss allowed for each part of the link. The result is the largest loss the link should show. Use the figures in the job's specification; these maximum values are often used:" },
+        { "table": { "head": ["Part of the link", "Maximum loss often used", "Typical good result"], "rows": [
+          ["Multimode fibre at 850 nm", "3.5 dB per km", "About 2.5 to 3 dB per km"],
+          ["Multimode fibre at 1300 nm", "1.5 dB per km", "About 0.7 to 1 dB per km"],
+          ["Singlemode fibre at 1310 nm", "0.5 dB per km outdoors (1.0 dB per km indoors)", "About 0.35 dB per km"],
+          ["Singlemode fibre at 1550 nm", "0.5 dB per km outdoors (1.0 dB per km indoors)", "About 0.2 to 0.25 dB per km"],
+          ["Each mated connector pair", "0.75 dB", "About 0.2 to 0.5 dB"],
+          ["Each splice", "0.3 dB", "Fusion usually under 0.1 dB"]
+        ] } },
+        { "p": "**Example.** A 400 m multimode link at 850 nm has two connector pairs (one at each patch panel) and one fusion splice. Fibre: 0.4 km × 3.5 dB/km = 1.4 dB. Connectors: 2 × 0.75 = 1.5 dB. Splice: 1 × 0.3 = 0.3 dB. Budget = 1.4 + 1.5 + 0.3 = **3.2 dB**. A measured loss of 2.1 dB passes. A measured loss of 4.5 dB fails, and the cause must be found." },
+        { "h": "The OTDR" },
+        { "p": "An **OTDR (optical time domain reflectometer)** sends short pulses of light into one end of the fibre and measures the small amount of light that comes back from every point along it. From the time the light takes to return, it works out distance. It draws a **trace**: a line that slopes down along the fibre, with steps at splices and bends, and spikes at connectors and at the end or a break." },
+        { "ul": [
+          "It shows the **distance** to each connector, splice, bend and break, and the loss of each one, from one end only.",
+          "It works on links many kilometres long, and on fibres buried in ducts where a VFL glow cannot be seen.",
+          "A long **launch cable** is fitted between the OTDR and the fibre, so that the first connector can be seen on the trace.",
+          "To find a break on the ground, measure the OTDR distance along the route on the drawings, remembering the service loops and slack in pull boxes.",
+          "OTDRs are costly and need training to read. At Level 2 you should know what one does; your instructor or a specialist will set it up."
+        ] },
+        { "h": "Common faults" },
+        { "table": { "head": ["Fault", "How it shows up", "What to do"], "rows": [
+          ["Dirty connector end-face", "High loss at one fibre; dirt seen in the scope", "Clean, inspect again and retest"],
+          ["Scratched, pitted or chipped end-face", "High loss that cleaning does not cure", "Replace the patch cord or re-terminate the connector"],
+          ["APC mated with UPC", "Very high loss at one joint", "Use connectors with the same polish"],
+          ["Tight bend or crushing (tie, door, clip)", "High loss; VFL glow at the bend", "Free the cable and re-route it with gentle bends"],
+          ["Broken fibre", "No light at the far end; bright VFL glow, or a sudden end on the OTDR trace", "Locate the break, then splice in a repair"],
+          ["Poor splice", "High loss at the splice; VFL glow at the tray; step on the OTDR trace", "Cut out and splice again"],
+          ["Singlemode joined to multimode", "Very high loss in one direction", "Use the right fibre type throughout"],
+          ["Transmit and receive swapped", "Fibres test well but the equipment link stays down", "Swap the pair at one end, as the records show"]
+        ] } },
+        { "h": "Records" },
+        { "p": "Write each result on the results sheet straight after testing. For every fibre record: the **cable and fibre number**, the **ends** (from and to), the **wavelength**, the **loss** and whether it passed the budget, the **date**, the **tester's name** and the instrument used. If the Centre has no power meter and you check continuity with a VFL only, write that the loss was not measured. Never change a result to make it pass." },
+        { "note": "Before you leave: put dust caps on every connector and port, seal the scrap container and dispose of it as the Centre directs, wipe the bench with a damp disposable cloth, return the tools to their cases and wash your hands.", "label": "Tip" }
+      ]
+    },
+    {
+      "title": "Revision",
+      "blocks": [
+        { "h": "Checklist" },
+        { "p": "Tick each statement only when you can do it without looking at the notes." },
+        { "ul": [
+          "I can describe a fibre link from transmitter to receiver, and name the core, cladding and coating with their usual sizes.",
+          "I can explain total internal reflection, and why tight bends and crushing make light leak out.",
+          "I can tell singlemode from multimode by core size, light source, distance and usual jacket colour.",
+          "I can explain why multimode is limited to shorter distances.",
+          "I can describe the layers of a fibre cable and say what the aramid yarn is for.",
+          "I can choose tight-buffered or loose-tube cable for a job.",
+          "I can list the advantages and disadvantages of fibre compared with copper.",
+          "I can work safely: never look into a fibre end, collect every off-cut, keep food away and handle alcohol safely.",
+          "I can strip, clean and cleave a fibre, and recognise a bad cleave.",
+          "I can describe fusion and mechanical splicing, and say when each is chosen.",
+          "I can name common connectors and explain why APC mates only with APC.",
+          "I can inspect, clean and inspect again before connecting.",
+          "I can work out a minimum bend radius from the cable diameter, and pull cable without exceeding its limits.",
+          "I can fix cable without crushing it, leave service loops and label both ends.",
+          "I can use a VFL safely to check continuity and find faults.",
+          "I can work out the loss of a fibre from a reference and a reading, and compare it with a loss budget.",
+          "I can say what an OTDR shows that a VFL and a power meter cannot.",
+          "I can record test results fully and honestly."
+        ] },
+        { "h": "Numbers to remember" },
+        { "table": { "head": ["Figure", "What it is"], "rows": [
+          ["9 µm; 50 µm and 62.5 µm", "Core size: singlemode; multimode"],
+          ["125 µm / 250 µm / 900 µm", "Cladding / coating / tight buffer"],
+          ["850 and 1300 nm; 1310 and 1550 nm", "Multimode wavelengths; singlemode wavelengths"],
+          ["About 650 nm", "The red light of a visual fault locator"],
+          ["About 8°", "Angle of an APC (green) end-face"],
+          ["20 × and 10 × the diameter", "Common bend radius rule: while pulling; once installed"],
+          ["0.75 dB / 0.3 dB", "Maximum often allowed for a connector pair / a splice"],
+          ["3 dB", "Loss that leaves about half the light"],
+          ["Loss = reference − reading", "Working out a power meter result"]
+        ] } },
+        { "h": "Key terms" },
+        { "terms": [
+          ["APC", "Angled physical contact: a connector end-face polished at about 8°, usually green. It mates only with another APC connector."],
+          ["Aramid yarn", "The yellow strength yarn in many fibre cables. It takes the pulling force so that the glass is not stretched."],
+          ["Attenuation", "The loss of light along a fibre, given in decibels per kilometre (dB/km)."],
+          ["Bend radius (minimum)", "The tightest curve a fibre cable may be bent to without damage or extra loss."],
+          ["Cladding", "The glass layer, 125 µm across, round the core that keeps the light in the core."],
+          ["Cleaver", "The tool that breaks bare fibre so that the end is flat, smooth and square."],
+          ["Core", "The centre of the fibre, which carries the light."],
+          ["dB and dBm", "dB is a loss or gain; dBm is a power level compared with 1 milliwatt."],
+          ["Ferrule", "The precise cylinder in a connector that holds the fibre in its centre."],
+          ["Fusion splice", "A joint made by melting two fibre ends together with an electric arc."],
+          ["Index-matching gel", "Clear gel in a mechanical splice that fills the gap between the fibre ends and reduces reflection."],
+          ["Loss budget", "The total loss allowed for a link, worked out from its length, connectors and splices."],
+          ["Mechanical splice", "A joint in which two cleaved ends are held in line in a sleeve with index-matching gel."],
+          ["Multimode fibre", "Fibre with a larger core (50 or 62.5 µm) in which light travels in many paths; for shorter links."],
+          ["OTDR", "Optical time domain reflectometer: shows a trace of the fibre with the distance and loss of each event."],
+          ["Patch cord", "A short fibre cable with a connector on each end, also called a jumper."],
+          ["Photodiode", "The device in a receiver that turns light back into an electrical signal."],
+          ["Pigtail", "A short fibre with a connector on one end only, spliced to the installed cable."],
+          ["Service loop", "A coil of spare cable left at an end or access point for future changes and repairs."],
+          ["Singlemode fibre", "Fibre with a core of about 9 µm in which light travels in one path; for long links."],
+          ["Splice protector", "A heat-shrink sleeve with a stiffening rod, fitted over a fusion splice."],
+          ["Splice tray", "A tray in an enclosure or panel that holds and protects splices and their loops of fibre."],
+          ["Total internal reflection", "The effect that reflects light back into the core when it strikes the core-cladding boundary at a shallow angle."],
+          ["Visual fault locator (VFL)", "A tester that sends visible red light down a fibre to check continuity and show breaks and tight bends."]
+        ] }
+      ]
+    }
+  ],
+  "cases": {
+    "c1": { "title": "Repairing a torn cable in a Savanna-la-Mar warehouse", "text": "A forklift has torn a 12-fibre indoor multimode cable where it runs down a storage rack in a warehouse in Savanna-la-Mar, Westmoreland. Fibre technician Mr Lennox Spence and trainee Rushane are fusion splicing both torn ends into a new wall-mounted splice enclosure. They work at a folding table beside the rack, on a dark mat, with a lidded scrap container. Rushane's lunch, an open bottle of isopropyl alcohol and the splicer are all on the table when Mr Spence comes back from the van." },
+    "c2": { "title": "Choosing fibre for a Mandeville high school", "text": "A high school in Mandeville, Manchester, is planning two fibre links. Link A runs 70 m inside the main block, from the computer lab to the library. Link B runs 1.6 km in an underground duct across the road to a new science block, where a CCTV camera will also be fixed on the outside wall. The school wants both links to carry 10 gigabit data. Ms Andrea Powell, the school's IT technician, asks the contractor's team, including trainee Kadeem, to help her choose." },
+    "c3": { "title": "Pulling cable at a Montego Bay hotel", "text": "At a hotel in Montego Bay, St James, Mr Owen Grant's team must pull a 24-fibre outdoor cable through a 90 m underground duct from the plant room to a guest block, through one pull box half-way. The data sheet gives the cable's outside diameter as 11 mm, its largest pulling force as 2,700 N, and its minimum bend radius as 20 times the diameter while pulling and 10 times once installed. Trainee Shantelle is feeding the cable off the drum." },
+    "c4": { "title": "Testing riser fibres in a Half Way Tree office", "text": "In an office building in Half Way Tree, St Andrew, trainee Davian is helping Miss Simone Reid test four multimode fibres that run about 60 m from the ground-floor equipment room to the fourth floor, with a patch panel at each end. The light source and meter are set to 850 nm, and the reference reading is −20.0 dBm. The loss budget is 1.7 dB per fibre. Davian's readings at the far end are: fibre 1 −21.1 dBm, fibre 2 −21.3 dBm, fibre 3 −26.8 dBm and fibre 4 −21.0 dBm." },
+    "c5": { "title": "Lost camera pictures at a Portmore plaza", "text": "At a shopping plaza in Portmore, St Catherine, one CCTV camera has shown no picture since a cabinet in the control room was moved last week. That camera is linked by 180 m of multimode fibre in a light grey jacket. A second link, 2.3 km of singlemode fibre in an underground duct to the owner's other site, also failed after roadworks along the route. Mr Clive Bryan and trainee Tanisha are sent to find both faults." }
+  },
+  "questions": [
+    { "id": "P-01", "c": "c1", "q": "Why does Mr Spence insist that Rushane works on a dark mat?", "o": ["It keeps the splicer's arc from reflecting into their eyes", "Clear glass off-cuts show up on it, so none are missed", "It insulates the splicer from the warehouse floor", "It keeps the fibre cool while it is being stripped"], "a": 1, "why": "Bare fibre off-cuts are thin, clear and almost invisible on a light surface. Against a dark mat they can be seen, picked up with tape or tweezers and put in the lidded scrap container before they reach skin, eyes or food." },
+    { "id": "P-02", "c": "c1", "q": "Which thing on the folding table is a fire risk once the splicer is running?", "o": ["The lidded scrap container of glass off-cuts", "The dark mat that the fibres are laid on", "The open bottle of isopropyl alcohol", "The spare splice protectors in their bag"], "a": 2, "why": "Isopropyl alcohol gives off a vapour that catches fire easily, and the splicer makes a hot electric arc. Keep the alcohol in a closed dispenser away from the splicer and other heat. Rushane's lunch must go too, because glass splinters can get into food." },
+    { "id": "P-03", "c": "c1", "q": "The splicer's screen shows that one of Rushane's fibre ends is chipped and cut at an angle of 3°. What should he do?", "o": ["Splice it anyway, since the arc will melt the chip smooth", "Wipe the end with alcohol to polish the chip away", "Turn up the arc time so the gap is filled with glass", "Take it out, re-clean it and cleave it again"], "a": 3, "why": "A good splice needs an end that is flat, smooth and square, usually within about 1°. A chipped or angled end gives a high-loss or weak splice, and the arc cannot correct it. Cleave again; if the fibre becomes too short, strip back further first." },
+    { "id": "P-04", "c": "c1", "q": "After a good splice, Rushane sees that he forgot to slide the splice protector onto the fibre first. What must he do?", "o": ["Cut out the splice, fit the protector and splice again", "Wrap the bare splice in insulating tape and lay it in the tray", "Slit a protector along its length and glue it round the splice", "Leave the splice bare, since the enclosure is indoors"], "a": 0, "why": "A splice protector can only go on before the fibres are joined, and a bare splice is weak and breaks easily. Tape or a slit sleeve gives no proper support. Cut out the splice, slide on the protector, re-prepare both ends and splice again." },
+    { "id": "P-05", "c": "c2", "q": "Why is multimode fibre not a good choice for link B at 10 gigabits?", "o": ["Multimode cannot be laid in underground ducts at all", "Multimode carries electrical noise from nearby power cables", "Its many light paths spread the pulses, limiting its reach", "Multimode needs 1550 nm lasers, which cost far too much"], "a": 2, "why": "In multimode fibre the light takes many paths of different lengths, so each pulse spreads out as it travels. At high speeds this limits it to a few hundred metres. Singlemode fibre, with one light path, carries 10 gigabits over many kilometres." },
+    { "id": "P-06", "c": "c2", "q": "Which cable is best suited to link B's underground duct?", "o": ["An indoor tight-buffered cable with a standard PVC jacket", "Two long patch cords joined together in the pull box", "An indoor riser cable, since the duct keeps the rain out", "An outdoor loose-tube cable that is water-blocked"], "a": 3, "why": "Underground ducts often fill with water, and the cable expands and contracts with heat. Outdoor loose-tube cable is water-blocked with gel or tape and lets the fibres sit free of strain. Indoor cables and patch cords are not made for wet locations." },
+    { "id": "P-07", "c": "c2", "q": "Ms Powell asks whether the camera at the science block can be powered through link B. What is the right answer?", "o": ["Yes, as long as the camera draws less than 1 A in total", "No: glass carries no current, so it needs a local supply", "Yes, if a singlemode fibre is used instead of multimode", "No, because the light in the fibre would overheat the camera"], "a": 1, "why": "Glass fibre carries signals as light and conducts no electricity, which is also why it gives no shock path between buildings. Equipment at the far end needs its own power supply, or a separate cable that carries power." },
+    { "id": "P-08", "c": "c2", "q": "Kadeem notices that each link is planned with two fibres, not one. Why?", "o": ["Each fibre carries signals in one direction only", "The second fibre is there to carry electrical power", "Two fibres are needed so the light stays in the core", "The second fibre earths the cable at both buildings"], "a": 0, "why": "Most fibre links use a pair: one fibre carries light from A to B and the other from B to A. Each end has a transmit and a receive port, and the transmit fibre at one end must arrive at the receive port at the other." },
+    { "id": "P-09", "c": "c3", "q": "While the cable is being pulled round the bend in the pull box, what is the smallest bend radius allowed?", "o": ["110 mm", "220 mm", "22 mm", "2.2 m"], "a": 1, "why": "While pulling, the minimum radius is 20 times the outside diameter: 20 × 11 mm = 220 mm. Once the cable is installed and at rest, 10 times (110 mm) is allowed. A tighter bend can crack the glass or raise the loss." },
+    { "id": "P-10", "c": "c3", "q": "Why does Mr Grant fit a swivel between the pull rope and the cable's pulling grip?", "o": ["So the pull can be stopped quickly in an emergency", "So that the rope can be pulled twice as hard", "So any twist in the rope is not passed into the cable", "So that the grip can hold the fibres instead of the yarn"], "a": 2, "why": "A rope under tension tends to twist. Without a swivel that twist goes into the cable and can strain the fibres. The grip itself stays on the strength members, which take the pulling force." },
+    { "id": "P-11", "c": "c3", "q": "To save time, a worker offers to tie the rope to the hotel's pickup and drive off slowly. Why must Mr Grant refuse?", "o": ["Nobody can feel or limit the force, so fibres may break", "A vehicle pull is too slow for a 90 m duct and wastes time", "The pickup's engine could make electrical noise in the fibres", "A vehicle can only pull cable that has been lubricated first"], "a": 0, "why": "Even a slow vehicle can easily exceed the 2,700 N limit, and nobody can feel when the cable snags. Fibres can break inside a jacket that looks undamaged. Pull by hand or with a winch that limits the force, with a feeder at the drum." },
+    { "id": "P-12", "c": "c3", "q": "Which label should Shantelle fix to the cable at the plant room end?", "o": ["'Fibre: do not touch', in large red letters on both ends", "'Blue duct, guest block', written in marker on masking tape", "The installer's name and mobile number, with today's date", "'FO-03 Plant room to Block C, 24F', as in the records"], "a": 3, "why": "A good label gives a unique cable identifier that matches the drawing and records, with enough detail to find both ends. The same label goes on the other end and at access points. Tape and marker fade and fall off." },
+    { "id": "P-13", "c": "c4", "q": "What is the loss of fibre 1?", "o": ["0.11 dB", "41.1 dB", "1.1 dB", "21.1 dB"], "a": 2, "why": "Loss = reference − reading = −20.0 − (−21.1) = −20.0 + 21.1 = 1.1 dB. That is within the 1.7 dB budget, so fibre 1 passes." },
+    { "id": "P-14", "c": "c4", "q": "Fibre 3 shows a loss of 6.8 dB, far over the budget. What should Davian and Miss Reid do first?", "o": ["Record a fail and order a new riser cable at once", "Inspect and clean the connectors, then retest", "Turn up the light source and measure fibre 3 again", "Retest at 1300 nm, where the fibre loses less light"], "a": 1, "why": "Dirty connectors are the most common cause of high loss, and they are quick to check. Inspect both ends with the scope, clean, inspect again and retest. Changing the source power or wavelength only hides the problem." },
+    { "id": "P-15", "c": "c4", "q": "After cleaning, the scope shows a deep scratch across the core of one connector on fibre 3. What now?", "o": ["Clean it again with more alcohol until the scratch goes", "Use it, since a scratch only matters on singlemode fibre", "Replace the patch cord or re-terminate that connector", "Push it in harder so that the scratched faces meet"], "a": 2, "why": "Cleaning removes dirt, not damage. A scratch across the core scatters the light and can damage the connector it is mated with. Replace the patch cord, or have the connector re-terminated, then retest the fibre." },
+    { "id": "P-16", "c": "c4", "q": "Davian sees that the power meter has been on 1310 nm while the source sends 850 nm. What is the problem?", "o": ["The readings are wrong: the meter must match the source", "None: the meter measures every wavelength in the same way", "The 850 nm light could damage a meter set to 1310 nm", "The fibre will heat up because the wavelengths do not match"], "a": 0, "why": "A power meter's reading depends on the wavelength it is set to. If it does not match the source, the readings are wrong. Set both to the same wavelength, take a new reference, then retest the fibres." },
+    { "id": "P-17", "c": "c5", "q": "With a VFL on the camera fibre, Tanisha sees a red glow where the cable is squeezed by a tie behind the moved cabinet. What should they do?", "o": ["Tape over the glow so that the light stays inside", "Ask for the camera's transmitter to be turned up", "Replace the camera, since the fibre clearly carries light", "Free the cable, re-route it with gentle bends and retest"], "a": 3, "why": "The glow shows light leaking out where the cable is crushed or bent too tightly. Removing the tie and re-routing the cable within its bend radius usually cures it. If the fibre has cracked, a repair splice is needed. Retest afterwards." },
+    { "id": "P-18", "c": "c5", "q": "On the 2.3 km link, the OTDR trace ends suddenly at 1,240 m from the plaza. How should they use this?", "o": ["It shows the link is 1,240 m long, so the drawings are wrong", "Measure 1,240 m along the route drawing to find where to dig", "It means the far end is dirty, so clean the connector there", "It shows that the cable needs a stronger light source"], "a": 1, "why": "A sudden end on the trace is usually a break. The OTDR gives the distance along the fibre, so the team measures it along the route drawing (allowing for slack and service loops) to find the access point nearest the fault, probably near the roadworks." },
+    { "id": "P-19", "c": null, "q": "A fibre link has a loss of 3 dB. About how much of the light sent in reaches the far end?", "o": ["About a quarter", "About 97%", "About a third", "About half"], "a": 3, "why": "A loss of 3 dB halves the power; 10 dB leaves one tenth. Decibels are not percentages, so 3 dB does not mean 3% has been lost." },
+    { "id": "P-20", "c": null, "q": "A 2.5 km singlemode link at 1310 nm is allowed 0.4 dB per km, 0.75 dB for each of its 2 connector pairs and 0.3 dB for each of its 2 splices. What is its loss budget?", "o": ["2.05 dB", "1.45 dB", "3.1 dB", "4.6 dB"], "a": 2, "why": "Fibre: 2.5 × 0.4 = 1.0 dB. Connectors: 2 × 0.75 = 1.5 dB. Splices: 2 × 0.3 = 0.6 dB. Total = 1.0 + 1.5 + 0.6 = 3.1 dB. A measured loss above this means a fault to find." }
+  ]
+}
