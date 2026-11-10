@@ -1,0 +1,526 @@
+{
+  "format": "cestis-study-kit",
+  "version": 1,
+  "status": "to-check",
+  "written": "2026-11-07",
+  "programme": "Electrical Installation",
+  "qualification": { "id": "QUAL-EIM-L2", "title": "ELECTRICAL INSTALLATION AND MAINTENANCE LEVEL 2", "code": "EEM20723" },
+  "level": 2,
+  "unit": { "code": "MEMINS0092D", "title": "Install electrical and electronic apparatus, machinery, fixtures and secondary wiring" },
+  "summary": "This unit teaches you to install equipment safely and to a good standard: light fittings, ceiling fans and outdoor fixtures; motors and the machines they drive; electronic devices such as controllers and sensors; and the control (secondary) wiring inside panels. You will learn to plan and prepare, fix equipment securely to Jamaican walls and ceilings, align a motor and its belt drive, terminate control wiring neatly, choose and fit glands, protect electronics, and test, commission and hand over the finished work.",
+  "sections": [
+    {
+      "title": "Unit overview",
+      "blocks": [
+        { "p": "Wiring a building is only half of an electrician's job. The circuits end at equipment: lights, fans, motors, pumps, control panels, controllers and sensors. This unit is about fixing that equipment in place and connecting it so that it is safe, works as designed and keeps working. It is for Level 2 trainees who install equipment under supervision." },
+        { "h": "What you must be able to do" },
+        { "table": { "head": ["Task", "What it looks like on the job"], "rows": [
+          ["Plan and prepare", "Read the drawings, wiring diagrams, specification and maker's instructions; check the equipment delivered against them; survey the site; collect and check tools and instruments."],
+          ["Work safely", "Isolate and prove dead before connecting; wear the right PPE; plan lifts; work safely at height; keep the area below clear."],
+          ["Mount and fix equipment", "Choose fixings rated for the load and the wall or ceiling; drill the right hole; fix level, plumb and secure; stop vibration loosening anything."],
+          ["Install machinery", "Lift a motor safely, level it with shims, line up pulleys or couplings, set belt tension, fit guards and connect it through a local isolator."],
+          ["Install fixtures", "Fit light fittings, ceiling fans and outdoor fixtures with the right support, earth connection and IP rating, with seals and gaskets in place."],
+          ["Install secondary wiring", "Wire control circuits in panels with the right conductors, ferrules, crimps and wire markers, run neatly and kept apart from power cables."],
+          ["Fit glands and keep enclosures sealed", "Choose and fit cable glands, earth armoured cables, blank unused entries and keep the enclosure's IP rating."],
+          ["Protect electronic apparatus", "Prevent static damage, connect DC supplies the right way round and keep signal cables away from power cables."],
+          ["Test, commission and hand over", "Do the dead tests, record them, take part in commissioning and functional tests, then clean up and hand over the documents."]
+        ] } },
+        { "h": "What the words in the title mean" },
+        { "table": { "head": ["Word", "Examples"], "rows": [
+          ["Electrical apparatus", "Control panels, motor starters, isolators, distribution equipment, contactors, timers"],
+          ["Electronic apparatus", "Programmable logic controllers (PLCs), sensors, access-control boards, CCTV recorders, variable speed drives, power supplies"],
+          ["Machinery", "Motors and the pumps, fans, compressors, mixers and conveyors they drive"],
+          ["Fixtures", "Light fittings (luminaires), ceiling fans, outdoor and security lights, exhaust fans"],
+          ["Secondary wiring", "The control and signal wiring between devices, usually inside a panel, as opposed to the main power cables"]
+        ] } },
+        { "h": "Jamaica: points to know" },
+        { "ul": [
+          "Homes and most businesses have **110 V and 220 V, single-phase, 50 Hz** supplies. Larger buildings and factories often have a three-phase supply; the voltage depends on the supply JPS provides, so take it from the drawing.",
+          "Much equipment is imported from the United States, where the supply is **60 Hz**. Always check the nameplate frequency: some equipment is marked 50/60 Hz and is fine; some is 60 Hz only and may not work properly here.",
+          "Most walls are **hollow concrete block** and most ceilings and roofs are concrete slab or timber. Fixings must suit them.",
+          "Salt air near the coast, high humidity, heat, lizards and insects all attack equipment. Seals, gaskets, IP ratings and corrosion-resistant fixings matter more here than in many countries.",
+          "The code used in Jamaica is based on the US NEC, so you will meet US terms such as 'ground' and 'listed' beside British terms such as 'earth' and 'Class I'."
+        ] },
+        { "note": "At Level 2 you install and connect equipment with the supply isolated, and you carry out dead tests. Switching on for the first time, live testing and running machines are done by an authorised person, with you watching and helping.", "label": "Remember" }
+      ]
+    },
+    {
+      "title": "Planning and preparing the installation",
+      "blocks": [
+        { "h": "The documents" },
+        { "table": { "head": ["Document", "What you take from it"], "rows": [
+          ["Layout drawing", "Where each item goes, its mounting height and the cable routes"],
+          ["Wiring or schematic diagram", "How each item is connected; terminal and wire numbers"],
+          ["Specification", "Makes, types and ratings; standards of work; tests required"],
+          ["Parts list (bill of materials)", "Every item to be fitted, with its rating, for checking deliveries"],
+          ["Maker's instructions", "Fixing method, spacings, clearances, torque settings, connection details"],
+          ["Nameplates and labels", "The actual rating of the item in front of you"]
+        ] } },
+        { "h": "Checking what has been delivered" },
+        { "flow": [
+          "Unpack carefully and keep the instructions",
+          "Check each item against the parts list and drawing",
+          "Read the nameplate: voltage, frequency, current, power, IP rating",
+          "Look for damage: cracked covers, bent frames, loose parts",
+          "Set aside, label and report anything wrong or damaged",
+          "Do not fit it until a replacement or an answer arrives"
+        ] },
+        { "table": { "head": ["Nameplate item", "Check it against", "Why"], "rows": [
+          ["Voltage (V)", "The supply on the drawing: 110 V, 220 V or the three-phase voltage", "Too high a voltage burns equipment out; too low and motors overheat or will not start."],
+          ["Frequency (Hz)", "50 Hz in Jamaica", "A 60 Hz-only motor runs about one-sixth slower here and may overheat; some electronics will not work."],
+          ["Current (A) or power (W, kW, HP)", "The circuit and protective device on the drawing", "The circuit must be able to carry the load."],
+          ["IP rating or location marking", "Where it will be fitted: indoors, damp, outdoors, wash-down", "A fitting not made for wet places lets in water."],
+          ["Class I or Class II", "Whether the point has an earth conductor", "Class I equipment must be earthed."]
+        ] } },
+        { "note": "A fitting with a cracked cover, a motor with a bent shaft or a board with a broken component is not fitted 'for now'. Report it and wait for a replacement. Damage you fit becomes your fault.", "label": "Remember" },
+        { "h": "Surveying the site" },
+        { "ul": [
+          "What the wall, ceiling or floor is made of: hollow or filled block, solid concrete, timber, drywall or steel.",
+          "Hidden cables and pipes where you will drill: check the drawings and use a detector.",
+          "Access for you and for the equipment: doorways, stairs, ceiling height, room for a hoist or a tower.",
+          "Clear space in front of panels and around machines for work and for cooling.",
+          "The environment: water, dust, heat, salt air, vibration."
+        ] },
+        { "h": "Tools and instruments" },
+        { "table": { "head": ["Group", "Examples", "Check before use"], "rows": [
+          ["Drilling and fixing", "Hammer drill, masonry and steel bits, hole saw or knockout punch, screwdrivers, spanners, torque screwdriver", "Leads, plugs and casings undamaged; bits sharp and the right size"],
+          ["Measuring and setting out", "Tape, spirit level, straight edge, detector", "Level reads true; tape hook sound"],
+          ["Wiring", "Wire strippers, cutters, ratchet crimp tool with the right dies, ferrule crimper, wire marker kit", "Dies match the terminals; ratchet releases only at full crimp"],
+          ["Testing", "Approved voltage tester and proving unit, continuity tester or low-resistance ohmmeter, insulation resistance tester, clamp meter", "Leads and probes sound; tester proved; in calibration date"],
+          ["Lifting and access", "Hoist, slings, stepladder, mobile tower", "Rated for the load; inspected; complete"]
+        ] } }
+      ]
+    },
+    {
+      "title": "Working safely",
+      "blocks": [
+        { "h": "Isolation before connecting" },
+        { "p": "New equipment is usually connected to a circuit that already exists, or that someone else could switch on. Before you touch any conductor, the circuit is **isolated, locked off, tagged and proved dead** with an approved tester proved on a proving unit before and after the test. Switching off at a wall switch is not isolation: the switch may break only one conductor, and anyone can switch it back on." },
+        { "note": "Machines need a **local isolator** near them, which can be locked off, so that a person working on the machine can see that it is off and stop anyone switching it on. Under the NEC it must normally be within sight of the motor. Lock it off every time you work on the machine, even for a 'quick' adjustment.", "label": "Safety" },
+        { "h": "PPE" },
+        { "table": { "head": ["Task", "PPE"], "rows": [
+          ["Drilling into ceilings and walls", "Safety glasses or goggles (dust falls into your eyes when drilling overhead), dust mask, ear protection"],
+          ["Lifting motors and panels", "Safety boots with toecaps, gloves"],
+          ["Cutting holes in enclosures", "Safety glasses, gloves for sharp edges"],
+          ["Work under other people's work, or on sites with overhead hazards", "Hard hat"],
+          ["Handling circuit boards", "Anti-static wrist strap (this protects the board, not you)"]
+        ] } },
+        { "h": "Lifting and handling" },
+        { "p": "Motors, panels and large light fittings are heavy and awkward. A 40 kg motor is too heavy for one person to lift safely. **Plan every lift.**" },
+        { "flow": [
+          "Check the weight on the nameplate, label or catalogue",
+          "Decide: hoist, trolley or a team lift with enough people",
+          "Check the route is clear and the base is ready",
+          "Use lifting points on the motor, never the terminal box or shaft",
+          "Lift with a straight back and bent knees; one person calls the moves",
+          "Lower onto the base without trapping fingers"
+        ] },
+        { "h": "Work at height" },
+        { "ul": [
+          "For a lot of work at ceiling height, use a **mobile tower** or work platform: it is safer than a ladder. Lock the wheels before climbing and use the guard rails.",
+          "A leaning ladder is set at **1 m out for every 4 m up**, on firm, level ground, tied or footed. Steps are opened fully with spreaders locked.",
+          "Keep three points of contact, keep your body between the stiles and never over-reach. Never stand on the top step.",
+          "Carry tools in a belt or a bag, and have heavy fittings passed up or lifted by two people.",
+          "**Cone or barrier off the area below** so nobody walks under you or is hit by a dropped tool, screw or part."
+        ] },
+        { "h": "Machinery hazards" },
+        { "ul": [
+          "Rotating shafts, pulleys, belts and couplings can catch clothing, hair and fingers and pull a person in. **Guards** must be fitted before a machine runs.",
+          "A motor can start without warning if it is under automatic control (a timer, a float switch, a thermostat or a PLC). Lock off the isolator.",
+          "Capacitors in some motors and drives can hold a charge after the supply is off. Follow the maker's instructions and wait the time they state."
+        ] }
+      ]
+    },
+    {
+      "title": "Mounting and fixing",
+      "blocks": [
+        { "p": "Equipment must stay where you put it for many years, through heat, vibration, hurricanes and people leaning on it. That depends on the right fixing, put in the right way." },
+        { "h": "What are you fixing into?" },
+        { "table": { "head": ["Surface", "What to know"], "rows": [
+          ["Hollow concrete block", "The most common wall in Jamaica. The face shell is thin and the cores are hollow, except where they are filled with concrete and steel. Ordinary short plugs can crack the shell or spin. Use fixings made for hollow block, or fix into a filled core."],
+          ["Filled block and poured concrete", "Strong. Plastic plugs for light loads; sleeve, wedge or drop-in anchors for heavy loads. Keep away from edges."],
+          ["Timber (rafters, joists, studs)", "Wood screws or coach screws into the solid timber, not into thin boards."],
+          ["Drywall or ceiling board", "Weak on its own. Hollow-wall anchors for light items only; anything heavy is fixed through to the structure behind."],
+          ["Steel (beams, purlins, frames)", "Bolts through drilled holes, self-drilling screws for thin steel, or beam clamps (no drilling)."]
+        ] } },
+        { "h": "Choosing fixings" },
+        { "table": { "head": ["Fixing", "Use it for"], "rows": [
+          ["Plastic wall plug and screw", "Light loads in solid block, concrete and brick"],
+          ["Long plug made for hollow material", "Light to medium loads in hollow block"],
+          ["Spring toggle or hollow-wall anchor", "Light to medium loads through a thin shell into a hollow core or behind board"],
+          ["Resin (chemical) anchor with a mesh sleeve", "Heavy loads in hollow block; the resin fills the sleeve and locks into the core"],
+          ["Sleeve or wedge anchor", "Heavy loads in solid concrete (wedge anchors are for solid concrete only)"],
+          ["Drop-in anchor with threaded rod", "Hanging loads from a concrete ceiling slab"],
+          ["Through-bolt with nut and washers", "Fixing to steel frames and bases"]
+        ] } },
+        { "ul": [
+          "Choose a fixing **rated for the load and for that wall or ceiling**. The fixing maker's table gives the safe load.",
+          "Drill the **exact hole size and depth** the fixing maker states. Too big and the fixing will not grip; too small and it will not go in or will crack the block.",
+          "Clean the dust out of the hole before fitting the anchor, especially for resin anchors.",
+          "Keep the drill square to the surface, and keep holes away from edges and corners.",
+          "Never use a supply cable or flexible cord to hold the weight of a fitting."
+        ] },
+        { "h": "Ceiling fans and heavy light fittings" },
+        { "ul": [
+          "A ceiling fan is heavy and **shakes** as it runs. An ordinary light box is not made for that and can be pulled out. Under the NEC a fan must hang from a box or brace that is **listed and marked for fan support**, fixed to the structure.",
+          "Under the NEC, a light fitting heavier than **23 kg (50 lb)** must be supported independently of the box, unless the box is listed and marked for that weight. Hang it from rated fixings in the slab or framing.",
+          "Makers usually ask for fan blades to be at least **2.1 m** above the floor. Follow the fan's instructions.",
+          "If a fan wobbles, first tighten the blade screws and blade holders, then check that no blade or holder is bent, then balance it with the clip weights from the fan's balancing kit."
+        ] },
+        { "h": "Stopping vibration loosening things" },
+        { "p": "Pumps, compressors, fans and motors shake. Plain nuts and screws slowly work loose, and loose fixings let equipment move and connections fail." },
+        { "ul": [
+          "Use **lock washers** (spring or serrated washers), **self-locking nuts** (with a nylon insert), or thread-locking compound, as the maker says.",
+          "Use anti-vibration mounts where the drawing shows them.",
+          "Connect vibrating equipment with flexible conduit, not rigid conduit, so the vibration does not crack fittings.",
+          "Re-check fixings after the first run, and at the first service."
+        ] },
+        { "h": "Level, plumb and secure" },
+        { "p": "Mark the position and height from the drawing, check with a **spirit level**, mark the holes using the item or its template, drill, plug, fix and tighten evenly, then check level again. Panels are fitted with the clear working space the drawing gives in front of them. In panels, devices clip onto a **35 mm 'top-hat' DIN rail** fixed level with screws at the ends and along its length." }
+      ]
+    },
+    {
+      "title": "Installing machinery: motors and drives",
+      "blocks": [
+        { "h": "Setting the motor on its base" },
+        { "flow": [
+          "Isolate, lock off and prove dead the motor's supply",
+          "Check the nameplate against the drawing and supply",
+          "Lift the motor onto the base with a hoist or planned team lift",
+          "Fit the holding-down bolts loosely",
+          "Check every foot sits flat; shim any foot that rocks",
+          "Line up the drive (pulleys or coupling)",
+          "Tighten the bolts evenly, a little at a time, then re-check alignment"
+        ] },
+        { "p": "**Shims** are thin metal packing pieces put under a motor foot to level it and to stop a 'soft foot'. A **soft foot** is a foot that does not sit flat on the base. When its bolt is tightened, the motor frame twists, which upsets alignment and wears the bearings. To find one, tighten all bolts, then loosen one at a time and see whether that foot lifts; slide shims under it until it does not." },
+        { "h": "Lining up a belt drive" },
+        { "p": "The two pulleys must be **in line** (parallel) and their shafts parallel. Hold a straight edge (or a tight string line) across the faces of both pulleys. It should touch each pulley at two points, at the front and back edges of the face." },
+        { "table": { "head": ["What you see", "Problem", "Cure"], "rows": [
+          ["Straight edge touches one pulley fully but the other only at one edge", "Angular misalignment: the shafts are not parallel", "Turn the motor slightly on its base (or shim front or back feet) until the edge touches all four points"],
+          ["The edge touches both faces fully but one pulley sits forward of the other", "Parallel (offset) misalignment", "Slide the motor, or move a pulley on its shaft, until the faces line up"],
+          ["Belt runs to one side or wears on one face", "Misalignment", "Re-check with the straight edge"]
+        ] } },
+        { "note": "The straight edge method works when both pulley faces are the same width. If they are not, allow for the difference, or use the maker's alignment method.", "label": "Tip" },
+        { "h": "Fitting and tensioning the belt" },
+        { "ul": [
+          "Move the motor towards the driven pulley to slacken the adjusters, fit the belt over both pulleys, then move the motor back to tension it. Never lever or roll a belt on over the pulley edge: it damages the belt's cords.",
+          "Set the tension the belt or machine maker gives. A common rule is about **16 mm of deflection for each metre of span** when pushed in the middle with the force the maker states.",
+          "**Too tight:** extra load on the motor and machine bearings, which wear out early, and the belt wears fast.",
+          "**Too loose:** the belt slips and squeals, especially at start-up; it glazes, heats up and wears; the machine runs slow.",
+          "New belts stretch as they bed in. Check the tension again after the first hours of running.",
+          "Re-check alignment after tensioning, and **fit the fixed guard** over the belts and pulleys before the machine is run."
+        ] },
+        { "h": "Direct couplings" },
+        { "p": "Where a motor drives a pump or gearbox through a coupling, the two shafts must line up. A straight edge across the two coupling halves, top and side, shows offset; a gap gauge or feeler gauges between the halves show angular error. Large or fast machines are aligned with dial gauges or laser tools by a fitter." },
+        { "h": "Connecting the motor" },
+        { "ul": [
+          "Bring the supply through a **lockable local isolator**, with the motor's starter and overload protection as the drawing shows.",
+          "Use **flexible conduit** (liquid-tight outdoors or in wet places) for the last short run into the motor terminal box, so vibration and belt adjustment do not strain the cable.",
+          "Connect the windings for the supply voltage, exactly as the diagram inside the terminal box lid shows.",
+          "Connect the **earth** conductor to the motor's earth terminal. Tighten every terminal, refit the gasket and lid.",
+          "Set the overload relay to the motor's full-load current from the nameplate, or as the drawing says."
+        ] },
+        { "h": "Checking the direction of rotation" },
+        { "p": "Before the motor is connected to its load, an authorised person runs it on its own for a moment, **with the belt off or the coupling apart**, to check that it turns the right way. A pump or fan running backwards does little work, and some machines are damaged by reverse rotation." },
+        { "table": { "head": ["Motor", "To reverse it (with the supply isolated and locked off)"], "rows": [
+          ["Three-phase", "Swap **any two** of the three supply connections at the motor or starter"],
+          ["Single-phase", "Change the connections of the start (auxiliary) winding as the motor's diagram shows; some types cannot be reversed"]
+        ] } },
+        { "h": "The first run" },
+        { "ul": [
+          "Belt fitted and tensioned, guard on, area clear, everybody told.",
+          "Watch and listen: unusual noise, vibration, heat or smell means stop and isolate.",
+          "Measure the running current on each line with a **clamp meter** and compare it with the nameplate full-load current. A higher reading points to an overload, a mechanical problem, wrong connections or a low or unbalanced supply.",
+          "After a short run, isolate again and re-check the holding-down bolts, alignment and belt tension."
+        ] }
+      ]
+    },
+    {
+      "title": "Installing fixtures: lights, fans and outdoor equipment",
+      "blocks": [
+        { "h": "Classes of protection" },
+        { "table": { "head": ["Class", "How it protects you", "What you must do"], "rows": [
+          ["Class I", "Basic insulation plus a metal body connected to the protective **earth**. If a live wire touches the body, fault current flows to earth and the breaker or fuse trips.", "Connect the earth conductor to the fitting's earth terminal every time."],
+          ["Class II (symbol: a square inside a square)", "Double or reinforced insulation, so the body should never become live.", "No earth connection is needed; do not damage the insulation."],
+          ["Class III", "Runs from a safety extra-low voltage supply, such as a 12 V transformer for garden lights.", "Use the correct SELV transformer or driver."]
+        ] } },
+        { "h": "IP ratings" },
+        { "p": "The **IP code** (ingress protection) says how well an enclosure keeps out solids and water. The first digit is for solids, the second for water. The higher the number, the better the protection." },
+        { "table": { "head": ["First digit", "Protection against solids"], "rows": [
+          ["2", "Fingers kept out"],
+          ["4", "Wires and small tools over 1 mm kept out"],
+          ["5", "Dust-protected: some dust may get in, but not enough to harm it"],
+          ["6", "**Dust-tight**: no dust gets in"]
+        ] } },
+        { "table": { "head": ["Second digit", "Protection against water"], "rows": [
+          ["0", "No protection"],
+          ["4", "Splashing from any direction"],
+          ["5", "Jets of water"],
+          ["6", "Powerful jets of water"],
+          ["7", "Short immersion, up to about 1 m"]
+        ] } },
+        { "p": "Examples: an IP20 fitting is for dry indoor rooms only. IP44 suits sheltered outdoor walls and bathrooms. IP65 suits exposed outdoor walls, car washes and places hosed down. On US-made equipment you may see **NEMA** types instead, such as NEMA 1 (indoor), 3R (rainproof) or 4X (watertight and corrosion-resistant), or the words 'suitable for wet locations'." },
+        { "h": "Keeping the fitting sealed" },
+        { "ul": [
+          "Fit the **gasket** in its groove and tighten the cover evenly, so water, dust, insects and lizards cannot get in. Insects and lizards in fittings cause many short circuits in Jamaica.",
+          "Use the cable entry the maker provides, with the right gland or grommet, sealed around the cable.",
+          "Fit outdoor fittings the right way up, with any drain hole at the bottom.",
+          "Near the coast, use **stainless steel** screws and fixings: plain and zinc-plated steel rust quickly in salt air and stain the wall.",
+          "Lights and outlets near a swimming pool have extra rules in the code, on distance from the water and GFCI protection. Follow the drawing and ask your supervisor."
+        ] },
+        { "h": "Heat and light fittings" },
+        { "ul": [
+          "Do not fit a lamp of higher wattage than the fitting's label allows.",
+          "Keep the clearances the maker gives from timber, ceiling insulation and other materials that burn.",
+          "LED fittings have a **driver**: keep it ventilated, and check whether a dimmer is compatible."
+        ] },
+        { "h": "Fitting a ceiling fan: the order of work" },
+        { "flow": [
+          "Isolate, lock off and prove dead the circuit",
+          "Check the box or brace is listed for fan support and firmly fixed",
+          "Fit the mounting bracket with the screws supplied",
+          "Hang the motor on the bracket hook, if it has one, and connect line, neutral and earth (and the light or control wires) as the diagram shows",
+          "Fit the canopy, blades and light kit; tighten every blade screw",
+          "Hand over for switching on, then check for wobble and noise"
+        ] }
+      ]
+    },
+    {
+      "title": "Secondary wiring in control panels",
+      "blocks": [
+        { "p": "**Secondary wiring** is the control and signal wiring between devices: from push buttons, switches and sensors through contactors, relays, timers and controllers, to lamps and alarms. It usually runs inside a panel or between a panel and field devices. It carries small currents, but a single loose or wrong wire can stop a machine, or start one when it should not." },
+        { "h": "Inside a typical small panel" },
+        { "table": { "head": ["Device", "What it does"], "rows": [
+          ["DIN rail (35 mm top hat)", "A steel rail that devices clip onto"],
+          ["Miniature circuit breaker (MCB) or fuses", "Protects the control circuit"],
+          ["Contactor", "A switch worked by a coil, which switches the motor's power"],
+          ["Overload relay", "Trips when the motor draws too much current for too long"],
+          ["Terminal blocks", "Where field wiring and panel wiring meet"],
+          ["Relays and timers", "Control logic"],
+          ["Power supply (often 24 V DC)", "Supplies controllers and sensors"],
+          ["PLC (programmable logic controller)", "A small industrial computer that runs the control program"],
+          ["Slotted trunking (panel duct) with clip-on lids", "Carries the wiring neatly"]
+        ] } },
+        { "h": "How a start-stop circuit works" },
+        { "p": "In a simple direct-on-line starter, the control circuit runs through the **stop** button (normally closed), the **start** button (normally open), the overload relay's contact (normally closed) and the contactor coil. Pressing start energises the coil, and the contactor closes. A spare (auxiliary) contact on the contactor, wired across the start button, keeps the coil energised when start is released: this is the **hold-in** or latching contact. Pressing stop, or an overload trip, breaks the circuit and the contactor drops out." },
+        { "h": "Making a good termination" },
+        { "flow": [
+          "Cut to length: reaches neatly, not tight, no big loop",
+          "Slide on the wire marker from the diagram",
+          "Strip only the length the terminal needs, with the right stripper",
+          "Crimp on a ferrule or terminal with the matching tool and die",
+          "Pull-test the crimp",
+          "Insert fully and tighten to the maker's torque",
+          "Check against the diagram"
+        ] },
+        { "table": { "head": ["Rule", "Why"], "rows": [
+          ["Strip just enough: no bare copper showing outside the terminal, and no insulation under the clamp", "Bare copper can touch the next terminal; insulation under the clamp gives a loose, hot joint"],
+          ["Use the right stripper; do not nick or cut strands", "Nicked strands break with vibration, and the joint carries less current"],
+          ["Fit a **bootlace ferrule** on fine stranded wire going into a screw terminal", "It holds every strand together, so none can escape or be cut by the screw"],
+          ["No loose strands", "One stray strand can touch the next terminal and cause a short or a false signal"],
+          ["One conductor per terminal, unless the terminal is made for two (use a twin ferrule)", "A second wire of a different size is not clamped properly"],
+          ["Tighten to the maker's torque with a torque screwdriver", "Loose joints overheat and fail; over-tight ones crush the wire or crack the terminal"]
+        ] } },
+        { "h": "Crimp terminals" },
+        { "table": { "head": ["Insulated terminal colour", "Wire size it takes"], "rows": [
+          ["Red", "About 0.5 to 1.5 mm² (22 to 16 AWG)"],
+          ["Blue", "About 1.5 to 2.5 mm² (16 to 14 AWG)"],
+          ["Yellow", "About 4 to 6 mm² (12 to 10 AWG)"]
+        ] } },
+        { "ul": [
+          "**Ring terminals** fit over a stud or screw and cannot slip off even if the nut loosens; **fork (spade)** terminals can be fitted without removing the screw; **pin** terminals and ferrules go into clamp-type terminals.",
+          "The crimp tool and its die must **match** the terminal type and size. A ratchet crimp tool will not open until the crimp is complete. The wrong tool gives a crimp that looks fine but pulls off or overheats.",
+          "Check every crimp: the wire is fully in the barrel, the crimp is in the right place, and a **firm pull** does not move it.",
+          "Bootlace ferrule colours differ between makers' systems; match the ferrule size to the wire size, not just the colour."
+        ] },
+        { "h": "Wire numbering and colours" },
+        { "p": "Every control wire carries a **marker** at **both ends**, with the number from the wiring diagram. Then anyone can trace a wire, check it against the diagram and find faults quickly years later. Wire colours follow the drawing: many panels use one colour for AC control, another for DC control, and green or green-and-yellow for earth." },
+        { "h": "Running the wiring" },
+        { "ul": [
+          "Run wiring in the slotted trunking, not loose across the panel. Do not overfill it: the lid must close easily, heat must escape, and there should be space for changes.",
+          "Keep to each cable's **minimum bending radius**, usually given by the maker as a number of times the cable's diameter. Bending tighter damages insulation and cores.",
+          "Wiring to devices on the door (push buttons, lamps, meters) goes in a flexible bundle with a **loop at the hinge side**, protected by spiral wrap, with enough slack for the door to open fully without pulling on the terminals.",
+          "Cable ties snug but not crushing. Cut tie tails flush so they do not cut hands."
+        ] },
+        { "h": "Keeping power and signals apart" },
+        { "p": "Power cables carrying large currents, especially to motors and variable speed drives, create electrical **noise** (interference). Run beside them, signal and data cables can pick up that noise and give false readings, nuisance trips or faults in controllers." },
+        { "ul": [
+          "Run power and signal wiring in **separate trunking**, or with a clear gap as the drawing or maker says.",
+          "Where they must cross, cross at **right angles**.",
+          "Use **screened** cable for sensitive signals where the drawing shows it, and earth the screen as the drawing says (usually at one end only, often the panel end).",
+          "Keep circuits of different voltages separate, as the code and drawing require."
+        ] }
+      ]
+    },
+    {
+      "title": "Glands, enclosures and electronic apparatus",
+      "blocks": [
+        { "h": "Cable glands" },
+        { "p": "A **cable gland** holds a cable where it enters an enclosure, seals around it and, on armoured cable, connects the armour to earth." },
+        { "table": { "head": ["Gland", "Use"], "rows": [
+          ["Plastic (nylon) compression gland", "PVC-sheathed cables; light and corrosion-resistant; good near the sea"],
+          ["Brass or stainless compression gland", "Tougher; where a metal gland is specified"],
+          ["Armour gland (for steel-wire armoured cable)", "Clamps the armour wires in a cone; with an earth tag it **connects the armour to earth**. Outdoor types have inner and outer seals."]
+        ] } },
+        { "flow": [
+          "Check the enclosure's IP rating and choose glands of at least that rating",
+          "Measure the cable's overall diameter and choose a gland whose clamping range suits it",
+          "Make the entry hole the right size with a hole saw, knockout punch or step drill",
+          "Remove sharp edges and swarf",
+          "Fit the gland with its sealing washer and locknut, tightened firmly",
+          "Pass the cable through; strip the sheath only inside the enclosure",
+          "Tighten the seal onto the sheath without crushing it",
+          "Blank every unused entry with a blanking plug"
+        ] },
+        { "ul": [
+          "A gland that is too big will not seal or grip; one that is too small cannot be tightened properly or cuts the sheath.",
+          "Glands come in metric threads (M20, M25 and so on) or US conduit sizes (1/2 inch, 3/4 inch). Match the gland thread to the hole or knockout.",
+          "After glanding, fit the enclosure lid with its seal seated correctly. One unsealed entry or a pinched lid seal loses the whole enclosure's IP rating."
+        ] },
+        { "h": "Electronic apparatus" },
+        { "p": "Controllers, PLCs, sensors and circuit boards can be destroyed by things that would not harm ordinary electrical equipment: static electricity, reversed DC supplies, voltage spikes and test voltages." },
+        { "h": "Static electricity (ESD)" },
+        { "p": "**ESD** stands for **electrostatic discharge**. Walking on a floor or moving in your clothes builds static charge on your body, sometimes thousands of volts. You may not feel it discharge, but the tiny spark can damage parts on a board." },
+        { "ul": [
+          "Keep boards in their **anti-static bags** until you fit them.",
+          "Wear an **anti-static wrist strap** clipped to an earth point, and work on an anti-static mat if there is one. The strap's cord has a built-in resistor of about **1 megohm**, which lets static drain away slowly and limits the current through you if you touch something live. Never replace it with a plain wire.",
+          "Hold boards **by their edges**. Do not touch components, pins, connectors or tracks.",
+          "Air-conditioned offices are dry, and dry air makes static worse."
+        ] },
+        { "h": "Supplies and signals" },
+        { "ul": [
+          "Check the supply voltage and type, AC or DC, against the device's label before connecting.",
+          "Connect DC supplies the **right way round**: + to + and − to −. A reversed connection can destroy a device at once. Check the polarity with a meter before the device is connected.",
+          "Three-wire DC sensors often use brown for +, blue for − and black for the output signal, but check the sensor's label.",
+          "Keep signal cables away from power cables, and earth screens as the drawing says.",
+          "Fit electronics in clean, dry, ventilated enclosures, away from heat, and use surge protection where the drawing shows it."
+        ] },
+        { "note": "An insulation resistance tester applies a high DC voltage, often 500 V. **Disconnect electronic equipment** (controllers, drives, LED drivers, power supplies, sensors, electronic timers) before the test, or it can be damaged, and its own circuits can also give a false low reading.", "label": "Safety" }
+      ]
+    },
+    {
+      "title": "Testing, commissioning and handover",
+      "blocks": [
+        { "p": "Before any new installation is switched on, it is tested **dead**: isolated, locked off and proved dead. Dead tests find faults safely, before they can give a shock, start a fire or damage equipment." },
+        { "h": "Dead tests" },
+        { "table": { "head": ["Test", "What it checks", "Instrument", "A good result"], "rows": [
+          ["Continuity of protective (earth) conductors", "Every metal part and earth terminal is joined back to the main earth, so a fault will trip the protection", "Low-resistance ohmmeter (leads zeroed first)", "A low resistance, as the test sheet gives"],
+          ["Continuity of circuit and control conductors", "No breaks in line and neutral; each control wire goes where the diagram says (point to point)", "Continuity tester or ohmmeter", "Continuity on each wire, and none between wires that should be separate"],
+          ["Insulation resistance", "The insulation between conductors, and between conductors and earth, is sound", "Insulation resistance tester, often at 500 V DC for 110/220 V circuits", "A high reading in **megohms** (MΩ); a very low reading shows damaged insulation or a fault"],
+          ["Polarity", "Switches, fuses and single-pole breakers are in the **line** conductor; outlets and lamp holders are connected the right way round", "Continuity tester", "Every switch breaks the line, not the neutral"]
+        ] } },
+        { "ul": [
+          "Warn others before an insulation test, and do not touch the conductors while it runs: the test voltage can give a shock.",
+          "The Centre's test sheet gives the lowest insulation reading allowed. As a guide, many standards treat a reading below 1 MΩ on these circuits as a fail, and a new installation normally reads far higher.",
+          "A switch in the neutral is dangerous: with the switch off, the light still has a live line conductor at the lamp holder.",
+          "Record every result on the test sheet as you go."
+        ] },
+        { "h": "Commissioning" },
+        { "flow": [
+          "All work complete; all dead tests passed and recorded",
+          "Covers, guards, labels and blanks fitted; area clean; people told",
+          "Authorised person switches on and does the live checks",
+          "Functional tests of controls and safety devices",
+          "Motors checked for direction, noise, heat, vibration and current",
+          "Results recorded; faults isolated and put right before handover"
+        ] },
+        { "p": "Only an **authorised person** switches on new equipment for the first time, and only after the dead tests have passed. Live checks include measuring the voltage and testing GFCI or RCD devices. A **functional test** checks that the equipment and its controls work as planned: start and stop buttons, hold-in, lamps, timers, thermostats, interlocks, the overload trip and **emergency stops**. If anything fails, the equipment is switched off, isolated and locked off until the fault is put right and the test repeated." },
+        { "h": "Handover and clean-up" },
+        { "ul": [
+          "Remove off-cuts, stripped insulation, cable tie tails and swarf from inside panels and fittings, where they can cause short circuits; sweep up and sort waste into the right bins.",
+          "Return tools and spare materials, and report any damaged tools.",
+          "Hand over the **test results**, the **marked-up (as-built) drawings** and the **maker's manuals** and warranty papers.",
+          "Show the client how to use the equipment, where its isolator is and how to switch off in an emergency."
+        ] }
+      ]
+    },
+    {
+      "title": "Revision",
+      "blocks": [
+        { "h": "Checklist" },
+        { "p": "Tick each statement only when you can do it without looking at the notes." },
+        { "ul": [
+          "I can check delivered equipment against the drawings and parts list, read a nameplate and report damaged or wrong items.",
+          "I can explain why a 60 Hz-only motor may not suit Jamaica's 50 Hz supply.",
+          "I can isolate and prove dead before connecting, and explain why a machine needs a lockable local isolator.",
+          "I can plan a lift, work safely at height and keep the area below clear.",
+          "I can choose fixings for hollow block, concrete, timber, board and steel, and drill the hole the fixing maker states.",
+          "I can explain how fans and heavy light fittings must be supported, and how to cure a wobbling fan.",
+          "I can stop vibration loosening fixings with lock washers, self-locking nuts or thread-locking compound.",
+          "I can level a motor with shims, find a soft foot, line up pulleys with a straight edge and set belt tension.",
+          "I can explain what happens when a belt is too tight or too loose, and why a guard is fitted before running.",
+          "I can explain how to reverse a three-phase motor and why direction is checked with the belt off.",
+          "I can tell Class I, Class II and Class III equipment apart and read an IP code.",
+          "I can terminate control conductors with ferrules and crimps, using the matching tool, and pull-test them.",
+          "I can mark wires at both ends, run wiring neatly in trunking and make a door loop.",
+          "I can keep power and signal wiring apart and say why.",
+          "I can choose and fit a gland for a cable, earth an armoured cable and blank unused entries.",
+          "I can protect electronic apparatus from static, reversed supplies and insulation test voltages.",
+          "I can describe the dead tests, what each shows and what a low insulation reading means.",
+          "I can describe commissioning, functional tests and what is handed over to the client."
+        ] },
+        { "h": "Numbers to remember" },
+        { "table": { "head": ["Figure", "What it is"], "rows": [
+          ["50 Hz", "Jamaica's supply frequency (the US uses 60 Hz)"],
+          ["35 mm", "Width of a standard top-hat DIN rail"],
+          ["1 in 4", "Leaning ladder: 1 m out for every 4 m up"],
+          ["23 kg (50 lb)", "Above this, an NEC light fitting needs support independent of the box unless the box is rated for it"],
+          ["About 2.1 m", "Usual lowest height for ceiling fan blades above the floor"],
+          ["About 16 mm per metre of span", "Common rule for V-belt deflection at the maker's force"],
+          ["Any two", "Supply connections swapped to reverse a three-phase motor"],
+          ["About 1 MΩ", "Resistor in an anti-static wrist strap's cord"],
+          ["500 V DC", "Common insulation test voltage for 110/220 V circuits"],
+          ["Red, blue, yellow", "Insulated crimp sizes: about 0.5–1.5, 1.5–2.5 and 4–6 mm²"]
+        ] } },
+        { "h": "Key terms" },
+        { "terms": [
+          ["Bootlace ferrule", "A small metal tube crimped onto fine stranded wire so that all the strands go into a screw terminal together."],
+          ["Class I / Class II", "Class I equipment relies on a protective earth; Class II is double insulated and needs no earth."],
+          ["Commissioning", "Switching on new equipment for the first time and checking that it works as designed."],
+          ["Contactor", "A switch operated by a coil, used to switch the power to a motor or other load."],
+          ["DIN rail", "The 35 mm steel 'top-hat' rail that panel devices clip onto."],
+          ["ESD", "Electrostatic discharge: a static spark that can damage electronic parts."],
+          ["Functional test", "A check that equipment and its controls and safety devices work as planned."],
+          ["Gland", "A fitting that holds and seals a cable where it enters an enclosure."],
+          ["Hold-in (latching) contact", "A contactor's auxiliary contact that keeps its coil energised after the start button is released."],
+          ["Insulation resistance", "The resistance of the insulation between conductors, or between conductors and earth, measured in megohms."],
+          ["IP rating", "The code that shows how well an enclosure keeps out solids (first digit) and water (second digit)."],
+          ["Local isolator", "A lockable switch near a machine that cuts off all its supply for safe work."],
+          ["Polarity", "Correct connection of line and neutral, so that switches and protective devices are in the line conductor."],
+          ["Secondary wiring", "Control and signal wiring between devices, usually inside a panel."],
+          ["Shim", "A thin metal packing piece placed under a motor foot to level and align it."],
+          ["Soft foot", "A motor foot that does not sit flat on its base, so tightening its bolt twists the frame."]
+        ] }
+      ]
+    }
+  ],
+  "cases": {
+    "c1": { "title": "Fans and lights at an Ocho Rios villa", "text": "Trainee Chevelle Barrett and electrician Mr Winston Lewis are installing equipment in a villa in Ocho Rios, St Ann. They are fitting ceiling fans in three bedrooms with 3.2 m ceilings, a 30 kg glass chandelier hung from the concrete slab over the dining table, and wall lights on the outside walls beside the pool, which get rain and sea spray. They have a fibreglass stepladder and a mobile tower." },
+    "c2": { "title": "A mixer motor at a Bog Walk food plant", "text": "Trainee Akeem Francis and electrician Mr Neville Spence are installing a new motor that drives a mixer through a V-belt at a small food-processing plant in Bog Walk, St Catherine. The motor is bolted to a steel base, and a lockable isolator is fixed on the wall beside it. A second, spare motor arrived from an overseas supplier with a nameplate that reads '60 Hz' only. The nameplate of the motor being fitted gives a full-load current of 8.5 A." },
+    "c3": { "title": "A fan control panel for a Hayes poultry farm", "text": "Trainee Simone Lawrence and electrician Mr Garth Pinnock are wiring a control panel for the ventilation fans in a poultry house in Hayes, Clarendon. The panel has a DIN rail with breakers, contactors, overload relays, terminal blocks and a 24 V DC temperature controller. Start and stop push buttons and pilot lamps are on the panel door. The control wiring is fine-stranded 1.0 mm² wire, and the fan cables are 2.5 mm²." },
+    "c4": { "title": "Access control at a Constant Spring office", "text": "Trainee Rushane Gordon and electrician Ms Petrina Morrison are installing a door access-control system in an air-conditioned office in Constant Spring, St Andrew. It has a controller circuit board, a 12 V DC power supply with a back-up battery, and card readers at two doors. The board arrived in an anti-static bag. The cable to one card reader runs above the ceiling for 15 m, close to a 110 V lighting cable." },
+    "c5": { "title": "Commissioning an ice plant in Lucea", "text": "Trainee Davian Bryan is helping electrician Mr Clive Rowe to test and commission new equipment at an ice-making plant in Lucea, Hanover: a pump motor with its starter, the lighting and a control panel. In the dead tests, every circuit gives an insulation resistance above 200 MΩ except one lighting circuit, which reads 0.4 MΩ. During the polarity test, Davian finds that one light switch is wired in the neutral." }
+  },
+  "questions": [
+    { "id": "P-01", "c": "c1", "q": "The chandelier's hook must be fixed into the concrete slab above the dining table. Which fixing suits this?", "o": ["A plastic wall plug and a long wood screw in the slab", "A spring toggle pushed through into the slab", "A rated drop-in or sleeve anchor in the solid slab", "A masonry nail driven into the slab with a hammer"], "a": 2, "why": "A 30 kg hanging load needs a fixing rated for that load in solid concrete, such as a drop-in or sleeve anchor, drilled to the size the anchor maker gives. Plastic plugs, toggles (made for hollow material) and nails are not rated to hold a hanging chandelier." },
+    { "id": "P-02", "c": "c1", "q": "Which screws should hold the pool-side wall lights to the outside wall?", "o": ["Stainless steel screws in suitable plugs", "Zinc-plated steel screws in plastic plugs", "Plain steel screws, painted after fixing", "Brass-coloured steel screws from the kit"], "a": 0, "why": "Sea spray and rain make plain and zinc-plated steel rust quickly, which loosens the fitting and stains the wall. Stainless steel fixings last near the coast." },
+    { "id": "P-03", "c": "c1", "q": "The three fans will take most of a day to fit at 3.2 m. What is the safest way to reach the ceilings?", "o": ["The stepladder, standing on its top step to reach", "The stepladder, leaning it against the bedroom wall", "A chair placed on the bed for extra height and reach", "The mobile tower, wheels locked, guard rails on"], "a": 3, "why": "For long spells of work at height, a tower with locked wheels and guard rails gives a stable platform and room for tools and parts. Standing on the top step or on furniture is a common cause of falls." },
+    { "id": "P-04", "c": "c1", "q": "After the first fan is fitted, it wobbles at high speed. What should be checked first?", "o": ["That the wall switch is a heavy-duty type", "That every blade screw and blade holder is tight", "That the fan is wired to a 220 V supply", "That the room's air-conditioning is switched off"], "a": 1, "why": "Loose blade screws and holders are the most common cause of wobble. If they are tight, check for a bent blade or holder, then balance the blades with the clip weights from the fan's kit." },
+    { "id": "P-05", "c": "c2", "q": "What should be done about the spare motor whose nameplate says '60 Hz' only?", "o": ["Fit it, since the voltage is the only nameplate value that matters", "Report it before fitting, as it may run slow and overheat here", "Fit it, because a 60 Hz motor runs faster and works better on 50 Hz", "Fit it, and set its overload relay a little higher to make up for it"], "a": 1, "why": "Jamaica's supply is 50 Hz. A 60 Hz-only motor runs about one-sixth slower here and, at full voltage, can overheat. Check the nameplate frequency on every imported item and report a mismatch to the supervisor." },
+    { "id": "P-06", "c": "c2", "q": "With all four holding-down bolts tight, Akeem loosens one and that foot lifts slightly off the base. What is this, and what is the cure?", "o": ["Normal movement; tighten the bolt again and carry on", "A bent shaft; replace the motor before it is run", "A loose pulley; tighten the pulley's grub screws", "A soft foot; shim under that foot until it sits flat"], "a": 3, "why": "A foot that lifts when its bolt is slackened is a soft foot: tightening it twists the motor frame, which spoils alignment and wears the bearings. Shims under that foot let all four feet sit flat." },
+    { "id": "P-07", "c": "c2", "q": "On the first run, the belt squeals loudly every time the mixer starts. What is the most likely cause?", "o": ["The belt is too loose and slips on the pulleys", "The belt is too tight and is pulling the motor", "The motor is turning in the wrong direction", "The guard is fitted too close to the belt"], "a": 0, "why": "A squeal at start-up is slip: the belt is too slack to carry the starting load. After isolating and locking off, increase the tension to the maker's figure, re-check alignment, refit the guard and check again after a few hours of running." },
+    { "id": "P-08", "c": "c2", "q": "During the test run, the authorised person's clamp meter shows about 11 A on each line at normal load. What does this suggest?", "o": ["All is well, as a clamp meter always reads high on motors", "The belt is too loose, so the motor is drawing less current", "The motor is overloaded or has a fault, so it must be found", "The overload relay should be set to 11 A so it stops tripping"], "a": 2, "why": "The nameplate full-load current is 8.5 A, so 11 A is well over. Causes include a jammed or overloaded mixer, a tight belt, wrong winding connections or a low supply voltage. Find the cause; never raise the overload setting to hide it." },
+    { "id": "P-09", "c": "c3", "q": "Simone must crimp insulated ring terminals onto the 2.5 mm² fan cable conductors. Which colour of terminal is right?", "o": ["Red", "Yellow", "Black", "Blue"], "a": 3, "why": "Insulated crimp terminals are colour-coded by wire size: red for about 0.5–1.5 mm², blue for about 1.5–2.5 mm² and yellow for about 4–6 mm². Use the matching die in the crimp tool." },
+    { "id": "P-10", "c": "c3", "q": "Wire 14 runs from terminal X1-5 to the coil of contactor K1. Where should its marker '14' be fitted?", "o": ["On the end at the terminal block only", "On both ends of the wire", "On the end at the contactor only", "In the middle, where it can be seen"], "a": 1, "why": "A marker at each end lets anyone working at either device read the wire number, check it against the diagram and trace faults. The marker goes on before the wire is terminated." },
+    { "id": "P-11", "c": "c3", "q": "How should the wires to the start button and lamps on the panel door be run?", "o": ["In a flexible bundle with a loop at the hinge side", "Pulled tight across the hinge so that they cannot sag", "Loose behind the door so they can move freely", "Tied hard to the door edge with many cable ties"], "a": 0, "why": "A loop at the hinge, bundled and protected with spiral wrap, lets the door open fully without pulling on the terminals or chafing the wires on the door edge." },
+    { "id": "P-12", "c": "c3", "q": "The 24 V DC sensor wiring and the 2.5 mm² fan cables both run inside the panel. Which layout is best?", "o": ["The same trunking, with sensor wires on top", "The same trunking, tied together for neatness", "Separate trunking, crossing only at right angles", "Separate trunking that runs side by side, touching"], "a": 2, "why": "Fan power cables create electrical noise that can upset the temperature controller's signals. Keeping them in separate trunking, and crossing only at right angles, keeps the coupling between them as small as possible." },
+    { "id": "P-13", "c": "c4", "q": "Rushane's anti-static wrist strap has a resistor of about 1 megohm in its cord. What is it for?", "o": ["To measure how much static charge is building up on his body", "To stop the strap from draining his static charge to earth", "To drain static slowly and limit current through him", "To heat the strap slightly so it stays in place on his wrist"], "a": 2, "why": "The resistor lets static drain away safely to earth, and limits the current that could flow through him if he touched a live part. A plain wire in its place would make the strap dangerous." },
+    { "id": "P-14", "c": "c4", "q": "The power supply's 12 V DC leads are red and black, and the controller board's terminals are marked + and −. What is the right way to connect them?", "o": ["Check with a meter, then red to + and black to −", "Connect either way, as the board corrects the polarity", "Connect black to + and red to −, as black is live in AC wiring", "Connect both leads to + so the board gets full power"], "a": 0, "why": "A reversed DC supply can destroy electronic parts at once. Confirm which lead is positive with a meter before connecting, then connect + to + and − to −, as the board is marked." },
+    { "id": "P-15", "c": "c4", "q": "The card reader beside the lighting cable gives random read errors. What change is most likely to cure it?", "o": ["Fit a bigger fuse in the 12 V DC supply to the card reader", "Move its cable away from the lighting cable, or use screened cable", "Tie the reader cable tightly to the lighting cable for extra support", "Swap the + and − leads at the reader to cancel the interference"], "a": 1, "why": "Noise from the power cable is being picked up by the long reader cable. Moving it away, crossing only at right angles, or using screened cable with the screen earthed as the maker says, cuts the interference." },
+    { "id": "P-16", "c": "c5", "q": "What should happen about the lighting circuit that reads 0.4 MΩ?", "o": ["Switch it on, since any reading above zero ohms is acceptable", "Switch it on, and test it again after a week of running", "Record it as a pass, because the other circuits read high", "Find and repair the fault, then retest before switching on"], "a": 3, "why": "0.4 MΩ is far below the other readings and below the common 1 MΩ guide. It points to damaged insulation, moisture or a fault such as a nicked cable or a crushed conductor. Find it, put it right and retest before switching on." },
+    { "id": "P-17", "c": "c5", "q": "Why is the switch wired in the neutral dangerous, even though the light goes off?", "o": ["The lamp holder is still live with the switch off", "The lamp will burn out much more quickly than usual", "The breaker will trip every time the switch is used", "The switch will run hot and may catch fire in time"], "a": 0, "why": "With the switch in the neutral, the line conductor still reaches the lamp holder. Anyone changing a lamp with the switch off could get a shock. Switches and single-pole protective devices must be in the line conductor." },
+    { "id": "P-18", "c": "c5", "q": "In the functional test, pressing the emergency stop does not stop the pump. What should happen next?", "o": ["Hand over the plant and note the fault for the next visit", "Tell staff to use the normal stop button instead for now", "Leave the pump running while the wiring is checked", "Isolate and lock off the pump, find the fault and retest"], "a": 3, "why": "An emergency stop that does not work is a serious danger. The equipment is isolated and locked off, the fault is traced and put right, and the whole functional test is repeated before handover." },
+    { "id": "P-19", "c": null, "q": "A light fitting is marked IP65. What does the first digit, 6, tell you?", "o": ["It resists jets of water", "It keeps out fingers only", "It is dust-tight", "It can stay under water"], "a": 2, "why": "In the IP code the first digit is for solids: 6 means dust-tight. The second digit is for water: 5 means protected against jets. Immersion is a second digit of 7 or 8." },
+    { "id": "P-20", "c": null, "q": "A drill is marked with a square inside a square. What does this mean for its connection?", "o": ["It must be earthed through a three-pin plug", "It is double insulated and needs no earth", "It must be used on 220 V supplies only", "It runs on a safety extra-low voltage"], "a": 1, "why": "The square-in-a-square symbol marks Class II equipment: double or reinforced insulation stops the casing becoming live, so no earth conductor is needed. Class I equipment depends on its earth." }
+  ]
+}

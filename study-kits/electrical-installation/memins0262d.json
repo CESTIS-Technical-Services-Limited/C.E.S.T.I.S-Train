@@ -1,0 +1,424 @@
+{
+  "format": "cestis-study-kit",
+  "version": 1,
+  "status": "to-check",
+  "written": "2026-11-07",
+  "programme": "Electrical Installation",
+  "qualification": { "id": "QUAL-EIM-L2", "title": "ELECTRICAL INSTALLATION AND MAINTENANCE LEVEL 2", "code": "EEM20723" },
+  "level": 2,
+  "unit": { "code": "MEMINS0262D", "title": "Install distribution panels, metering sockets, terminal mains and meter earthing systems" },
+  "summary": "This unit teaches you to install the heart of a building's electrical system: the meter socket, the main conductors (terminal mains) that run from it to the main breaker, the distribution panel with its breakers, and the earth electrode and bonding that keep it safe. You will learn which parts belong to JPS and must never be touched, how to place, fix and connect each part, how to balance loads and choose breakers, how to install and test an earth rod, and how to inspect, test and hand over the work for the government inspection.",
+  "sections": [
+    {
+      "title": "Unit overview",
+      "blocks": [
+        { "p": "Every Jamaican home, shop and office has a **service position**: the place where the supply from JPS enters the building, is metered and is shared out to the circuits. This unit covers installing it: the meter socket, the terminal mains, the distribution panel and the meter earthing system. It is for Level 2 trainees who do this work under the supervision of a licensed electrician. Mistakes here affect every circuit in the building, and some parts stay live even when the main breaker is off, so the work must be done carefully and in the right order." },
+        { "h": "What you must be able to do" },
+        { "table": { "head": ["Task", "What it looks like on the job"], "rows": [
+          ["Know the supply and who owns what", "Explain the 110/220 V single-phase supply, which parts belong to JPS, and why you never work on them or break a meter seal."],
+          ["Work safely at the service position", "Isolate a panel correctly, know which parts stay live with the main breaker off, and never work live."],
+          ["Install a meter socket", "Place it where JPS can reach it, fix it plumb, level and firm, keep water out, and leave the supply side to JPS."],
+          ["Install a distribution panel", "Choose a safe place with clear working space, fix it, use the right knockouts, connectors and blanks."],
+          ["Install the terminal mains", "Size, run, identify and connect the main conductors from the meter socket to the main breaker."],
+          ["Connect branch circuits", "Choose single-pole and double-pole breakers, balance the load on the two lines, terminate neatly to the right torque and fill in the circuit schedule."],
+          ["Install the earthing and bonding", "Drive an earth rod, fix the clamp and earthing conductor, bond metal pipes, and get the neutral-earth bond in the right place."],
+          ["Inspect, test and hand over", "Do the dead tests and the earth electrode test, record them, clean up and prepare for the government inspection and JPS connection."]
+        ] } },
+        { "h": "The service position, from pole to panel" },
+        { "flow": [
+          "JPS pole and transformer",
+          "Service drop: the overhead conductors from the pole to the building",
+          "Weatherhead (service head) on the service mast or conduit",
+          "Service conduit down to the meter socket",
+          "Meter socket, with the JPS meter plugged in and sealed",
+          "Terminal mains: main conductors from the meter socket to the panel",
+          "Main breaker in the distribution panel",
+          "Branch circuit breakers and circuits",
+          "Earth (grounding) electrode and bonding, connected at the service position"
+        ] },
+        { "h": "British and US words" },
+        { "p": "The code used in Jamaica is based on the US NEC, but British words are common too. You will hear both." },
+        { "table": { "head": ["British or local term", "US (NEC) term", "Meaning"], "rows": [
+          ["Meter socket, meter base", "Meter socket", "The box the meter plugs into"],
+          ["Terminal mains, meter tails", "Service entrance conductors (load side)", "The main conductors from the meter socket to the main breaker"],
+          ["Distribution panel, distribution board, consumer unit", "Panelboard, load centre", "The enclosure holding the main and branch breakers"],
+          ["Earth electrode, earth rod", "Grounding electrode, ground rod", "The rod driven into the ground"],
+          ["Earthing conductor", "Grounding electrode conductor (GEC)", "The conductor from the earth rod to the main earthing terminal"],
+          ["Main earthing terminal, earth bar", "Equipment grounding bar", "Where the earth conductors are joined"],
+          ["Neutral-earth link", "Main bonding jumper", "The screw, strap or conductor that joins neutral to earth at the service position"]
+        ] } },
+        { "note": "At Level 2 you install and test this equipment **dead**, with no supply connected, or with the supply isolated and proved dead. Connection to the JPS supply is done only by JPS, after the installation has passed the government electrical inspection.", "label": "Remember" }
+      ]
+    },
+    {
+      "title": "The supply, JPS and the inspection",
+      "blocks": [
+        { "h": "The supply" },
+        { "ul": [
+          "JPS supplies homes and most small businesses at **110 V and 220 V, single-phase, 50 Hz**, through three conductors: two **line** conductors and a **neutral**.",
+          "Each line is about **110 V to neutral** (and to earth). The two lines are about **220 V to each other**. So 110 V loads (lights, ordinary outlets) connect between one line and neutral, and 220 V loads (water heaters, air-conditioners, cookers, pumps) connect between the two lines.",
+          "The neutral is connected to earth at JPS's transformer and again at the building's service position.",
+          "Larger buildings may have a **three-phase** supply. The ideas in this unit are the same; the panels and meters are different.",
+          "The meter records the energy used in **kilowatt-hours (kWh)**: 1 kWh is 1,000 W used for one hour. A 2,000 W heater running for 3 hours uses 2 × 3 = 6 kWh."
+        ] },
+        { "h": "Who owns and works on what" },
+        { "table": { "head": ["Part", "Whose it is", "Who may work on it"], "rows": [
+          ["Poles, lines, transformers, the service drop", "JPS", "JPS only"],
+          ["The connection of the service drop to the building's conductors", "JPS makes it", "JPS only"],
+          ["The meter and its seals", "JPS", "JPS only: never remove a meter or break, cut or replace a seal"],
+          ["Service mast or conduit, weatherhead, meter socket", "The customer (installed by the electrician)", "The electrician installs them before connection; once live, the supply side is JPS's to disconnect"],
+          ["Terminal mains, panel, circuits, earthing and bonding", "The customer", "A licensed electrician and the people working under them"]
+        ] } },
+        { "p": "On some jobs the electrician also installs the conductors from the weatherhead down to the line (supply) terminals at the top of the meter socket, leaving enough length at the weatherhead for JPS to connect. On others JPS does that part. Follow JPS's current requirements for the job and your supervisor. On the Centre's training board, the line terminals stay **empty** and carry a label: 'Supply side: power company only'." },
+        { "note": "A meter seal tells JPS that nobody has reached the unmetered side. Breaking a seal, bypassing a meter or making an illegal connection is a crime, and it is extremely dangerous: there is no fuse or breaker in the building to protect anyone working on the supply side, and illegal connections have killed many people in Jamaica. If you find a broken seal or a tampered meter, do not touch it: report it to your supervisor, who reports it to JPS.", "label": "Jamaica" },
+        { "h": "From installation to connection" },
+        { "flow": [
+          "Install and complete the work",
+          "Inspect and do the dead tests; put faults right; record results",
+          "The licensed electrician applies for the government inspection",
+          "A licensed electrical inspector, under the Government Electrical Regulator, inspects and certifies",
+          "JPS connects the supply and fits and seals the meter",
+          "An authorised person carries out the live checks",
+          "Hand over to the customer"
+        ] }
+      ]
+    },
+    {
+      "title": "Safety at the service position",
+      "blocks": [
+        { "p": "The service position has special dangers. Between JPS's transformer and the main breaker there is **no protective device in the building**. A fault there can draw a very large current, causing a severe arc flash and burns, and nothing in the building will switch it off." },
+        { "h": "What stays live when the main breaker is off" },
+        { "table": { "head": ["Part", "With the main breaker OFF"], "rows": [
+          ["Service drop, weatherhead connections, service conductors to the meter socket", "**Live**"],
+          ["Meter socket line (top) terminals and the meter", "**Live**"],
+          ["Meter socket load (bottom) terminals and the terminal mains", "**Live**"],
+          ["Incoming (line-side) terminals of the main breaker", "**Live**"],
+          ["Busbars, branch breakers and all circuits after the main breaker", "Dead, once proved dead"]
+        ] } },
+        { "note": "Switching off the main breaker makes only the parts **after** it dead. The terminal mains and the main breaker's incoming terminals stay live, because they come straight from the meter. Keep their cover or barrier in place, and keep your hands and tools away from them. If your work means touching or coming close to them, stop: JPS must disconnect the supply first, and you still prove them dead before you touch them.", "label": "Safety" },
+        { "h": "Isolating a panel to add or change a circuit" },
+        { "flow": [
+          "Tell the household or staff that the power will be off",
+          "Switch off the main breaker",
+          "Lock it off with a breaker lockout device and your own padlock; keep the key",
+          "Fit a danger tag: name, date, reason",
+          "Prove your tester on a proving unit",
+          "Test at the busbars and the main breaker's outgoing terminals: L1–L2, L1–N, L2–N, L1–E, L2–E and N–E",
+          "Prove the tester again",
+          "Work only on the dead parts, with the incoming terminals shielded"
+        ] },
+        { "h": "Other precautions" },
+        { "ul": [
+          "Remove the panel cover (deadfront) carefully: it can catch on conductors and screws can drop inside.",
+          "Remove rings and watches; use insulated tools; stand on a dry floor; use a torch or head lamp rather than leaning into a dark panel.",
+          "Never use a meter set on a current (amps) range to test for voltage.",
+          "Warn people before an insulation resistance test, and do not touch conductors while it runs.",
+          "On new work, nothing is connected to the supply until the inspection has been passed and JPS connects it."
+        ] }
+      ]
+    },
+    {
+      "title": "Meter sockets",
+      "blocks": [
+        { "h": "What a meter socket is" },
+        { "p": "The meter socket (meter base) is a weatherproof box with spring **jaws** that the plug-in meter pushes into. For an ordinary 110/220 V house, it is a single-phase socket with four jaws and a neutral terminal." },
+        { "table": { "head": ["Part", "What it does"], "rows": [
+          ["Line (supply) terminals and jaws: at the **top**", "Take the incoming conductors from JPS's supply"],
+          ["Load terminals and jaws: at the **bottom**", "Take the terminal mains that go to the main breaker"],
+          ["Neutral terminal", "Joins the incoming neutral and the neutral of the terminal mains"],
+          ["Earth (grounding) terminal", "For the earthing or bonding conductor, where the drawing shows it"],
+          ["Sealing ring (ring-type socket)", "A metal ring that holds the meter in place and takes JPS's seal"],
+          ["Cover (ringless socket)", "In a ringless socket the cover itself holds the meter and is sealed"],
+          ["Hubs and knockouts", "Where conduits enter"]
+        ] } },
+        { "h": "Where it goes" },
+        { "ul": [
+          "**Outside**, on a wall where JPS's staff can reach and read it at any time: not behind a locked gate, in a dog yard, behind a water tank or hidden by plants.",
+          "On the side of the building nearest JPS's pole, as the drawing and JPS's requirements say, so the service drop is short and clear.",
+          "At the height JPS's requirements give. Check JPS's current requirements for the job.",
+          "Where it will not be hit by vehicles and where water does not run down the wall onto it."
+        ] },
+        { "h": "Fixing it" },
+        { "flow": [
+          "Check the type, rating and position on the drawing and JPS's requirements",
+          "Mark the position; check it with a spirit level",
+          "Fix it **plumb, level and firm** with fixings suited to the wall",
+          "Remove only the knockouts needed",
+          "Fit a **rainproof (watertight) hub** where conduit enters the top",
+          "Fit suitable connectors and bushings at the other entries",
+          "Run the conduit to the panel, and bring in the earthing conductor as the drawing shows",
+          "Connect only what your job and JPS's requirements allow; fit the cover"
+        ] },
+        { "ul": [
+          "A meter that tilts does not sit properly in its jaws. A loose socket strains the conduits and the service conductors.",
+          "Water that gets into the top of a meter socket runs down over the terminals. A plain open bushing or an ordinary fitting at the top lets rain in; a rainproof hub does not.",
+          "A **drip loop** in the service conductors, hanging below the weatherhead, makes rainwater drip off before it can run along the conductors into the weatherhead.",
+          "In apartments and plazas with several meters, every meter position is **labelled** with the unit it serves, so the right supply can be found and isolated."
+        ] }
+      ]
+    },
+    {
+      "title": "Distribution panels",
+      "blocks": [
+        { "h": "Parts of a panel" },
+        { "table": { "head": ["Part", "What it does"], "rows": [
+          ["Enclosure (can) and knockouts", "The box fixed to the wall; knockouts are removed for cable and conduit entries"],
+          ["Main breaker", "Switches off and protects the whole panel; its rating sets the size of the service"],
+          ["Busbars", "Metal bars that carry current from the main breaker to the branch breakers. The stabs alternate between line 1 and line 2 down the panel"],
+          ["Single-pole breaker", "Takes one stab (one line): for **110 V** circuits"],
+          ["Double-pole breaker", "Takes two stabs, one on each line: for **220 V** circuits; both lines switch together"],
+          ["GFCI and AFCI breakers", "Breakers that also protect against earth leakage (GFCI) or arcing faults (AFCI)"],
+          ["Neutral bar", "Where the circuit neutrals are connected"],
+          ["Earth bar", "Where the circuit earth conductors are connected"],
+          ["Main bonding jumper", "In the main panel only: joins the neutral bar to the earth bar and the case"],
+          ["Deadfront (cover) and door", "Covers live parts, leaving only breaker handles showing"],
+          ["Circuit schedule (directory)", "Says what each breaker supplies"],
+          ["Surge protective device (SPD)", "Protects equipment from voltage spikes, such as those from lightning"]
+        ] } },
+        { "h": "Choosing the place" },
+        { "ul": [
+          "Inside, in a **dry, cool, easy-to-reach** place, such as a hallway, utility room or garage wall.",
+          "**Close to the meter**, so the terminal mains are short.",
+          "**Not** in a bathroom, **not** in a clothes closet, **not** over steps, and not above a stove or sink.",
+          "With a **clear working space** in front so a person can stand and work safely. Under the NEC, for these voltages it is at least about **900 mm deep**, at least **750 mm wide** (or the width of the panel if greater) and about **2 m high**, and the door must open at least 90°. Nothing may be stored or built in that space.",
+          "At a height where the **highest breaker handle is no more than about 2 m** above the floor."
+        ] },
+        { "note": "Owners sometimes want the panel hidden in a cupboard, behind a door or very high up. A panel must be reachable at once in an emergency, in the dark, by anyone. Explain this, and agree a suitable place with your supervisor.", "label": "Tip" },
+        { "h": "Mounting the panel" },
+        { "flow": [
+          "Take the position and height from the drawing",
+          "Mark and check with a spirit level",
+          "Fix firmly, plumb and level, with fixings suited to the wall",
+          "Plan the entries; remove only the knockouts needed",
+          "Fit connectors or bushings at every entry to protect and hold the cables",
+          "Close any knockout opened by mistake with a proper knockout seal (blanking cap)",
+          "Check the busbars, neutral bar and earth bar are clean, tight and as the maker supplied"
+        ] },
+        { "p": "Never leave an open knockout, or cover it with tape or paper. Openings let in insects, lizards, dust and fingers, and they let sparks out. Spare breaker spaces in the deadfront are closed with **filler plates (blanks)**." }
+      ]
+    },
+    {
+      "title": "Terminal mains and branch circuits",
+      "blocks": [
+        { "h": "Terminal mains" },
+        { "p": "The **terminal mains** are the main conductors between the load terminals of the meter socket and the main breaker. They carry the whole load of the building, and nothing in the building protects them, so they must be right." },
+        { "ul": [
+          "**Size**: chosen from the code tables for the **rating of the main breaker and the service**, and checked for the length of the run, as the drawing says. Never size them by the smallest breaker or by guesswork.",
+          "**Short and direct**: a short run has less voltage drop, costs less and has less to go wrong.",
+          "**Protected**: run in suitable conduit, with rainproof fittings outside and bushings where the conduit enters each box.",
+          "**Identified**: lines usually black and red, neutral white or grey, earth green, green-and-yellow or bare. Under the NEC, large conductors that are all one colour may be marked at each end: white or grey for the neutral, green for an earth conductor.",
+          "**Connected**: lines to the main breaker, neutral to the neutral bar, and earth to the earth bar where the drawing includes one. At the meter socket, connect only the **load** terminals, unless your job and JPS's requirements say otherwise."
+        ] },
+        { "h": "Making connections" },
+        { "table": { "head": ["Rule", "Why"], "rows": [
+          ["Strip the length the terminal needs; no nicks in the conductor", "Nicked strands break and overheat"],
+          ["Tighten to the **maker's torque** with a torque screwdriver or wrench; the NEC requires a torque tool where the maker gives a value", "A loose joint overheats and can start a fire; over-tightening damages the conductor or terminal"],
+          ["One conductor per terminal unless the maker allows more", "Two conductors under one screw may not both be clamped"],
+          ["Each neutral in its own hole on the neutral bar", "So one circuit's neutral can be removed without loosening another"],
+          ["Dress conductors neatly along the sides of the panel", "Keeps them clear of breakers and makes later work safe"]
+        ] } },
+        { "h": "Aluminium conductors" },
+        { "ul": [
+          "Large terminal mains are often **aluminium**, because it is lighter and cheaper than copper.",
+          "Aluminium forms a hard, insulating **oxide** layer on its surface in seconds, and it expands and contracts more than copper as it heats and cools. Badly made aluminium joints work loose, get hot and can start fires.",
+          "Use only terminals **rated for aluminium** (marked AL/CU). A terminal marked CU only is for copper only.",
+          "Wire-brush the stripped conductor and coat it with **anti-oxidant compound**, then tighten to the maker's torque.",
+          "Never twist aluminium and copper together."
+        ] },
+        { "h": "Choosing breakers" },
+        { "p": "A breaker protects the **cable** of its circuit, so its rating must match both the load and the cable size, as the drawing and the maker's label say. As a guide only, under the NEC copper 14 AWG is protected at 15 A, 12 AWG at 20 A and 10 AWG at 30 A. Never fit a larger breaker because it is to hand, or because a smaller one keeps tripping." },
+        { "table": { "head": ["Circuit", "Breaker"], "rows": [
+          ["110 V lighting and outlet circuits", "Single-pole"],
+          ["220 V water heater, air-conditioner, pump, cooker", "Double-pole"],
+          ["Bathroom, kitchen counter, outdoor and similar outlets", "GFCI protection, by breaker or outlet, as the code and drawing require"]
+        ] } },
+        { "p": "**Worked example.** A water heater is rated 3,300 W at 220 V. Current = power ÷ voltage = 3,300 ÷ 220 = **15 A**. Under the NEC a storage water heater counts as a continuous load, so its circuit is sized at 125%: 15 × 1.25 = 18.75 A, so a **20 A double-pole** breaker with 12 AWG copper conductors, unless the drawing says otherwise." },
+        { "h": "Balancing the load" },
+        { "p": "110 V loads draw current from only one line. If most of them are on line 1, line 1 carries far more current than line 2. The neutral carries the **difference**, the main breaker and one terminal main work harder, and voltages become unequal. So 110 V circuits are shared out so that the two lines carry roughly equal current. A 220 V load draws the same current from both lines, so it does not unbalance them." },
+        { "table": { "head": ["Situation", "Line 1", "Line 2", "Neutral (about)"], "rows": [
+          ["Unbalanced 110 V loads", "36 A", "16 A", "20 A"],
+          ["Move a 10 A circuit from line 1 to line 2", "26 A", "26 A", "About 0 A"],
+          ["Then add a 220 V air-conditioner drawing 8 A", "34 A", "34 A", "Still about 0 A"]
+        ] } },
+        { "p": "Single-pole breakers in spaces one above the other sit on alternate lines, so placing them in turn shares the circuits between the lines. The neutral figures are for simple loads such as heaters and lamps; with electronic loads they are only approximate." },
+        { "h": "The circuit schedule" },
+        { "p": "Fill in the circuit schedule (directory) clearly, saying what each breaker supplies, such as 'Kitchen counter outlets' or 'Water heater', not just 'Lights' or 'Spare'. In an emergency, people must find the right breaker at once." }
+      ]
+    },
+    {
+      "title": "Meter earthing and bonding",
+      "blocks": [
+        { "h": "Why the earthing system is needed" },
+        { "ul": [
+          "It connects the installation to the general mass of the earth, which holds metal parts and the neutral close to earth potential.",
+          "It gives **lightning and supply faults** (such as a high-voltage line falling on a low-voltage one) a safe path into the ground.",
+          "It does **not** carry the normal current. The neutral carries the normal return current.",
+          "The fault current that trips a breaker returns mainly through the earth conductors and the neutral-earth bond, not through the soil. Soil resistance is far too high for a rod alone to trip a breaker. Both the rod and the earth conductors are needed."
+        ] },
+        { "h": "The parts" },
+        { "table": { "head": ["Part", "Typical form", "Points to know"], "rows": [
+          ["Earth electrode (rod)", "A **copper-clad steel** rod, about 2.4 m long and about 16 mm across", "Driven into moist ground; plastic pipe, roof sheets and gas pipes are never used as electrodes"],
+          ["Earth clamp", "An approved clamp made for the rod size and, if buried, for direct burial", "Tightened well; never twisted wire, solder or tape"],
+          ["Earthing conductor", "Copper, sized from the code tables as the drawing says", "Run in **one length** without joins (or with an approved permanent connector) from the clamp to the main earthing terminal"],
+          ["Inspection pit", "A small box set in the ground over the rod top", "Lets the clamp be inspected and tested"],
+          ["Main earthing terminal", "The earth bar in the main panel, or the terminal the drawing shows at the service position", "Where earthing and bonding conductors meet"],
+          ["Bonding conductors", "Copper conductors with approved clamps", "Connect metal water pipes, metal gas pipes and structural steel to the main earthing terminal"]
+        ] } },
+        { "h": "Installing the earth rod" },
+        { "flow": [
+          "Check the site plan, and ask the owner, about buried pipes, cables, septic tanks and soak-aways",
+          "Choose a spot in moist soil where the drawing shows, clear of the footing, paths and slabs",
+          "Wear safety glasses, gloves and boots; keep others clear",
+          "Drive the rod with a sledgehammer and driving head, or a rod driver",
+          "Drive it fully: the top **at or below ground level**, or in an inspection pit",
+          "Fit the clamp and earthing conductor; tighten the clamp well",
+          "Run the conductor to the main earthing terminal; protect it where it could be damaged",
+          "Test the electrode resistance and record it"
+        ] },
+        { "ul": [
+          "Never hold the top of the rod in your hand while someone strikes it. Use a driving head so the top does not mushroom.",
+          "If the rod hits rock, as often happens in Jamaica's limestone, do not cut off the rod and leave it short. The code allows other methods, such as driving at an angle or laying the electrode in a trench; your supervisor and the inspector decide.",
+          "Where the earthing conductor runs down an outside wall and could be hit or damaged, protect it in conduit or with a cover. If steel conduit is used, it must be bonded to the conductor at both ends, so PVC conduit is usually simpler.",
+          "Leave the clamp where it can be inspected."
+        ] },
+        { "h": "Testing the electrode" },
+        { "p": "An **earth resistance tester** measures the resistance between the electrode and the general mass of earth. Its two test spikes are pushed into the ground in a straight line away from the rod, at the distances the tester's instructions give (the nearer spike is often at about 62% of the distance to the far one), clear of buried metal. Keep people and animals away from the spikes and leads during the test." },
+        { "ul": [
+          "The reading must meet the limit on the drawing or set by the inspector. Under the NEC, a single rod that reads more than **25 ohms** needs a second electrode.",
+          "To lower a high reading: drive **more rods**, at least about 1.8 m apart (many electricians use at least one rod length), bonded together; or use longer rods, as the inspector allows.",
+          "Readings are **higher in the dry season** (roughly December to April in much of Jamaica), because dry soil conducts poorly. Dry, rocky areas such as parts of St Elizabeth's south coast are hardest.",
+          "Never improve a reading by wrapping the rod in anything, pouring salt round it, or using a water pipe instead."
+        ] },
+        { "h": "Neutral and earth: one bond, at the service position only" },
+        { "p": "The neutral and the earth are joined at **one place: the main service position**, by the **main bonding jumper** in the main panel (and, where the drawing shows it, at the meter socket, which is also part of the service equipment). This gives a fault on a metal part a low-resistance path back to the supply, so the breaker trips fast." },
+        { "table": { "head": ["Where", "Neutral and earth"], "rows": [
+          ["Main panel (service position)", "**Bonded** by the main bonding jumper; earthing conductor connected"],
+          ["Sub-panel fed from the main panel", "**Separate**: neutral bar insulated from the case (no bonding screw or strap fitted); earth bar bonded to the case; fed by **four** conductors: two lines, a neutral and an earth"],
+          ["Outlets, switches, equipment", "Separate: never join neutral and earth"]
+        ] } },
+        { "p": "If neutral and earth were joined again at a sub-panel or an outlet, part of the normal neutral current would flow along the earth conductors, metal conduit, panel cases and water pipes. Those metal parts could carry a voltage and give shocks, the current could cause heat and interference, and GFCI devices would trip for no clear reason." },
+        { "h": "Bonding" },
+        { "p": "**Bonding** joins metal pipes and structures that could become live to the main earthing terminal, so they cannot reach a dangerous voltage. Bond metal water pipes, metal gas pipes (including LPG lines) and structural steel, with approved clamps on clean metal, and label each bonding clamp. Many newer Jamaican homes have PVC water pipes, which do not need bonding; any metal pipe that could become live does." }
+      ]
+    },
+    {
+      "title": "Inspection, testing and handover",
+      "blocks": [
+        { "h": "Inspection by eye" },
+        { "ul": [
+          "Meter socket and panel firmly fixed, plumb and level; rainproof hub at the top of the meter socket.",
+          "Panel in a suitable place with clear working space; highest handle within reach.",
+          "Right breakers fitted; single-pole and double-pole used correctly; loads balanced.",
+          "Conductors the right size, colour or marking; terminals tight to torque; aluminium terminations correct.",
+          "Only **one neutral-earth bond**, at the main service position.",
+          "Knockouts closed, connectors and bushings fitted, filler plates in spare spaces.",
+          "Earth rod, clamp and earthing conductor in place, protected, inspectable; bonding fitted and labelled.",
+          "Circuit schedule filled in."
+        ] },
+        { "h": "Dead tests" },
+        { "p": "All tests are done with the installation **dead and not connected to the supply**. The usual order is:" },
+        { "table": { "head": ["Test", "Instrument", "What it shows"], "rows": [
+          ["1. Continuity of protective conductors and bonding", "Low-resistance ohmmeter (leads zeroed)", "Every earth and bonding path is unbroken, so fault current can flow"],
+          ["2. Insulation resistance", "Insulation resistance tester, commonly at 500 V DC for these circuits, with electronic equipment disconnected", "No damaged insulation between conductors, or between conductors and earth; readings in megohms"],
+          ["3. Polarity", "Continuity tester", "Breakers and switches are in the line conductor; connections are correct"],
+          ["4. Earth electrode resistance", "Earth resistance tester", "The electrode meets the required limit"]
+        ] } },
+        { "p": "Record every result. Put right any fault and test again before asking for the government inspection." },
+        { "h": "After JPS connects" },
+        { "p": "Once JPS has connected the supply and fitted the meter, an authorised person carries out the live checks: about **110 V** from each line to neutral, about **220 V** between the lines, and close to **0 V** between neutral and earth; GFCI devices tested with their test buttons; and, under load, the current on each line checked with a **clamp meter** to confirm the load is balanced." },
+        { "h": "Finishing and handover" },
+        { "ul": [
+          "Remove every wire off-cut, strip of insulation and metal filing from inside the panel and meter socket: loose pieces can bridge live parts and cause a short circuit.",
+          "Fit all covers, blanks and doors; leave the earth clamp and inspection pit tidy and inspectable.",
+          "Sweep up, sort waste into the right bins, return tools and spare materials, and report damaged tools.",
+          "Complete the paperwork: test results, drawing changes and the forms needed for the inspection.",
+          "Show the customer the main breaker and how to switch off in an emergency, leave the circuit schedule and test record, and explain that JPS connects the supply and fits the meter after the inspection is passed."
+        ] }
+      ]
+    },
+    {
+      "title": "Revision",
+      "blocks": [
+        { "h": "Checklist" },
+        { "p": "Tick each statement only when you can do it without looking at the notes." },
+        { "ul": [
+          "I can explain the 110/220 V single-phase supply and how 110 V and 220 V loads are connected.",
+          "I can say which parts belong to JPS, why only JPS connects the supply and fits the meter, and why a seal is never broken.",
+          "I can list the parts that stay live when the main breaker is off, and isolate a panel safely.",
+          "I can place, fix and connect a meter socket so that JPS can reach it and water cannot get in.",
+          "I can choose a safe place for a panel with the right working space, mount it and close every opening.",
+          "I can size, run, identify and connect terminal mains, including aluminium conductors.",
+          "I can choose single-pole, double-pole and GFCI protection, and match a breaker to its load and cable.",
+          "I can work out a load current from watts and volts, and balance 110 V loads between the two lines.",
+          "I can fill in a circuit schedule clearly.",
+          "I can drive an earth rod, fit the clamp and earthing conductor, and protect the conductor.",
+          "I can test an earth electrode and say what to do if the reading is too high.",
+          "I can explain why neutral and earth are bonded only at the main service position, and set up a sub-panel correctly.",
+          "I can bond metal water and gas pipes to the main earthing terminal.",
+          "I can inspect, carry out the dead tests in order, record results and hand over the job."
+        ] },
+        { "h": "Numbers to remember" },
+        { "table": { "head": ["Figure", "What it is"], "rows": [
+          ["110 V / 220 V, 50 Hz", "The JPS single-phase supply: line to neutral / line to line"],
+          ["kWh", "Unit of energy on the meter: kW × hours"],
+          ["Current = watts ÷ volts", "3,300 W at 220 V = 15 A"],
+          ["125%", "NEC sizing for continuous loads such as storage water heaters"],
+          ["About 900 mm deep, 750 mm wide, 2 m high", "Working space in front of a panel (NEC, these voltages)"],
+          ["About 2 m", "Highest breaker handle above the floor"],
+          ["About 2.4 m by 16 mm", "Typical copper-clad earth rod"],
+          ["25 ohms", "Above this, the NEC wants a second electrode"],
+          ["At least about 1.8 m", "Spacing between earth rods"],
+          ["500 V DC", "Common insulation test voltage for these circuits"]
+        ] } },
+        { "h": "Key terms" },
+        { "terms": [
+          ["Anti-oxidant compound", "A paste put on aluminium conductors to stop an oxide layer forming at the joint."],
+          ["Busbar", "A metal bar in a panel that carries current to the breakers."],
+          ["Circuit schedule (directory)", "The list in a panel saying what each breaker supplies."],
+          ["Double-pole breaker", "A breaker that connects to both lines, for 220 V circuits."],
+          ["Drip loop", "A downward loop in the service conductors below the weatherhead so that rain drips off."],
+          ["Earth electrode", "A rod or other conductor in contact with the ground, connecting the installation to earth."],
+          ["Earthing conductor", "The conductor from the earth electrode to the main earthing terminal."],
+          ["Kilowatt-hour (kWh)", "The unit of energy the meter records: 1,000 W for one hour."],
+          ["Main bonding jumper", "The link that joins neutral to earth at the main service position."],
+          ["Meter seal", "JPS's seal on the meter; only JPS may break or fit it."],
+          ["Meter socket", "The box the JPS meter plugs into, with line terminals at the top and load terminals at the bottom."],
+          ["Rainproof hub", "A watertight fitting for a conduit entering the top of an outdoor box."],
+          ["Service drop", "The overhead conductors from JPS's pole to the building."],
+          ["Sub-panel", "A panel fed from the main panel, in which neutral and earth are kept separate."],
+          ["Terminal mains", "The main conductors from the meter socket to the main breaker."],
+          ["Weatherhead", "The cap on the service mast or conduit that keeps rain out where the conductors enter."]
+        ] }
+      ]
+    }
+  ],
+  "cases": {
+    "c1": { "title": "A new house in Junction", "text": "Trainee Damion Pusey and electrician Mrs Merline Lawson are installing the meter socket, panel and earthing for a new two-bedroom house in Junction, St Elizabeth. The meter socket will be on the front wall facing the JPS pole, and the panel on the hallway wall just inside. The owner plans to build a storage cupboard 400 mm in front of the panel, and would like the panel fixed high, with its top breaker about 2.4 m above the floor, so his children cannot reach it. The earth rod will go in the front yard." },
+    "c2": { "title": "Adding an air-conditioner circuit in Stony Hill", "text": "Trainee Kimberley Dacres and electrician Mr Ainsley Walcott are adding a 220 V circuit for a new air-conditioner to the existing panel of a house in Stony Hill, St Andrew. The air-conditioner draws about 7.5 A, and its label says the largest breaker allowed is 20 A. The circuit will be wired in 12 AWG copper. Earlier, with a clamp meter in the evening, Mr Walcott measured about 34 A on line 1 and 20 A on line 2. There are spare spaces in the panel, and a 30 A double-pole breaker is in the van." },
+    "c3": { "title": "An earth rod at a Treasure Beach cottage", "text": "Trainee Orane Gentles and electrician Ms Andrea Thame are installing the earthing system for a guest cottage at Treasure Beach, St Elizabeth, where the ground is dry and rocky. The first rod stops on rock about 1.2 m down. In March they will test the electrode resistance; the drawing sets a limit of 25 ohms. The earthing conductor they cut turns out to be 2 m too short to reach the main earthing terminal." },
+    "c4": { "title": "A sub-panel in a Christiana hardware shop", "text": "Trainee Shaquille Morris and electrician Mr Vivian Nembhard are called to a hardware shop in Christiana, Manchester. A sub-panel in the back storeroom is fed from the main panel through steel conduit, with two lines, a neutral and an earth conductor. A GFCI on a storeroom circuit trips now and then for no clear reason. Inside the sub-panel they find a green bonding screw joining the neutral bar to the metal case. A clamp meter round the steel conduit shows a few amps flowing on it." },
+    "c5": { "title": "Terminal mains at an Annotto Bay guest house", "text": "Trainee Tanisha Bent and electrician Mr Carlton Ffrench are installing a new meter socket and 125 A main panel at a guest house in Annotto Bay, St Mary. The terminal mains are aluminium, and all four conductors delivered are black. The main breaker's terminals are marked AL/CU. The guest house will add a 4,400 W, 220 V water heater. Two breaker spaces in the panel will not be used yet." }
+  },
+  "questions": [
+    { "id": "P-01", "c": "c1", "q": "Why must the owner not build the cupboard 400 mm in front of the panel?", "o": ["A cupboard would block air the breakers need to stay cool", "JPS's meter readers must be able to see the panel from outside", "The code needs clear working space in front, about 900 mm deep", "The cupboard doors would make the main breaker trip more often"], "a": 2, "why": "A panel must have clear working space in front of it so a person can stand and work safely, and reach it quickly in an emergency. Under the NEC that is at least about 900 mm deep for these voltages, and nothing may be built or stored in it." },
+    { "id": "P-02", "c": "c1", "q": "What is the problem with fixing the panel so that its top breaker is 2.4 m above the floor?", "o": ["The highest handle should be no more than about 2 m up", "A panel that high makes the terminal mains far too long", "A panel that high cannot be fixed to a block wall", "The breakers would run hotter near the ceiling"], "a": 0, "why": "Breakers must be reachable from the floor, in a hurry and in the dark. The NEC limits the highest handle to about 2 m. To keep children away, a panel with a door that closes firmly, in a sensible place, is better than one out of reach." },
+    { "id": "P-03", "c": "c1", "q": "Why does Mrs Lawson leave a drip loop in the service conductors below the weatherhead?", "o": ["So JPS can shorten the conductors when the meter is fitted", "So the conductors can stretch if the house settles later", "So the conductors stay cooler when the load is heavy", "So rainwater drips off before it runs into the weatherhead"], "a": 3, "why": "Rain runs along conductors. A loop that hangs below the weatherhead makes the water drip off at the bottom of the loop, instead of following the conductors into the weatherhead and down to the meter socket." },
+    { "id": "P-04", "c": "c1", "q": "Before the earth rod is driven in the front yard, what should Damion check?", "o": ["Only that the ground is soft enough to drive the rod in easily", "The site plan and owner, for buried pipes, cables and tanks", "That the rod will be in full sun so the soil stays warm", "That the rod goes beside the water tank's metal stand"], "a": 1, "why": "A rod driven through a water pipe, a buried cable or a septic tank causes damage and danger. Check the site plan and ask the owner, then drive the rod where the drawing shows, in moist soil, clear of the footing." },
+    { "id": "P-05", "c": "c2", "q": "With the main breaker locked off, Kimberley proves the busbars dead. Which set of tests does she make?", "o": ["L1 to neutral only, since the panel's lights are on L1", "L1–L2, each line to neutral, each line to earth, and N–E", "L1–L2 only, because that is where the full 220 V is found", "Each line to the panel door, because the door is earthed"], "a": 1, "why": "A fault or wrong connection can leave voltage between any pair of conductors, so every pair is tested: line to line, each line to neutral, each line to earth, and neutral to earth, with the tester proved before and after." },
+    { "id": "P-06", "c": "c2", "q": "Which breaker should the new air-conditioner circuit have?", "o": ["The 30 A double-pole breaker in the van", "A 20 A single-pole breaker on line 2", "Two 15 A single-pole breakers side by side", "A 20 A double-pole breaker"], "a": 3, "why": "The air-conditioner is 220 V, so it needs a double-pole breaker that switches both lines together. Its label allows no more than 20 A, and 12 AWG copper is protected at 20 A, so a 30 A breaker would leave the cable and unit unprotected." },
+    { "id": "P-07", "c": "c2", "q": "After the 7.5 A air-conditioner is added, about what will the two lines carry in the evening?", "o": ["L1 about 41.5 A and L2 about 27.5 A", "L1 about 41.5 A and L2 about 20 A", "L1 about 34 A and L2 about 27.5 A", "L1 about 37.75 A and L2 about 23.75 A"], "a": 0, "why": "A 220 V load draws the same current from both lines, so 7.5 A is added to each: 34 + 7.5 = 41.5 A and 20 + 7.5 = 27.5 A. The imbalance between the lines stays the same." },
+    { "id": "P-08", "c": "c2", "q": "To balance the panel better, which change should Mr Walcott make?", "o": ["Move the new air-conditioner breaker to the line 2 side only", "Fit a larger main breaker so line 1 can carry more current", "Move a 110 V circuit drawing about 7 A from line 1 to line 2", "Move a 110 V circuit drawing about 7 A from line 2 to line 1"], "a": 2, "why": "Line 1 carries about 14 A more than line 2. Moving a 110 V circuit of about 7 A from line 1 to line 2 brings them to about 34.5 A each. A 220 V load cannot be put on one line, and a larger main breaker would hide the problem, not fix it." },
+    { "id": "P-09", "c": "c3", "q": "The first rod stops on rock 1.2 m down. What should Orane do?", "o": ["Cut off the rod at ground level and connect to the short length", "Bend the top of the rod over and bury it under the soil", "Pour water round the rod and drive it harder until it moves", "Stop and ask, as an angled rod or a trench may be allowed"], "a": 3, "why": "A rod cut short does not give the contact with the earth the design needs. Where rock stops a rod, the code allows other methods, such as driving at an angle or laying the electrode in a trench, but the supervisor and inspector decide which." },
+    { "id": "P-10", "c": "c3", "q": "How should the earth resistance tester's spikes be set out for the test?", "o": ["Pushed into the ground right beside the rod, one on each side of it", "In a line out from the rod, spaced as the tester's instructions say", "Clipped to the metal water pipe and to the main earthing terminal", "Placed anywhere in the yard, as long as the soil around them is wet"], "a": 1, "why": "The tester compares the electrode with the general mass of earth, so its spikes go in a straight line out from the rod, at the spacing its instructions give, clear of buried metal. Keep people and animals away while it runs." },
+    { "id": "P-11", "c": "c3", "q": "The earthing conductor is 2 m too short. What is the right fix?", "o": ["Fit a new conductor in one length, with no joins", "Twist on an extra 2 m piece and tape the joint well", "Solder on an extra piece and bury the joint in the soil", "Move the main earthing terminal 2 m nearer the rod"], "a": 0, "why": "The earthing conductor runs in one length without joins (or with an approved permanent connector). Twisted, taped or soldered joints corrode, loosen and can fail just when lightning or a fault needs the path." },
+    { "id": "P-12", "c": "c4", "q": "What should be done about the green bonding screw in the sub-panel?", "o": ["Leave it, as it gives the sub-panel a better earth path", "Add a second screw to make the bond even stronger", "Remove it so the neutral bar is insulated from the case", "Move it so it joins the earth bar to the line busbars"], "a": 2, "why": "Neutral and earth are bonded only at the main service position. In a sub-panel the neutral bar is insulated from the case, and only the earth bar is bonded to it. The sub-panel is already fed with a separate earth conductor." },
+    { "id": "P-13", "c": "c4", "q": "Why is there current on the steel conduit feeding the sub-panel?", "o": ["Steel conduit always carries a little current in normal use", "The GFCI is leaking current into the conduit as it trips", "The extra bond lets neutral current return along it", "The clamp meter reads the current in the lines inside it"], "a": 2, "why": "With neutral and earth joined in the sub-panel, the neutral current splits between the neutral conductor and every earth path back to the main panel, including the conduit. That puts current on metal parts, can make them carry a voltage, and causes nuisance GFCI trips." },
+    { "id": "P-14", "c": "c4", "q": "Why is the sub-panel fed with a separate earth conductor as well as the neutral?", "o": ["So normal current stays in the neutral, faults in the earth", "So the sub-panel can carry twice the current of the main panel", "So the neutral can be left out if it is ever damaged later", "So the sub-panel does not need an earth rod of its own"], "a": 0, "why": "The neutral carries normal return current; the earth conductor carries current only during a fault, to trip the protection. Keeping them separate after the service position keeps normal current off metal parts." },
+    { "id": "P-15", "c": "c5", "q": "What current will the 4,400 W, 220 V water heater draw?", "o": ["40 A", "20 A", "15 A", "10 A"], "a": 1, "why": "Current = power ÷ voltage = 4,400 ÷ 220 = 20 A. Under the NEC its circuit would then be sized at 125% for a continuous load, as the drawing shows." },
+    { "id": "P-16", "c": "c5", "q": "All four aluminium conductors are black. How should the neutral and the earth be identified?", "o": ["Leave them black and note the order on the drawing", "Mark the neutral red and the earth white at each end", "Mark only the earth, since the neutral is always middle", "Mark the neutral white and the earth green at each end"], "a": 3, "why": "Large conductors that are all one colour may be identified by marking them at each end: white or grey for the neutral, green for an earth conductor. Unmarked conductors invite dangerous mistakes later." },
+    { "id": "P-17", "c": "c5", "q": "Why do aluminium terminations need extra care?", "o": ["Its oxide and its movement with heat can loosen joints", "Aluminium carries more current than copper of one size", "Aluminium cannot be used in a main panel at all", "Aluminium must be soldered before it is connected"], "a": 0, "why": "Aluminium grows an insulating oxide layer in seconds and expands and contracts more than copper. Unless it is brushed, coated with anti-oxidant, fitted in AL/CU terminals and tightened to the right torque, the joint can loosen and overheat." },
+    { "id": "P-18", "c": "c5", "q": "What should close the two unused breaker spaces in the panel cover?", "o": ["Insulating tape stuck over the openings", "Nothing, as there are no breakers behind them", "A piece of cardboard cut to size and wedged in", "Filler plates (blanks) made for that panel"], "a": 3, "why": "An open space in the deadfront exposes the busbar stabs to fingers, insects and tools. The maker's filler plates close it properly. Tape and cardboard fall off or burn." },
+    { "id": "P-19", "c": null, "q": "A 1,500 W kettle is used for 20 minutes a day for 30 days. About how many kilowatt-hours will the meter record for it?", "o": ["45 kWh", "1.5 kWh", "15 kWh", "900 kWh"], "a": 2, "why": "Energy = power in kW × time in hours. 1.5 kW × 1/3 hour × 30 days = 15 kWh." },
+    { "id": "P-20", "c": null, "q": "In a 110/220 V panel, line 1 carries 30 A and line 2 carries 18 A, all from 110 V heaters and lamps. About how much current does the neutral carry?", "o": ["48 A", "12 A", "24 A", "0 A"], "a": 1, "why": "With simple 110 V loads on both lines, the neutral carries the difference between the two line currents: 30 − 18 = 12 A. When the loads are balanced, the neutral current falls towards zero." }
+  ]
+}
