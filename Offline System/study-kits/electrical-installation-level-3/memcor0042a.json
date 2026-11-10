@@ -1,0 +1,481 @@
+{
+  "format": "cestis-study-kit",
+  "version": 1,
+  "status": "to-check",
+  "written": "2026-11-07",
+  "programme": "Electrical Installation",
+  "qualification": { "id": "QUAL-EIM-L3", "title": "ELECTRICAL INSTALLATION AND MAINTENANCE LEVEL 3", "code": "MEM32507" },
+  "level": 3,
+  "unit": { "code": "MEMCOR0042A", "title": "Interpret standard specifications and manuals" },
+  "summary": "This unit teaches you to read and apply the documents that control electrical work: the wiring code, job specifications, drawings and schedules, makers' datasheets, rating plates, installation manuals and safety data sheets. You will learn to check equipment against a specification, read breaker, RCD, cable, IP and motor data, follow makers' instructions safely, keep drawings up to date and raise clear written queries when documents disagree.",
+  "sections": [
+    {
+      "title": "Unit overview",
+      "blocks": [
+        { "p": "Every electrical job is controlled by documents. The code sets the minimum for safety, the specification and drawings say what this client is buying, and the makers' data say how each product must be chosen, installed and used. At Level 3 you lead a team, so you must read these documents accurately, spot where they disagree, and make sure the team works from the right information. A misread rating plate or an out-of-date drawing can cost a client thousands of dollars or put a life at risk." },
+        { "h": "What you must be able to do" },
+        { "table": { "head": ["Task", "What it looks like on the job"], "rows": [
+          ["Know the documents", "Name the documents used on a job, who issues them and which takes priority."],
+          ["Read a specification", "Find the requirements, tell 'shall' from 'should', and tell prescriptive from performance requirements."],
+          ["Read drawings and schedules", "Use layout, single-line, schematic and wiring diagrams, circuit charts and the abbreviations on them."],
+          ["Control documents", "Work from the current revision, withdraw old copies, mark up site changes and produce as-built drawings."],
+          ["Read protective-device data", "Use rated current, trip curve, breaking capacity and RCD residual current to choose and check devices."],
+          ["Read cable data and IP ratings", "Decode cable labels, apply the maker's ratings and correction factors, and read IP codes."],
+          ["Read rating plates and datasheets", "Check voltage, frequency, current, duty, insulation class, life and light output against the supply and the job."],
+          ["Follow makers' manuals safely", "Apply warnings, stored-energy precautions, torque values and commissioning checklists."],
+          ["Use safety data sheets", "Find the hazards, PPE, first aid and storage rules for a product, and read hazard pictograms."],
+          ["Raise queries and keep records", "Write dated queries when documents conflict, file the answers, and record tests and settings."]
+        ] } },
+        { "note": "Jamaica's electrical code is based on the US **National Electrical Code (NEC)**, so you will meet US terms (ground, GFCI, AWG, MCA) alongside British and international ones (earth, RCD, mm², type B and C breakers) on drawings, datasheets and imported equipment. New and altered installations are inspected and certified by the **Government Electrical Regulator (GER)**, which replaced the Government Electrical Inspectorate, before JPS connects them. The **Bureau of Standards Jamaica (BSJ)** publishes Jamaican standards.", "label": "Jamaica" },
+        { "h": "How to use this kit" },
+        { "p": "Read the sections in order, with a real datasheet or rating plate in front of you if you can. Then try the practice test. Your instructor will show you the Centre's own specification pack, drawing register, compliance sheet and query (RFI) form." }
+      ]
+    },
+    {
+      "title": "The documents you will use",
+      "blocks": [
+        { "table": { "head": ["Document", "What it is", "Who issues it"], "rows": [
+          ["Wiring code or standard", "The national rules for safe installations: the minimum every job must meet.", "The national standards body, adopted by law or regulation."],
+          ["Specification", "The written requirements for this job: materials, workmanship, tests and documents.", "The designer or engineer, for the client."],
+          ["Drawings", "Where things go and how they connect: layouts, single-line diagrams, schematics, wiring diagrams.", "The designer; marked up by the contractor."],
+          ["Schedules", "Lists such as the circuit schedule, light-fitting schedule and cable schedule.", "The designer."],
+          ["Makers' datasheets", "The ratings and features of a product.", "The manufacturer."],
+          ["Installation and operating manuals", "How to install, set up, use and maintain a product safely.", "The manufacturer."],
+          ["Rating plates and labels", "The key ratings, fixed to the product itself.", "The manufacturer."],
+          ["Safety data sheets (SDS)", "The hazards of a chemical product and how to handle it safely.", "The manufacturer or supplier."],
+          ["Safety notices and recalls", "Warnings about faulty batches and what to do.", "The manufacturer or a regulator."],
+          ["Work instructions and method statements", "Step-by-step ways of doing a task safely on this site.", "The contractor."],
+          ["Test certificates and records", "Proof of the tests done and their results.", "The contractor; checked by the inspector."]
+        ] } },
+        { "h": "Which document wins?" },
+        { "ul": [
+          "**The code is the minimum.** A specification can ask for more than the code, never less. If a specification falls below the code, raise a query.",
+          "**Makers' instructions are part of compliance.** Equipment must be installed and used as its maker instructs; otherwise it may be unsafe, fail its listing or approval, and lose its warranty.",
+          "The contract often has an **order of precedence** clause saying which document wins if they disagree, for example specification over drawings. Read it.",
+          "Whatever the order, **never guess.** When documents disagree, raise a written query and wait for a written answer before doing that part."
+        ] },
+        { "h": "Units you will meet in documents" },
+        { "table": { "head": ["Unit", "Meaning and example"], "rows": [
+          ["mA, A, kA", "Milliamps, amps, kiloamps: 3.5 mA = 0.0035 A; a breaking capacity of 10 kA = 10 000 A"],
+          ["V, kV; VA, kVA; W, kW", "Voltage; apparent power; real power"],
+          ["N·m (newton metre)", "Torque for tightening terminals"],
+          ["mm and mm²", "Heights and lengths on drawings; conductor sizes"],
+          ["rev/min (rpm)", "Speed of a motor"],
+          ["lm, lux, K", "Light output; light falling on a surface; colour temperature"],
+          ["°C", "Operating and ambient temperatures; insulation ratings"],
+          ["Ω, MΩ", "Resistance; insulation resistance"]
+        ] } },
+        { "h": "Reading any technical document" },
+        { "flow": [
+          "Check you have the current revision",
+          "Read the scope and the general section first",
+          "Read the parts that apply to your work in full, not just the headings",
+          "Highlight requirements, figures and limits; note anything unclear",
+          "Compare with the drawings and the makers' data",
+          "Raise queries; brief the team on the key points"
+        ] }
+      ]
+    },
+    {
+      "title": "Reading specifications and standards",
+      "blocks": [
+        { "h": "How a specification is laid out" },
+        { "table": { "head": ["Section", "Typical content"], "rows": [
+          ["General", "Scope, standards and codes to be met, order of precedence, approvals, submittals."],
+          ["Materials and equipment", "Cable types, breakers, light fittings, makes and models, ratings, 'or approved equal'."],
+          ["Workmanship and installation", "Methods, fixing, heights, segregation, labelling, tolerances."],
+          ["Testing and commissioning", "Which tests, at what voltage, the pass limits, who witnesses them, the forms to use."],
+          ["Documents and handover", "Certificates, as-built drawings, manuals, training the client's staff, warranties."]
+        ] } },
+        { "h": "Shall, should and may" },
+        { "table": { "head": ["Word", "Meaning"], "rows": [
+          ["Shall / must", "A requirement. It must be done."],
+          ["Should", "A recommendation. It is expected unless there is a good reason, which is agreed and recorded."],
+          ["May", "Permitted: you can, but you do not have to."]
+        ] } },
+        { "h": "Prescriptive and performance requirements" },
+        { "table": { "head": ["Type", "What it states", "Example", "How you show you meet it"], "rows": [
+          ["Prescriptive", "Exactly what to use and how.", "'Lighting circuits shall be wired in 1.5 mm² cable in 20 mm PVC conduit, protected by a 10 A type B breaker.'", "Use the named materials and methods; they can be checked by looking and from delivery notes."],
+          ["Performance", "The result needed, leaving the method open.", "'Each classroom shall have an average of at least 300 lux at desk height.' 'Emergency lighting shall operate for at least 3 hours after mains failure.'", "Prove the result: a calculation before the work, and a measurement or test after it, recorded."]
+        ] } },
+        { "h": "Common phrases" },
+        { "table": { "head": ["Phrase", "What it means for you"], "rows": [
+          ["'Make X model Y, or approved equal'", "Another product may be used only if the designer approves it as equal, in writing, after comparing its datasheet."],
+          ["'To the satisfaction of the engineer'", "The engineer named in the contract decides whether the work is acceptable."],
+          ["'As shown on the drawings'", "The drawings carry the detail; check the current revision."],
+          ["'Submit for approval'", "Send the datasheet or sample before ordering; do not order until it is approved."],
+          ["'Witnessed'", "The client's representative must be invited to watch the test."],
+          ["'AFF' (above finished floor)", "Heights are measured from the finished floor surface, not the bare slab."]
+        ] } },
+        { "h": "Heights and datum lines" },
+        { "p": "A specification may say 'socket outlets 300 mm AFF to the centre of the box'. If the floor tiles are not laid yet, do not measure from the bare slab: measure from a **datum line**, a level line marked on the walls at a known height above the planned finished floor (for example 1 000 mm), and work down or up from it." },
+        { "h": "References to other standards" },
+        { "p": "A specification often names other standards, such as a cable or test standard, sometimes with a year. If a year is given, that edition applies; if not, use the edition the contract says, usually the current one. Ask if you are unsure." },
+        { "h": "Checking work and equipment against a specification" },
+        { "p": "Use a **compliance check sheet**: one line per item, with the specification clause, what is required, what was delivered or installed, 'meets' or 'does not meet', and the reason. Photograph labels next to the clause for any item that fails. Items that do not meet the specification are set aside and reported, not installed." }
+      ]
+    },
+    {
+      "title": "Drawings, abbreviations and document control",
+      "blocks": [
+        { "h": "Kinds of drawing" },
+        { "table": { "head": ["Drawing", "What it shows", "Use it to"], "rows": [
+          ["Layout (floor plan)", "Positions of outlets, switches, lights, boards and routes on a scaled plan.", "Set out the work and measure routes."],
+          ["Single-line (one-line) diagram", "The main parts of the supply and how they connect: service, meter, main switch, boards, sub-boards, generator and changeover, with ratings.", "Understand the supply as a whole and find what feeds what."],
+          ["Schematic (circuit) diagram", "How a circuit works, with each device drawn in logical order, not where it sits.", "Understand and fault-find control circuits such as motor starters."],
+          ["Wiring (connection) diagram", "Where each wire physically lands, terminal by terminal.", "Wire a control panel or piece of equipment."],
+          ["Block diagram", "Main units as boxes with their links.", "Get an overview of a system such as a fire alarm or CCTV."],
+          ["As-built drawing", "What was actually installed, including site changes.", "Hand over to the client for future maintenance."]
+        ] } },
+        { "h": "The title block" },
+        { "p": "Every drawing has a title block giving the project, the drawing title and number, the **revision**, the **scale and paper size** (for example 1 : 50 at A1), the date, and who drew, checked and approved it. A drawing printed smaller than its stated paper size is no longer to scale: A1 printed on A3 is half size, so use the written dimensions or the scale bar, not a scale rule." },
+        { "h": "Common abbreviations" },
+        { "table": { "head": ["Abbreviation", "Meaning"], "rows": [
+          ["AFF", "Above finished floor"],
+          ["ATS", "Automatic transfer switch: moves the load to a standby generator when the mains fails"],
+          ["DB / panel", "Distribution board / panelboard"],
+          ["MCB", "Miniature circuit breaker"],
+          ["RCD / GFCI", "Residual current device / ground-fault circuit interrupter"],
+          ["RCBO", "A breaker and RCD in one unit"],
+          ["AFCI", "Arc-fault circuit interrupter"],
+          ["SPD", "Surge protective device: protects equipment from voltage surges such as lightning"],
+          ["UPS", "Uninterruptible power supply: keeps equipment running from batteries when the mains fails"],
+          ["VSD", "Variable speed drive"],
+          ["FLC", "Full-load current"],
+          ["NO / NC", "Normally open / normally closed (contacts, shown in their rest state)"],
+          ["EGC / CPC", "Equipment grounding conductor / circuit protective conductor"],
+          ["SWA", "Steel wire armoured (cable)"],
+          ["XLPE", "Cross-linked polyethylene (insulation)"],
+          ["RFI", "Request for information: a written query to the designer"]
+        ] } },
+        { "h": "Revisions and the drawing register" },
+        { "ul": [
+          "Each time a drawing changes, its **revision** letter or number goes up (rev A, B, C …). The changed area is usually marked with a **cloud**, with a small triangle holding the revision letter beside it, and the change is described in the revision box.",
+          "The **drawing register** lists every drawing and its current revision. Check every drawing on site against it.",
+          "When a new revision arrives: read the clouded changes, update the register, issue the new copies, and **withdraw the old ones**, stamping them 'SUPERSEDED' or destroying them so nobody works from them by mistake. Brief the team on what changed.",
+          "Never work from an old photocopy pinned on a wall without checking its revision."
+        ] },
+        { "h": "Mark-ups and as-built drawings" },
+        { "p": "Keep one set of drawings on site as the **master mark-up set**. When a change is approved, such as a new cable route around a beam, mark it in red the same day, with the date and your initials, and note the approval. At the end of the job the mark-ups are turned into **as-built drawings**, checked against the installation and handed to the client with the test results." },
+        { "h": "Conflicts and queries" },
+        { "flow": [
+          "Spot the conflict or the unclear point",
+          "Do not guess, and do not carry on with that part",
+          "Write a dated query (RFI): the documents and clauses, what conflicts, a sketch or photo, and the answer you need",
+          "Send it to the designer through the agreed route, and keep a query log",
+          "Get the answer in writing; file it with the job records",
+          "Brief the team and mark up the drawings if the answer changes them"
+        ] },
+        { "note": "A verbal 'just do it like this' from someone on site is not an instruction you can rely on later. Confirm it in writing before you act, and file it.", "label": "Tip" }
+      ]
+    },
+    {
+      "title": "Protective devices: breakers, RCDs and GFCIs",
+      "blocks": [
+        { "h": "Reading a circuit-breaker datasheet" },
+        { "table": { "head": ["Figure", "Meaning", "How you use it"], "rows": [
+          ["Rated current (In), e.g. 20 A", "The current it carries continuously without tripping.", "At or above the design current, and not above the cable's rating."],
+          ["Trip curve (type B, C or D)", "How many times In makes it trip instantly on a short circuit.", "Choose for the load's switch-on surge."],
+          ["Breaking capacity, e.g. 6 kA or 10 kA", "The largest fault current it can safely interrupt.", "At least the prospective fault current at the board, which the designer gives."],
+          ["Poles", "Single-pole, two-pole, three-pole.", "Two-pole for 220 V circuits fed from two lines, so both lines switch together."],
+          ["Rated voltage and frequency", "The system it is made for.", "Must suit the supply."],
+          ["Terminal size and torque", "The cable sizes it accepts and how tight to make the terminals.", "Tighten to the stated torque; loose terminals overheat and scorch."]
+        ] } },
+        { "h": "Trip curves" },
+        { "table": { "head": ["Type", "Trips instantly at", "Usual use", "Example: 16 A breaker"], "rows": [
+          ["B", "3 to 5 × In", "General lighting and socket circuits in homes and offices", "48 to 80 A"],
+          ["C", "5 to 10 × In", "Motors, compressors, fluorescent and LED lighting groups with high switch-on surges", "80 to 160 A"],
+          ["D", "10 to 20 × In", "Equipment with very high inrush, such as large transformers and welders", "160 to 320 A"]
+        ] } },
+        { "p": "If a type B breaker trips each time a motor starts, although the running current is well within its rating, the starting surge is reaching its instant-trip band. The usual answer is a type C of the **same rating**, if the designer approves; never a bigger rating." },
+        { "p": "Many LED driver datasheets give the **maximum number of drivers per breaker**, for each trip type, because drivers draw a short, high surge when switched on together. Too many drivers on one type B breaker can trip it at switch-on: split the load or ask the designer about the breaker type." },
+        { "note": "Breaking capacity matters most close to the supply, where fault currents are highest. A breaker with too low a kA rating may fail to clear a fault and can explode. Never fit one below the figure in the specification.", "label": "Safety" },
+        { "h": "RCDs, GFCIs and RCBOs" },
+        { "table": { "head": ["Figure or type", "Meaning"], "rows": [
+          ["Rated residual operating current (IΔn)", "The leakage to earth that makes it trip: **30 mA** is usual for protecting people; 100 mA or 300 mA devices protect against fire and are not personal protection."],
+          ["GFCI (US type, Class A)", "Trips at about 5 mA (4 to 6 mA), for protecting people."],
+          ["Type AC", "Detects ordinary AC leakage only."],
+          ["Type A", "Also detects pulsating DC leakage, from electronic equipment such as washing machines and drives."],
+          ["Type B", "Also detects smooth DC leakage, needed for some drives, solar inverters and EV chargers, where the maker says so."],
+          ["RCBO", "A breaker and RCD in one unit, so a fault on one circuit trips only that circuit."]
+        ] } },
+        { "p": "The label usually tells the user to press the **TEST** button regularly, for example 'quarterly' (every three months) or monthly. A device that does not trip on test must be replaced." },
+        { "h": "Other devices" },
+        { "ul": [
+          "**AFCI:** trips on the arcing caused by damaged or loose wiring, to prevent fires.",
+          "**SPD:** limits voltage surges from lightning and switching; its datasheet gives the type or class, the maximum continuous voltage and the surge current rating, and often a status window that shows when it must be replaced.",
+          "**ATS and manual changeover switches:** the datasheet gives the current rating, the voltage, the switching time and the controls. The switch must break the mains before it connects the generator, so the two can never be connected together; otherwise the generator could feed back into JPS lines and kill a line worker who believes they are dead. Its manual gives the terminal markings for the mains, generator and load, and the torque values; JPS's side of the meter is never touched."
+        ] }
+      ]
+    },
+    {
+      "title": "Cables and IP ratings",
+      "blocks": [
+        { "h": "Reading a cable label" },
+        { "p": "**Example: '3C 4 mm² XLPE/SWA/PVC 600/1000 V'.**" },
+        { "table": { "head": ["Part", "Meaning"], "rows": [
+          ["3C", "Three cores."],
+          ["4 mm²", "The cross-sectional area of each conductor."],
+          ["XLPE", "The insulation on each core: cross-linked polyethylene, rated for a conductor temperature of 90 °C."],
+          ["SWA", "Steel wire armour, for mechanical protection, for example when buried."],
+          ["PVC", "The outer sheath."],
+          ["600/1000 V", "Its voltage rating: 600 V between a conductor and earth, 1 000 V between conductors."]
+        ] } },
+        { "table": { "head": ["Material or marking", "What to know"], "rows": [
+          ["PVC insulation", "Usually rated for a conductor temperature of 70 °C."],
+          ["XLPE insulation", "Usually 90 °C, so it can carry more current than PVC of the same size."],
+          ["THHN / THWN (NEC types, common in Jamaica)", "Single-core building wire with thermoplastic insulation and a nylon jacket; THHN is for dry locations at up to 90 °C, THWN for wet locations, usually 75 °C. Many wires are marked with both."],
+          ["300/500 V and 450/750 V", "Typical ratings for flexible cords and building wiring; not for buried feeders that need 600/1000 V armoured cable."],
+          ["AWG sizes", "Smaller number, thicker wire: 14 AWG ≈ 2.1 mm², 12 AWG ≈ 3.3 mm², 10 AWG ≈ 5.3 mm², 8 AWG ≈ 8.4 mm². When converting, choose the next metric size that is **not smaller**: 12 AWG becomes 4 mm²."]
+        ] } },
+        { "h": "Cable rating tables" },
+        { "ul": [
+          "Ratings are given for each **installation method**, such as clipped direct, in conduit on a wall or in an insulated wall, because heat escapes at a different rate in each.",
+          "They assume a reference air temperature, often **30 °C**. In a hotter place, such as a Jamaican roof space at 45 °C, apply the maker's **correction factor** for that temperature.",
+          "Apply factors for grouping and thermal insulation too, by multiplying.",
+          "Use the table for the insulation type you are installing: a PVC table for PVC cable, an XLPE table for XLPE."
+        ] },
+        { "h": "IP ratings" },
+        { "p": "An **IP code** (ingress protection) has two digits. The first is protection against solid objects and dust; the second against water. **A higher number means more protection.** An **X** replaces a digit that is not stated: IPX4 says nothing about solids and gives splash protection." },
+        { "table": { "head": ["Digit", "First digit: solids", "Second digit: water"], "rows": [
+          ["0", "No protection", "No protection"],
+          ["1", "Objects over 50 mm (the back of a hand)", "Dripping water"],
+          ["2", "Objects over 12.5 mm (fingers)", "Dripping water when tilted up to 15°"],
+          ["3", "Objects over 2.5 mm (tools)", "Spraying water"],
+          ["4", "Objects over 1 mm (wires)", "Splashing water from any direction"],
+          ["5", "Dust-protected", "Water jets"],
+          ["6", "Dust-tight", "Powerful water jets"],
+          ["7", "—", "Temporary immersion"],
+          ["8", "—", "Continuous immersion, as the maker states"]
+        ] } },
+        { "p": "**Examples.** IP44 suits a sheltered outdoor or bathroom position with splashes. IP65 is dust-tight and protected against water jets: for areas that are hosed down, such as cold rooms, food areas and car washes. IP66 gives more protection against water than IP44. An item meets a specification of 'IP65 or better' only if **both** digits are at least 6 and 5." }
+      ]
+    },
+    {
+      "title": "Rating plates and product datasheets",
+      "blocks": [
+        { "h": "Motor rating plates" },
+        { "table": { "head": ["Marking", "Meaning", "Use"], "rows": [
+          ["V and Hz", "Rated voltage and frequency", "Must match the supply; check for 50 Hz."],
+          ["kW (or hp)", "Rated **output** at the shaft", "1 hp ≈ 746 W."],
+          ["A or FLC", "Full-load current", "Set the overload relay to this value, within the relay's range, as its maker instructs; size the circuit from it."],
+          ["rev/min (rpm)", "Speed at full load", "Shows the number of poles: 2 850 rev/min on 50 Hz is a 2-pole motor."],
+          ["cos φ or pf", "Power factor", "Used in current calculations."],
+          ["η or Eff", "Efficiency", "Input = output ÷ efficiency."],
+          ["Duty S1, S2, S3", "S1 continuous running; S2 short-time (for example S2 30 min, then a rest to cool); S3 intermittent periodic", "Match the duty to the job: a non-stop pump needs S1."],
+          ["Insulation class B, F, H", "Maximum winding temperature: B 130 °C, F 155 °C, H 180 °C", "A higher class copes better with heat."],
+          ["IP code", "Protection of the enclosure", "IP55 suits dusty, damp places such as pump houses."]
+        ] } },
+        { "h": "Imported equipment" },
+        { "p": "Much equipment in Jamaica is bought in North America, where the supply is 120 V / 240 V at **60 Hz**. Before you agree to install it, check:" },
+        { "ul": [
+          "**Voltage:** a 220 V unit will not work properly on 110 V, and a 110–120 V unit will be damaged on 220 V. 208/230 V equipment is normally used on the 220 V supply; check its tolerance.",
+          "**Frequency:** a motor or compressor rated 60 Hz only runs about one-sixth slower on 50 Hz and may overheat. Ask the maker whether 50 Hz use is allowed. Equipment marked 50/60 Hz is fine.",
+          "**MCA and MOP** on US air-conditioner and refrigeration nameplates: **MCA (minimum circuit ampacity)** is the smallest current rating the circuit conductors may have; **MOP (maximum overcurrent protection)** is the largest breaker or fuse allowed. Choose a breaker no larger than the MOP and a cable rated at least the MCA.",
+          "**Units:** convert AWG, hp and °F with a reliable table, and never round a cable size down.",
+          "Tell the client in writing, before work starts, if anything does not suit."
+        ] },
+        { "h": "LED lighting datasheets" },
+        { "table": { "head": ["Figure", "Meaning"], "rows": [
+          ["Lumens (lm)", "Light output."],
+          ["Watts (W)", "Power used."],
+          ["Efficacy (lm/W)", "Lumens ÷ watts: higher means more light for less energy."],
+          ["Colour temperature (K)", "The colour of the light: about 2 700–3 000 K warm white, about 4 000 K neutral white (classrooms, offices), 5 000–6 500 K daylight."],
+          ["CRI (colour rendering index)", "How truly colours are seen, out of 100: 80 or more for general use, 90 or more where colour matters."],
+          ["Life, e.g. 50 000 h L70", "After 50 000 hours it still gives at least 70% of its first light output."],
+          ["Input, e.g. 100–240 V AC, 50/60 Hz", "Works on any voltage in the range: on Jamaica's 110 V or 220 V."],
+          ["Power factor, e.g. ≥ 0.9", "Higher is better; low power factors raise the current."],
+          ["IP rating and operating temperature", "Where it may be used."]
+        ] } },
+        { "h": "Operating temperature and derating" },
+        { "p": "Drives, inverters, UPS units and LED drivers give an **operating temperature range**, such as 0–40 °C, and often a rule for **derating** (reducing the output) above it. In a hot kiosk, plant room or roof space, work out the derated figure, and if it is not enough, the equipment needs cooling, shade, ventilation or a different location, or a larger unit." },
+        { "p": "**Example.** A drive is rated 12 A up to 40 °C, with output reduced by 2% for each °C above 40 °C. At 45 °C: 5 × 2% = 10% less, so 12 × 0.9 = **10.8 A**." }
+      ]
+    },
+    {
+      "title": "Installation manuals and makers' instructions",
+      "blocks": [
+        { "h": "What a manual contains" },
+        { "ul": [
+          "Safety instructions and warnings: read these first.",
+          "Ratings and specifications.",
+          "Installation: location, clearances, mounting, cooling, environment.",
+          "Wiring: cable types and sizes, terminal markings, torque values, grounding, screening.",
+          "Commissioning: settings and a checklist.",
+          "Operation, maintenance, fault codes and troubleshooting.",
+          "Warranty conditions."
+        ] },
+        { "h": "Signal words" },
+        { "table": { "head": ["Word", "Meaning"], "rows": [
+          ["DANGER", "A hazard that **will** cause death or serious injury if not avoided."],
+          ["WARNING", "A hazard that **could** cause death or serious injury."],
+          ["CAUTION", "A hazard that could cause minor or moderate injury."],
+          ["NOTICE", "A risk of damage to equipment or property, not injury."],
+          ["NOTE", "Helpful extra information; not a hazard warning."]
+        ] } },
+        { "h": "Stored energy and isolation" },
+        { "ul": [
+          "Follow the manual's isolation instruction: isolate, lock off and tag, then prove dead with a tester proved on a proving unit before and after. Stopping a machine at its stop button is not isolation.",
+          "Drives, inverters and UPS units hold a charge in their capacitors after the supply is removed. Wait the **discharge time** the manual gives (often 5 to 15 minutes; check the label), then **measure** the DC bus voltage to prove it has discharged before touching anything.",
+          "Batteries and solar PV panels cannot be switched off at the source: follow the manual's shutdown procedure and treat their terminals as live."
+        ] },
+        { "h": "Torque values and units" },
+        { "p": "Terminal torques are usually given in **newton metres (N·m)**. If your torque screwdriver is marked in pound-force inches, convert with a reliable table; never guess." },
+        { "table": { "head": ["From", "To", "Multiply by"], "rows": [
+          ["N·m", "lbf·in", "8.85"],
+          ["lbf·in", "N·m", "0.113"],
+          ["N·m", "lbf·ft", "0.738"],
+          ["lbf·ft", "N·m", "1.356"]
+        ] } },
+        { "p": "**Example.** 2.5 N·m × 8.85 ≈ **22 lbf·in**. Under-tightened terminals are the most common cause of scorching and burnt terminals; over-tightening strips threads and cracks devices." },
+        { "h": "Cabling instructions for drives" },
+        { "p": "Variable speed drives switch at high frequency and can cause electrical interference. Their manuals usually require **screened (shielded) motor cable**, with the screen bonded as shown, and motor cables kept apart from control and data cables. Follow these instructions exactly." },
+        { "h": "Commissioning checklists and settings" },
+        { "p": "Many manuals include a commissioning checklist. Complete it step by step and sign it: it records that each set-up step was done and gives the settings for future maintenance. Enter motor data from the rating plate, and record every setting you make. Set an overload relay to the motor's full-load current, within the relay's range; set a timer relay by choosing the time range on its selector and then the time on its dial, as its datasheet shows." },
+        { "h": "Warranty, safety notices and conflicts" },
+        { "ul": [
+          "Installing equipment against the maker's instructions can void the **warranty**, leaving the client to pay if it fails.",
+          "When a maker issues a **safety notice** about a faulty batch (for example RCDs that may not trip), check the batch numbers of what you installed, report it to your supervisor and the client, and replace items as the notice says.",
+          "If the specification conflicts with the manual, for example a solar inverter shown in a closed cupboard when the manual demands free air around it, **raise a query**: installing it as drawn would break the maker's terms."
+        ] },
+        { "h": "Writing a work instruction" },
+        { "p": "When you turn a manual into a site work instruction, write each step in order, in plain words, with the safety points, the settings and torque values, and the **manual section** each step comes from, so the next person can check it." }
+      ]
+    },
+    {
+      "title": "Safety data sheets, signs and test requirements",
+      "blocks": [
+        { "h": "Safety data sheets (SDS)" },
+        { "p": "An SDS comes with every hazardous product: cable-jointing resins, cleaning solvents, contact sprays, battery electrolyte, adhesives, fire-stopping sealants. It has 16 sections in a standard order. The ones you will use most:" },
+        { "table": { "head": ["Section", "Tells you"], "rows": [
+          ["1 Identification", "The product and the supplier's emergency contact."],
+          ["2 Hazards identification", "The hazards, pictograms and signal word."],
+          ["4 First-aid measures", "What to do for contact with eyes or skin, breathing it in or swallowing it."],
+          ["5 Fire-fighting measures", "Suitable extinguishers and special hazards in a fire."],
+          ["6 Accidental release", "How to deal with a spill."],
+          ["7 Handling and storage", "Safe use, ventilation, storage conditions and things to keep it away from."],
+          ["8 Exposure controls / personal protection", "The PPE needed: eye protection, glove type, respiratory protection."],
+          ["13 Disposal", "How to get rid of waste and empty containers safely."]
+        ] } },
+        { "h": "Hazard pictograms" },
+        { "table": { "head": ["Pictogram", "Hazard"], "rows": [
+          ["Liquid dripping onto a hand and a metal bar", "Corrosive: burns skin and eyes, attacks metals (battery acid)."],
+          ["Flame", "Flammable."],
+          ["Flame over a circle", "Oxidiser: makes fires burn more fiercely."],
+          ["Exploding bomb", "Explosive."],
+          ["Gas cylinder", "Gas under pressure."],
+          ["Skull and crossbones", "Toxic: can kill in small amounts."],
+          ["Exclamation mark", "Irritant or harmful, skin sensitiser."],
+          ["Person with a star on the chest", "Serious long-term health hazard."],
+          ["Dead tree and fish", "Harmful to the environment."]
+        ] } },
+        { "h": "Batteries" },
+        { "ul": [
+          "Lead-acid electrolyte is **corrosive**: wear goggles or a face shield, acid-resistant gloves and an apron, as the SDS says.",
+          "Charging gives off **hydrogen**, which can explode. Vented batteries give off more; valve-regulated (VRLA) batteries give off little in normal use but can vent when overcharged or faulty. Provide the ventilation the manual requires and keep flames and sparks away.",
+          "A battery string cannot be switched off. A spanner dropped across its terminals causes a huge short-circuit current, burns and arcing. Use insulated tools, remove jewellery, fit terminal covers, and connect in the order the manual gives.",
+          "Battery life falls in heat: for lead-acid it roughly halves for every 8 to 10 °C above 25 °C. Plan a cool location.",
+          "Acid in the eyes: rinse with clean water for at least 15 minutes and get medical help. Keep an eyewash station and a spill kit ready."
+        ] },
+        { "h": "Test requirements in a specification" },
+        { "ul": [
+          "List each test the specification requires, the test voltage, the pass limit and the form to use.",
+          "Check that the instruments are calibrated and in date.",
+          "Do the dead tests with the installation isolated, locked off and proved dead. **Disconnect sensitive equipment**, such as LED drivers, dimmers, SPDs and electronic controls, before insulation resistance tests (often at 500 V DC for 110/220 V circuits), or they can be damaged and the readings will be wrong.",
+          "Record each result at once against its circuit, and compare it with the limit. For example, if an earth electrode must be **no more than 25 Ω**, a reading of 32 Ω fails.",
+          "A failed circuit is not energised: find the fault, repair it, retest and record both results."
+        ] },
+        { "h": "Handover documents" },
+        { "p": "The specification lists what the client receives, typically: test certificates and results, as-built drawings, the circuit chart (board schedule) fixed inside each board door showing each circuit, its load, its protective device and its cable size, the makers' manuals and warranties, commissioning records and settings, and any training given to the client's staff." }
+      ]
+    },
+    {
+      "title": "Revision",
+      "blocks": [
+        { "h": "Checklist" },
+        { "p": "Tick each statement only when you can do it without looking at the notes." },
+        { "ul": [
+          "I can name the documents that control an electrical job and explain why the code is the minimum and makers' instructions must be followed.",
+          "I can find requirements in a specification and tell 'shall', 'should' and 'may' apart.",
+          "I can explain prescriptive and performance requirements, with an example of each and how compliance is shown.",
+          "I can explain 'or approved equal' and 'to the satisfaction of the engineer'.",
+          "I can choose the right drawing for a task and read the title block, scale and common abbreviations.",
+          "I can keep a drawing register, withdraw superseded copies, mark up changes and produce as-built drawings.",
+          "I can write a clear, dated query when documents conflict, and file the answer.",
+          "I can read a breaker datasheet: rated current, trip curve, breaking capacity, poles and torque.",
+          "I can read RCD and GFCI data and say which devices protect people.",
+          "I can decode a cable label, convert AWG sizes and apply the maker's correction factors.",
+          "I can read an IP code and say whether an item meets an IP requirement.",
+          "I can read a motor rating plate, including duty and insulation class, and set an overload from the full-load current.",
+          "I can check imported equipment for voltage, frequency, MCA and MOP.",
+          "I can compare LED datasheets using lumens, efficacy, colour temperature, CRI and life.",
+          "I can apply temperature derating from a datasheet.",
+          "I can follow a manual's signal words, stored-energy precautions, torque values and commissioning checklist.",
+          "I can find the hazards, PPE and first aid in an SDS and read hazard pictograms.",
+          "I can plan the tests a specification requires and list the handover documents."
+        ] },
+        { "h": "Numbers to remember" },
+        { "table": { "head": ["Figure", "What it is"], "rows": [
+          ["B 3–5 × In; C 5–10 × In; D 10–20 × In", "Instant-trip bands of breaker curves"],
+          ["30 mA / about 5 mA", "RCD / GFCI trip levels for protecting people"],
+          ["1 N·m ≈ 8.85 lbf·in", "Torque conversion"],
+          ["1 hp ≈ 746 W", "Power conversion"],
+          ["70 °C / 90 °C", "Usual conductor temperature ratings of PVC / XLPE insulation"],
+          ["L70", "Hours until an LED gives 70% of its first light"],
+          ["25 Ω", "A common limit for an earth electrode's resistance"]
+        ] } },
+        { "h": "Key terms" },
+        { "terms": [
+          ["As-built drawing", "A drawing that shows what was actually installed, including approved site changes."],
+          ["Breaking capacity", "The largest fault current a breaker can safely interrupt, usually in kA."],
+          ["Datum line", "A level line marked at a known height above the finished floor, used to set out heights."],
+          ["Drawing register", "The list of every drawing and its current revision."],
+          ["IP code", "Two digits giving an enclosure's protection against solids and dust, and against water."],
+          ["MCA / MOP", "Minimum circuit ampacity / maximum overcurrent protection, given on US equipment nameplates."],
+          ["Or approved equal", "Another product may be used only if the designer approves it as equal."],
+          ["Performance specification", "A requirement that states the result needed and leaves the method open."],
+          ["Prescriptive specification", "A requirement that states exactly what to use and how."],
+          ["Query (RFI)", "A written request to the designer to resolve a conflict or unclear point."],
+          ["Rated residual operating current (IΔn)", "The earth-leakage current at which an RCD trips."],
+          ["Revision cloud", "A cloud drawn round the part of a drawing that has changed, with the revision letter beside it."],
+          ["Safety data sheet (SDS)", "A 16-section sheet giving a product's hazards, PPE, first aid, storage and disposal."],
+          ["Schematic diagram", "A drawing of how a circuit works, with devices in logical order rather than where they sit."],
+          ["Signal word", "DANGER, WARNING, CAUTION or NOTICE at the start of a safety message, showing how serious it is."],
+          ["Specification", "The written requirements for a job: materials, workmanship, tests and documents."],
+          ["Superseded", "Replaced by a later revision and no longer to be used."],
+          ["Trip curve", "The letter (B, C or D) showing at how many times its rating a breaker trips instantly."],
+          ["Wiring (connection) diagram", "A drawing showing where each wire physically lands, terminal by terminal."]
+        ] }
+      ]
+    }
+  ],
+  "cases": {
+    "c1": { "title": "A supermarket fit-out in May Pen", "text": "Chevelle Scott leads the electrical team fitting out a supermarket in May Pen, Clarendon. The drawing register lists layout drawing E-02 at revision D, but the copy pinned in the site office is revision B. The specification says: 'Cold-room light fittings shall be IP65 or better'; 'LED panels shall be Make X model P40, or approved equal'; and 'Socket outlets in the bakery shall be mounted at 1 100 mm AFF to the centre of the box.' The supplier offers a cheaper LED panel of another make and a cold-room fitting marked IP54. The bakery manager asks for the bakery outlets to go at 1 300 mm so that they clear a new worktop." },
+    "c2": { "title": "Checking a delivery in Spanish Town", "text": "Courtney Ellis is checking a delivery for a new medical laboratory in Spanish Town, St Catherine. The specification asks for final-circuit breakers type B, 20 A, with a breaking capacity of at least 10 kA; RCDs on socket circuits with an IΔn of 30 mA; and the feeder to the outdoor generator house in 'XLPE/SWA/PVC 600/1000 V' cable. The delivery holds twenty 20 A type B breakers marked 6 kA, RCDs marked IΔn 100 mA, and a cable drum labelled '3C 16 mm² PVC/PVC 300/500 V'." },
+    "c3": { "title": "A fan drive at a hotel laundry in Negril", "text": "Andrea Morgan's team is installing a variable speed drive (VSD) for the extract fan in a hotel laundry in Negril, Westmoreland. The drive manual says: 'DANGER: Hazardous voltage remains on the DC bus for up to 10 minutes after the supply is removed. Measure before touching.' It also says: 'Ambient temperature 0–40 °C; above 40 °C, reduce the output current by 2% per °C, up to 50 °C' and 'Tighten power terminals to 1.2 N·m.' The drive is rated 9.0 A at 40 °C. The fan motor's full-load current is 7.8 A, and the laundry reaches 46 °C in the afternoons. The team's torque screwdriver is marked only in lbf·in." },
+    "c4": { "title": "UPS batteries at a call centre in New Kingston", "text": "A call centre in New Kingston is having a UPS installed with a rack of valve-regulated lead-acid (VRLA) batteries. The battery safety data sheet and the UPS manual are on site. The manual says the batteries give their rated life at 20–25 °C, and that their life is roughly halved for every 10 °C above 25 °C. The client wants the battery rack in a storeroom with no air-conditioning, which reaches about 35 °C." },
+    "c5": { "title": "Imported equipment at a villa in Discovery Bay", "text": "The owner of a villa in Discovery Bay, St Ann, has bought a mini-split air-conditioner in the United States. Its nameplate reads: '208/230 V, 60 Hz, 1 phase, MCA 15.4 A, MOP 25 A'. The villa has the usual JPS supply of 110 V and 220 V at 50 Hz. Electrician Errol Henry must check the unit before he agrees to install it." }
+  },
+  "questions": [
+    { "id": "P-01", "c": "c1", "q": "What should Chevelle do about the revision B copy of E-02 in the site office?", "o": ["Keep working from revision B, as most of the layout will be unchanged", "Get revision D, check its clouded changes and withdraw the old copy", "Pin revision D beside revision B so the team can choose between them", "Ask the team which revision they think is the most up to date"], "a": 1, "why": "The register shows revision D is current, so revision B may show work that has since changed. Get revision D, read the clouded changes, brief the team, and remove or stamp the old copy 'SUPERSEDED' so nobody works from it by mistake." },
+    { "id": "P-02", "c": "c1", "q": "How should the cheaper LED panel be dealt with?", "o": ["Fit it, as 'or approved equal' means any panel of the same size", "Fit it, provided it costs less than the Make X model P40 panel", "Fit it only once the designer approves its datasheet in writing", "Refuse it, because only the named make may ever be used on this job"], "a": 2, "why": "'Or approved equal' allows another product only if the designer compares its datasheet with the named one (light output, efficacy, colour, life, ratings) and approves it in writing. Size and price alone do not make it equal, but the named make is not the only possible choice either." },
+    { "id": "P-03", "c": "c1", "q": "Does the IP54 cold-room fitting meet the specification?", "o": ["Yes, as 54 and 65 add up to almost the same total protection", "No: it has less protection against both dust and water jets", "Yes, because only the first digit matters inside a cold room", "Yes, as a lower number means a better seal against water"], "a": 1, "why": "Each digit is checked on its own. IP54 is dust-protected (5) and splash-proof (4); IP65 is dust-tight (6) and protected against water jets (5). A cold room is often hosed down, so the fitting falls short on both counts and must be rejected." },
+    { "id": "P-04", "c": "c1", "q": "How should Chevelle respond to the bakery manager's request for outlets at 1 300 mm?", "o": ["Raise it with the designer and fit them only to a written instruction", "Fit them at 1 300 mm, since the manager is one of the client's own staff", "Fit them at 1 100 mm and tell the manager nothing can ever change", "Fit them at 1 200 mm, halfway, so that both sides are satisfied"], "a": 0, "why": "The specification says 'shall', so 1 100 mm is a requirement. The manager's reason may be good, but only the designer can change the specification. Raise a query, get a written answer or variation, then fit the outlets and mark up the drawing." },
+    { "id": "P-05", "c": "c2", "q": "Do the breakers marked 6 kA meet the specification?", "o": ["No: they may not break the fault current at the board safely", "Yes, as the 20 A rating and the type B curve are both correct", "Yes, as 6 kA is plenty for any circuit in a small building", "No: a 6 kA breaker trips too easily on small overloads"], "a": 0, "why": "Breaking capacity is the largest fault current a breaker can safely interrupt. The designer asked for at least 10 kA because the fault current at the board may exceed 6 kA, and a breaker that cannot clear a fault can fail violently. The kA rating has nothing to do with overload tripping." },
+    { "id": "P-06", "c": "c2", "q": "What should Courtney decide about the RCDs marked IΔn 100 mA?", "o": ["Accept them, as a 100 mA RCD trips sooner than a 30 mA one would", "Accept them, as the IΔn figure matters only for the test button", "Reject them, because a 100 mA RCD trips whenever a kettle is used", "Reject them: they trip at too high a leakage to protect people"], "a": 3, "why": "IΔn is the leakage current that makes the device trip. A 30 mA RCD trips at a level that protects people from a fatal shock; a 100 mA device needs over three times as much leakage, so it gives fire protection, not personal protection." },
+    { "id": "P-07", "c": "c2", "q": "Why does the cable on the drum not meet the specification for the generator-house feeder?", "o": ["It is unarmoured and rated only 300/500 V, not 600/1000 V", "It does, as 16 mm² is large enough for the generator feeder", "It does, as PVC and XLPE are two names for the same material", "It does not, but only because it has three cores instead of four"], "a": 0, "why": "The specification asks for XLPE insulation, steel wire armour and a 600/1000 V rating, suited to an outdoor or buried feeder. 'PVC/PVC 300/500 V' has no armour, a lower voltage rating and PVC insulation rated for a lower temperature. The conductor size alone does not make it compliant." },
+    { "id": "P-08", "c": "c3", "q": "What does the signal word DANGER at the start of the drive's notice tell the team?", "o": ["A risk of damage to the drive itself, but not to the people using it", "Helpful extra information for the installer, not about any hazard", "A minor hazard that might cause a small cut or a bruise to the hand", "A hazard that will kill or seriously injure if it is not avoided"], "a": 3, "why": "DANGER is the most serious signal word: the hazard will cause death or serious injury if not avoided. WARNING means it could; CAUTION means minor or moderate injury; NOTICE means damage to equipment only." },
+    { "id": "P-09", "c": "c3", "q": "On a 46 °C afternoon, what current can the drive supply, and is it enough for the fan motor?", "o": ["9.0 A: the temperature does not change the rating", "About 7.2 A: not enough, so the drive will trip", "About 7.9 A: just enough, with very little margin", "About 8.1 A: enough, with a good margin to spare"], "a": 2, "why": "46 °C is 6 °C above 40 °C, so the output falls by 6 × 2% = 12%: 9.0 × 0.88 ≈ 7.9 A, just above the motor's 7.8 A. With so little margin, better ventilation or a larger drive should be raised with the designer." },
+    { "id": "P-10", "c": "c3", "q": "What should the torque screwdriver be set to for the power terminals?", "o": ["About 0.14 lbf·in", "About 10.6 lbf·in", "About 1.2 lbf·in", "About 0.9 lbf·in"], "a": 1, "why": "1 N·m ≈ 8.85 lbf·in, so 1.2 × 8.85 ≈ 10.6 lbf·in. Dividing instead of multiplying gives 0.14, and 0.9 is the figure in lbf·ft. Use a reliable conversion table and never guess a torque." },
+    { "id": "P-11", "c": "c3", "q": "The manual also says to use screened motor cable, bonded as shown, and to keep it apart from control cables. Why?", "o": ["To make the cable strong enough to be buried outside the laundry", "To let the cable carry more current than unscreened cable can", "To keep the laundry's heat from softening the cable's insulation", "To stop the drive's interference reaching other equipment"], "a": 3, "why": "A drive switches at high frequency, so its motor cable can radiate interference into control, data and alarm circuits. A properly bonded screen and separation from other cables keep it in. The screen does not add current capacity, armour strength or heat protection." },
+    { "id": "P-12", "c": "c4", "q": "In which section of the battery SDS will the team find the PPE they need?", "o": ["Section 4, first-aid measures", "Section 2, hazards identification", "Section 8, personal protection", "Section 14, transport information"], "a": 2, "why": "Section 8, exposure controls and personal protection, gives the PPE, such as eye protection and glove type. Section 2 lists the hazards and pictograms, and Section 4 the first aid, such as rinsing eyes for at least 15 minutes." },
+    { "id": "P-13", "c": "c4", "q": "What should be said about putting the battery rack in the 35 °C storeroom?", "o": ["Install it there, since VRLA batteries are sealed and need no care", "Install it there, but set the UPS to charge the batteries harder", "Tell the client in writing that battery life would be about halved", "Install it there, as heat only matters for vented lead-acid cells"], "a": 2, "why": "35 °C is 10 °C above 25 °C, so by the manual the batteries would last about half their rated life, and the client would pay for early replacement. Put the advice in writing: the rack needs a cooled room or another location. Charging harder would add heat and gas." },
+    { "id": "P-14", "c": "c4", "q": "The UPS manual says to use insulated tools and fit terminal covers when connecting the batteries. Why?", "o": ["A spanner across two terminals would short-circuit the batteries", "Insulated tools stop hydrogen gas from being given off by the cells", "Insulated tools are needed only once the UPS has been switched on", "Ordinary tools would scratch the cases and so void the warranty"], "a": 0, "why": "A battery string cannot be switched off, so a metal tool touching two terminals short-circuits it, with severe arcing, burns and possibly a battery explosion. Insulated tools, removed jewellery and terminal covers prevent this whether or not the UPS is on." },
+    { "id": "P-15", "c": "c5", "q": "What do 'MCA 15.4 A' and 'MOP 25 A' on the nameplate tell Errol?", "o": ["Cable for at least 15.4 A; breaker no larger than 25 A", "The unit runs at 15.4 A and needs a 15 A breaker to match", "The breaker must be at least 25 A and the cable 15.4 mm²", "The unit draws 25 A when starting and 15.4 A when running"], "a": 0, "why": "MCA, minimum circuit ampacity, is the smallest current rating the circuit conductors may have. MOP, maximum overcurrent protection, is the largest breaker or fuse allowed. A 20 A two-pole breaker with cable rated at least 20 A would satisfy both." },
+    { "id": "P-16", "c": "c5", "q": "The nameplate gives 60 Hz only. What should Errol do before installing the unit?", "o": ["Install it, since 230 V is close enough to the villa's 220 V supply", "Check with the maker about 50 Hz use, and tell the owner in writing", "Install it, since only the voltage on a nameplate needs to match", "Fit an adaptor so that it can be run from a 110 V outlet instead"], "a": 1, "why": "A compressor and fan motors rated 60 Hz only run about one-sixth slower on 50 Hz and may overheat, so the frequency matters as much as the voltage. Errol should check with the maker and explain the risk to the owner in writing before agreeing to install it." },
+    { "id": "P-17", "c": null, "q": "A specification says 'Cables should be labelled at both ends' and 'Every circuit shall be tested before it is energised'. What is the difference?", "o": ["They mean exactly the same, so both are done in exactly the same way", "'Should' must be done, while 'shall' is only a suggestion to the team", "Neither is binding, because only the drawings can set requirements", "'Shall' is a must; 'should' is advised, and departing needs a reason"], "a": 3, "why": "'Shall' states a requirement that must be met. 'Should' is a recommendation: it is expected, and any departure needs a good reason that is agreed and recorded. 'May' means something is permitted but not required." },
+    { "id": "P-18", "c": null, "q": "An LED driver datasheet says: 'Maximum drivers per 16 A type B breaker: 12.' A corridor circuit on a 16 A type B breaker will feed 16 drivers. What does this tell you?", "o": ["Nothing, as 16 drivers draw far less than 16 A when they are running", "The breaker must be changed to a 32 A type B to stop it tripping", "The switch-on surge may trip it; split the load or ask the designer", "Only 12 of the drivers will light, and the other four will stay dark"], "a": 2, "why": "Drivers draw a short, high surge when switched on together, which can reach a type B breaker's instant-trip band even though the running current is low. Split the drivers over two circuits, or ask the designer about the breaker type. A bigger breaker would no longer protect the cable." },
+    { "id": "P-19", "c": null, "q": "A drawing's title block says 'Scale 1:50 at A1', but the copy on site has been printed on A3 paper. What does this mean?", "o": ["Measure with the 1:50 side of the scale rule, as the title block says", "Double every written dimension, because the paper is now smaller", "The drawing is no longer valid and must be thrown away at once", "Scaling will be wrong; use written dimensions or the scale bar"], "a": 3, "why": "A3 is half the width and height of A1, so the printed drawing is now about 1:100, and a 1:50 scale rule would give lengths half their real size. Written dimensions do not change, and a scale bar shrinks with the print, so use those." },
+    { "id": "P-20", "c": null, "q": "A motor's rating plate shows duty 'S2 30 min'. Which use suits it?", "o": ["Running non-stop, day and night, on a water pump", "Short runs of up to 30 minutes, then a rest to cool", "Running only from a drive set to 30 Hz on the supply", "Running 30 minutes before it reaches its full speed"], "a": 1, "why": "S2 is short-time duty: the motor can run at its rated load for the stated time, here 30 minutes, then must stop and cool. A pump that runs non-stop needs an S1 (continuous) motor." }
+  ]
+}
