@@ -1,0 +1,468 @@
+{
+  "format": "cestis-study-kit",
+  "version": 1,
+  "status": "to-check",
+  "written": "2026-11-07",
+  "programme": "Electrical Installation",
+  "qualification": { "id": "QUAL-EIM-L3", "title": "ELECTRICAL INSTALLATION AND MAINTENANCE LEVEL 3", "code": "MEM32507" },
+  "level": 3,
+  "unit": { "code": "MEMCOR0101A", "title": "Prepare basic engineering drawing" },
+  "summary": "This unit teaches you to prepare the drawings from which electrical parts are made: brackets, mounting plates, busbars and earth bars, enclosures, covers and supports. You will learn to plan a drawing, use standard lines, scales and title blocks, draw orthographic, auxiliary, sectional and pictorial views, add dimensions, tolerances and notes, and draw flat patterns and assembly drawings with parts lists. You will also learn to work in CAD and to check, issue, revise and keep drawings so that the workshop always makes the right part.",
+  "sections": [
+    {
+      "title": "Unit overview",
+      "blocks": [
+        { "p": "Electricians do not only read drawings. A Level 3 electrician is often the person who must draw a bracket for an isolator, a gland plate, an earth bar or a cover, so that a fabricator, a sheet-metal shop or a colleague can make it without phoning to ask what you meant. This unit is about preparing those drawings properly, by hand or in CAD. The unit 'Draw and interpret sketches and simple drawings' covers reading electrical drawings and sketching on site; this unit is about producing a finished, scaled, dimensioned drawing." },
+        { "h": "What you must be able to do" },
+        { "table": { "head": ["Task", "What it looks like on the job"], "rows": [
+          ["Plan the drawing", "Collect makers' data and site sizes, sketch the idea, and choose the views, sheet size, scale and datums before drawing any lines."],
+          ["Follow a drawing standard", "Use the firm's template, title block, line types, lettering and projection, so that every drawing reads the same way."],
+          ["Draw accurately", "Use instruments or CAD to construct shapes: parallels, perpendiculars, angles, tangent arcs, hexagons and holes on a pitch circle."],
+          ["Draw orthographic views", "Lay out a front view, plan and end view in first or third angle projection, with hidden detail and centre lines, and an auxiliary view for a sloping face."],
+          ["Draw sections", "Show inside detail with a labelled cutting plane and correct hatching."],
+          ["Dimension and tolerance", "Give every size once, from sensible datums, with tolerances where parts must fit, and clear notes on material and finish."],
+          ["Draw pictorial views and flat patterns", "Add an isometric or oblique view, and draw the development of a folded sheet-metal part with bend allowances."],
+          ["Prepare assembly drawings", "Show how parts go together, with part numbers and a parts list, and list standard parts by their sizes."],
+          ["Use CAD", "Draw full size, use layers, blocks and a template, and print to scale or to PDF."],
+          ["Check, issue and revise", "Check or have the drawing checked, enter it in the register, raise revisions properly and keep the records."]
+        ] } },
+        { "h": "Drawing practice in Jamaica" },
+        { "ul": [
+          "There is no single drawing practice in Jamaica. Firms that follow British and ISO practice draw in millimetres, often in **first angle** projection. Firms that work with North American designers and suppliers often use **third angle** projection and may use inches. Always show the projection symbol and the units.",
+          "Fixings may be metric (M6, M8, M10) or inch sizes (1/4 inch, 3/8 inch), depending on where the equipment was made. Check the maker's data sheet before you draw a hole.",
+          "Many parts are made by small local fabricators and sheet-metal shops. Ask what sheet thicknesses, section sizes and bending tools they have before you finish the drawing.",
+          "Near the sea, state a finish that will last: hot-dip galvanised, stainless steel or a proper paint system. Bare or thinly plated steel rusts quickly in salt air."
+        ] },
+        { "note": "A drawing for making is a legal and practical instruction. If the part is made to your drawing and does not fit, the cost is yours. Plan it, draw it carefully and have it checked.", "label": "Remember" },
+        { "h": "How to use this kit" },
+        { "p": "Read the sections in order with paper, pencil, a scale rule and set squares beside you, and draw each idea as you meet it. Work through every calculation. Then try the practice test and read each explanation. Your instructor will show you the Centre's drawing standard, template and CAD software." }
+      ]
+    },
+    {
+      "title": "Planning the drawing",
+      "blocks": [
+        { "p": "Most bad drawings were started too soon. Ten minutes of planning saves an hour of rubbing out, and saves the cost of a part that does not fit." },
+        { "flow": [
+          "Collect the facts: makers' data, fixing centres, site sizes, loads, the wall or pole type",
+          "Sketch the part by hand and agree the idea with your supervisor",
+          "Decide which views are needed",
+          "Choose the sheet size and the scale",
+          "Choose the datums, the general tolerance, the material and the finish",
+          "Open the firm's template and check its drawing standard",
+          "Draw, dimension, check and issue"
+        ] },
+        { "h": "Collect the facts first" },
+        { "ul": [
+          "The **maker's data sheet** for each item the part carries: overall size, fixing hole centres and sizes, cable entry positions, weight, and the clearance needed to open doors and operate handles.",
+          "The **fixing** to the building: wall type (block, concrete, steel), the anchors or bolts to be used and their hole sizes.",
+          "The **space** on site, and anything nearby: pipes, doors, other equipment.",
+          "Any **requirements** from the specification, the wiring code the Centre uses, or JPS for metering equipment.",
+          "What the **maker of the part** can do: sheet thickness, section sizes, bend radius, hole sizes, finish."
+        ] },
+        { "h": "Sheet sizes" },
+        { "table": { "head": ["Sheet", "Size (mm)", "Notes"], "rows": [
+          ["A4", "210 × 297", "Small parts; fits a file"],
+          ["A3", "297 × 420", "Twice the area of A4; the most useful size for part drawings"],
+          ["A2", "420 × 594", "Twice A3; four times A4"],
+          ["A1", "594 × 841", "Twice A2; building plans and large assemblies"],
+          ["A0", "841 × 1189", "Twice A1; an area of 1 m²"]
+        ] } },
+        { "p": "Each size is half the next one up, folded across its long side, so two A4 sheets side by side make an A3 sheet." },
+        { "h": "Choosing the scale" },
+        { "p": "Use standard scales: **1:1** (full size), reductions **1:2, 1:5, 1:10, 1:20, 1:50**, and enlargements **2:1, 5:1, 10:1**. In a scale, the first number is the drawing and the second is the real part, so 1:5 means the drawing is one-fifth of full size and 5:1 means it is five times full size." },
+        { "p": "**Worked example.** An enclosure 600 mm wide, 800 mm high and 250 mm deep is to be drawn in three views on A3 (420 × 297 mm). After the border and title block there is about 380 × 230 mm of drawing space. Side by side, the front view and end view need 600 + 250 = 850 mm of width, plus gaps for dimensions. At 1:5 that is 170 mm, leaving plenty of room; the height at 1:5 is 800 ÷ 5 = 160 mm, with the plan (250 ÷ 5 = 50 mm) above or below making 210 mm. That is tight, so either leave less space between views, move to A2, or use 1:10. Decide this **before** you draw a line." },
+        { "p": "A small feature that would be too small to read, such as a 6 mm hole on a 1:5 drawing, is shown again in a **detail view** at a larger scale, labelled with a letter and its own scale (for example 'DETAIL B, 2:1')." },
+        { "h": "The title block" },
+        { "table": { "head": ["In the title block", "Why"], "rows": [
+          ["Title, drawing number, sheet number", "Identifies the drawing in the register and on orders"],
+          ["Revision and date", "Shows which version this is"],
+          ["Scale and projection symbol", "How to read the views; detail views carry their own scale beside them"],
+          ["Units and general tolerance", "For example 'All dimensions in mm. General tolerance ±0.5 unless stated'"],
+          ["Material and finish", "For example 'Mild steel, 3 mm, hot-dip galvanised after fabrication'"],
+          ["Drawn by, checked by, approved by, with dates", "Who is responsible, and proof that it was checked"],
+          ["Firm, job and client", "Where the drawing belongs"]
+        ] } },
+        { "note": "One drawing standard for the whole firm means anyone trained can read any of its drawings the same way. Agree the standard (for example the ISO technical drawing standards, or the North American ones), put it in the template and keep to it.", "label": "Tip" }
+      ]
+    },
+    {
+      "title": "Equipment, lines and lettering",
+      "blocks": [
+        { "h": "Drawing by hand" },
+        { "table": { "head": ["Equipment", "Use"], "rows": [
+          ["Drawing board with T-square or parallel motion", "Horizontal lines, and a base for the set squares"],
+          ["Set squares: 45° and 30°/60°", "Vertical lines and standard angles; together they give 15° and 75°"],
+          ["Compass and dividers", "Circles and arcs; stepping off equal distances"],
+          ["Scale rule", "Measuring at 1:1, 1:2, 1:5, 1:10, 1:20, 1:50 without calculating"],
+          ["Pencils: 2H for construction and thin lines, HB for outlines and lettering (or 0.3 mm and 0.5–0.7 mm leads)", "Two clearly different line thicknesses"],
+          ["Eraser, erasing shield, circle and ellipse templates, protractor", "Clean corrections; small circles; ellipses on isometric views"]
+        ] } },
+        { "h": "Types of line" },
+        { "p": "Lines are a language. Use only two thicknesses, with the thick line about twice the thin one (for example 0.5 mm and 0.25 mm), and keep each type consistent." },
+        { "table": { "head": ["Line", "Looks like", "Used for"], "rows": [
+          ["Continuous thick", "A solid, bold line", "Visible outlines and edges"],
+          ["Continuous thin", "A solid, fine line", "Dimension lines, extension lines, leader lines, hatching, the roots of threads"],
+          ["Dashed thin", "Short, even dashes", "Hidden edges and outlines"],
+          ["Chain thin (long dash, short dash)", "Long and short dashes in turn", "Centre lines of holes and round parts; lines of symmetry; pitch circles"],
+          ["Chain thin, thick at the ends and at changes of direction", "A chain line with bold ends, arrows and letters", "Cutting planes for sections, labelled A–A"],
+          ["Chain thin with two short dashes (phantom line)", "Long dash, two short dashes", "A part in another position, such as a door shown open; adjacent parts"],
+          ["Continuous thin, wavy or with zigzags", "An irregular or zigzag line", "The limit of a broken or part view"]
+        ] } },
+        { "h": "When lines fall on top of each other" },
+        { "p": "Only one can be drawn. The order of importance is: **visible outline first, then hidden line, then centre line**. A visible edge that coincides with a hidden edge is drawn as a thick solid line; a hidden edge that coincides with a centre line is drawn dashed." },
+        { "h": "Lettering" },
+        { "ul": [
+          "Use plain capital letters, upright, with no joined writing.",
+          "Dimensions and notes are usually about 3.5 mm high; titles and drawing numbers 5 or 7 mm.",
+          "Write notes horizontally where you can, and keep them together near the title block.",
+          "In CAD, the text styles and heights are set in the template so that they print at the right size."
+        ] },
+        { "note": "Draw lightly first. Lay out all the views as faint construction lines with the 2H pencil, check that they fit and line up, and only then line in the outlines with the HB.", "label": "Tip" }
+      ]
+    },
+    {
+      "title": "Geometric construction",
+      "blocks": [
+        { "p": "Accurate drawings are built from a few constructions. In CAD the software does them for you, but you must still know what to ask for." },
+        { "table": { "head": ["Construction", "How"], "rows": [
+          ["Perpendicular and parallel lines", "Slide a set square along the T-square or along another set square"],
+          ["Bisect a line", "With the compass set to more than half the line, strike arcs from each end above and below; join the crossings"],
+          ["Bisect an angle", "Strike an arc from the corner across both arms; from those two points strike equal arcs that cross; join the corner to the crossing"],
+          ["Divide a line into equal parts", "Draw a second line at an angle from one end, step off equal divisions along it, join the last to the end of the first line and draw parallels"],
+          ["Regular hexagon", "Draw a circle and step the radius round it six times; or use the 30°/60° set square against the across-flats size"],
+          ["Arc tangent to two lines (a rounded corner)", "Draw lines parallel to each side, one radius in; where they cross is the centre of the arc"],
+          ["Holes on a pitch circle", "Draw the pitch circle as a thin chain line and space the hole centres at 360° ÷ the number of holes"]
+        ] } },
+        { "h": "Useful figures" },
+        { "ul": [
+          "**Hexagon nuts and bolt heads** are sized across flats (A/F), the spanner size. Across corners is about 1.155 × across flats: a 17 mm A/F nut is about 19.6 mm across corners, so allow room for it and for the spanner.",
+          "**Holes on a pitch circle diameter (PCD)**: 4 holes are 90° apart, 6 holes 60°, 8 holes 45°.",
+          "**Equally spaced holes in a row**: the number of gaps is one less than the number of holes. Five holes over 200 mm between the first and last centres are 200 ÷ 4 = 50 mm apart.",
+          "**Circle**: circumference = π × diameter (π is about 3.142). A 100 mm diameter cover has a rim about 314 mm round."
+        ] },
+        { "note": "A tangent arc must flow into the straight line with no step or kink. The join (the tangent point) lies on the line from the arc's centre at right angles to the straight.", "label": "Tip" }
+      ]
+    },
+    {
+      "title": "Orthographic and auxiliary views",
+      "blocks": [
+        { "p": "An orthographic drawing shows a part in separate flat views, each seen square-on: usually a **front view**, a **plan** (top view) and an **end view**. Each view shows two of the three sizes: the front view gives width and height, the plan gives width and depth, and the end view gives depth and height. The views are lined up so that sizes project from one to the next." },
+        { "h": "First angle and third angle projection" },
+        { "table": { "head": ["Point", "First angle", "Third angle"], "rows": [
+          ["Used mainly in", "British, European and ISO practice", "North American practice"],
+          ["Plan (view from above)", "Drawn **below** the front view", "Drawn **above** the front view"],
+          ["View from the left", "Drawn on the **right** of the front view", "Drawn on the **left** of the front view"],
+          ["Rule", "Each view is placed on the far side from where you look", "Each view is placed on the side you look from"],
+          ["Symbol (a cone drawn in two views)", "The two circles are to the right of the cone's side view", "The two circles are to the left of the cone's side view"]
+        ] } },
+        { "p": "Both are correct, but mixing them up makes a part come out mirror-imaged. Put the **projection symbol** in the title block of every drawing. If you receive a drawing with no symbol, ask before anything is made." },
+        { "h": "Choosing the views" },
+        { "ul": [
+          "Choose as the **front view** the face that shows most about the part: its main shape, in the position it is used.",
+          "Add only the views that give new information. A flat plate of even thickness needs **one view** and a note of the thickness. A simple bracket may need two; an enclosure needs three or more.",
+          "Choose views that keep hidden lines few. If the underside matters, draw a view from below or a section; do not leave the reader to untangle dashes.",
+          "Keep the views in line and leave room between them for dimensions.",
+          "If the plan is wider than the front view when both show the same width, one of them is wrong: views must agree."
+        ] },
+        { "h": "Hidden detail and centre lines" },
+        { "p": "Edges you cannot see from a view are drawn as thin dashed lines. Every hole and round part gets a centre line: a thin chain line through its centre, crossing at the centre in the view where it shows as a circle and running along its axis in the other views. Centre lines extend a little past the outline." },
+        { "h": "Auxiliary views" },
+        { "p": "A face that slopes away from all three normal views appears shortened in every one of them, and a round hole in it appears as an ellipse. An **auxiliary view** is drawn looking square onto the sloping face, projected at right angles from the view in which that face appears as a line (edge-on). It shows the face at its **true shape**, so its holes can be drawn round and dimensioned properly. Draw only the sloping face in the auxiliary view; the rest of the part would only be distorted." }
+      ]
+    },
+    {
+      "title": "Sectional views",
+      "blocks": [
+        { "p": "When a part has detail inside, such as stepped holes, slots, inserts or a seal groove, hidden lines cross each other and become hard to read. A **section** shows the part as if it were cut through and the front piece taken away." },
+        { "h": "Rules" },
+        { "ul": [
+          "Show where the cut is made with a **cutting-plane line** on another view: a thin chain line, thick at its ends and at any change of direction, with arrows showing which way you look and a letter at each end (A–A).",
+          "Label the section with the same letters: 'SECTION A–A'.",
+          "**Hatch** the cut faces with thin lines, usually at 45° and evenly spaced. The same part is hatched the same way wherever it appears.",
+          "Where two cut parts touch, hatch them in opposite directions or with a different spacing, so that each can be told apart.",
+          "Very thin parts, such as gaskets and sheet metal at a small scale, are **filled in solid**, with a small gap between neighbouring thin parts.",
+          "**Not hatched**, even when the cutting plane passes along them: bolts, screws, nuts, washers, rivets, pins, shafts and thin ribs or webs. They are shown in outline.",
+          "Hidden lines are normally left out of a section."
+        ] },
+        { "h": "Types of section" },
+        { "table": { "head": ["Type", "What it is", "Good for"], "rows": [
+          ["Full section", "The cut goes right through the part", "Most parts with inside detail"],
+          ["Half section", "Half the view is in section, the other half an outside view, split at the centre line", "Symmetrical parts, such as a round junction box"],
+          ["Offset section", "The cutting plane steps sideways to pass through features that are not in line", "Plates with holes in different rows"],
+          ["Part (local) section", "A small area is broken away, bounded by an irregular thin line", "One hole or one detail"],
+          ["Revolved section", "The cross-section is turned through 90° and drawn on the view", "The shape of an arm, bar or channel"],
+          ["Removed section", "The cross-section is drawn away from the view, with a label", "The same, where there is no room on the view"]
+        ] } },
+        { "note": "Use a section when it makes the drawing easier to read, not as decoration. One or two simple hidden holes are fine as dashed lines.", "label": "Tip" }
+      ]
+    },
+    {
+      "title": "Dimensions, tolerances, threads and notes",
+      "blocks": [
+        { "h": "Rules for dimensioning" },
+        { "ul": [
+          "Give **every size needed to make the part, once only**. A size shown twice can end up as two different figures after a change.",
+          "Put each dimension on the view that shows the feature most clearly, and outside the outline where you can.",
+          "Dimension lines and extension lines are thin. Extension lines start just clear of the outline and run a little past the dimension line. Arrowheads are slim and touch the extension lines.",
+          "Place smaller dimensions nearer the part and larger ones outside them, so that lines do not cross.",
+          "Do not dimension to hidden lines. Do not use an outline or a centre line as a dimension line.",
+          "Dimension circles by diameter (Ø) and arcs by radius (R). Locate holes by their centres.",
+          "On a millimetre drawing, write the figures without 'mm' and say 'All dimensions in mm' once.",
+          "Give overall sizes, so that the maker can choose the material without adding up."
+        ] },
+        { "h": "Chain and datum dimensioning" },
+        { "table": { "head": ["Method", "How", "Effect"], "rows": [
+          ["Chain", "Each feature is dimensioned from the one before", "Quick to read when the gap between neighbours matters most, but every size has its own tolerance and the errors add up along the chain"],
+          ["Datum (baseline)", "Every feature is dimensioned from one edge or hole chosen as the datum", "Each position has only its own error; the maker marks out or sets the machine from one edge. Best where positions must match another part"],
+          ["Combined", "Datum dimensions for positions, with a chain size only where one spacing matters by itself", "Common in practice"]
+        ] } },
+        { "p": "**Worked example.** Five holes in a row are chain dimensioned, each pitch 50 ± 0.3 mm. The last hole is four pitches from the first, so it could be up to 4 × 0.3 = 1.2 mm out. Dimensioned from a datum, each ± 0.3 mm, no hole is more than 0.3 mm out." },
+        { "p": "Choose as the **datum** the edge or hole that locates the part in use, for example the edge of a mounting plate that sits against the enclosure's back, or the first fixing hole." },
+        { "h": "Abbreviations and symbols" },
+        { "table": { "head": ["On the drawing", "Meaning"], "rows": [
+          ["Ø", "Diameter"],
+          ["R", "Radius"],
+          ["SQ or a small square", "Square"],
+          ["A/F", "Across flats (of a hexagon)"],
+          ["PCD", "Pitch circle diameter"],
+          ["CRS or CTRS", "Centres"],
+          ["EQ SP", "Equally spaced"],
+          ["THRU", "Right through the material"],
+          ["CSK", "Countersunk"],
+          ["TYP", "Typical: applies to all similar features"],
+          ["THK", "Thick"],
+          ["4 × Ø6.5 or 4 HOLES Ø6.5", "Four holes of that size"],
+          ["M8 × 1.25", "Metric thread, 8 mm diameter, 1.25 mm pitch"],
+          ["NTS", "Not to scale"]
+        ] } },
+        { "h": "Tolerances" },
+        { "p": "Nothing can be made to an exact size. A **tolerance** is the amount a size may vary and still be accepted: the difference between the largest and smallest sizes allowed (the **limits**)." },
+        { "table": { "head": ["Written as", "Limits", "Tolerance"], "rows": [
+          ["100 ± 0.2", "99.8 to 100.2", "0.4"],
+          ["12 ± 0.3", "11.7 to 12.3", "0.6"],
+          ["10 +0.1 / 0 (one-sided)", "10.0 to 10.1", "0.1"],
+          ["25.0 / 24.8 (limits given)", "24.8 to 25.0", "0.2"],
+          ["120, with 'General tolerance ±0.5' in the title block", "119.5 to 120.5", "1.0"]
+        ] } },
+        { "ul": [
+          "Give tighter tolerances only on sizes that affect **fit**: hole centres that must match a device, cut-outs for instruments and lamps, seal faces, slots for DIN rail.",
+          "Leave other sizes, such as the overall length of a simple bracket, to the general tolerance.",
+          "Tight tolerances cost money: slower work, better machines and more inspection. A tolerance tighter than the maker's tools can hold will simply not be met.",
+          "A one-sided tolerance suits a hole that a bolt or gland must enter: it may be a little large but never small."
+        ] },
+        { "h": "Threads and fixings" },
+        { "p": "Threads are not drawn turn by turn. An **external thread** (a bolt) is drawn with a thick line for its outside diameter and a thin line for the root. A **tapped hole** seen from the end is drawn as a thick full circle for the drilled hole, with a thin circle outside it broken for about a quarter of the way round (a three-quarter circle) for the thread." },
+        { "table": { "head": ["Thread", "Usual coarse pitch", "Tapping drill", "Clearance hole (normal fit)"], "rows": [
+          ["M5", "0.8 mm", "4.2 mm", "5.5 mm"],
+          ["M6", "1.0 mm", "5.0 mm", "6.6 mm"],
+          ["M8", "1.25 mm", "6.8 mm", "9 mm"],
+          ["M10", "1.5 mm", "8.5 mm", "11 mm"],
+          ["M12", "1.75 mm", "10.2 mm", "13.5 mm"]
+        ] } },
+        { "p": "A **tapping drill** is smaller than the thread, because the tap cuts the thread into the hole. A **clearance hole** is larger, so that the bolt passes freely and small errors in position can be taken up. Confirm figures from the fastener and device makers' data, and check gland entries against the gland maker's hole size and the wall thickness it can clamp." },
+        { "h": "Standard parts" },
+        { "p": "Screws, nuts, washers, DIN rail, strut channel and glands are bought in by their standard sizes. Draw them in simple outline and list them in the parts list with their description and standard size (for example 'Hex screw M8 × 25, zinc plated'). They do not need a detail drawing." },
+        { "h": "Notes on material and finish" },
+        { "ul": [
+          "**Material and thickness**: 'Mild steel plate 5 THK'; 'Copper bar 40 × 6, tinned' (width × thickness).",
+          "**Finish**: 'Hot-dip galvanise after fabrication'; 'Powder coat grey'; state it, or the part arrives bare.",
+          "**Edges**: 'Remove all sharp edges and burrs'. Sharp edges cut hands and cable sheaths, and a burr on a busbar joint stops the faces meeting.",
+          "**Bends**: inside bend radius and direction.",
+          "**Quantity**: how many to make, and any handing (left-hand and right-hand versions)."
+        ] }
+      ]
+    },
+    {
+      "title": "Pictorial views and flat patterns",
+      "blocks": [
+        { "h": "Isometric views" },
+        { "p": "An isometric view shows three faces of a part in one picture. Vertical edges stay vertical, and the two horizontal directions are drawn at **30°** to the horizontal, using the 30°/60° set square. Lengths along these three directions (the isometric axes) are drawn to scale; lines that are not parallel to an axis are found by plotting their ends and are not true length." },
+        { "ul": [
+          "A circle on any face becomes an **ellipse**. By hand, draw the square that would contain the circle as an isometric rhombus and fit the ellipse inside it with four compass arcs (the four-centre method), or use an ellipse template.",
+          "Hidden lines are usually left out.",
+          "An isometric view helps a welder or fitter picture the part quickly. It supports the orthographic views; it does not replace them or their dimensions."
+        ] },
+        { "h": "Oblique views" },
+        { "p": "In an oblique view the **front face is drawn at its true shape**, flat on the paper, and the depth lines run back at an angle, usually 45°. If the depth is drawn full length it is a *cavalier* oblique and looks too deep; drawn at half length it is a *cabinet* oblique and looks more natural. Oblique is quick for parts with circles or detail on the front face, because those circles stay circles." },
+        { "h": "Exploded views" },
+        { "p": "An exploded view is a pictorial view with the parts pulled apart along their centre lines, in the order they go together. It is used on assembly drawings and in instructions." },
+        { "h": "Developments (flat patterns)" },
+        { "p": "A folded sheet-metal part, such as a cover, a rain hood or a gland plate with turned edges, is cut flat and then bent. The **development**, or flat pattern, is the drawing of that flat shape." },
+        { "flow": [
+          "Start from the finished sizes and the sheet thickness",
+          "Draw the main face",
+          "Unfold each side outward from it, so the whole part lies flat",
+          "Apply the bend allowance or bend deduction at every fold",
+          "Add relief notches at the corners",
+          "Mark each fold line with its direction and angle",
+          "Dimension the overall blank size and the holes from a datum"
+        ] },
+        { "h": "Why a bend allowance is needed" },
+        { "p": "At a bend the metal on the outside stretches and the metal on the inside is squeezed. Somewhere in between, a layer (the neutral layer) keeps its length. So the flat length is **not** the sum of the outside sizes: that would make the part too big. The sheet-metal shop gives a **bend deduction** (or bend allowance) for each thickness, bend radius and tool." },
+        { "p": "**Worked example.** An angle is to measure 50 mm and 30 mm on the outside, in 2 mm steel with a 2 mm inside radius. The shop's chart gives a bend deduction of 3.6 mm for this 90° bend. Flat length = 50 + 30 − 3.6 = **76.4 mm**. Cutting at 80 mm would leave the legs too long. With two bends, take off two deductions." },
+        { "p": "Where no chart is available, the length of the bend itself can be estimated as 1.57 × (inside radius + about 0.4 × thickness) for a 90° bend, added to the two straight lengths measured up to the start of the bend. Here the straights are 50 − 4 = 46 mm and 30 − 4 = 26 mm, and the bend is 1.57 × (2 + 0.8) = 4.4 mm, giving 46 + 26 + 4.4 = 76.4 mm. Always use the maker's own figures when you can get them." },
+        { "h": "What the flat pattern drawing must show" },
+        { "ul": [
+          "Material, thickness and finish",
+          "The overall blank size for cutting",
+          "Fold lines, drawn thin, each marked with direction and angle, for example 'UP 90°' or 'DOWN 90°', and the inside bend radius",
+          "Relief notches at corners, so that the sides fold without tearing, bulging or overlapping",
+          "Holes and knockouts, positioned from a datum in the flat",
+          "A small view of the folded part, so the maker can see what it becomes",
+          "The tolerance, and 'remove all sharp edges'"
+        ] }
+      ]
+    },
+    {
+      "title": "Assembly drawings, CAD and issuing drawings",
+      "blocks": [
+        { "h": "Detail drawings and assembly drawings" },
+        { "table": { "head": ["Point", "Detail drawing", "Assembly drawing"], "rows": [
+          ["Shows", "One part by itself", "How all the parts go together"],
+          ["Sizes", "Every size, tolerance, hole, bend, material and finish needed to make it", "Overall sizes, fixing centres and sizes needed to put it together"],
+          ["Used by", "The person making the part", "The fitter or installer, and whoever orders the parts"],
+          ["Also carries", "Its own drawing number, quantity and material", "Part numbers in circles (balloons) on leader lines, a parts list, assembly notes such as tightening torques, and often an exploded view"]
+        ] } },
+        { "h": "The parts list" },
+        { "table": { "head": ["Item", "Description", "Qty", "Material or standard size", "Drawing no."], "rows": [
+          ["1", "Back plate", "1", "Mild steel 3 THK, galvanised", "J118-02"],
+          ["2", "Support angle", "2", "Mild steel angle 40 × 40 × 5", "J118-03"],
+          ["3", "Hex screw M8 × 25 with nut and washers", "4", "Zinc plated", "Bought in"]
+        ] } },
+        { "p": "Each balloon number on the assembly matches an item in the list. Quantities are **per assembly**; say on the drawing how many assemblies are needed." },
+        { "h": "Working in CAD" },
+        { "ul": [
+          "**Draw full size (1:1) in the model.** Set the scale only in the sheet **layout** (paper space), where the model is shown inside the border and title block at a chosen scale. Sizes then measure true whatever the print scale. If you draw the part smaller to 'fit the screen', every dimension will read wrong.",
+          "**Template**: one firm-wide template with the border, title block, text and dimension styles, line types and layers already set, so that all drawings look and behave alike.",
+          "**Layers**: separate named layers for outlines, hidden lines, centre lines, dimensions, text and hatching, each with its own line type, colour and print thickness. Layers can be shown or hidden.",
+          "**Blocks**: a saved group of lines, such as a standard isolator outline, a title block or a screw head, placed many times as one item. Change the block's definition and every copy updates.",
+          "**Object snaps and typed sizes**: draw by snapping to ends, midpoints and centres and typing exact lengths; never judge by eye.",
+          "**File names**: a rule that includes the job number, drawing number and revision, for example 'J118-02-B'. Names such as 'bracket final 2' tell nobody which is current.",
+          "**Storage**: one shared, backed-up folder; superseded revisions kept in an archive folder, not deleted.",
+          "**Sending out**: issue a **PDF** for viewing, printing and making, because it keeps the sheet exactly as drawn on any computer. Send the CAD file (DWG or DXF) as well only when the receiver needs to work on it or cut from it."
+        ] },
+        { "note": "After printing, check the scale: measure a known dimension on the paper with a scale rule. 'Fit to page' printing changes the scale without warning.", "label": "Tip" },
+        { "h": "Checking before issue" },
+        { "p": "The person who made a drawing sees what they meant to draw. A **second competent person** checks it before it is issued." },
+        { "table": { "head": ["Check", "Look for"], "rows": [
+          ["Title block", "Title, number, revision, scale, projection symbol, units, general tolerance, material, finish, names and dates"],
+          ["Views", "Correct projection, views in line and agreeing with each other, correct line types"],
+          ["Dimensions", "Every size needed is there, once only, from sensible datums; the parts add up to the overall sizes"],
+          ["Fit", "Hole sizes and centres against the makers' data; tolerances where parts must fit"],
+          ["Notes", "Thickness, bends, finish, 'remove sharp edges', quantity"],
+          ["Makeability", "Can the workshop cut, bend, drill and finish it with the tools it has?"]
+        ] } },
+        { "p": "The checker marks faults in red and returns the drawing; the drafter corrects it; the checker signs only when it is right. If a colleague keeps making the same mistake, go through the checklist with them rather than quietly fixing it each time." },
+        { "h": "Issuing, revising and keeping drawings" },
+        { "flow": [
+          "Drawn and self-checked",
+          "Checked and signed by a second person",
+          "Approved and entered in the drawing register",
+          "Issued, with a record of who received it",
+          "A change is needed: raise the revision letter, cloud the change, fill in the revision table",
+          "Re-check, re-issue, and mark the old revision superseded"
+        ] },
+        { "ul": [
+          "Never change an issued drawing without raising its revision, and never rub out the old detail and say nothing: someone is holding the old version.",
+          "The **revision table** records the letter, the date, what changed and who approved it.",
+          "Keep the original files and every revision after the job ends. They are needed for spare parts, later changes, disputes and the client's records."
+        ] }
+      ]
+    },
+    {
+      "title": "Revision",
+      "blocks": [
+        { "h": "Checklist" },
+        { "p": "Tick each statement only when you can do it without looking at the notes." },
+        { "ul": [
+          "I can plan a drawing: collect the data, sketch it, and choose the views, sheet, scale and datums.",
+          "I can choose a scale so that the views fit the sheet, and say what 1:5 and 5:1 mean.",
+          "I can name the A sheet sizes and what belongs in a title block.",
+          "I can draw and name the line types, and say which line wins when two coincide.",
+          "I can construct perpendiculars, bisectors, tangent arcs, hexagons and equally spaced holes.",
+          "I can lay out views in first and third angle projection and add the right symbol.",
+          "I can decide how many views a part needs, and when an auxiliary view is needed.",
+          "I can draw a section with a labelled cutting plane and correct hatching, and name the parts that are not hatched.",
+          "I can dimension a part once only from datums, and explain why chain dimensions add up errors.",
+          "I can work out the limits of a toleranced size and decide where tight tolerances are needed.",
+          "I can show threads and choose tapping and clearance hole sizes from a table.",
+          "I can draw isometric and oblique views.",
+          "I can draw a flat pattern with bend deductions, relief notches and fold notes.",
+          "I can prepare an assembly drawing with balloons and a parts list.",
+          "I can set up and use CAD properly: full-size model, layout, layers, blocks, template, file names and PDF.",
+          "I can check a drawing against a checklist, and issue, revise and record drawings."
+        ] },
+        { "h": "Numbers to remember" },
+        { "table": { "head": ["Figure", "What it is"], "rows": [
+          ["A4 210 × 297; A3 297 × 420", "Sheet sizes in mm; each size is twice the area of the one below"],
+          ["30°", "Angle of the receding axes in an isometric view"],
+          ["45°, half length", "Usual angle and depth scale of a cabinet oblique view"],
+          ["45°", "Usual angle of hatching"],
+          ["Across corners ≈ 1.155 × across flats", "Hexagon nuts and bolt heads"],
+          ["M6: 5.0 tapping, 6.6 clearance; M8: 6.8, 9; M10: 8.5, 11", "Hole sizes in mm (confirm with the maker)"],
+          ["Gaps = holes − 1", "Equally spaced holes in a row"]
+        ] } },
+        { "h": "Key terms" },
+        { "terms": [
+          ["Assembly drawing", "A drawing showing how parts fit together, with part numbers and a parts list."],
+          ["Auxiliary view", "An extra view looking square onto a sloping face, showing it at its true shape."],
+          ["Balloon", "A circle with a part number on a leader line, linking a part on an assembly drawing to the parts list."],
+          ["Bend deduction", "The amount taken off the sum of a folded part's outside sizes to get its flat length."],
+          ["Block", "In CAD, a saved group of lines placed in drawings as a single item."],
+          ["Centre line", "A thin chain line marking the centre of a hole or a line of symmetry."],
+          ["Clearance hole", "A hole slightly larger than a bolt, so that the bolt passes freely."],
+          ["Cutting plane", "The line on a view that shows where a section is cut and which way it is viewed."],
+          ["Datum", "The edge, face or hole from which dimensions are taken."],
+          ["Detail drawing", "A drawing of one part with everything needed to make it."],
+          ["Development (flat pattern)", "The flat shape from which a folded sheet-metal part is cut."],
+          ["First angle projection", "A way of arranging views in which the plan is below the front view."],
+          ["General tolerance", "The tolerance in the title block that applies to every size with no tolerance of its own."],
+          ["Hatching", "Thin parallel lines that mark the material cut through in a section."],
+          ["Isometric view", "A pictorial view with vertical lines upright and the other two directions at 30°."],
+          ["Layer", "In CAD, a named group of objects with its own line type and colour that can be shown or hidden."],
+          ["Layout (paper space)", "In CAD, the sheet set-up where the model is shown at a set scale inside the border, ready to print."],
+          ["Limits", "The largest and smallest sizes allowed for a dimension."],
+          ["Oblique view", "A pictorial view with the front face at true shape and the depth drawn back at an angle."],
+          ["Orthographic projection", "Showing a part in separate, lined-up flat views, each seen square-on."],
+          ["Parts list", "The table on an assembly drawing giving each part's number, description, quantity and material or size."],
+          ["Phantom line", "A thin chain line with two short dashes, showing a part in another position."],
+          ["Pitch circle diameter (PCD)", "The diameter of the circle on which a ring of holes is centred."],
+          ["Relief notch", "A small cut at the corner of a flat pattern that lets the sides fold cleanly."],
+          ["Section", "A view of a part as if cut through, to show inside detail."],
+          ["Tapping drill", "The drill size for a hole that is to be threaded with a tap."],
+          ["Third angle projection", "A way of arranging views in which the plan is above the front view."],
+          ["Tolerance", "The total amount a size may vary: the difference between its limits."]
+        ] }
+      ]
+    }
+  ],
+  "cases": {
+    "c1": { "title": "An earth bar for a health centre in Annotto Bay", "text": "Shamar Ellis is drawing the main earth bar for a new health centre in Annotto Bay, St Mary. The bar is tinned copper, 400 mm long, 50 mm wide and 6 mm thick. It has eight holes in one row for M8 bolts, equally spaced, with 280 mm between the centres of the first and last holes. The bolt holes are marked Ø9 +0.2/0. The bar must line up with stand-off insulators already fixed in the switch room." },
+    "c2": { "title": "A rain hood for an outdoor isolator in Junction", "text": "At a farm shop in Junction, St Elizabeth, the isolator for an irrigation pump is mounted outdoors. Tanisha Bryan must draw a rain hood for it in 1.2 mm galvanised steel: a flat top 200 mm from front to back, with a 25 mm front lip and two side flanges, all folded down at 90°. A sheet-metal shop in Santa Cruz will cut the blank and fold it. Its chart gives a bend deduction of 2 mm for each 90° bend in this sheet." },
+    "c3": { "title": "Moving to CAD at a contractor in Montego Bay", "text": "A small electrical contractor in Montego Bay, St James, is moving its drawing work onto CAD, and team leader Jason Grant has been asked to set the rules. At present each person draws at whatever scale suits the screen, and files have names such as 'bracket final 2' and 'bracket final FINAL'. The firm's standard isolator outline is redrawn from scratch on every job." },
+    "c4": { "title": "Checking a streetlight bracket drawing in Bath", "text": "Romario Hylton, a junior drafter, has drawn a steel bracket to carry a streetlight on a pole at a housing scheme in Bath, St Thomas. The bracket's arm rises at 15° from the horizontal, and the lamp fits a round hole in the arm's top face. You are checking the drawing. Romario says it is in third angle projection, but there is no symbol. The round hole looks oval in his plan, and the gusset plate is shown with many crossing dashed lines." },
+    "c5": { "title": "Cable-ladder hangers for a laboratory in Mona", "text": "Tamika Reid is preparing the drawings for 40 trapeze hangers to carry cable ladder in a new laboratory building in Mona, St Andrew. Each hanger has two lengths of M10 threaded rod, each 1.2 m long, a 600 mm length of strut channel, and channel nuts, hex nuts and washers. The rod is bought in 3 m lengths. The strut is cut to length in the workshop, and installers assemble the hangers on site." }
+  },
+  "questions": [
+    { "id": "P-01", "c": "c1", "q": "What is the pitch (centre-to-centre spacing) of the eight bolt holes?", "o": ["50 mm", "35 mm", "40 mm", "46.7 mm"], "a": 2, "why": "Eight holes have seven gaps between them, so the pitch is 280 ÷ 7 = 40 mm. Dividing by the number of holes (280 ÷ 8 = 35 mm) is the usual mistake: gaps are always one fewer than holes." },
+    { "id": "P-02", "c": "c1", "q": "The fabricator measures four of the bolt holes. Which one is within the drawing's limits?", "o": ["8.9 mm", "9.15 mm", "9.25 mm", "8.95 mm"], "a": 1, "why": "Ø9 +0.2/0 is a one-sided tolerance: the hole may be from 9.0 to 9.2 mm, never smaller than 9.0. Only 9.15 mm lies inside those limits. One-sided tolerances suit holes that a bolt must always enter." },
+    { "id": "P-03", "c": "c1", "q": "Suppose Shamar chain dimensioned the holes, each pitch ± 0.2 mm. How far out could the eighth hole be, measured from the first?", "o": ["0.2 mm", "1.4 mm", "0.8 mm", "1.6 mm"], "a": 1, "why": "There are seven pitches between the first and eighth holes, and in a chain the errors can add: 7 × 0.2 = 1.4 mm. Dimensioned from one datum, each hole could be only 0.2 mm out, which is why datum dimensioning suits parts that must match existing fixings." },
+    { "id": "P-04", "c": "c1", "q": "Why are the holes for the M8 bolts drawn as Ø9?", "o": ["So that the holes can be tapped M8", "Because copper closes up after drilling", "So that the bolts pass through freely", "So that M10 bolts can be used later"], "a": 2, "why": "A clearance hole is a little larger than the bolt, so the bolt enters freely and small errors in position are taken up; 9 mm is the normal clearance size for M8. A hole to be tapped M8 would be drilled smaller, at 6.8 mm." },
+    { "id": "P-05", "c": "c2", "q": "What flat length does the blank need from the back edge of the top to the bottom edge of the front lip?", "o": ["225 mm", "223 mm", "227 mm", "221 mm"], "a": 1, "why": "Add the outside sizes and take off one bend deduction for the one bend between them: 200 + 25 − 2 = 223 mm. Simply adding the outside sizes (225 mm) makes the part too big, because the metal stretches round the bend." },
+    { "id": "P-06", "c": "c2", "q": "Why must Tanisha show small relief notches where the side flanges meet the front lip?", "o": ["So the corners fold without tearing or bulging", "So the shop can hold the blank in its guillotine", "So rainwater can drain out through the corners", "So the hood weighs less on the isolator's fixings"], "a": 0, "why": "At a corner where two folds meet, the metal has nowhere to go. A relief notch removes that material so that both sides fold cleanly without tearing, bulging or overlapping." },
+    { "id": "P-07", "c": "c2", "q": "How should the folds be shown on the flat pattern?", "o": ["Thick lines, like the visible outline of the blank", "No lines: the shop decides where it will fold", "Thin lines, each marked with direction and angle", "Dashed lines, since the folds are underneath"], "a": 2, "why": "Fold lines are thin lines on the flat pattern, each with a note such as 'DOWN 90°' and the inside bend radius. Thick lines would be read as cut edges, and leaving the folds off leaves the shop guessing." },
+    { "id": "P-08", "c": "c3", "q": "A drafter draws a 600 mm bracket 120 mm long in the model so that it 'fits the screen', then adds dimensions. What will go wrong?", "o": ["The file will be too large to send out by e-mail", "The dimensions will read one-fifth of true size", "The title block will print five times too large", "The layers will be lost when the sheet is printed"], "a": 1, "why": "CAD dimensions measure what is drawn. A part drawn at one-fifth size is dimensioned at one-fifth size, unless every figure is faked. Draw full size in the model and set the scale in the sheet layout." },
+    { "id": "P-09", "c": "c3", "q": "Which file-naming rule should Jason choose?", "o": ["Job number, drawing number and revision letter", "The drafter's initials and the date the file was started", "Any name, provided the files are kept in one folder", "A short description, with 'final' added when it is issued"], "a": 0, "why": "A name built from the job number, drawing number and revision, such as J118-02-B, tells everyone exactly which drawing and version a file is, and matches the drawing register. Words like 'final' say nothing once there is a second change." },
+    { "id": "P-10", "c": "c3", "q": "Jason saves the standard isolator outline as a block. What is the main gain?", "o": ["It makes the outline full size whatever scale is printed", "It is drawn once, and every copy updates together", "It cannot be seen by the fabricator when the file is sent", "It prints in a thicker line than the rest of the drawing"], "a": 1, "why": "A block is a saved group of lines placed as one item. It saves redrawing, keeps every drawing consistent and, if the block's definition is corrected, every copy of it in the drawing updates." },
+    { "id": "P-11", "c": "c4", "q": "The drawing is in third angle projection. Which symbol should Romario add to the title block?", "o": ["A north arrow pointing to the top of the sheet", "The cone's two circles drawn to the right of its side view", "A small section arrow marked with the number 3", "The cone's two circles drawn to the left of its side view"], "a": 3, "why": "The projection symbol is a truncated cone in two views. In third angle each view sits on the side it is seen from, so the end view (two circles) is to the left of the side view; in first angle it is to the right. Without the symbol the part could be made mirror-imaged." },
+    { "id": "P-12", "c": "c4", "q": "Why does the round lamp hole look oval in the plan, and what should be added?", "o": ["The hole was drilled at an angle; add a note to say so", "Circles are always oval in plans; add an isometric view", "The plan is at the wrong scale; redraw it at 1:1", "The arm slopes; add an auxiliary view of that face"], "a": 3, "why": "The arm's top face slopes at 15°, so the plan sees the hole at an angle and it appears as an ellipse. An auxiliary view looking square onto the sloping face shows the hole round and at its true size, where it can be dimensioned." },
+    { "id": "P-13", "c": "c4", "q": "How could the gusset plate's detail be made easier to read?", "o": ["Replace the hidden lines with a section view", "Remove the gusset from the drawing altogether", "Describe the gusset in a note without drawing it", "Draw the dashed lines thicker so they stand out"], "a": 0, "why": "When hidden lines cross and tangle, a section through the detail shows it clearly with solid outlines and hatching. Thicker dashes would be mistaken for outlines, and a part cannot be made from a note alone." },
+    { "id": "P-14", "c": "c4", "q": "In the front view, a hidden edge of the gusset falls exactly along the centre line of a hole. Which line should be drawn there?", "o": ["The hidden edge, as a dashed line", "Both, drawn close together", "The centre line, as a thin chain line", "Neither, with a note to explain"], "a": 0, "why": "When lines coincide, the order is visible outline first, then hidden line, then centre line. A hidden edge is part of the object's shape, so it takes priority over a centre line." },
+    { "id": "P-15", "c": "c5", "q": "Which drawing does the workshop need in order to cut the strut channel?", "o": ["The strut's detail drawing, with its cut length", "The assembly drawing, which shows every part together", "The parts list, which gives the quantity required", "The exploded view, which shows the order of assembly"], "a": 0, "why": "A detail drawing gives everything needed to make one part: here the cut length, its tolerance, any holes and the finish. The assembly drawing and parts list show how parts go together and how many, not how to make each one." },
+    { "id": "P-16", "c": "c5", "q": "How many 3 m lengths of threaded rod should Tamika order for the 40 hangers?", "o": ["32 lengths", "27 lengths", "80 lengths", "40 lengths"], "a": 3, "why": "Each hanger needs two 1.2 m rods, 80 rods in all. A 3 m length gives only two rods (2.4 m), with a 0.6 m offcut that is too short for a third, so 80 ÷ 2 = 40 lengths. Dividing the total length (96 m) by 3 gives 32, which ignores the offcuts." },
+    { "id": "P-17", "c": "c5", "q": "How should the M10 nuts and washers appear in Tamika's drawing set?", "o": ["Left off, since installers know which ones to use", "Each with its own fully dimensioned detail drawing", "In outline only, and listed by standard size", "Drawn in section, with every thread shown in full"], "a": 2, "why": "Standard parts are bought, not made, so they need no detail drawing. They are drawn in simple outline on the assembly and listed in the parts list with their description, standard size, finish and quantity." },
+    { "id": "P-18", "c": null, "q": "A tapped hole on a drawing is marked 'M6 × 1'. What does the '1' give?", "o": ["The depth of the thread in millimetres", "The tolerance on the hole's diameter", "The number of holes of that size", "The pitch of the thread in millimetres"], "a": 3, "why": "M means a metric thread, 6 is its nominal diameter in millimetres and 1 is the pitch: the distance from one thread to the next. The number of holes is written as '4 ×' or '4 HOLES' in front, and depth is given separately." },
+    { "id": "P-19", "c": null, "q": "A switch box 120 mm deep is drawn full size as a cabinet oblique view. How long are its depth lines drawn?", "o": ["85 mm", "104 mm", "60 mm", "120 mm"], "a": 2, "why": "In a cabinet oblique view the front face is true shape and the depth lines, usually at 45°, are drawn at half their real length: 120 ÷ 2 = 60 mm. Drawn full length (a cavalier oblique), the box would look much too deep." },
+    { "id": "P-20", "c": null, "q": "How many A4 sheets have the same area as one A2 sheet?", "o": ["Three", "Eight", "Two", "Four"], "a": 3, "why": "Each A size has twice the area of the one below: A3 is two A4 sheets, and A2 is two A3 sheets, so A2 equals four A4 sheets. This is why a drawing can be reduced from A2 to A4 and keep its proportions." }
+  ]
+}
