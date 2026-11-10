@@ -1,0 +1,580 @@
+{
+  "format": "cestis-study-kit",
+  "version": 1,
+  "status": "to-check",
+  "written": "2026-11-07",
+  "programme": "Electrical Installation",
+  "qualification": { "id": "QUAL-EIM-L3", "title": "ELECTRICAL INSTALLATION AND MAINTENANCE LEVEL 3", "code": "MEM32507" },
+  "level": 3,
+  "unit": { "code": "ITICOR0011A", "title": "Carry out data entry and retrieval procedures" },
+  "summary": "This unit teaches you to key data into a computer accurately and to get the right information back out, in the office of an electrical contractor or a maintenance department. You will plan files for test results, asset registers and job records, build in validation checks, key and verify data from site sheets, test instruments and tablets, and correct records with an audit trail. You will also find, sort, filter and summarise data with formulas, queries and pivot tables, produce reports, and keep files backed up, secure and private.",
+  "sections": [
+    {
+      "title": "Unit overview",
+      "blocks": [
+        { "p": "Electrical work produces a great deal of data: test results for every circuit, certificates, asset registers for maintenance, meter readings, timesheets, material issues and client records. That data must be right, because certificates, maintenance schedules, invoices and sometimes an insurance claim or a court case depend on it. This unit is for Level 3 electricians who key, check and retrieve such data, and who may supervise others doing it." },
+        { "h": "What you must be able to do" },
+        { "table": { "head": ["Task", "What it looks like in practice"], "rows": [
+          ["Plan a data file", "Decide the fields, their order, data types and units, and lay out a spreadsheet or database table so data can be keyed quickly and correctly."],
+          ["Build in checks", "Set up validation: drop-down lists, presence, range and format checks, and warnings for unusual values."],
+          ["Prepare source documents and key in", "Check that site sheets are complete, query unclear entries, and key in batches accurately at a safe workstation."],
+          ["Bring in data from instruments, tablets and files", "Download tester results, import CSV files and scan barcodes, and check that every result belongs to the right circuit."],
+          ["Verify and correct data", "Compare keyed data with the source, use batch totals, correct errors properly and keep an audit trail."],
+          ["Retrieve information", "Find, sort, filter and query records, using AND and OR conditions correctly."],
+          ["Answer questions with formulas and summaries", "Use functions such as COUNTIF, SUMIF, MIN and XLOOKUP, pivot tables, due-date formulas and meter-reading sums."],
+          ["Produce reports", "Present results clearly, with a suitable chart, check them, and save or send them in the right format to the right person."],
+          ["Look after the data", "Name and store files properly, back up and archive, control access, and protect personal data as Jamaica's data protection law requires."],
+          ["Lead data entry", "Write procedures, train and check others, and fix the causes of repeated errors."]
+        ] } },
+        { "h": "Data in an electrical business" },
+        { "table": { "head": ["File", "Typical fields", "Used for"], "rows": [
+          ["Schedule of test results", "Job no., board, circuit no., description, protective device type and rating, cable size, continuity (R1+R2), insulation resistance, polarity, fault loop impedance, RCD or GFCI trip time, result, tester, instrument, date", "Filling in certificates; evidence that the installation was safe when handed over."],
+          ["Asset register", "Asset ID, type, location, make, serial no., installed date, test interval, last test date, result, next due date", "Planning the testing of emergency lights, GFCIs and RCDs, panels, motors and portable equipment."],
+          ["Job register", "Job no., client ID, site, type of work, dates, quoted price, status", "Tracking work, invoicing and monthly reports."],
+          ["Timesheets and material issues", "Job no., worker, date, hours; item code, quantity, cost", "Job costing and payroll."],
+          ["Instrument register", "Instrument, serial no., last calibration, calibration due", "Making sure only calibrated testers are used."],
+          ["Meter readings", "Meter no., date, reading in kWh", "Energy monitoring and checking bills."],
+          ["Client records", "Client ID, name, address, phone, email", "Contact and invoicing. This is personal data."]
+        ] } },
+        { "h": "How you will be assessed" },
+        { "p": "The theory papers have multiple-choice questions, short answers (functions, keys, terms and small conversions) and essays in which you describe how you would design, key, check, retrieve, report and protect data. In the practicals you design a test-results file and key a batch of site sheets that contain planted problems, then retrieve maintenance data from an asset register and report it to a manager." },
+        { "note": "In the practicals the assessor watches how you work, not only the result: backing up before changes, querying unclear sheets instead of guessing, checking another person's work and logging every correction.", "label": "Tip" }
+      ]
+    },
+    {
+      "title": "Planning and designing a data file",
+      "blocks": [
+        { "p": "Before anything is keyed in, decide what the file must hold and the type of each item. A file designed badly at the start causes errors every day it is used." },
+        { "h": "Data, records and fields" },
+        { "table": { "head": ["Term", "Meaning", "Example in a test-results file"], "rows": [
+          ["Data", "Raw facts", "0.42, DB2, Pass"],
+          ["Field", "One item of data held about every record; a column", "Insulation resistance L-E (MΩ)"],
+          ["Record", "All the data about one thing; a row", "One circuit"],
+          ["Table", "A set of records with the same fields", "All the circuits tested on job J3107"],
+          ["Database", "One or more linked tables, with forms, queries and reports", "The firm's jobs and test results database"],
+          ["Primary key", "A field whose value is different for every record", "Circuit ID such as J3107-DB2-07"]
+        ] } },
+        { "h": "Rules for a good table" },
+        { "ul": [
+          "**One row per record** (one circuit, one asset, one reading) and **one fact per field**. Do not type 'R1+R2 0.42, IR >999' into one cell.",
+          "Anything that will ever be sorted, filtered, counted or checked gets **its own field**: each reading, the result, each date. Keep a notes field only for remarks.",
+          "One header row, with clear field names that include the unit: 'IR L-E (MΩ)', 'RCD trip (ms)', 'Rating (A)'.",
+          "No blank rows or columns inside the data, no merged cells, and no totals in the middle of the records.",
+          "Put the fields in the **same order as the source document**, so your eyes move down the sheet as the cursor moves across the screen.",
+          "Give every record a unique ID."
+        ] },
+        { "h": "Choosing data types" },
+        { "table": { "head": ["Data type", "Use for", "Electrical examples", "Watch out"], "rows": [
+          ["Number", "Values you will calculate, sort or compare", "Readings, ratings, quantities, kWh", "One stated unit per field, and no unit typed in the cell: '200 meg' is text and cannot be sorted, compared or checked."],
+          ["Text", "Codes and identifiers, even when made of digits", "Serial numbers, circuit references such as 01, job numbers, phone numbers, TRNs", "Stored as numbers, leading zeros vanish (007 becomes 7) and long serial numbers may be changed into scientific notation."],
+          ["Date", "Test, install and due dates", "14/10/2026", "Store real dates so they sort and calculate correctly; agree day/month/year."],
+          ["Yes/No", "Questions with two answers", "Polarity correct? Test button worked?", "Do not mix Y, yes, ✓ and OK: use a tick box or a list."],
+          ["List of set choices", "A short set of allowed values", "Pass / Fail / Not tested; ratings 15, 20, 30, 40 A", "Use a drop-down list so everyone uses the same spelling."]
+        ] } },
+        { "note": "Ask of every field: **will I ever do sums or comparisons with it?** If yes, it is a number or a date. If not (serial numbers, circuit references, phone numbers), it is text, even when it is made of digits.", "label": "Tip" },
+        { "h": "Units and awkward readings" },
+        { "ul": [
+          "Choose **one unit per field** and put it in the heading. If a sheet gives 0.2 GΩ or 800 kΩ for a field in MΩ, convert it before keying, or query it if you are not sure.",
+          "Testers show some readings as over the range, such as '>999 MΩ'. That cannot go into a number field as written. Agree a rule in the procedure, for example: key 999 and put Y in a separate 'Over range' field.",
+          "**Cable sizes**: Jamaican practice, based on the US NEC, mostly uses AWG, in which a **smaller number means a thicker wire**; metric sizes are in mm². Never mix them in one field: name the field 'Cable (AWG)' or 'Cable (mm²)' and give it a drop-down list.",
+          "**A blank and a zero are different.** Blank means 'not recorded'; 0 means 'measured, and the value was zero'. Never key a blank as 0."
+        ] },
+        { "table": { "head": ["From", "To", "How", "Example"], "rows": [
+          ["MΩ", "kΩ", "× 1,000", "0.8 MΩ = 800 kΩ"],
+          ["kΩ", "MΩ", "÷ 1,000", "2,500 kΩ = 2.5 MΩ"],
+          ["GΩ", "MΩ", "× 1,000", "0.2 GΩ = 200 MΩ"],
+          ["mA", "A", "÷ 1,000", "30 mA = 0.03 A"],
+          ["s", "ms", "× 1,000", "0.025 s = 25 ms"],
+          ["Wh", "kWh", "÷ 1,000", "3,500 Wh = 3.5 kWh"]
+        ] } },
+        { "h": "Spreadsheet or database?" },
+        { "table": { "head": ["Point", "Spreadsheet", "Database"], "rows": [
+          ["Best for", "One table of moderate size; quick sums, charts and what-if; a small team", "Many linked tables and records, several users at once, forms, saved queries and reports"],
+          ["Example", "The test schedule for one job; a stock sheet", "A firm's clients, jobs, certificates and test results over many years"],
+          ["Watch out", "Easily damaged by sorting one column, typing over formulas or keeping several copies", "Needs more planning, and someone responsible for looking after it"]
+        ] } },
+        { "h": "Linked tables in a database" },
+        { "p": "A **relational database** keeps each kind of thing in its own table and links the tables by key fields. A client's details are stored **once**, in a Clients table; each job in the Jobs table holds only the ClientID. Change a client's phone number once and every job shows the new one. Typing the client's details into every job wastes time and lets the copies disagree." },
+        { "table": { "head": ["Table", "Primary key", "Linked by"], "rows": [
+          ["Clients", "ClientID", "Its ClientID appears in the Jobs table"],
+          ["Jobs", "JobNo", "ClientID, a foreign key: each job belongs to one client, and one client can have many jobs"],
+          ["Circuit results", "CircuitID", "JobNo, linking each result to its job"],
+          ["Instruments", "Serial number", "Stored with each result, to show which tester was used"]
+        ] } },
+        { "p": "A **foreign key** is a field that holds the primary key of a record in another table. One client with many jobs is a **one-to-many** relationship. **Forms** make keying easier and safer, **queries** pick out records, and **reports** lay them out for printing." },
+        { "h": "Making the file easy and safe to use" },
+        { "ul": [
+          "Freeze the header row so it stays in view.",
+          "Format the data as a table, so filters, formats and formulas extend to new rows.",
+          "Lock the headings and formula cells, and protect the sheet.",
+          "Keep the lists for drop-downs on a separate Lists sheet, and add a short Instructions sheet.",
+          "Shade the cells people should key into.",
+          "Try the design with a few real site sheets, and fix it before it goes into use."
+        ] }
+      ]
+    },
+    {
+      "title": "Validation: checks built into the file",
+      "blocks": [
+        { "p": "**Validation** is a check the computer makes as data is entered, to see that it is allowed and sensible. It stops many errors at the moment they are made, before anyone relies on them." },
+        { "table": { "head": ["Check", "What it does", "Electrical example"], "rows": [
+          ["Presence (required field)", "Refuses a record with the field left empty", "Job number and circuit number must be filled in."],
+          ["Type", "Accepts only the right kind of data", "Insulation resistance must be a number; the test date must be a date."],
+          ["Range", "Accepts only values between set limits", "RCD trip time from 0 to 1,000 ms; no negative readings; test date not in the future."],
+          ["Format (pattern)", "Accepts only entries in a set pattern", "Job number: J and four digits (J3107); asset ID: EL- and four digits."],
+          ["Length", "Accepts a set number of characters", "A TRN has nine digits."],
+          ["List (lookup)", "Accepts only a value from a set list, usually a drop-down", "Result: Pass, Fail, Not tested; rating: 15, 20, 30, 40, 50, 60 A."],
+          ["Consistency (cross-field)", "Compares two fields", "Warn when the cable entered is too small for the breaker rating; the next due date must be after the last test date."],
+          ["Uniqueness", "Refuses a second record with the same key", "A second record for circuit J3107-DB2-07."],
+          ["Check digit", "A digit calculated from the others, added to the end of a code", "Barcodes: a mistyped or swapped digit makes the check fail."]
+        ] } },
+        { "h": "Setting up a check in a spreadsheet" },
+        { "flow": [
+          "Select the input cells for the field (the whole column of the table)",
+          "Open Data Validation",
+          "Choose what to allow: whole number, decimal, list, date, text length or a custom formula",
+          "Set the limits, or point to the list on the Lists sheet",
+          "Add an input message telling the user what to key",
+          "Choose the error alert: Stop, Warning or Information",
+          "Test it with good and bad entries"
+        ] },
+        { "note": "Use **Stop** for values that are impossible: a negative reading, a result that is not on the list, a job number in the wrong pattern. Use **Warning** for values that are possible but unusual, such as an insulation reading below the limit in the firm's procedure, so the keyer looks at the sheet again but can still enter a true reading.", "label": "Tip" },
+        { "note": "**A failed reading is not a keying error.** Never set a check that stops someone from entering a true but failing result: a low insulation reading or a slow trip time is exactly what the tester, the client and the inspector need to see.", "label": "Remember" },
+        { "h": "What validation cannot do" },
+        { "p": "Validation can tell whether a value is **allowed**. It cannot tell whether it is **true**. If the site sheet says 25 MΩ and you key 250 MΩ, both values are sensible, and validation accepts the wrong one, because it cannot see the paper. That is why keyed data must also be **verified** against the source." }
+      ]
+    },
+    {
+      "title": "Source documents, the workstation and keying in",
+      "blocks": [
+        { "h": "Setting up your workstation" },
+        { "table": { "head": ["Part", "How to set it"], "rows": [
+          ["Screen", "Top of the screen at or slightly below eye level, about an arm's length away; side-on to windows, or blinds closed, so there is no glare or reflection."],
+          ["Chair", "Feet flat on the floor or on a footrest, thighs level, lower back supported."],
+          ["Keyboard and mouse", "Close to you at elbow height; forearms level and wrists straight; mouse beside the keyboard."],
+          ["Source documents", "On a document holder beside the screen, at the same height and distance, so you do not keep twisting your neck."],
+          ["Surroundings", "Even lighting; cables tidy and off walkways; drinks kept away from the keyboard."]
+        ] } },
+        { "p": "Change task or take a short break every hour or so, and rest your eyes often by looking at something far away. Report aches in the wrists, neck or back early: strain injuries are easier to prevent than to cure. Turning the screen brightness to maximum or wearing sunglasses does not cure glare; moving or angling the screen, or fitting blinds, does." },
+        { "note": "Site offices are often hot and dusty, and power cuts happen. Save often, switch on automatic saving, run the computer from a UPS (battery backup) with surge protection, and keep it out of direct sun and dust.", "label": "Jamaica" },
+        { "h": "Preparing source documents" },
+        { "p": "A **source document** is the original record that data is keyed from: a handwritten site test sheet, a timesheet, a delivery note, a meter-reading card." },
+        { "flow": [
+          "Receive and count the sheets, and log them: job, date, number of sheets, from whom",
+          "Check each one is complete: job number, board, circuit numbers, date, tester's name",
+          "Read through for unclear figures, missing readings, impossible values and wrong units",
+          "List every doubtful item on a query sheet for the tester; never guess",
+          "Sort the sheets into the order of the file: board, then circuit",
+          "Work out the batch totals from the paper",
+          "Key in batches, saving after each one"
+        ] },
+        { "note": "Never guess a figure, never 'correct' the paper yourself, and never fill a gap with the figure you expect. Hold the doubtful record, or mark it 'query', and carry on with the rest. The query goes back to the person who did the test.", "label": "Remember" },
+        { "h": "Batch totals" },
+        { "table": { "head": ["Total", "What it is", "Example"], "rows": [
+          ["Record count", "The number of records in the batch", "186 circuits on 30 sheets"],
+          ["Control total", "The sum of a field that means something", "Total hours on a batch of timesheets"],
+          ["Hash total", "The sum of a field that means nothing in itself, used only for checking", "The sum of all the R1+R2 readings, or of all the circuit numbers"]
+        ] } },
+        { "p": "Work the totals out from the paper before keying, then let the computer total the keyed batch. If they agree, the batch is probably complete and correct. If not, find the difference before you go on." },
+        { "note": "If the difference between the two totals divides exactly by 9 (9, 18, 45, 0.45 and so on), look first for two **swapped digits**: 63 keyed as 36 differs by 27, and 0.18 keyed as 0.81 differs by 0.63.", "label": "Tip" },
+        { "h": "Keying in accurately" },
+        { "ul": [
+          "Use the **number pad** for figures, with Num Lock on.",
+          "Press **Tab** to move to the next field and **Shift+Tab** to go back. Enter usually moves down a row or saves the record.",
+          "Key long codes and serial numbers in small groups, three or four characters at a time, and read each group back.",
+          "Keep your place on the sheet with a ruler or a card.",
+          "Watch for characters that look alike: O and 0, I, l and 1, S and 5, B and 8, Z and 2.",
+          "Follow the procedure's rules for units, abbreviations, blanks and over-range readings.",
+          "Save after each batch, and take a break before your accuracy drops. Speed without accuracy only creates work for someone else."
+        ] },
+        { "table": { "head": ["Keys", "What they do"], "rows": [
+          ["Tab / Shift+Tab", "Next field / previous field"],
+          ["Ctrl+A", "Select all"],
+          ["Ctrl+C, Ctrl+X, Ctrl+V", "Copy, cut, paste"],
+          ["Ctrl+Z / Ctrl+Y", "Undo / redo"],
+          ["Ctrl+S", "Save"],
+          ["Ctrl+F / Ctrl+H", "Find / find and replace"],
+          ["Ctrl+Home", "Go to the top of the sheet (cell A1)"],
+          ["Ctrl+arrow key", "Jump to the edge of the data"],
+          ["F2", "Edit the current cell"],
+          ["Esc", "Cancel what you are typing in a cell"]
+        ] } },
+        { "h": "Keying on time" },
+        { "p": "Key site sheets within the time the firm sets, for example two working days. Late keying holds up certificates, invoices and the client's connection, and the longer you wait, the harder it is for the tester to answer queries while the job is fresh in mind." }
+      ]
+    },
+    {
+      "title": "Instrument downloads, tablets, barcodes and imported files",
+      "blocks": [
+        { "h": "Downloading results from a test instrument" },
+        { "p": "Many multifunction testers store each result with a job, board and circuit reference and can download them to a computer by cable, Bluetooth or memory card. The reading goes straight from the instrument into the file, so entry is **faster and free of keying errors**. But a download is only as good as the way results were saved on site, and the results can still be wrong." },
+        { "flow": [
+          "Before testing, set the job, board and circuit references on the tester to match the site sheet",
+          "After testing, download into a new file named by job and board; never save over an earlier download",
+          "Check the number of results against the number of circuits on the site sheet",
+          "Check that each result sits against the right board and circuit, especially when two boards were tested on the same day",
+          "Check the instrument's serial number and that its calibration was in date on the test day",
+          "Merge into the main file, then verify a sample against the tester's site notes"
+        ] },
+        { "table": { "head": ["Problem", "What to do"], "rows": [
+          ["Two boards saved under one name, or circuits numbered differently on the tester and the sheet", "Match each result to its circuit using the site sheet, and query the tester before the results are used."],
+          ["The same circuit tested or saved twice", "Look for repeats (same circuit, close times). Keep the result the tester confirms as final, and log what was set aside."],
+          ["An earlier download over-written", "Keep every download as received, with its date, and work on a copy."],
+          ["The instrument was out of calibration", "Do not use the results. Tell the supervisor, who decides on re-testing."],
+          ["The software does not match the tester's version", "Ask the supervisor; do not retype the results without checking."]
+        ] } },
+        { "h": "Three ways to capture test results" },
+        { "table": { "head": ["Method", "Benefits", "Risks", "Checks needed"], "rows": [
+          ["Keying by hand from paper", "No special equipment; a signed paper record remains", "Slow; every figure can be misread or mistyped", "Verify against the sheets; batch totals; query unclear entries"],
+          ["Download from the instrument", "Fast; no keying errors", "Results saved under the wrong board or circuit; repeats; over-written files", "Match each result to its circuit; check counts and calibration"],
+          ["Tablet on site", "Checks each entry at once; results reach the office the same day; photos can be attached", "Lost or stolen tablet; flat battery; no signal; rushed entries in a hot, busy site", "Screen lock and encryption; offline saving and sync; the tester reviews the schedule before signing"]
+        ] } },
+        { "h": "Barcodes and QR codes" },
+        { "p": "A barcode or **QR (Quick Response) code** label on each tool, instrument, emergency light or panel holds its asset ID. Scanning it enters the ID instantly and correctly instead of typing it, and can open the asset's record on site. Stick labels where they can be scanned, protect them from the weather and replace damaged ones. A scan enters only the ID: the reading, the result and the date still need care." },
+        { "h": "Importing files" },
+        { "p": "Suppliers, meters, instruments and other programs often supply data as a **CSV (comma-separated values)** file: plain text, one record per line, with the fields separated by commas. Open or import it; never retype it." },
+        { "ul": [
+          "Use the import tool, so you can choose the separator and set each column's data type.",
+          "Set ID and serial-number columns to **text**, so leading zeros are kept.",
+          "Set the **date order**. Jamaica writes day/month/year; a computer set up for the US reads 03/04/2027 as 4 March, not 3 April.",
+          "After importing, check the record count, the first and last rows, and a few dates and numbers against the source.",
+          "Save the result as a spreadsheet file: a CSV cannot hold formulas, formatting or more than one sheet."
+        ] }
+      ]
+    },
+    {
+      "title": "Verifying and correcting data",
+      "blocks": [
+        { "table": { "head": ["Point", "Validation", "Verification"], "rows": [
+          ["The question it asks", "Is this entry allowed and sensible?", "Is this entry the same as the source?"],
+          ["Done by", "The computer, as the data is keyed", "A person, or a second keying, after the data is keyed"],
+          ["Catches", "Impossible values, empty fields, wrong patterns", "Wrong but sensible values, swapped digits, skipped lines"]
+        ] } },
+        { "h": "Ways to verify" },
+        { "table": { "head": ["Method", "How it works", "Best for"], "rows": [
+          ["Visual check against the source", "Compare the screen or a printout with the sheets, line by line", "Every batch"],
+          ["Second-person check", "Another person checks the entries, or one reads aloud from the sheet while the other watches the screen", "Certificates and other important data"],
+          ["Double keying", "Two people key the same batch and the computer lists every difference", "Large batches where accuracy is critical"],
+          ["Batch totals", "Compare counts and totals from the paper and the screen", "Finding missing, extra or badly wrong records quickly"],
+          ["Sample check", "Check a random sample of each keyer's records", "Measuring accuracy and supervising"],
+          ["Tester's review", "The tester checks the finished schedule before signing the certificate", "The final check on test results"]
+        ] } },
+        { "note": "Your own eye tends to read handwriting the same way twice and to see what you meant to type. A second person gives an independent check.", "label": "Tip" },
+        { "h": "Common errors" },
+        { "table": { "head": ["Error", "Example", "Usually found by"], "rows": [
+          ["Transcription: misreading or mistyping", "25 MΩ keyed as 250 MΩ; letter O for zero", "Verification against the source"],
+          ["Transposition: swapped digits", "0.36 Ω keyed as 0.63 Ω", "Verification; a batch total out by a multiple of 9"],
+          ["Omission", "A circuit left out", "Record count"],
+          ["Duplication", "The same sheet keyed twice", "Record count; a uniqueness check on the key field"],
+          ["Wrong field or row", "The R1+R2 reading keyed in the insulation column, or every reading one row out", "Range warnings; checking the first and last circuit on each sheet"],
+          ["Wrong unit", "800 kΩ keyed as 800 in an MΩ field", "Range warnings; verification"],
+          ["Day and month swapped", "03/04 read as 4 March", "Checking dates against the source; the date settings"]
+        ] } },
+        { "h": "Error rate" },
+        { "p": "**Error rate = errors found ÷ entries checked × 100.** Example: 6 errors in 400 entries checked = 1.5%. Track it for each keyer and each kind of record, so you can see where help is needed and whether changes work." },
+        { "h": "Correcting data properly" },
+        { "flow": [
+          "Stop anyone using the wrong data, and check whether a certificate or report has already gone out",
+          "Back up the file before changing it",
+          "Find the true value in the source: the site sheet, the download, or the tester",
+          "Correct each record and check it against the source",
+          "Record the change: what, the old and new values, who, when and why",
+          "If an issued certificate was wrong, it is withdrawn and a corrected one issued and the client told, as the supervisor directs",
+          "Find the cause and change the procedure so it does not happen again"
+        ] },
+        { "p": "An **audit trail** is the time-stamped record of who changed each record, when, and what it was before. A database can keep one automatically; with a spreadsheet, keep a **correction log**. Results on an issued certificate may be needed years later as evidence, in an insurance claim, a fire investigation, a dispute or a sale, so they must never be changed without a record. Do not delete and re-key records to fix them: that hides the history. Correct them in place and log it." },
+        { "h": "Duplicate records" },
+        { "p": "Two records for one asset, such as the same panel under two IDs, split its history: a test is logged on one record while the other shows it overdue, or the wrong one is updated. Find duplicates by sorting on serial number or location, or by highlighting duplicate values. Decide which record is the true one, move any history across, then remove or mark the other, and log what you did. Do not use a 'remove duplicates' tool blindly: two different circuits with the same reading are not duplicates." },
+        { "h": "Find and Replace with care" },
+        { "p": "Replace All changes every match, including ones you did not mean: 'DB1' also matches inside 'DB10' and 'DB11'. Select only the column you need, tick 'match entire cell contents', step through one at a time when in doubt, and back up first." },
+        { "h": "Leading data entry (Level 3)" },
+        { "ul": [
+          "Write a short **procedure** for each kind of record, with the field rules, units, abbreviations, how to key blanks and over-range readings, and a worked example.",
+          "Set the files up with validation and drop-downs, so everyone keys the same way, and give each person their own login with suitable rights.",
+          "Agree deadlines, share the work fairly and log who has each batch.",
+          "Check a sample of each person's work regularly, and track error rates.",
+          "When one person's errors are high, look at the errors first, then coach: is the cause the form, the handwriting, the lighting, the training or the pace? Fix the cause as well as the records.",
+          "Send all queries back to site by one route, so none get lost.",
+          "Review the procedure when the same problem keeps coming back, and make sure backups run and breaks are taken."
+        ] }
+      ]
+    },
+    {
+      "title": "Retrieving data: find, sort, filter and query",
+      "blocks": [
+        { "table": { "head": ["The question", "Best tool", "Example"], "rows": [
+          ["Where is one record?", "Find (Ctrl+F)", "Find serial number 45-0021787."],
+          ["Put records in order", "Sort", "Jobs by client, then by date."],
+          ["Show only the records that meet conditions", "Filter", "Emergency lights due in March."],
+          ["A question asked again and again", "A saved query (database) or saved filter view", "Certificates issued this month, grouped by inspector."],
+          ["How many? What total?", "A formula (COUNTIF, SUMIF) or a pivot table", "How many 20 A breakers; total hours for each job."],
+          ["A value from another table", "XLOOKUP or VLOOKUP", "A breaker's price from its part number."]
+        ] } },
+        { "h": "Sorting" },
+        { "ul": [
+          "Click one cell in the table and use the Sort command, so whole rows move together. **Never sort one column on its own**: the readings would no longer match their circuits.",
+          "Sort on more than one level in **one** sort: for example by client A to Z, then by job date, oldest first, within each client.",
+          "Numbers stored as text sort in the wrong order (100 before 25), and dates stored as text sort by their first characters, not by date.",
+          "Keep an ID or row-number column, or a backup, so you can return to the original order."
+        ] },
+        { "h": "Filtering" },
+        { "p": "A filter hides the rows that do not match, without deleting them. The status bar shows how many rows are showing. Clear the filters before you hand the file on, or the next person may think rows are missing." },
+        { "table": { "head": ["Sign", "Means", "Example"], "rows": [
+          ["=", "equal to", "Result = Fail"],
+          ["<>", "not equal to", "Status <> Closed"],
+          ["> and >=", "greater than; greater than or equal to", "Rating >= 40"],
+          ["< and <=", "less than; less than or equal to", "IR < 1"],
+          ["Between", "from one value to another, including both ends", "Due between 01/03/2027 and 31/03/2027"],
+          ["* and ?", "wildcards: any characters; exactly one character", "DB2* finds DB2, DB2A and also DB21"]
+        ] } },
+        { "h": "AND, OR and NOT" },
+        { "table": { "head": ["Join", "A record is found when...", "Example"], "rows": [
+          ["AND", "every condition is true", "Type = GFCI AND Result = Fail: only the failed GFCIs."],
+          ["OR", "at least one condition is true", "Polarity = Wrong OR Result = Fail: circuits with either problem, or both."],
+          ["NOT", "the condition is false", "NOT Status = Closed: every job still open."]
+        ] } },
+        { "note": "Everyday speech can mislead. 'The jobs in Trelawny and St James' means jobs whose parish is Trelawny **OR** St James, because no job is in both. 'Fewer than 10' is < 10, but '10 or fewer' is <= 10. Read the request, then decide which condition gives what the person really wants.", "label": "Tip" },
+        { "h": "Queries in a database" },
+        { "p": "A **query** is a saved question. It picks the records and fields that meet conditions, from one or more linked tables, and can sort and total them. Save a query that is needed every month and run it again each time, rather than rebuilding it or copying last month's report; a **parameter query** asks for the dates each time it runs. Check the first results against a few records you know." },
+        { "h": "Check the answer before you hand it over" },
+        { "ul": [
+          "Does the number make sense for this building or this month?",
+          "Do the counts of a filter and of its opposite add up to the total number of records?",
+          "Are some records blank in the field you filtered on? They drop out of both.",
+          "Are you using the latest version of the file?"
+        ] }
+      ]
+    },
+    {
+      "title": "Formulas, summaries and reports",
+      "blocks": [
+        { "table": { "head": ["Function", "What it gives", "Example"], "rows": [
+          ["SUM", "The total of a range", "=SUM(E2:E41) total hours"],
+          ["COUNT / COUNTA", "How many cells hold numbers / hold anything", "=COUNTA(A2:A500) number of assets"],
+          ["COUNTBLANK", "How many cells are empty", "=COUNTBLANK(C2:C500) missing locations"],
+          ["COUNTIF", "How many cells meet one condition", "=COUNTIF(B2:B500,\"GFCI\")"],
+          ["COUNTIFS", "How many rows meet several conditions", "=COUNTIFS(B2:B500,\"GFCI\",F2:F500,\"Fail\")"],
+          ["SUMIF", "The total of the cells whose rows meet a condition", "=SUMIF(A2:A300,\"J3107\",E2:E300) hours on job J3107"],
+          ["AVERAGE, MIN, MAX", "Mean, smallest and largest", "=MIN(F2:F60) the lowest insulation reading"],
+          ["IF", "One result if a test is true, another if not", "=IF(F2<1,\"Check\",\"OK\")"],
+          ["XLOOKUP / VLOOKUP", "A value from a table, found by a key", "=VLOOKUP(B2,Prices!A:C,3,FALSE)"],
+          ["EDATE", "The date a number of months after a start date", "=EDATE(D2,12) a year after the last test"],
+          ["TODAY", "Today's date, updated every day", "=G2-TODAY() days until an item is due"],
+          ["CONCAT or &", "Joins text from several cells", "=CONCAT(B2,\"-\",C2) gives DB2-07"],
+          ["TRIM", "Removes extra spaces", "=TRIM(A2)"],
+          ["ROUND", "Rounds to a set number of decimal places", "=ROUND(G2,2)"]
+        ] } },
+        { "note": "In VLOOKUP the key must be in the **first column** of the table, and the last argument should be **FALSE** for an exact match; without it, VLOOKUP may return a wrong value with no warning. XLOOKUP can look up in any column and is exact unless you say otherwise. In SUMIF the range to add comes **last**; in SUMIFS it comes **first**.", "label": "Remember" },
+        { "h": "Relative and absolute references" },
+        { "p": "When a formula is copied, its cell references move with it: they are **relative**. A **$** in front of the column letter and row number makes a reference **absolute**, so it does not move: =E2*$K$1 copied down the column keeps pointing at K1, where the rate is held. Use it for one rate, limit or date that every row must use. $K1 fixes only the column and K$1 only the row." },
+        { "h": "A worked example: due dates in an asset register" },
+        { "table": { "head": ["Row", "A Asset ID", "B Type", "C Last test", "D Interval (months)", "E Next due", "F Result"], "rows": [
+          ["2", "EL-0102", "Emergency light", "15/03/2026", "12", "15/03/2027", "Pass"],
+          ["3", "GF-0033", "GFCI", "02/02/2027", "1", "02/03/2027", "Pass"],
+          ["4", "EL-0117", "Emergency light", "20/03/2026", "12", "20/03/2027", "Fail"],
+          ["5", "DB-0004", "Panel", "10/09/2024", "36", "10/09/2027", "Pass"]
+        ] } },
+        { "table": { "head": ["Question", "Formula or tool", "Answer"], "rows": [
+          ["Next due date for row 2", "=EDATE(C2,D2), copied down column E", "15/03/2027"],
+          ["Which items are due in March 2027?", "Filter column E: between 01/03/2027 and 31/03/2027", "EL-0102, GF-0033, EL-0117"],
+          ["How many items are due in March 2027?", "=COUNTIFS(E2:E5,\">=\"&DATE(2027,3,1),E2:E5,\"<=\"&DATE(2027,3,31))", "3"],
+          ["How many emergency lights failed?", "=COUNTIFS(B2:B5,\"Emergency light\",F2:F5,\"Fail\")", "1"]
+        ] } },
+        { "p": "If a register holds only the last test date, add a Next due column as above. Then sort the list of items due by location (building, floor, room) so the electricians can plan their rounds." },
+        { "h": "Meter readings" },
+        { "p": "**Consumption = this reading − the last reading.** Example: 52,318 kWh this month − 51,694 kWh last month = 624 kWh. If a meter is replaced during the period, work out each meter separately and add them: (the old meter's final reading − its earlier reading) + (the new meter's reading − its starting reading)." },
+        { "h": "Error values in cells" },
+        { "table": { "head": ["Shows", "Usually means", "What to do"], "rows": [
+          ["#DIV/0!", "The formula has tried to divide by zero or by an empty cell", "Check the divisor; use IF to skip empty rows"],
+          ["#N/A", "A lookup could not find the value", "Check that the key exists and matches exactly: extra spaces, look-alike characters"],
+          ["#VALUE!", "The wrong kind of data, such as text where a number is needed", "Find the text entry, such as '200 meg', and fix it"],
+          ["#REF!", "A cell the formula used has been deleted", "Rebuild the formula"],
+          ["#NAME?", "A misspelt function, or text without quotation marks", "Correct the spelling"],
+          ["#####", "The column is too narrow for the number or date", "Widen the column"]
+        ] } },
+        { "h": "Pivot tables" },
+        { "p": "A **pivot table** summarises a large table by groups without writing formulas: for example, the number of items due and failed for each type, or the total hours for each job. Drag a field to Rows (the groups), a field to Values (count or sum) and, if needed, a field to Filters (such as the due month). Refresh it whenever the data changes." },
+        { "h": "Producing a report" },
+        { "flow": [
+          "Make sure all the data for the period has been keyed and checked",
+          "Open the latest version of the file",
+          "Filter or query for the period and the items needed",
+          "Total and summarise with formulas or a pivot table",
+          "Lay it out: title, period, date run, filters used, a summary at the top, then the detail",
+          "Add a chart if it helps",
+          "Check totals against the source, look for missing or double-counted records, compare with last period",
+          "Remove anything the reader does not need, such as other clients' data",
+          "Save as a PDF with a clear name and send it only to the named people"
+        ] },
+        { "h": "Choosing a chart" },
+        { "table": { "head": ["To show", "Use", "Example"], "rows": [
+          ["The parts of one whole", "Pie chart", "Share of the year's call-outs from each type of fault"],
+          ["A comparison between groups", "Bar or column chart", "Number of failed tests at each site"],
+          ["A change over time", "Line chart", "A factory's kWh used each month"],
+          ["A link between two measured values", "Scatter graph", "Cable length against R1+R2"]
+        ] } },
+        { "note": "A pie chart only works for parts that add up to one whole. Do not use it for separate rates, such as the failure rate at each site; use a bar chart.", "label": "Remember" },
+        { "h": "Printing and other output" },
+        { "ul": [
+          "Use **print preview** before printing: check page breaks, that the header row repeats on every page, page numbers, orientation (landscape for wide tables) and that the columns fit.",
+          "Set the print area to the report only.",
+          "Choose **PDF** for reports and certificates that must not be changed, a **spreadsheet** when the reader must work with the data, and **CSV** to pass data to another program."
+        ] }
+      ]
+    },
+    {
+      "title": "Files, backups, security and privacy",
+      "blocks": [
+        { "h": "Naming and storing files" },
+        { "p": "Agree a naming rule and use it every time. A good name says what the file holds, for which job, with the date written year-month-day so files sort in date order: **J3107_DB1_TestResults_2027-02-18**. Names like 'results', 'final NEW (2)' or 'my file' cannot be found or trusted." },
+        { "ul": [
+          "Keep folders by year and job number.",
+          "Keep **one master copy** that everyone works on, not copies emailed back and forth.",
+          "When two people must update the same file, use a shared file that tracks changes, or co-editing with version history. A 'locked for editing' message is there to stop two people over-writing each other's work.",
+          "**Metadata** is data about data: who created a file, when it was last changed, its size and tags such as a job number. It helps you search and shows the file's history. Check it, and remove personal details from it, before a file leaves the firm."
+        ] },
+        { "h": "Backups" },
+        { "table": { "head": ["Good practice", "Why"], "rows": [
+          ["Back up at least every working day a file changes, automatically if possible", "You lose no more than a day's work."],
+          ["Keep at least one copy off-site or online: an **off-site backup**", "A fire, flood, hurricane or burglary at the office cannot destroy every copy."],
+          ["Follow the **3-2-1 rule**: three copies, on two kinds of storage, one of them off-site", "One failed drive or one mistake is not a disaster."],
+          ["Keep older versions, and one copy that is not connected all the time", "A deleted, over-written or ransomware-scrambled file can be got back from an older copy."],
+          ["Test the backup by restoring a file now and then", "A backup you cannot restore is not a backup."],
+          ["Back up before any big change: an import, a Replace All, a batch of corrections", "You can undo a mistake completely."]
+        ] } },
+        { "note": "A folder that **syncs** to the cloud copies deletions and mistakes straight away. It helps, but on its own it is not a backup.", "label": "Remember" },
+        { "h": "Archiving" },
+        { "p": "When a job is finished, move its records (drawings, test results, certificates, photos and invoices) to an archive folder named by job number, in a format that will still open years from now, such as PDF. Make it read-only, include it in the backups, keep it for as long as the firm's policy and the law require, then dispose of it securely. Records may be needed years later when a building is sold or extended, when an inspector or insurer asks for proof, when a fault or fire is investigated, or when the firm must defend its work in a dispute." },
+        { "h": "Security" },
+        { "table": { "head": ["Risk", "What you do"], "rows": [
+          ["Someone uses your login", "Every person has their own login and a strong password or passphrase, never shared or stuck on the screen. Lock the screen whenever you leave the desk."],
+          ["Too many people can change or delete records", "Give access by role: each person gets only the rights their job needs."],
+          ["Scam emails (phishing)", "Do not open unexpected attachments, especially programs (.exe, .scr, .js) or files with double endings such as 'invoice.pdf.exe'. Do not click links that ask for passwords. Report the email."],
+          ["A laptop, tablet or phone is lost or stolen", "Screen lock, encryption and remote wipe set up in advance; data synced to the office; report the loss at once."],
+          ["Viruses and ransomware", "Keep security software and updates current, do not plug in unknown USB drives, and keep a backup that is not connected."],
+          ["Paper records", "Lock away site sheets that hold client details, and shred them when they are no longer needed."]
+        ] } },
+        { "table": { "head": ["Access level", "Can", "Typical holder"], "rows": [
+          ["Read only", "View and print", "Electricians checking a schedule; managers"],
+          ["Add and edit", "Key and correct records in their own area", "Data-entry clerks"],
+          ["Administrator", "Add users, delete records, change the design", "The supervisor or office manager"]
+        ] } },
+        { "p": "Separate logins mean every change in the audit trail can be traced to a person, and giving each person only the access they need prevents both accidents and dishonest changes." },
+        { "h": "Privacy: Jamaica's data protection law" },
+        { "p": "Client records hold **personal data**: names, addresses, phone numbers, TRNs, and sometimes alarm codes, gate codes or the layout of a home. Staff records hold pay, TRN and NIS numbers. Jamaica's **Data Protection Act** (2020), overseen by the **Information Commissioner**, says in summary that personal data must be:" },
+        { "ul": [
+          "collected for a clear, lawful purpose, and used fairly and only for that purpose;",
+          "enough for the purpose, but no more than is needed;",
+          "accurate and kept up to date;",
+          "kept no longer than needed;",
+          "kept secure against loss, theft and misuse;",
+          "handled in line with people's rights, including the right to see what is held about them and to have it corrected;",
+          "not sent outside Jamaica without proper protection."
+        ] },
+        { "ul": [
+          "Never give a client list, or a client's details, to another firm, a salesperson or a caller. Check who is really asking and why, and refer the request to your supervisor.",
+          "Send a report only to the person who needs it, with only the data they need.",
+          "**Anonymise** data before it is shared for another purpose, such as training, a survey or a presentation: remove names, addresses and anything else that could identify a person.",
+          "Report any loss or leak of personal data to your supervisor straight away. The firm may have to tell the Information Commissioner, and the people affected, within a short time."
+        ] },
+        { "h": "When something goes wrong" },
+        { "table": { "head": ["Problem", "What to do"], "rows": [
+          ["Two people over-wrote each other's changes", "Stop; compare with the version history or backup; put back the lost changes; agree one master copy."],
+          ["A file will not open, or is damaged", "Do not keep saving over it; restore the latest good backup; tell the supervisor."],
+          ["Imported dates are text, or have day and month swapped", "Import again with the right date order; check a few dates against the source."],
+          ["A formula shows an error value", "Read the error and fix its cause, not just the display."],
+          ["A batch was keyed into the wrong file", "Stop; tell the supervisor; restore from the backup or move the records, with a log of the change."]
+        ] } }
+      ]
+    },
+    {
+      "title": "Revision",
+      "blocks": [
+        { "h": "Checklist" },
+        { "p": "Tick each statement only when you can do it without looking at the notes." },
+        { "ul": [
+          "I can plan a data file: fields, order, data types, units and a unique ID, with one record per row and one fact per field.",
+          "I can explain why serial numbers and circuit references are stored as text, and readings as numbers in one unit.",
+          "I can handle blanks, over-range readings, AWG and mm² cable sizes, and unit conversions.",
+          "I can explain linked tables, primary keys and foreign keys, and when a database suits better than a spreadsheet.",
+          "I can set up presence, type, range, format, list and consistency checks, and choose Stop or Warning.",
+          "I can explain why validation cannot catch a wrong but sensible value.",
+          "I can set up a safe workstation and prepare and log a batch of source documents.",
+          "I can key accurately, query unclear entries instead of guessing, and use batch totals.",
+          "I can download results from a tester, import a CSV file and use barcode labels, and check that each result belongs to the right circuit.",
+          "I can verify keyed data by several methods and work out an error rate.",
+          "I can correct records properly, with a backup and an audit trail, and deal with duplicates.",
+          "I can sort on several levels, filter with AND, OR and NOT, and run a saved query.",
+          "I can use COUNTIF, COUNTIFS, SUMIF, MIN, MAX, IF, XLOOKUP or VLOOKUP, EDATE and CONCAT, and absolute references.",
+          "I can work out energy used from meter readings.",
+          "I can explain the common error values and how to fix them.",
+          "I can summarise data with a pivot table and choose a suitable chart.",
+          "I can produce, check and send a clear report, using print preview and PDF.",
+          "I can name, store, back up and archive files properly.",
+          "I can protect data with logins, access rights, screen locks and encryption, and spot a phishing email.",
+          "I can explain the main duties of Jamaica's data protection law and anonymise data before sharing it.",
+          "I can lead data entry: procedures, training, sampling and coaching."
+        ] },
+        { "h": "Key terms" },
+        { "terms": [
+          ["Absolute reference", "A cell reference with $ signs, such as $K$1, that does not change when a formula is copied."],
+          ["Anonymising", "Removing personal details from data so that people cannot be identified."],
+          ["Archive", "A store of finished records, kept safe and unchanged for as long as needed."],
+          ["Audit trail", "A time-stamped record of who changed each record, when, and what it was before."],
+          ["Backup", "A copy of data kept so that it can be restored if the original is lost or damaged."],
+          ["Batch total", "A count or total worked out from the source documents and compared with the keyed batch."],
+          ["CSV file", "A plain-text file with one record per line and fields separated by commas."],
+          ["Data type", "The kind of data a field holds: number, text, date, yes/no or a list of choices."],
+          ["Double keying", "Two people key the same data and the computer lists the differences."],
+          ["Drop-down list", "A form field that offers a short list of set choices to pick from."],
+          ["Field", "One item of data held about every record; a column."],
+          ["Filter", "A tool that shows only the records meeting set conditions, without deleting the others."],
+          ["Foreign key", "A field holding the primary key of a record in another table, linking the two."],
+          ["Hash total", "A total of a field that means nothing in itself, used only to check a batch."],
+          ["Metadata", "Data about data, such as who created a file and when."],
+          ["Off-site backup", "A backup copy kept in another building or online, safe if the office is destroyed."],
+          ["Personal data", "Information about an identifiable living person, such as a name, address or phone number."],
+          ["Phishing", "A scam email or message that tries to get passwords or to make you open harmful files."],
+          ["Pivot table", "A spreadsheet tool that summarises a large table by groups."],
+          ["Primary key", "A field whose value is different for every record in a table."],
+          ["QR code", "Quick Response code: a square barcode that a scanner or phone can read."],
+          ["Query", "A saved question that picks out records meeting set conditions from a database."],
+          ["Record", "All the data about one thing; a row."],
+          ["Source document", "The original record that data is keyed from, such as a site test sheet."],
+          ["Transposition", "An error in which two digits or characters are swapped, such as 63 for 36."],
+          ["Validation", "A check made by the computer that data entered is allowed and sensible."],
+          ["Verification", "A check that the data entered is the same as the source."]
+        ] }
+      ]
+    }
+  ],
+  "cases": {
+    "c1": { "title": "A test-results file for a Brown's Town health centre", "text": "Marsha-Gaye Powell, a Level 3 electrician with a contractor in Brown's Town, St Ann, has been asked to design a spreadsheet for the test results of a new health centre: three panels and 64 circuits. The site sheets give circuit references such as 01, 02 and 03. Most give cable sizes in AWG, but two give them in mm². Insulation readings are written either as a figure in MΩ or as '>999 MΩ' where the reading was beyond the tester's range. Each panel's results must be filtered and printed on their own." },
+    "c2": { "title": "Site sheets from a church hall in Chapelton", "text": "Rohan Edwards, a trainee, is keying 30 handwritten test sheets from a church hall rewire in Chapelton, Clarendon. Before he starts, his supervisor, Miss Simone Gordon, adds up the R1+R2 readings on the paper: they total 38.47 Ω. One sheet has no RCD trip time written for circuit 22. After keying, the record count on screen matches the sheets (186 circuits), but the computer's total of the R1+R2 column is 38.92 Ω." },
+    "c3": { "title": "Due tests at a Rose Hall hotel", "text": "Mr Patrick Wright, maintenance manager of a hotel at Rose Hall, St James, asks electrician Nickeisha Barrett which emergency lights and GFCIs are due for testing in May 2027. The asset register has 420 rows, with these columns: A Asset ID, B Type, C Location, D Last test (date), E Interval (months) and F Result. There is no column for the next due date. Most of the last-test dates sit at the right of their cells, but about 30 sit at the left." },
+    "c4": { "title": "Tester downloads from a Bog Walk factory", "text": "Electrician Leon Ricketts tested two panels, the MDP and DB-1, at a juice factory in Bog Walk, St Catherine, on the same day. In the office, clerk Shauna Malcolm downloads his tester's memory: 58 results, all saved under one job name, 'Bog Walk'. Leon's site sheets list 24 circuits on the MDP and 30 on DB-1. The instrument register shows that the tester's calibration ran out two weeks before the test day." },
+    "c5": { "title": "The office of a Liguanea contractor", "text": "Mrs Claudette Morgan supervises three data clerks in the office of an electrical contractor in Liguanea, St Andrew. The only backup of the job database is an external drive that stays plugged into the office computer. This week a caller who said he was 'from the bank' asked a clerk for a client's address and phone number. The firm's trade association has also asked for figures on the kinds of faults the firm found last year, for an industry survey." }
+  },
+  "questions": [
+    { "id": "P-01", "c": "c1", "q": "Which layout should Marsha-Gaye use for the results?", "o": ["One row for each circuit, with each reading in its own column", "One row for each panel, with its readings together in one cell", "One sheet for each circuit, with the readings typed as a list", "One column for each circuit, with the readings down the rows"], "a": 0, "why": "One record per row and one fact per field lets the file be sorted, filtered and counted on any reading, and each panel filtered on its own. Readings packed into one cell cannot be checked, and 64 sheets or 64 columns cannot be filtered or validated as one table." },
+    { "id": "P-02", "c": "c1", "q": "Why should the Circuit field be formatted as text rather than as a number?", "o": ["So the circuits can be added up to give a batch total", "So the field can hold the cable sizes in AWG as well", "So references such as 01 keep their leading zero", "So the circuit numbers sort in true numerical order"], "a": 2, "why": "Stored as a number, 01 becomes 1 and no longer matches the site sheet or the panel schedule. Fields you never do sums with, such as references and serial numbers, are stored as text even when they are made of digits." },
+    { "id": "P-03", "c": "c1", "q": "How should the '>999 MΩ' readings be keyed?", "o": ["Exactly as written, '>999', so the file matches the sheet", "As 999, with a separate Over range field marked Y", "Left blank, since no exact figure was measured", "As 0, since the tester could not show a value"], "a": 1, "why": "Keyed as '>999' the entry becomes text and drops out of sorts, MIN and range checks. A blank looks like a test that was never done, and 0 looks like a complete insulation failure. An agreed rule, the top figure plus a flag, keeps the field numeric and the meaning clear; write it into the procedure." },
+    { "id": "P-04", "c": "c1", "q": "Two sheets give cable sizes in mm² while the rest use AWG. What should the file do?", "o": ["Accept both, since a cable size means the same in any unit", "Key the sizes as written and add 'mm' after the metric ones", "Put all the cable sizes in the notes field, where text is free", "Use one field in one stated unit, chosen from a drop-down list"], "a": 3, "why": "In AWG a smaller number is a thicker wire, so '12' means very different cables in AWG and in mm². One stated unit and a drop-down list stop the two being mixed. Sizes written in the other unit go on the query sheet for the tester to confirm, rather than being guessed or roughly converted." },
+    { "id": "P-05", "c": "c2", "q": "What should Rohan key for circuit 22's RCD trip time?", "o": ["0 ms, to show that no trip time was written on the sheet", "The trip time of circuit 21, as it is on the same board", "A typical figure such as 25 ms, so the schedule is complete", "Nothing yet: leave it blank and add it to the query sheet"], "a": 3, "why": "A blank truthfully means 'not recorded'. 0 ms would claim an impossible instant trip, and a borrowed or typical figure would be invented data on a safety record. The tester must supply the reading or re-test the circuit." },
+    { "id": "P-06", "c": "c2", "q": "The two R1+R2 totals differ by 0.45 Ω. What should Rohan look for first?", "o": ["Two digits swapped in a reading, such as 0.27 keyed as 0.72", "A reading keyed in MΩ in place of ohms on one of the sheets", "A whole sheet of readings missed out of the keyed batch", "A reading keyed twice, once on its own row and once below"], "a": 0, "why": "The record counts agree, so a missing or doubled record is unlikely. A difference that divides exactly by 9 (0.45 = 9 × 0.05) is the mark of a transposition: 0.72 − 0.27 = 0.45. Check readings of about that size against the sheets." },
+    { "id": "P-07", "c": "c2", "q": "Which way of verifying the batch is most likely to catch a figure that Rohan misread from the handwriting?", "o": ["Rohan reads through his own screen again, slowly, at the end of the day", "The spell checker is run over the whole sheet before it is saved", "Miss Gordon reads each sheet aloud while Rohan checks the screen", "The range checks are made stricter, so that odd readings are blocked"], "a": 2, "why": "Your own eye tends to read the handwriting the same way twice. A second person reading from the sheet gives an independent reading. Spell checkers ignore numbers, and range checks cannot tell a wrong but sensible value from the true one; blocking odd readings could also stop true failures being recorded." },
+    { "id": "P-08", "c": "c3", "q": "Which formula should Nickeisha put in G2, then copy down, to give each item's next due date?", "o": ["=D2+E2", "=EDATE(D2,E2)", "=EDATE(E2,D2)", "=TODAY()+E2"], "a": 1, "why": "EDATE gives the date a number of months after a start date, so =EDATE(D2,E2) is the last test plus the interval. =D2+E2 adds days, not months; the arguments the other way round treat the interval as a date; and TODAY() ignores when the item was last tested." },
+    { "id": "P-09", "c": "c3", "q": "What do the 30 dates sitting at the left of their cells most likely mean?", "o": ["They are text, not real dates, so formulas and filters miss them", "They are in another date format, which does not affect the results", "They are dates already passed, so those items are now overdue", "They are in protected cells, which need a password to change"], "a": 0, "why": "Real dates are stored as numbers and line up at the right of the cell by default; text lines up at the left. Text dates give #VALUE! in EDATE and drop out of date filters, so those items could be missed. Convert them to real dates and check a few against the source." },
+    { "id": "P-10", "c": "c3", "q": "After filtering Type for the two kinds of item, how should Nickeisha set the condition on the next-due column?", "o": ["Greater than 01/05/2027 and also less than 31/05/2027", "Less than 31/05/2027, so nothing due in May is missed", "Equal to 'May 2027', typed into the filter as text", "Between 01/05/2027 and 31/05/2027, both days included"], "a": 3, "why": "'Between' with both ends included catches items due on 1 May and on 31 May. 'Greater than' and 'less than' leave out the two end days, and 'less than 31 May' also pulls in everything due earlier. Overdue items are worth a separate, clearly labelled list." },
+    { "id": "P-11", "c": "c3", "q": "Mr Wright also wants the number of items due in May for each type. What is the quickest reliable way?", "o": ["Sort the register by Type, then count the rows by hand", "A pie chart of the whole register, with a slice per location", "A pivot table with Type in Rows and a count of Asset ID", "A VLOOKUP on Type, copied down to the end of the register"], "a": 2, "why": "A pivot table built on the items due in May groups them and counts each type in a few clicks, and can be refreshed when the data changes; COUNTIFS would also work. Counting by hand is slow and error-prone, and a lookup returns one value, not a count." },
+    { "id": "P-12", "c": "c4", "q": "There are 58 results but only 54 circuits on the sheets. What is the most likely reason to check first?", "o": ["The computer added four blank records when it opened the file", "Some circuits were re-tested, so repeat results were saved", "Four circuits on the sheets were never tested on the day", "The tester split some readings into two separate records"], "a": 1, "why": "More results than circuits usually means re-tests or repeat saves; untested circuits would give fewer results, not more. Match each result's circuit, time and reading to the sheets, keep the one Leon confirms is final, and log what was set aside." },
+    { "id": "P-13", "c": "c4", "q": "What must happen about the tester's calibration before a certificate is issued from these results?", "o": ["Nothing: two weeks past the date makes little difference", "Issue it with a note that the tester was out of calibration", "Change the register so the date falls after the test day", "Tell the supervisor, who decides on re-testing the circuits"], "a": 3, "why": "Results from an instrument out of calibration cannot be relied on as evidence that the installation is safe. The supervisor decides what to do, usually re-testing with a calibrated instrument. Changing the register date would be falsifying a record." },
+    { "id": "P-14", "c": "c4", "q": "How should Shauna make sure each result goes with the right panel?", "o": ["Check each result against Leon's sheets, and query any doubt", "Put the first 24 results under the MDP and the rest under DB-1", "Sort by reading and give the larger readings to the MDP", "Ask the factory's staff which panel each circuit is on"], "a": 0, "why": "Results saved under one name may be in any order and include re-tests. Only the site sheets (circuit descriptions, readings and times) and Leon himself can confirm which panel each result belongs to. Guessing by position or value could put a failed reading on the wrong certificate." },
+    { "id": "P-15", "c": "c5", "q": "What is the main weakness of the backup arrangement?", "o": ["An external drive is too small for a year of job records", "Backups should be made once a month, not this often", "One fire, theft or virus could destroy both copies at once", "A drive left plugged in slows the computer and causes errors"], "a": 2, "why": "A backup kept beside the computer, and always connected, can be lost in the same fire, flood or burglary, or scrambled by the same ransomware. Keep at least one copy off-site or online, keep older versions, and test a restore now and then." },
+    { "id": "P-16", "c": "c5", "q": "What should the clerk have done when the caller asked for the client's details?", "o": ["Given the address only, since the phone number is private", "Refused, noted the caller's details and told Mrs Morgan", "Given the details, since a bank has good reason to ask", "Given the details once the caller named the client correctly"], "a": 1, "why": "Callers who claim to be from a bank or a utility are a common trick, and an address is personal data too. Personal data is given out only for a proper reason, with approval, after checking who is really asking; the data protection law requires the firm to keep it secure." },
+    { "id": "P-17", "c": "c5", "q": "What should be done before the fault figures go to the trade association?", "o": ["Remove names, addresses and anything identifying a client", "Send the full job records, so the figures can be checked", "Nothing, as a trade association may see members' records", "Get every client's signed consent before sending any totals"], "a": 0, "why": "The survey needs counts of fault types, not people. Anonymising the data, by removing anything that could identify a client, lets the firm help without sharing personal data it has no reason to share. Send totals, not job records." },
+    { "id": "P-18", "c": null, "q": "A tenant's sub-meter was replaced part-way through the month. The old meter read 81,240 kWh at the start of the month and 82,105 kWh when it was removed. The new meter started at 0 and reads 1,130 kWh at the end of the month. How much energy did the tenant use?", "o": ["865 kWh", "1,130 kWh", "80,110 kWh", "1,995 kWh"], "a": 3, "why": "Work out each meter separately. Old meter: 82,105 − 81,240 = 865 kWh. New meter: 1,130 − 0 = 1,130 kWh. Total = 1,995 kWh. Subtracting a reading on one meter from a reading on the other means nothing." },
+    { "id": "P-19", "c": null, "q": "Tyrone keeps a 5% waste allowance as 1.05 in cell H1. He types =D2*E2*H1 in F2 and copies it down to F40, but F3 to F40 all show 0. What has gone wrong?", "o": ["Column F is formatted as text, so the sums are not worked out", "A formula must be typed into each row; it cannot be copied", "H1 moved to H2, H3 and so on as it was copied; it needs $H$1", "The allowance must sit in the same row as each item, not in H1"], "a": 2, "why": "A relative reference moves when the formula is copied, so row 3 used H2, row 4 used H3, and so on: all empty, so every result is 0. $H$1 fixes the reference to the one cell that holds the allowance." },
+    { "id": "P-20", "c": null, "q": "=XLOOKUP(B2,Prices!A:A,Prices!C:C) returns #N/A for part BRK-20, although BRK-20 is in the price list. What is the most likely cause?", "o": ["The price list is not sorted in part-number order", "One of the two entries has a hidden extra space", "The price of BRK-20 in the list is J$0", "XLOOKUP cannot read from another sheet"], "a": 1, "why": "#N/A means no exact match was found. A hidden space ('BRK-20 ') or a look-alike character, such as the letter O for a zero, stops an exact match; TRIM the codes and check them. An exact lookup does not need sorting, and a zero price would show 0, not #N/A." }
+  ]
+}
