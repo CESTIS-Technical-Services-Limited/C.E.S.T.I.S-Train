@@ -26,4 +26,5 @@ Fixed in `assessments/` (every copy of a shared unit): MEMFAB0051B T1-40 (now as
 
 - MEMFAB0121B and MEMFAB0122B: one teaching line for the thickness where leftward gas welding gives way to rightward (about 5 mm or about 3 mm), then align both banks and kits.
 - Electrical Level 3 MEMMRD0663A (BS 7671 style test method) and MEMMRD0683A (BS 5266): confirm the code the Centre teaches.
-- Welding filter shade for 3.2 mm E6013: kits say 10, the pilot says 11; reword to "shade 10 or 11 by current".
+
+Done: the 3.2 mm filter shade now follows the pilot (shade 11 for 80–175 A) in MEMFAB0042C's kit; no exam bank states a conflicting shade.
