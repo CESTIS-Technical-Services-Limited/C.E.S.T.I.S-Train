@@ -41,7 +41,7 @@ function serve() {
   });
 }
 const INDEX = JSON.parse(fs.readFileSync(path.join(ROOT, 'study-kits', 'index.json'), 'utf8'));
-let WELD = INDEX.kits.find(k => k.programme === 'Welding & Fabrication');
+let WELD = INDEX.kits.find(k => k.unitCode === 'MEMFAB0111C') || INDEX.kits.find(k => k.programme === 'Welding & Fabrication');
 let KIT_TEXT = WELD ? fs.readFileSync(path.join(ROOT, 'study-kits', WELD.file), 'utf8') : null;
 if (!WELD || process.env.STUDY_KITS_FIXTURE === '1') {
   KIT_TEXT = fs.readFileSync(path.join(__dirname, '..', 'fixtures', 'study-kit-sample.json'), 'utf8');
