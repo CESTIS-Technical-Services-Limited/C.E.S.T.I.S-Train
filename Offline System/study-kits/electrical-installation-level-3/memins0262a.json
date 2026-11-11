@@ -1,0 +1,437 @@
+{
+  "format": "cestis-study-kit",
+  "version": 1,
+  "status": "to-check",
+  "written": "2026-11-07",
+  "programme": "Electrical Installation",
+  "qualification": { "id": "QUAL-EIM-L3", "title": "ELECTRICAL INSTALLATION AND MAINTENANCE LEVEL 3", "code": "MEM32507" },
+  "level": 3,
+  "unit": { "code": "MEMINS0262A", "title": "Install distribution panels, metering sockets, terminal mains and meter earthing systems" },
+  "summary": "This Level 3 unit covers the service position of a building: the meter socket, the terminal mains, the main and sub distribution panels and the earthing system. You will work out loads and line currents, choose breakers and conductors, plan isolations with the power company, install and terminate the equipment, install and test the earth electrode, and inspect, test and record the work before the official inspection.",
+  "sections": [
+    {
+      "title": "Unit overview",
+      "blocks": [
+        { "p": "Everything a building uses passes through its service position: the meter, the main breaker and the distribution panel. A mistake here affects every circuit, and the fault currents here are the largest in the building. This unit is for Level 3 trainees and electricians who plan and lead this work: you do the load calculation, choose the equipment, arrange the outage with the power company, supervise the installation, and inspect and test it before the inspector comes." },
+        { "h": "What you must be able to do" },
+        { "table": { "head": ["Task", "What it looks like on the job"], "rows": [
+          ["Plan the service and the loads", "Prepare a load schedule, work out the current on each line and in the neutral, apply diversity as the code allows, and contact the power company early."],
+          ["Choose panels and protective devices", "Choose the panel size with spare ways, the main breaker's rating and breaking capacity, branch breakers, GFCI protection and surge protection."],
+          ["Size and install terminal mains", "Choose conductors for the main breaker's rating and the voltage drop, and run them from the meter socket's load terminals to the main breaker."],
+          ["Install meter sockets", "Mount the socket where the power company approves, weatherproof it, and leave its supply terminals for the power company."],
+          ["Install main panels and sub-panels", "Mount, enter, wire, terminate to torque and label the panels, with the neutral and earth arranged correctly in each."],
+          ["Install the earthing and bonding", "Drive the earth rod, run the earthing conductor, bond the metal services, and keep neutral and earth joined at one place only."],
+          ["Isolate safely", "Plan outages with the owner and the power company, lock off, and prove dead at the incoming terminals."],
+          ["Inspect and test", "Carry out the visual inspection, the dead tests and the earth electrode test, and deal with any result that fails."],
+          ["Lead, record and hand over", "Brief and check the team at hold points, complete the schedules and test records, and show the client how to use the panel safely."]
+        ] } },
+        { "h": "The service in Jamaica" },
+        { "ul": [
+          "JPS supplies most homes and small businesses at **110/220 V, single-phase, three-wire, 50 Hz**: two line conductors (L1 and L2) and a neutral. Each line is 110 V to neutral; the two lines are 220 V to each other. Larger premises may have a three-phase supply.",
+          "**JPS owns** the service drop or underground service, the meter and its seals. **The customer's electrician installs** the meter socket, the conduit, the terminal mains, the panels and the earthing, to the code and to the power company's requirements.",
+          "The code used in Jamaica is based on the US National Electrical Code (NEC). You will hear NEC words (ground, grounding electrode, service entrance conductors, panelboard) and British words (earth, earth rod, terminal mains or meter tails, distribution board). This kit uses the words in the unit title and gives the others where they help.",
+          "A new or altered installation must be inspected and certified by a licensed electrical inspector, under the Government Electrical Regulator (GER), before JPS will connect it."
+        ] },
+        { "note": "Only the power company may connect to, disconnect from or work on the supply side of the meter, fit or remove the meter, or break its seal. Interfering with a meter is a criminal offence, and the supply terminals of a meter socket are live whenever the service is connected, whatever is switched off in the building.", "label": "Jamaica" },
+        { "h": "How to use this kit" },
+        { "p": "Read the sections in order and work each example with a calculator. Sizes, distances and test values in this kit are typical figures: on a real job the specification, the code tables, the power company's requirements and the maker's instructions decide. Then try the practice test and read each explanation." }
+      ]
+    },
+    {
+      "title": "The service position and its parts",
+      "blocks": [
+        { "h": "From the pole to the circuits" },
+        { "flow": ["JPS service drop or underground service", "Weatherhead, drip loop and service conduit", "Meter socket: supply terminals, meter, load terminals", "Terminal mains", "Main breaker", "Busbars and branch breakers in the main panel", "Final circuits and feeders to sub-panels"] },
+        { "table": { "head": ["Part", "What it is and does"], "rows": [
+          ["Weatherhead and drip loop", "The weatherhead caps the top of the service conduit. The conductors hang in a **drip loop** below it, so that rain runs to the bottom of the loop and drips off before it can follow the conductors into the conduit."],
+          ["Meter socket (meter base)", "The enclosure the meter plugs into. Its **supply (line) terminals** take the power company's conductors; its **load terminals** take the terminal mains."],
+          ["Terminal mains", "The conductors from the meter socket's load terminals to the main breaker: two lines and the neutral. Also called meter tails or service entrance conductors."],
+          ["Main breaker", "Switches and protects the whole installation. Its incoming terminals stay live while the service is connected."],
+          ["Distribution panel (panelboard)", "Holds the busbars, the branch breakers, the neutral bar and the earth bar."],
+          ["Sub-panel", "A second panel fed by a feeder from a breaker in the main panel, for an outbuilding, an upper floor or a group of loads."],
+          ["Earth electrode (earth rod)", "A rod driven into the ground at the service, which connects the installation to the earth itself."],
+          ["Earthing conductor", "The conductor from the main earthing terminal to the earth rod. The NEC calls it the grounding electrode conductor."],
+          ["Main earthing terminal / earth bar", "The bar where the earthing conductor, the bonding conductors and the circuits' earth conductors meet."],
+          ["Main bonding conductors", "Connect incoming metal services, such as a metal water pipe, to the main earthing terminal."],
+          ["Knockout", "A pre-cut disc in an enclosure, punched out to let a conduit or cable in."]
+        ] } },
+        { "h": "How the 110/220 V system works" },
+        { "ul": [
+          "The transformer winding has a centre connection, the **neutral**, which is earthed. L1 and L2 come from the two ends.",
+          "A **110 V load** is connected between one line and the neutral, through a single-pole breaker.",
+          "A **220 V load** is connected between L1 and L2, through a **two-pole breaker** that switches both lines together. A pure 220 V load uses no neutral.",
+          "In the panel the busbar fingers alternate L1, L2, L1, L2 down each side, so a two-pole breaker in two adjacent spaces always picks up both lines."
+        ] },
+        { "h": "Neutral and earth: joined once" },
+        { "p": "The neutral is connected to the earthing system at **one place only: the main service position**. From there on, neutral and earth are separate conductors with different jobs: the neutral carries the normal return current; the earth conductors carry current only during a fault." },
+        { "table": { "head": ["Panel", "Neutral bar", "Earth bar"], "rows": [
+          ["Main panel at the service", "Bonded to the enclosure and the earthing system, by the bonding screw or strap the maker supplies", "Connected to the enclosure; the earthing conductor to the rod lands here or on the neutral bar, as the code and the maker say"],
+          ["Sub-panel", "**Insulated from the enclosure**: the bonding screw or strap is left out", "Fixed to the enclosure and connected back to the main panel by a **separate earth conductor** run with the feeder"]
+        ] } },
+        { "p": "If neutral and earth are joined again in a sub-panel, the normal neutral current divides, and part of it flows all the time on the earth conductors, conduit, panel cases and bonded pipes. Those parts can then carry a voltage, GFCI devices may trip for no clear reason, and if the feeder's neutral ever breaks, every earthed metal part on that sub-panel can rise towards line voltage." }
+      ]
+    },
+    {
+      "title": "Planning and load calculations",
+      "blocks": [
+        { "h": "The load schedule" },
+        { "p": "A **load schedule** lists every circuit: what it feeds, its voltage, its load in watts or amperes, its breaker and its cable. It is the first document you prepare, because the panel, the main breaker, the terminal mains and the service size all come from it. Keep it: next year, when the client wants to add circuits, the load schedule and the circuit schedule show whether the panel and service can take them." },
+        { "h": "Current from power" },
+        { "ul": [
+          "For heating and other resistive loads: **I = P ÷ V**. A 2,640 W water heater on 220 V draws 2,640 ÷ 220 = 12 A.",
+          "For motors and air conditioners, use the **current on the nameplate**. A motor draws more current than its watts divided by the voltage, because of its power factor and losses.",
+          "**Diversity** is the allowance made because not every load runs at full power at the same time. The code's tables and the specification say how much may be allowed; you do not guess it. The load after diversity is the **maximum demand**."
+        ] },
+        { "h": "Current on each line and in the neutral" },
+        { "ul": [
+          "A 220 V load draws its current on **both** lines.",
+          "A 110 V load draws its current on **one** line and returns it through the neutral.",
+          "Current on a line = the 220 V currents + the 110 V currents connected to that line.",
+          "The 110 V currents from L1 and L2 flow in opposite directions in the shared neutral, so for ordinary heating and lighting loads the **neutral carries only the difference** between them."
+        ] },
+        { "note": "**Example.** A house has a 2,640 W water heater (12 A), a 7,700 W range (35 A) and two air conditioners whose nameplates show 9 A each, all at 220 V. The 110 V circuits, after diversity, come to 28 A on L1 and 21 A on L2. The 220 V loads put 12 + 35 + 18 = 65 A on each line. L1 = 65 + 28 = **93 A**; L2 = 65 + 21 = **86 A**; neutral = 28 − 21 = **7 A**.", "label": "Tip" },
+        { "h": "Balancing" },
+        { "p": "Share the 110 V circuits as evenly as you can between L1 and L2. Balance lowers the neutral current, loads the two lines and the transformer evenly, and keeps the voltage steady. To improve a poor balance, move a circuit of about **half the difference** from the heavier line to the lighter: if L1 carries 38 A and L2 carries 24 A, the difference is 14 A, and moving a 7 A circuit gives 31 A on each." },
+        { "h": "If the shared neutral breaks" },
+        { "p": "With the neutral gone, the 110 V loads on L1 and the 110 V loads on L2 are left **in series across 220 V**. The voltage divides between them in proportion to their resistance, and the lightly loaded side has the higher resistance. Example: L1 feeds a 10 A load (11 Ω) and L2 a 2 A load (55 Ω). In series, the current is 220 ÷ 66 = 3.3 A, so the L1 load gets about 37 V and the L2 load about **183 V**. Lamps, televisions and electronics on the lightly loaded side burn out or catch fire. This is why the neutral terminations at the service get as much care as the lines." },
+        { "h": "Choosing the panel" },
+        { "ul": [
+          "Count the **spaces** needed: one for each single-pole breaker and **two for each two-pole breaker**.",
+          "Add the spare ways the specification asks for, often about 20%, and choose the next standard panel size up.",
+          "The panel's busbar rating must be at least the main breaker's rating.",
+          "If an existing panel has no spare ways, the answer is to check the load and then fit a larger panel or a sub-panel. It is never two circuits under one breaker terminal, or a cable tapped onto the main lugs."
+        ] },
+        { "h": "Where the panel goes" },
+        { "ul": [
+          "In a **dry, well-lit place that is easy to reach**: not in a bathroom, not in a clothes cupboard, not above a cooker or sink.",
+          "With a **clear working space** in front of it, about a metre deep and kept free of storage, as the code requires, so that a person can work on it and get away from it.",
+          "As close to the meter as is practical, so that the terminal mains are short.",
+          "At a height where the breakers can be reached without a ladder."
+        ] },
+        { "h": "Talk to the power company early" },
+        { "p": "The power company sets where the meter may go, the size of service it will give, its own requirements for the meter socket and service entrance, and the **prospective fault current** at the service. Find these out before anything is ordered. Any outage, disconnection or reconnection is booked with the power company and agreed with the owner in advance, with the occupants warned." }
+      ]
+    },
+    {
+      "title": "Choosing protective devices",
+      "blocks": [
+        { "h": "The main breaker" },
+        { "table": { "head": ["Point", "Rule"], "rows": [
+          ["Current rating", "At least the maximum demand on the busier line, and **no more than the terminal mains and the service are rated for**. Choose the next standard size above the demand."],
+          ["Breaking capacity (kA)", "At least the prospective fault current at the service position. A breaker asked to break more than its rating can burst or fail to clear the fault."],
+          ["Type", "Made for that panel, and installed as its maker says."]
+        ] } },
+        { "note": "**Example.** The maximum demand is 93 A, and main breakers come in 60, 100, 125 and 150 A. The 60 A breaker would trip in normal use. The **100 A** breaker is the next size above 93 A, provided the terminal mains and service are rated for 100 A. A 150 A breaker would let 150 A flow in conductors chosen for 100 A, without tripping: it protects nothing.", "label": "Tip" },
+        { "h": "Branch breakers" },
+        { "ul": [
+          "A branch breaker is rated to **protect its cable** and to suit its load. Never fit a larger breaker to stop one tripping.",
+          "A 220 V circuit has a **two-pole breaker**, or two breakers with an approved handle tie, so that both lines open together. With two separate single-pole breakers, one could trip or be switched off while the other leaves the appliance live.",
+          "A fault on a branch circuit should trip that circuit's breaker, not the main breaker. Choosing devices so that this happens is called discrimination (selective coordination).",
+          "Use only breakers of the type listed for the panel. A breaker that 'fits' but is not made for the busbar can make poor contact and overheat."
+        ] },
+        { "h": "GFCI, AFCI and surge protection" },
+        { "table": { "head": ["Device", "What it does", "Where and how"], "rows": [
+          ["GFCI (RCD)", "Trips on a small leakage current to earth, of the size that could pass through a person: about 5 mA for a US-type GFCI, usually 30 mA for an RCD.", "Circuits for bathrooms, kitchens, outdoor outlets and other wet places, and wherever the specification asks."],
+          ["AFCI", "Trips when it detects the arcing of damaged or loose wiring, to prevent fire.", "Where the specification or code asks."],
+          ["Surge protective device (SPD)", "Diverts the short, high voltage of a surge, from lightning or from switching on the network, to earth.", "At the main panel, on its own breaker where the maker says, with its leads **as short and straight as possible**: every extra length of lead adds voltage during a surge and weakens the protection."]
+        ] } },
+        { "p": "Jamaica has frequent lightning, and surges also follow power cuts and reconnections. Surge protection at the main panel is a sensible recommendation for most clients." },
+        { "h": "Standby generators" },
+        { "p": "A generator must be connected through an approved **changeover (transfer) switch**, which connects the building to the mains **or** to the generator, never to both. Without one, the generator can feed back through the meter into the power company's lines. The transformer steps that voltage up, and a line worker who believes the line is dead can be killed. When the mains returns, the generator can also be destroyed." },
+        { "ul": [
+          "Check the generator's output against the loads it must carry, and decide whether it feeds the whole panel or a sub-panel of essential circuits.",
+          "The changeover switch is rated for the load and placed between the meter and the panel, or ahead of the essential sub-panel.",
+          "The generator's earthing and neutral arrangement follow the maker's instructions and the specification.",
+          "The work needs a planned outage, safe isolation, dead tests and approval before it is used.",
+          "During any later work on the panel, the generator is a **second source of supply**: it is locked off so that it cannot start."
+        ] }
+      ]
+    },
+    {
+      "title": "Safe isolation at the service",
+      "blocks": [
+        { "p": "Safe isolation at the service position has one extra difficulty: **you cannot switch off your own supply**. Opening the main breaker makes the busbars and circuits dead, but the main breaker's incoming terminals, the terminal mains and the meter socket remain live from the power company's side." },
+        { "table": { "head": ["Job", "What makes it safe"], "rows": [
+          ["Work on a branch circuit", "Its own breaker off, locked and tagged; prove dead at the point of work."],
+          ["Work on a sub-panel", "The feeder breaker in the main panel off, locked and tagged; prove dead at the sub-panel's incoming terminals."],
+          ["Changing a breaker in the main panel, with the busbars dead", "Main breaker off, locked and tagged; prove dead on the busbars; keep clear of the still-live incoming side, with its cover or barrier in place."],
+          ["Replacing the main breaker, the main panel, the terminal mains or the meter socket", "**The power company disconnects the supply.** Then lock off and tag as the procedure says, and prove dead at the incoming terminals."]
+        ] } },
+        { "h": "A planned panel change" },
+        { "flow": ["Survey the old panel; record and label every circuit", "Prepare the new panel and circuit schedule", "Agree the date and time with the owner; warn the occupants", "Book the power company's disconnection", "Lock off any generator, solar or battery supply", "After the disconnection: lock, tag, and prove dead at the incoming terminals and busbars", "Change the equipment; terminate to torque", "Dead tests; inspection and approval", "Team clear, covers on, tools out", "The power company restores the supply"] },
+        { "ul": [
+          "**Prove dead yourself, every time**, with a two-pole voltage tester checked on a proving unit before and after. The crew may have disconnected the wrong service, and a generator or inverter may be feeding back.",
+          "Test between L1 and L2, each line and neutral, and each line and earth, at the incoming terminals.",
+          "Never start stripping out equipment while you wait for the crew, and never keep part of an old panel live to give the occupants power.",
+          "The fault current at the service is very large. A slipped tool across live incoming terminals causes an arc flash that no branch breaker can limit.",
+          "When the supply is restored, everyone is clear of the panel, with covers fitted. Nobody is checking a busbar or holding the meter."
+        ] },
+        { "note": "Never pull a meter from its socket, break a seal, or connect to the supply terminals, even if the owner offers to take the blame. Apart from the law, pulling a meter under load can draw an arc at the socket jaws, and the supply terminals stay live with the meter out.", "label": "Safety" }
+      ]
+    },
+    {
+      "title": "Installing meter sockets and terminal mains",
+      "blocks": [
+        { "h": "The meter socket" },
+        { "ul": [
+          "Fix it at the position and height the power company approves, where the meter can be read and reached from outside without entering the building.",
+          "Mount it **plumb, level and firm**, on fixings suited to the wall. A socket that rocks strains its terminals and the meter's blades.",
+          "Outdoors it is exposed to sun and driving rain. Use the **entries the maker approves**: a rainproof hub for a conduit entering the top, sealed fittings elsewhere. Do not drill extra holes, and do not rely on tape or sealant round the cover.",
+          "The metal enclosure is connected to the earthing system as the code and the maker show, so that a fault to the case cannot leave it live.",
+          "Connect only the **load terminals**. Leave the supply terminals empty for the power company."
+        ] },
+        { "h": "Sizing the terminal mains" },
+        { "p": "Terminal mains are chosen for two things: current rating and voltage drop." },
+        { "ul": [
+          "**Current rating**: at least the rating of the main breaker, after any rating factors for heat and grouping. The breaker will let its full rated current flow without tripping, so the conductors must be able to carry it. Size them for the breaker, not for the load measured today.",
+          "**Voltage drop**: within the limit in the specification.",
+          "Voltage drop (V) = mV per ampere per metre × current (A) × length (m) ÷ 1,000. The figure in mV/A/m comes from the cable data, and already allows for both conductors of the circuit.",
+          "Percentage drop = voltage drop ÷ supply voltage × 100."
+        ] },
+        { "note": "**Example.** Terminal mains 15 m long feed a 100 A main breaker. Cable X is rated 95 A; cable Y is rated 120 A, with 2.2 mV/A/m. The limit is 2% of 220 V = 4.4 V. Cable X is rejected at once: 95 A is less than 100 A. Cable Y: 2.2 × 100 × 15 ÷ 1,000 = **3.3 V**, which is 1.5%. Cable Y passes both tests.", "label": "Tip" },
+        { "h": "Copper or aluminium" },
+        { "table": { "head": ["Point", "Copper", "Aluminium"], "rows": [
+          ["Size for the same current", "Smaller", "Larger: it conducts less well, so a bigger conductor, and perhaps bigger conduit and lugs, are needed"],
+          ["Terminals", "Standard", "Only terminals and lugs marked as rated for aluminium (often 'AL/CU')"],
+          ["Preparation", "Clean, bright strands", "Wire-brush the strands and apply anti-oxidant compound, because aluminium forms a hard, non-conducting oxide skin within minutes"],
+          ["Tightening", "Maker's torque", "Maker's torque, with a torque wrench: aluminium is soft, and both loose and over-tight joints overheat"]
+        ] } },
+        { "h": "Running and terminating" },
+        { "ul": [
+          "Run suitable conduit from the meter socket to the panel by the shortest practical route.",
+          "**Seal the conduit where it passes from outside to inside.** Water, insects, lizards and damp air travel along a conduit. Where the room inside is air-conditioned, warm, damp outside air drawn through an unsealed conduit condenses into water inside the cool panel.",
+          "Pull the conductors in without damage. Keep each **in one length, with no joints**.",
+          "Identify line, neutral and earth at both ends.",
+          "Terminate with the right lugs, to the **maker's torque**, using a torque wrench or torque screwdriver. A loose main termination carries the whole building's current through a poor contact, and is a common start of panel fires.",
+          "Strip to the right length: no bare conductor showing beyond the terminal, and no insulation under the clamp."
+        ] }
+      ]
+    },
+    {
+      "title": "Installing distribution panels and sub-panels",
+      "blocks": [
+        { "h": "Mounting and entries" },
+        { "ul": [
+          "Mount the panel plumb and firm on fixings suited to the wall and the weight. Two people lift a large panel.",
+          "Open only the knockouts you need, and close any opened by mistake with a blanking plug.",
+          "A metal conduit enters through a **connector with a locknut and a bushing**: the locknut bites into the enclosure to carry the conduit's earth path, and the bushing protects the conductors from the cut end. A rubber grommet does neither job for conduit.",
+          "A cable enters through a connector or gland of the right type and size, so that it is gripped and the hole is closed.",
+          "Fit blanks in unused breaker spaces, so that no live busbar can be touched through the cover."
+        ] },
+        { "h": "Wiring inside the panel" },
+        { "ul": [
+          "**Dress the conductors neatly down the sides** of the panel, not across the front of the breakers, so that every breaker can be seen, reached and changed safely.",
+          "Bring each conductor to its terminal in a smooth bend, cut to length, with a little slack.",
+          "One conductor under each terminal, unless the terminal is marked for two.",
+          "Neutrals to the neutral bar, earth conductors to the earth bar, each in its own hole and in circuit order where you can.",
+          "Arrange the 110 V circuits to balance L1 and L2, as the load schedule shows.",
+          "Tighten every terminal to the maker's value with a **torque screwdriver**. 'As tight as it will go' strips threads and crushes strands; 'hand tight' works loose."
+        ] },
+        { "h": "Sub-panels" },
+        { "flow": ["A two-pole feeder breaker in the main panel, rated to protect the feeder cable", "Feeder with two lines, a neutral and a separate earth conductor", "At the sub-panel: neutral bar insulated from the case, with the bonding screw left out", "Earth bar fixed to the case; feeder earth and all circuit earths on it", "Label on the sub-panel saying where its supply is isolated"] },
+        { "ul": [
+          "An outbuilding's sub-panel usually has **its own earth rod as well**, connected to its earth bar. The rod is in addition to the feeder's earth conductor, never instead of it: soil cannot carry enough current to trip a breaker, so a fault must return along the earth conductor.",
+          "A sub-panel fed from another building or another room must carry a label saying **where its supply can be switched off**, because the person working on it cannot see the feeder breaker."
+        ] },
+        { "h": "Labels and schedules" },
+        { "ul": [
+          "A **circuit schedule** (panel directory) inside the door: each breaker's number, what it feeds, its rating and its cable.",
+          "Each breaker numbered to match.",
+          "Warning labels where there is a second source of supply, such as a generator or a solar inverter.",
+          "The main earthing terminal and the bonding connections labelled, so that nobody removes them."
+        ] }
+      ]
+    },
+    {
+      "title": "Meter earthing and bonding",
+      "blocks": [
+        { "h": "What the earthing system does" },
+        { "ul": [
+          "The **earth rod** ties the installation to the ground itself. It limits the voltages caused by lightning and by faults on the supply network, and holds all earthed metal close to the voltage of the ground people stand on.",
+          "The **earth conductors and the neutral-to-earth connection at the service** give fault current a low-resistance metal path back to the source, so that breakers trip.",
+          "**Bonding** joins metal services to the earthing terminal, so that no dangerous voltage can appear between them."
+        ] },
+        { "h": "Installing the earth rod" },
+        { "flow": ["Check the site plan and ask about buried pipes and cables", "Choose a position near the meter, clear of foundations, paths and drains", "Drive the copper-bonded rod to its full depth", "Fit a clamp rated for direct burial", "Run the earthing conductor in one length to the main earthing terminal", "Protect the conductor where it could be damaged", "Test the electrode and record the result"] },
+        { "ul": [
+          "A typical rod is copper-bonded steel about 2.4 m long. The whole length should be in contact with soil; the deeper soil is damper and conducts better.",
+          "Where rock stops the rod, the code allows other ways, such as driving it at an angle or laying it in a trench. A rod cut short and left standing out of the ground is not an electrode.",
+          "The clamp below ground, or in a pit, must be **rated for direct burial**. An ordinary clamp corrodes and loosens in soil, and the connection is lost without anyone seeing it.",
+          "An inspection pit with a cover keeps the connection where it can be checked.",
+          "The **earthing conductor's size comes from the service size and the table in the code or specification**. It is not 'whatever is left in the van', and it is not matched to the smallest circuit.",
+          "Run it **without joints**. Where it is exposed to damage, protect it in conduit. If the conduit is steel, the conduit is bonded to the conductor at both ends, or it chokes the current during a surge."
+        ] },
+        { "h": "Testing the electrode" },
+        { "p": "Electrode resistance is measured in ohms with a **three-terminal earth tester**. The electrode must be disconnected from the main earthing terminal for the test, so the **installation is isolated first**: with the rod off, nothing live may be left without its earth." },
+        { "flow": ["Isolate the installation and disconnect the earthing conductor from the terminal", "Connect the tester to the rod", "Drive the current spike well away from the rod, in a straight line: often 25 to 30 m for a single rod, as the tester's maker says", "Drive the potential spike in the same line, at about 62% of that distance", "Take a reading", "Move the potential spike about a tenth of the distance nearer, then further, and read again", "If the three readings agree closely, record the result; if not, move the current spike further out and repeat", "Reconnect the earthing conductor and check the connection"] },
+        { "ul": [
+          "Readings that **agree** show that the spikes are far enough out and the result can be trusted. Readings that climb steadily as the potential spike moves outward show that the spikes are too close to the rod.",
+          "The limit comes from the specification and the power company. Many specifications that follow the NEC accept a single rod only if it measures **25 Ω or less**, and otherwise require a second electrode.",
+          "Dry, sandy or rocky ground, such as much of south St Elizabeth, gives high readings, and readings rise in the dry season. Note the weather and ground conditions on the record."
+        ] },
+        { "h": "If the reading is too high" },
+        { "ul": [
+          "Drive **extra rods, spaced well apart and bonded together**. Rods close together share the same soil and add little; a spacing of at least the rod's length, and better twice that, is usual. The code gives a minimum.",
+          "Or use a longer or deeper electrode, to reach damper ground.",
+          "Test again after each change and record every result, before and after."
+        ] },
+        { "h": "Main bonding" },
+        { "ul": [
+          "Bond an incoming **metal water pipe** to the main earthing terminal with a bonding clamp, **near where the pipe enters the building**, on clean metal and before any plastic section or fitting.",
+          "Bond other incoming metal services and structural steel as the code and specification say.",
+          "Size the bonding conductor from the table in the specification.",
+          "Label each connection, and test the continuity of every earthing and bonding conductor with a low-resistance ohmmeter."
+        ] }
+      ]
+    },
+    {
+      "title": "Inspection, testing, records and leading the team",
+      "blocks": [
+        { "h": "Visual inspection first" },
+        { "p": "Inspect before you test, with everything dead and not connected to the supply. Check the work against the drawings and schedules." },
+        { "table": { "head": ["Item", "Check"], "rows": [
+          ["Meter socket", "Level, firm, weatherproof; approved entries; supply terminals empty and untouched."],
+          ["Conduit and entries", "Correct connectors, locknuts and bushings; sealed where it passes from outside to inside."],
+          ["Terminal mains", "Correct size and material; no joints; identified; lugs and torque correct."],
+          ["Panels", "Dry, reachable position with clear working space; plumb and firm; blanks fitted."],
+          ["Breakers", "Ratings match the schedule and the cables; two-pole on 220 V circuits; correct type for the panel; breaking capacity adequate."],
+          ["Neutral and earth", "Joined at the main service position only; separate in every sub-panel; separate earth conductor to each sub-panel."],
+          ["Earthing and bonding", "Rod, clamp, conductor size and protection; bonding to metal services."],
+          ["Workmanship", "Conductors dressed at the sides; one conductor per terminal; torque checked."],
+          ["Labels", "Circuit schedule complete; breakers numbered; isolation and warning labels fitted."]
+        ] } },
+        { "h": "Dead tests, in order" },
+        { "table": { "head": ["Order", "Test", "Instrument", "Points"], "rows": [
+          ["1", "Continuity of protective (earth) and bonding conductors", "Low-resistance ohmmeter", "Done first, because the later tests to earth mean nothing unless the earth path is proved."],
+          ["2", "Insulation resistance", "Insulation resistance tester, usually at 500 V DC for 110/220 V circuits", "Disconnect or isolate electronic equipment, surge devices and anything the test voltage could damage. New work reads very high; many specifications reject anything below about 1 megohm. Discharge the circuit afterwards."],
+          ["3", "Polarity", "Ohmmeter or continuity tester", "Every single-pole breaker and switch must be in the **line**, not the neutral. A device in the neutral switches the load off but leaves it live."],
+          ["4", "Earth electrode resistance", "Three-terminal earth tester", "With the installation isolated and the electrode disconnected."]
+        ] } },
+        { "ul": [
+          "A **failed result is investigated**, not recorded and passed on. A low insulation reading on a circuit is traced by splitting the circuit and testing each part until the fault is found.",
+          "Never lower the test voltage, or swap conductors, until a reading 'passes'.",
+          "After the fault is corrected, repeat the test and record both the fault and the final result.",
+          "Give each test to a named team member, and check the results yourself before signing."
+        ] },
+        { "h": "Inspection and connection" },
+        { "flow": ["Team's own inspection and dead tests complete and recorded", "Request the official inspection", "Correct every fault on the inspector's report; retest; ask for re-inspection", "Certificate issued", "The power company connects the supply", "Live checks by a competent person: voltages, GFCI test buttons"] },
+        { "h": "Handover to the client" },
+        { "ul": [
+          "Show the client where the main breaker is and **how to switch off safely**, and go through the circuit schedule so they know what each breaker feeds.",
+          "Show the GFCI test buttons and explain that they are pressed regularly, as the maker says.",
+          "Explain that a breaker that trips again and again is reporting a fault: it is not to be forced, held on or replaced with a bigger one.",
+          "Explain how the generator's changeover switch is used, if there is one.",
+          "Never teach a client to work on a live panel, bypass a breaker or touch the meter.",
+          "Hand over the load schedule, the circuit schedule, the test records and the certificate."
+        ] },
+        { "h": "Leading the team" },
+        { "ul": [
+          "**Brief** before work: the drawing, the panel position, the order of work, the hazards, and the rule that the supply side of the meter socket belongs to the power company.",
+          "Give each person a clear task and check that the right tools are there, including the torque screwdriver.",
+          "Set **hold points**, where work stops until you have checked it: the panel fixed plumb and firm; conduit, connectors and bushings before conductors go in; terminations before the covers go on.",
+          "At each hold point check sizes, connections, torque, the neutral and earth arrangement and the labels. When you find a fault, explain it, so the trainee learns.",
+          "Watch the tests, check the records, and review the job with the team at the end."
+        ] }
+      ]
+    },
+    {
+      "title": "Revision",
+      "blocks": [
+        { "h": "Checklist" },
+        { "p": "Tick each statement only when you can do it without looking at the notes." },
+        { "ul": [
+          "I can name the parts of a service position, from the service drop to the final circuits, and say who owns and may work on each.",
+          "I can explain how a 110/220 V three-wire supply works.",
+          "I can prepare a load schedule and work out the current of resistive loads and motor loads.",
+          "I can work out the current on each line and in the neutral, and balance the 110 V circuits.",
+          "I can explain what happens to 110 V equipment when a shared neutral breaks.",
+          "I can count the spaces a panel needs, add spare ways and choose a panel size.",
+          "I can choose a place for a panel and explain why working space matters.",
+          "I can choose a main breaker by current rating and breaking capacity.",
+          "I can explain why 220 V circuits need two-pole breakers.",
+          "I can say what GFCI, AFCI and surge protective devices do, and why SPD leads are kept short.",
+          "I can explain why a generator needs a changeover switch.",
+          "I can explain why the main breaker does not isolate its own incoming terminals, and plan an outage with the power company.",
+          "I can prove dead at incoming terminals with a tester checked before and after.",
+          "I can install a meter socket so that it stays weatherproof, leaving the supply terminals alone.",
+          "I can choose terminal mains for current rating and voltage drop, and work out the drop in volts and as a percentage.",
+          "I can terminate copper and aluminium conductors correctly, to the maker's torque.",
+          "I can install a panel with correct entries, dressing and labelling.",
+          "I can explain where neutral and earth are joined, and wire a sub-panel correctly.",
+          "I can install an earth rod and earthing conductor, test the electrode and act on a high reading.",
+          "I can bond a metal water pipe in the right place.",
+          "I can carry out the visual inspection and the dead tests in order, and deal with a result that fails.",
+          "I can brief and check a team at hold points, complete the records and hand over to the client."
+        ] },
+        { "h": "Formulas and figures to remember" },
+        { "table": { "head": ["What", "How"], "rows": [
+          ["Current of a resistive load", "I = P ÷ V"],
+          ["Line current", "220 V currents + the 110 V currents on that line"],
+          ["Neutral current (ordinary loads)", "Difference between the 110 V currents on L1 and L2"],
+          ["Circuit to move for balance", "About half the difference between the two lines"],
+          ["Panel spaces", "Single-pole breakers + 2 × two-pole breakers, plus spare ways"],
+          ["Voltage drop", "mV/A/m × amperes × metres ÷ 1,000"],
+          ["Percentage voltage drop", "Voltage drop ÷ supply voltage × 100"],
+          ["Main breaker", "At or above the maximum demand; not above the rating of the terminal mains; breaking capacity at or above the fault current"],
+          ["Insulation test voltage", "Usually 500 V DC for 110/220 V circuits"],
+          ["Potential spike position", "About 62% of the distance from the rod to the current spike"]
+        ] } },
+        { "h": "Key terms" },
+        { "terms": [
+          ["Bonding", "Joining metal parts and services to the earthing terminal so that they stay at the same voltage."],
+          ["Breaking capacity", "The largest fault current a breaker can interrupt safely, in kiloamperes (kA)."],
+          ["Changeover (transfer) switch", "A switch that connects a building to the mains or to a generator, never to both."],
+          ["Circuit schedule", "The list, kept in the panel, of each breaker, what it feeds, its rating and its cable."],
+          ["Diversity", "The allowance made because not every load runs at full power at the same time."],
+          ["Drip loop", "The loop of conductor below the weatherhead from which rainwater drips off."],
+          ["Earth electrode", "A rod or other conductor in the ground that connects the installation to the earth."],
+          ["Earthing conductor", "The conductor from the main earthing terminal to the earth electrode."],
+          ["GFCI (RCD)", "A device that trips on a small leakage of current to earth."],
+          ["Hold point", "A stage where work stops until the leader has checked it."],
+          ["Knockout", "A pre-cut disc in an enclosure, removed to let a conduit or cable in."],
+          ["Load schedule", "The list of every circuit and its load, from which the panel, breakers and service are sized."],
+          ["Main earthing terminal", "The bar where the earthing, bonding and circuit earth conductors meet."],
+          ["Maximum demand", "The largest load expected at one time, after diversity."],
+          ["Meter socket", "The enclosure that the power company's meter plugs into."],
+          ["Polarity", "The correct connection of line and neutral, so that switches and breakers break the line."],
+          ["Prospective fault current", "The current that would flow in a short circuit at a given point."],
+          ["Sub-panel", "A panel fed by a feeder from a breaker in the main panel."],
+          ["Surge protective device (SPD)", "A device that diverts voltage surges to earth."],
+          ["Terminal mains", "The conductors from the meter socket's load terminals to the main breaker."],
+          ["Torque", "The turning force to which a terminal screw or bolt is tightened, given by the maker."],
+          ["Two-pole breaker", "A breaker that switches both lines of a 220 V circuit together."],
+          ["Voltage drop", "The voltage lost along a conductor when current flows in it."]
+        ] }
+      ]
+    }
+  ],
+  "cases": {
+    "c1": { "title": "A new house in Junction", "text": "Ms Kadian Powell, a Level 3 electrician, is planning the main panel for a new house in Junction, St Elizabeth. The house needs 6 two-pole breakers for 220 V circuits and 18 single-pole breakers for 110 V circuits, and the specification asks for at least 20% spare ways. Panels are stocked with 24, 30, 36 and 42 spaces. Two of the 220 V circuits feed air conditioners. On her first layout the 110 V loads come to 38 A on L1 and 24 A on L2; the 110 V circuits on L1 include ones of 6 A, 7 A, 9 A and 16 A." },
+    "c2": { "title": "A panel change at a bakery in Highgate", "text": "Mr Leroy Francis, a Level 3 electrician, will replace the burnt main panel of a bakery in Highgate, St Mary. The new main breaker is to be 150 A. The power company gives the prospective fault current at the service as 14 kA. The bakery has a standby generator with an automatic changeover switch, which starts the generator when the mains fails. The owner, who is losing sales each day, offers to pull the meter out of its socket himself so that the work can start before the power company's crew arrives." },
+    "c3": { "title": "An earth rod on a rocky hillside in Gordon Town", "text": "Miss Tanisha Grant, a Level 3 trainee, is installing the meter earthing for a house on a rocky hillside in Gordon Town, St Andrew, in the dry season. The first 2.4 m rod hits solid rock at 1.2 m. The specification asks for an electrode resistance of 25 Ω or less. The earthing conductor will run down the outside wall beside the driveway, where the specification asks for it to be protected in steel conduit." },
+    "c4": { "title": "A sub-panel for a church hall in Christiana", "text": "A church in Christiana, Manchester, is building a hall 40 m behind the church. Mr Howard Lawrence, a Level 3 electrician, will feed a sub-panel in the hall from a two-pole breaker in the church's main panel. The hall will have its own earth rod. A trainee on the team says that, because of the rod, the feeder needs no earth conductor, and that all the white and green conductors in the sub-panel can share one bar 'as they do in the main panel'." },
+    "c5": { "title": "Terminal mains for a supermarket in Old Harbour", "text": "Mrs Marcia Stewart, a Level 3 electrician, is installing the terminal mains for a small air-conditioned supermarket in Old Harbour, St Catherine. The conduit runs 14 m from the outdoor meter socket, through the wall, to the main panel in the cool stock room. The maximum demand is 118 A. The aluminium conductors chosen are rated 135 A where they are installed, with a voltage drop figure of 1.1 mV per ampere per metre. Main breakers are available in 100, 125, 150 and 200 A. The lugs on the breaker delivered to site are marked 'CU only'." }
+  },
+  "questions": [
+    { "id": "P-01", "c": "c1", "q": "Which is the smallest stocked panel that meets the specification for this house?", "o": ["24 spaces", "30 spaces", "36 spaces", "42 spaces"], "a": 2, "why": "Each two-pole breaker takes two spaces: 6 × 2 = 12, plus 18 single-pole = 30 spaces. With 20% spare: 30 × 1.2 = 36. Counting the two-pole breakers as one space each gives 24 breakers and a 30-space panel, which would be full on the first day." },
+    { "id": "P-02", "c": "c1", "q": "Which current should Kadian enter in the load schedule for each air conditioner?", "o": ["The current shown on the unit's nameplate", "The unit's cooling watts divided by 220 V", "The unit's cooling watts divided by 110 V", "Half of the rating of the breaker that feeds it"], "a": 0, "why": "An air conditioner is a motor load. Because of its power factor and losses, it draws more current than its watts divided by the voltage would suggest, so the maker's nameplate current is the figure to use. P ÷ V is right only for resistive loads such as heaters." },
+    { "id": "P-03", "c": "c1", "q": "Which one circuit should Kadian move from L1 to L2 to balance the 110 V loads best?", "o": ["The 6 A circuit", "The 16 A circuit", "The 9 A circuit", "The 7 A circuit"], "a": 3, "why": "The difference is 38 − 24 = 14 A, and moving a circuit of half the difference balances the lines: 38 − 7 = 31 A and 24 + 7 = 31 A. The neutral current then falls from 14 A to about zero. Moving 16 A would make L2 the heavier line by 18 A." },
+    { "id": "P-04", "c": "c1", "q": "If the shared neutral of this house broke at the service, which 110 V equipment would be most at risk of burning out?", "o": ["Equipment on the more heavily loaded line", "Equipment on the more lightly loaded line", "Only equipment that is switched off at the time", "Only the 220 V water heater and the range"], "a": 1, "why": "Without the neutral, the 110 V loads on L1 and L2 are in series across 220 V, and the voltage divides in proportion to resistance. The lightly loaded side has the higher resistance, so it takes most of the 220 V. The 220 V loads do not use the neutral and are not affected." },
+    { "id": "P-05", "c": "c2", "q": "How should Leroy answer the owner's offer to pull the meter himself?", "o": ["Accept, provided the main breaker has been switched off first", "Accept, provided the owner signs a note taking the blame", "Refuse: only the power company may remove the meter", "Refuse: Leroy should pull the meter, as he is trained"], "a": 2, "why": "The meter and its seals belong to the power company, and interfering with them is an offence for the owner and the electrician alike. Pulling a meter can also draw an arc, and the socket's supply terminals stay live afterwards. The disconnection is booked with the power company." },
+    { "id": "P-06", "c": "c2", "q": "The power company's crew has disconnected the service. What must be done about the bakery's generator before work starts?", "o": ["Lock it off, so that it cannot start", "Leave it on automatic, so the ovens can stay warm", "Run it, so that the team has light at the panel", "Nothing, as its changeover switch makes the panel safe to work on"], "a": 0, "why": "Losing the mains is exactly what tells an automatic changeover switch to start the generator, which would make the panel live while the team is working on it. Every source of supply is isolated and locked off, and the incoming terminals are then proved dead." },
+    { "id": "P-07", "c": "c2", "q": "Which main breaker suits the new panel?", "o": ["150 A with a 10 kA breaking capacity", "200 A with a 10 kA breaking capacity", "100 A with a 22 kA breaking capacity", "150 A with a 22 kA breaking capacity"], "a": 3, "why": "The current rating is 150 A as designed, and the breaking capacity must be at least the 14 kA fault current at the service, so 22 kA is the choice. A 10 kA breaker might burst or fail to clear a short circuit there. Changing the current rating would not match the load and conductors." },
+    { "id": "P-08", "c": "c3", "q": "The rod stops on rock at 1.2 m. Which is an acceptable way forward?", "o": ["Cut off the top half and clamp on to what is in the ground", "Install it as the code allows, at an angle or in a trench", "Leave it standing 1.2 m out of the ground and fence it off", "Leave the rod out altogether, and rely on the water pipe bonding alone"], "a": 1, "why": "An electrode works through the length of rod in contact with soil. Where rock prevents full depth, the code gives other ways to bury the whole rod, such as driving it at an angle or laying it in a trench. Half a rod, or none, does not meet the requirement." },
+    { "id": "P-09", "c": "c3", "q": "With the potential spike at three positions, Tanisha reads 18 Ω, 26 Ω and 41 Ω. What do these readings tell her?", "o": ["The true value is their average, which is about 28 Ω", "The lowest one, 18 Ω, is the one to record", "The rod passes, since one reading is under 25 Ω", "The spikes are too close; move out, repeat"], "a": 3, "why": "A valid test gives nearly the same reading at all three positions. Readings that climb steadily as the spike moves outward mean that the test spikes are within the rod's own area of influence. The current spike is moved further away and the test is repeated until the readings agree." },
+    { "id": "P-10", "c": "c3", "q": "After the spikes are moved, the three readings agree at about 32 Ω. What should be done?", "o": ["Drive a second rod well away, bond the two, and retest", "Drive a second rod right beside the first, and retest", "Pour water round the rod and record the lower reading", "Record 32 Ω as acceptable, because it is the dry season"], "a": 0, "why": "32 Ω is above the 25 Ω the specification allows, so the electrode must be improved. A second rod spaced well apart reaches fresh soil; a rod driven beside the first shares the same soil and adds little. Wetting the ground gives a reading that will not last." },
+    { "id": "P-11", "c": "c3", "q": "The earthing conductor is run in steel conduit beside the driveway. What must be done to the conduit?", "o": ["It is kept insulated from the conductor along its length", "It is filled with sealant to keep the conductor dry", "It is bonded to the earthing conductor at both ends", "It is earthed with a separate rod of its own at the foot"], "a": 2, "why": "A steel tube round a single conductor acts as a choke: it opposes the sudden currents of a lightning surge or a fault. Bonding the conduit to the conductor at both ends puts the steel in parallel with it and removes that effect, and it also makes sure the conduit itself cannot become live." },
+    { "id": "P-12", "c": "c4", "q": "Which conductors must the feeder from the church to the hall's sub-panel contain?", "o": ["Two lines and a neutral only, nothing more", "Two lines, a neutral and an earth conductor", "Two lines and a separate earth conductor only", "One line, a neutral and a separate earth conductor"], "a": 1, "why": "The hall needs both lines for 220 V loads, a neutral for 110 V loads, and its own earth conductor back to the main panel's earth bar. Neutral and earth are joined only at the main service position, so they cannot share one conductor on the way to a sub-panel." },
+    { "id": "P-13", "c": "c4", "q": "What should Howard tell the trainee about the hall's own earth rod?", "o": ["It replaces the feeder's earth conductor, just as the trainee says", "It replaces the neutral for the hall's 110 V circuits", "It must not be fitted where a feeder earth is run", "It is extra: faults still return along the earth conductor"], "a": 3, "why": "Soil has far too much resistance to carry the current needed to trip a breaker. Fault current returns along the metal earth conductor to the main panel, and from there to the source. The rod helps with lightning and holds the hall's metalwork near ground voltage, but it is an addition." },
+    { "id": "P-14", "c": "c4", "q": "How must the neutral and earth conductors be terminated in the hall's sub-panel?", "o": ["Neutrals on an insulated bar; earths on a bar fixed to the case", "All on one bar, with the bonding screw fitted to the case", "Neutrals on the bar fixed to the case; earths on an insulated bar", "All on one bar, with the bonding screw left out of the case"], "a": 0, "why": "In a sub-panel the neutral bar is insulated from the enclosure and the bonding screw is left out, while the earth bar is fixed to the enclosure. If they were joined, normal neutral current would flow all the time on earth conductors, conduit and metal cases. The main panel is the only place they meet." },
+    { "id": "P-15", "c": "c5", "q": "Which main breaker should Marcia fit?", "o": ["100 A", "150 A", "125 A", "200 A"], "a": 2, "why": "The breaker must be at least the 118 A maximum demand and no more than the 135 A the terminal mains can carry. Only 125 A meets both. A 100 A breaker would trip in normal use; a 150 A or 200 A breaker would let the conductors overheat without tripping." },
+    { "id": "P-16", "c": "c5", "q": "At a current of 125 A, what is the voltage drop in the 14 m terminal mains, as a percentage of 220 V?", "o": ["About 0.09%", "About 0.9%", "About 1.9%", "About 8.8%"], "a": 1, "why": "Voltage drop = 1.1 × 125 × 14 ÷ 1,000 = 1.925 V. As a percentage: 1.925 ÷ 220 × 100 = 0.875%, about 0.9%. The figure of 1.9 is the drop in volts, not the percentage: always check which one the specification's limit is given in." },
+    { "id": "P-17", "c": "c5", "q": "What should be done about the breaker lugs marked 'CU only'?", "o": ["Use them, with plenty of anti-oxidant on the strands", "Use them, tightened well beyond the maker's torque", "Tin the aluminium strands with solder, then use them", "Change them for lugs rated for aluminium conductors"], "a": 3, "why": "Aluminium is softer than copper, expands more with heat and forms an insulating oxide. A terminal made only for copper will work loose and overheat on aluminium, whatever compound or force is used. The maker's lugs rated for aluminium are fitted, with anti-oxidant, to the stated torque." },
+    { "id": "P-18", "c": "c5", "q": "What is likely to happen inside the panel if the conduit from the outdoor meter socket is left unsealed where it enters the cool stock room?", "o": ["Damp outside air condenses to water in the panel", "Cool air leaks out and overloads the air conditioning", "The conductors cool, and their voltage drop rises", "The meter under-reads, as the socket runs cooler"], "a": 0, "why": "Warm, humid outside air drawn along the conduit meets the cool metal of the panel and its moisture condenses, dripping onto busbars and terminals. The conduit is sealed where it passes from outside to inside; the seal also keeps out rain, insects and lizards." },
+    { "id": "P-19", "c": null, "q": "An insulation resistance test on a new circuit that feeds an outdoor light with an electronic photocell gives 0.3 megohm between line and earth. What should be done first?", "o": ["Repeat the test at a lower voltage until it reads much higher", "Disconnect the photocell and lamp, and test the cable", "Record the reading and go on to the polarity test", "Swap line and neutral at the panel, and test again"], "a": 1, "why": "Electronic devices can give a low reading, and can be damaged by the 500 V test, so they are disconnected before the cable is tested. If the cable alone still reads low, the circuit is split to find the fault. A test is never altered just to obtain a pass." },
+    { "id": "P-20", "c": null, "q": "A shop owner plans to put shelves of paint tins against the wall in front of the new distribution panel. What should you advise?", "o": ["It is fine, if the shelves are metal and are earthed", "It is fine, if the panel door can still be opened a little", "Keep the space clear, so the panel can be worked on", "Move the panel higher, so that it sits above the shelves"], "a": 2, "why": "A panel needs clear working space in front of it, so that someone can switch off quickly in an emergency and an electrician can work on it and step back from it safely. Paint and thinners in front of a panel add a fire risk as well. A panel mounted out of reach is no better." }
+  ]
+}
