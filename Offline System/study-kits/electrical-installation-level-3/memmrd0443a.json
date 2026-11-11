@@ -1,0 +1,482 @@
+{
+  "format": "cestis-study-kit",
+  "version": 1,
+  "status": "to-check",
+  "written": "2026-11-07",
+  "programme": "Electrical Installation",
+  "qualification": { "id": "QUAL-EIM-L3", "title": "ELECTRICAL INSTALLATION AND MAINTENANCE LEVEL 3", "code": "MEM32507" },
+  "level": 3,
+  "unit": { "code": "MEMMRD0443A", "title": "Diagnose & repair faults in electrical equipment" },
+  "summary": "This unit teaches you to find and repair faults inside electrical equipment: transformers, heaters, induction, universal and DC motors, contactors and starters, solenoids, generators, UPS units and batteries, and portable tools. You will isolate equipment safely, test it dead, read nameplates and maker's data, find the root cause, decide whether to repair, replace or refer it to a specialist, and prove the repair before it goes back into use. At Level 3 you also lead and check the work of junior technicians.",
+  "sections": [
+    {
+      "title": "Unit overview",
+      "blocks": [
+        { "p": "This unit is about **equipment**: the machines and appliances connected to an installation. A pump motor with failing bearings, a control transformer with shorted turns, a generator that will not build up voltage, a UPS whose batteries are worn out, a grinder that sparks: each needs an understanding of how the equipment works, the right tests and good judgement about repair. (Faults in whole systems, such as control circuits, installation wiring and electronic boards, are the subject of MEMMRD0423A.)" },
+        { "h": "What you must be able to do" },
+        { "table": { "head": ["Task", "What it looks like on the job"], "rows": [
+          ["Make equipment safe to work on", "Unplug or isolate and lock off, stop automatic starting, discharge capacitors, and deal with batteries and moving parts."],
+          ["Gather information", "Question the user, read the nameplate, the maker's data and the repair history, and compare with a known-good unit."],
+          ["Diagnose transformers and heating equipment", "Test windings, insulation, elements, thermostats and cut-outs, and use the turns-ratio and power formulas."],
+          ["Diagnose motors", "Find faults in bearings, alignment, windings, insulation, brushes and commutators of induction, universal and DC motors."],
+          ["Diagnose control gear", "Find faults in contactors, relays, overloads, star-delta starters, solenoids and timers."],
+          ["Diagnose standby power equipment", "Find faults in generators, transfer switches, UPS units and batteries without creating back-feed or battery hazards."],
+          ["Inspect and test portable equipment", "Carry out visual inspections and dead tests on Class I and Class II tools and leads, and label or withdraw them."],
+          ["Repair, replace or refer", "Choose parts that match, weigh repair against replacement, and send work such as rewinding to a specialist."],
+          ["Prove the repair and report", "Test dead after repair, arrange a function test by an authorised person, and write a report the next technician can use."],
+          ["Lead the work", "Brief juniors, check their isolation and readings, and dispose of waste such as batteries correctly."]
+        ] } },
+        { "h": "Equipment in Jamaica: what to watch for" },
+        { "ul": [
+          "The JPS supply is **50 Hz**. Many motors, pumps and appliances are imported from the US, where the supply is 60 Hz. Check the frequency on every nameplate, and on every replacement you order.",
+          "Standby generators, inverters and UPS units are common because of outages, and hurricanes can leave them running for days. They fail when they are needed most if they are not maintained.",
+          "Heat shortens the life of batteries, capacitors and insulation. Salt air near the coast corrodes terminals, windings and enclosures. Humidity lowers insulation resistance in stored motors.",
+          "Water in much of Jamaica is hard (it carries dissolved limestone), so scale builds up on water heater elements and makes them run hot."
+        ] },
+        { "note": "In Jamaica most portable equipment uses US-style plugs: the **narrow** flat blade is the line (hot), the **wide** flat blade is the neutral, and the round pin is the ground (earth). In the plug, the brass screw is for the line, the silver screw for the neutral and the green screw for the ground. Some imported equipment uses British colours (brown line, blue neutral, green-and-yellow earth).", "label": "Jamaica" },
+        { "h": "Your role at Level 3" },
+        { "p": "You decide how to diagnose each item, interpret the readings, decide whether to repair, replace or refer, and sign off the work. You also supervise juniors: you check their isolation and their results, not just your own. Know the limits of your competence: engine work, rewinding and some electronic repairs belong to specialists." }
+      ]
+    },
+    {
+      "title": "Safe working on equipment",
+      "blocks": [
+        { "h": "Isolating different kinds of equipment" },
+        { "table": { "head": ["Equipment", "How to make it safe"], "rows": [
+          ["Plug-in equipment", "Unplug it and keep the plug under your control, in sight or in a plug lock-out cover, so nobody plugs it back in."],
+          ["Fixed equipment", "Isolate at its isolator, lock off with your own padlock, tag, and prove dead at the terminals with a tester proved before and after."],
+          ["Standby generator", "Set the controller to OFF and lock it so it cannot start automatically, remove the start key, isolate the start battery as the maker says, and isolate the output."],
+          ["UPS and inverter", "Shut down as the maker's procedure says. The batteries stay live, and the output can be fed from them."],
+          ["Equipment with capacitors", "Isolate, wait the time on the label, then prove dead and discharge safely before touching."],
+          ["Machines with moving parts", "Wait for them to stop. Release or block springs, belts, flywheels and loads that could move."]
+        ] } },
+        { "h": "Stored energy" },
+        { "ul": [
+          "**Capacitors** in motors, power supplies and power factor correction banks can hold a dangerous charge after isolation. Correction capacitors have discharge resistors, but these need time: wait at least the time on the label, then prove dead before touching.",
+          "**Batteries** in UPS units, generators and inverters can deliver thousands of amps into a short circuit. They are never 'isolated': treat their terminals as live.",
+          "**Insulation testing** charges a winding or cable like a capacitor. Let the tester discharge it before you touch the terminals.",
+          "**Mechanical energy**: a fan can be turned by the wind, a pump by water flowing back, a belt by a stored spring. Block it."
+        ] },
+        { "note": "Old capacitors, such as those in old fluorescent fittings and correction banks made before about 1980, may contain PCBs, which are toxic. Do not cut them open or let them leak; keep them for disposal as hazardous waste.", "label": "Safety" },
+        { "h": "Other hazards on the repair bench" },
+        { "ul": [
+          "Heavy motors and transformers: use lifting eyes, slings or a hoist, and lift as a team.",
+          "Hot parts: motors, elements, generators and exhausts stay hot after switch-off.",
+          "Springs and brushes can fly out; wear eye protection when dismantling.",
+          "Carbon dust from brushes conducts; clean it away with a vacuum rather than blowing it into windings or your face.",
+          "Fuel and oil around generators: no smoking, clean up spills, and keep a suitable fire extinguisher close."
+        ] },
+        { "h": "Supervising juniors" },
+        { "p": "When you lead a team, every member fits their own padlock. Before any work starts, check each person's isolation, tag and dead test yourself. A junior telling you that something is isolated is not proof. At the Centre, only the instructor energises a repaired item for its function test." }
+      ]
+    },
+    {
+      "title": "A method for diagnosing equipment faults",
+      "blocks": [
+        { "flow": [
+          "Talk to the user and read the history",
+          "Read the nameplate and the maker's data",
+          "Look, listen, smell and feel (safely)",
+          "Isolate and make safe",
+          "Test dead in a logical order and record the readings",
+          "Find the fault and its root cause",
+          "Decide: repair, replace or refer",
+          "Repair with matching parts",
+          "Test after repair; function test by an authorised person",
+          "Report and update the equipment's records"
+        ] },
+        { "h": "Information sources" },
+        { "table": { "head": ["Source", "What it gives you"], "rows": [
+          ["The user", "What happened, when, how often, under what load, any smell or noise, and what was done before."],
+          ["The nameplate", "Voltage, current, power (kW or VA), frequency, phases, speed, insulation class, IP rating, duty, connection (star or delta)."],
+          ["The maker's manual and data", "Normal winding resistances, settings, test voltages, brush wear limits, greasing intervals, fault codes."],
+          ["Maintenance records", "Earlier readings to compare with, such as insulation resistance trends and running currents, and past repairs."],
+          ["A known-good identical unit", "The readings to expect when there is no maker's data."]
+        ] } },
+        { "h": "Using your senses" },
+        { "table": { "head": ["Sense", "What it can tell you"], "rows": [
+          ["Look", "Burn marks, melted insulation, oil or grease leaks, cracked cases, loose mountings, worn belts, swollen batteries."],
+          ["Listen (while a competent person runs it)", "Bearing rumble or squeal, rubbing, humming without turning, chattering contactors."],
+          ["Smell", "Burnt varnish from overheated windings, hot plastic, battery acid, fuel."],
+          ["Feel (only when isolated)", "Heat left in a bearing or winding, play in a shaft, roughness when you turn it by hand."]
+        ] } },
+        { "h": "Measurements that diagnose equipment" },
+        { "ul": [
+          "**Winding resistance**: low readings measured with a low-resistance ohmmeter. The three windings of a three-phase motor should match closely; an open reading means a broken winding; a low one may mean shorted turns.",
+          "**Insulation resistance**: windings to frame and between windings, at the voltage the maker gives.",
+          "**Running current**: measured by a competent person with a clamp meter and compared with the nameplate.",
+          "**Voltage at the terminals** while running, by a competent person: low or unbalanced voltage makes motors overheat.",
+          "**Temperature and vibration**: an infrared thermometer, and vibration readings where the site has the instrument."
+        ] },
+        { "p": "Changing parts at random until the equipment works wastes money and parts, and the real cause stays hidden to cause the next failure. Find evidence first." },
+        { "h": "Root cause" },
+        { "p": "Always ask why the part failed. Bearings that keep failing point to misalignment, belt tension, wrong greasing or water; brushes that wear fast point to a rough commutator or the wrong grade; a solenoid coil that keeps burning out points to a sticking plunger. Fix the cause, record it, and, where it helps, set a check in the maintenance plan." }
+      ]
+    },
+    {
+      "title": "Transformers and heating equipment",
+      "blocks": [
+        { "h": "How a transformer works" },
+        { "p": "A transformer has two windings on a laminated iron core. AC in the primary winding makes a changing magnetic field, which makes a voltage in the secondary winding. The voltages are in the same ratio as the numbers of turns:" },
+        { "p": "**Secondary voltage = primary voltage × secondary turns ÷ primary turns.** Example: a 220 V primary of 1 320 turns with a 72-turn secondary gives 220 × 72 ÷ 1 320 = 12 V." },
+        { "p": "The power in and out is about the same, so the current goes the other way: a step-down transformer has a small primary current and a larger secondary current. A transformer is rated in **VA**: the most current its secondary should supply is VA ÷ secondary voltage. Example: a 220/24 V, 250 VA control transformer can supply about 250 ÷ 24 ≈ 10.4 A, and draws about 250 ÷ 220 ≈ 1.1 A from the 220 V supply at full load." },
+        { "h": "Transformer faults" },
+        { "table": { "head": ["Fault", "Signs", "Dead test"], "rows": [
+          ["Open winding", "No output", "That winding reads OL"],
+          ["Shorted turns", "Runs hot even with no load, hums, smells; output low; primary fuse may blow", "Winding reads lower than a known-good unit of the same type; burn marks"],
+          ["Insulation failure", "Trips a breaker or RCD; tingle from the frame", "Low insulation resistance between windings or to the core and frame"],
+          ["Overloaded secondary", "Hot, output voltage low under load", "Windings test good; load current is above the VA rating"],
+          ["Blown fuse", "No output", "Fuse reads open. Find what blew it, such as a short in the control wiring, before you replace it"]
+        ] } },
+        { "p": "Test each winding's resistance with the transformer disconnected: on a step-down transformer the primary reads higher than the secondary, because it has more turns of thinner wire. Then insulation-test primary to secondary, primary to core and secondary to core, usually at 500 V DC for 110/220 V transformers." },
+        { "h": "Heating elements" },
+        { "p": "An element's expected resistance is **R = V² ÷ P**. Example: a 220 V, 3 000 W water heater element should read about 220 × 220 ÷ 3 000 ≈ 16 Ω. A cold element reads close to this figure; an open element reads OL." },
+        { "table": { "head": ["Part", "Faults and tests"], "rows": [
+          ["Element", "Open circuit (OL); leakage from the element to its metal sheath, shown by a low insulation reading, which trips an RCD or GFCI: replace the element."],
+          ["Thermostat", "Contacts burnt or stuck open (never heats) or welded closed (overheats); broken capillary on bulb types. Test continuity at different settings."],
+          ["Thermal cut-out (high-limit)", "Opens if the thermostat fails and the water or oven overheats; many must be reset by hand. If it keeps tripping, find why: never bridge it."],
+          ["Timers, relays and door switches", "Ovens and dryers have several; test each against the wiring diagram."]
+        ] } },
+        { "note": "After fitting a water heater element, fill the tank and bleed the air out before the supply is switched on. An element switched on in air ('dry firing') burns out within seconds.", "label": "Remember" },
+        { "note": "Hard water leaves scale on elements, which makes them run hot and fail early. When an element fails, look at the scale and the anode, and advise the client on flushing the tank.", "label": "Jamaica" }
+      ]
+    },
+    {
+      "title": "Induction motors",
+      "blocks": [
+        { "p": "The three-phase squirrel-cage induction motor drives most pumps, fans and compressors in commercial buildings. Its stator windings make a rotating magnetic field; the rotor follows it, a little slower." },
+        { "h": "Speed and slip" },
+        { "p": "**Synchronous speed (rpm) = 120 × frequency ÷ number of poles.** On 50 Hz: 2 poles give 3 000 rpm, 4 poles 1 500 rpm, 6 poles 1 000 rpm. The rotor runs a little slower: the difference is the **slip**, usually 2–6% at full load. Example: a 4-pole motor running at 1 440 rpm has a slip of (1 500 − 1 440) ÷ 1 500 = 0.04 = 4%." },
+        { "note": "A motor built only for 60 Hz runs about one-sixth slower on Jamaica's 50 Hz. If the voltage is about the same, its magnetic flux rises, it draws more magnetising current and runs hot, while its cooling fan turns more slowly. Use motors rated for 50 Hz, or dual-rated 50/60 Hz, and follow the maker's data.", "label": "Jamaica" },
+        { "h": "Common faults" },
+        { "table": { "head": ["Symptom", "Likely causes"], "rows": [
+          ["Hums, will not start", "Single-phasing (a phase lost), seized bearing or jammed load, open winding, very low voltage"],
+          ["Runs hot", "Overload, low, high or unbalanced voltage, blocked cooling fins or fan cover, high room temperature, too many starts an hour"],
+          ["Noisy", "Bearings, misalignment, loose mounting bolts, fan rubbing its cover"],
+          ["Vibrates", "Shafts out of line, unbalanced fan or coupling, a 'soft foot' (one foot not sitting flat), a bent shaft"],
+          ["Overload trips", "Mechanical overload, low or unbalanced voltage, single-phasing, wrong overload setting"],
+          ["Unequal phase currents", "Unbalanced supply voltage, a loose connection, or a winding fault"],
+          ["Low insulation resistance", "Moisture, dirt or oil in the windings, or aged insulation"]
+        ] } },
+        { "h": "Unbalanced currents" },
+        { "p": "**Current unbalance (%) = largest difference from the average ÷ average × 100.** Example: 24 A, 24 A and 30 A average 26 A; the largest difference is 4 A, so the unbalance is 4 ÷ 26 × 100 ≈ 15%. A small voltage unbalance causes a much larger current unbalance (as a rough guide, six to ten times as large), and heats the windings." },
+        { "p": "To find whether the supply or the motor is at fault, a competent person can **roll the supply leads**: with the motor isolated, move all three supply leads one terminal round (L1 to the next terminal, and so on), which keeps the direction of rotation, then measure the currents again. If the high current stays on the same supply line, the supply side is at fault; if it moves with the motor terminal, the motor is at fault." },
+        { "h": "Bearings, alignment and belts" },
+        { "ul": [
+          "Grease with the type, amount and interval the maker gives. Too much grease churns and heats the bearing; too little lets it wear. Sealed bearings are not greased.",
+          "Remove bearings with a **bearing puller**. Fit new ones by pressing on the inner ring, or by heating them evenly as the maker says; never hammer on the outer ring.",
+          "Shafts joined by a coupling must be in line, both in angle and in offset. Check with a straight edge and feeler gauges, a dial gauge or a laser alignment tool, and correct any soft foot. A warm coupling and vibration after reinstalling a motor point to misalignment.",
+          "On belt drives, check that the pulleys line up and the belt tension is what the maker gives. An over-tight belt overloads the bearing nearest the pulley.",
+          "Motors run from variable speed drives can suffer bearing damage from currents through the bearings; the maker may specify insulated bearings or a shaft earthing ring."
+        ] },
+        { "h": "Insulation resistance of motors" },
+        { "ul": [
+          "Disconnect the supply cable, and disconnect or protect any capacitors, drives or electronics. Test windings to frame, and between windings where they can be separated, usually at **500 V DC** for motors up to 1 000 V unless the maker says otherwise.",
+          "Compare the reading with the maker's minimum and the motor's own earlier readings. A healthy, dry low-voltage motor usually reads hundreds of megohms. A reading of a few megohms or less calls for drying and retesting.",
+          "Insulation resistance falls as temperature rises (roughly halving for each 10 °C), so record the winding temperature with each reading and compare like with like. A **falling trend** over months or years warns of failure before it happens.",
+          "**Polarisation index (PI)** = the reading after 10 minutes ÷ the reading after 1 minute. Clean, dry insulation keeps charging, so the reading rises: a PI of about 2 or more is generally good for modern insulation; below about 1.5 suggests moisture or dirt; below 1 is poor."
+        ] },
+        { "p": "**Drying out** a damp motor: follow the maker. Common methods are a low-temperature oven, heater lamps or space heaters, or low-voltage current through the windings by a specialist. Do not run a damp motor on full load to dry it. While drying, the insulation reading usually falls at first, then rises and levels off. Retest before use." },
+        { "h": "Rewind or replace?" },
+        { "p": "A winding that is open or shorted to earth means the motor must be rewound by a specialist or replaced. Small standard motors are usually cheaper to replace; large or special motors are often rewound. Consider the price and delivery time of each, how long the client can be without it, whether there is a standby, the motor's age and history, and the energy savings of a new, more efficient motor." },
+        { "table": { "head": ["A replacement motor must match", "Why"], "rows": [
+          ["Power (kW), voltage, phases and frequency (50 Hz)", "To do the same work on the same supply"],
+          ["Speed (number of poles)", "So the pump or fan delivers the same output"],
+          ["Frame size, shaft size and mounting (foot or flange)", "So it fits the base and coupling. US (NEMA) and IEC frames differ."],
+          ["Enclosure and IP rating", "For the location: dust, water, outdoors"],
+          ["Duty, insulation class and efficiency class", "For the way it is used and its running cost"],
+          ["Direction of rotation and terminal connection", "So it turns the right way on the existing wiring"]
+        ] } }
+      ]
+    },
+    {
+      "title": "Commutator motors and portable equipment",
+      "blocks": [
+        { "h": "Universal motors" },
+        { "p": "Drills, grinders, saws, demolition hammers, blenders and vacuum cleaners use **universal motors**: series motors that run on AC or DC at high speed. Current reaches the spinning armature through **carbon brushes** pressing on the **commutator**, a ring of copper segments, each connected to armature coils." },
+        { "table": { "head": ["Symptom", "Likely cause", "Check"], "rows": [
+          ["Heavy sparking all round the commutator, loss of power", "Worn or sticking brushes, weak springs, a dirty or worn commutator", "Brush length against the maker's limit; brushes slide freely; commutator surface"],
+          ["Burn marks on two neighbouring segments", "A shorted or open coil in the armature", "Bar-to-bar resistance (all should be equal) and a growler test"],
+          ["Works only when the cord is bent at one spot", "Broken conductor in the flex, usually near the entry", "Continuity of each conductor while flexing the cord"],
+          ["Stops suddenly, brushes nearly worn", "Auto-stop brushes: an insulating pin stops the motor when they are worn", "Fit new brushes"],
+          ["Runs hot, smells", "Blocked vents, tight bearings, shorted field or armature", "Clean vents; turn by hand; test windings"],
+          ["Trigger or speed control faulty", "Burnt switch contacts or failed electronics", "Continuity through the switch; replace the switch unit"]
+        ] } },
+        { "ul": [
+          "Fit **brushes of the size and grade the maker specifies**. The wrong grade sparks, wears the commutator and can overheat. Let new brushes bed in by running the tool lightly at first.",
+          "A healthy commutator is smooth with an even brown film. Clean a dirty one with a commutator stone or fine glass paper, as the maker allows. Do not use emery cloth: its grit is conductive and can short the segments. A badly worn, pitted or out-of-round commutator needs skimming by a specialist or a new armature.",
+          "A **growler** is a test tool that puts an AC magnetic field through the armature. Over a shorted coil, a thin steel blade held on the armature vibrates."
+        ] },
+        { "h": "DC motors" },
+        { "p": "DC motors are found on older machines and training rigs. A **shunt** motor has its field winding across the supply; a **series** motor has it in series with the armature. Two dangerous faults to know:" },
+        { "ul": [
+          "If the **shunt field opens**, the field weakens and the motor speeds up far above normal, and can destroy itself. Field-loss protection should stop it.",
+          "A **series motor** must not run with no load, because its speed keeps rising.",
+          "To reverse a DC motor, reverse either the armature or the field connections, not both."
+        ] },
+        { "h": "Classes of portable equipment" },
+        { "table": { "head": ["Class", "Protection", "How to recognise it"], "rows": [
+          ["Class I", "Basic insulation plus an earth (ground) connection to exposed metal parts", "Three-pin plug; metal case; no double-square symbol"],
+          ["Class II", "Double or reinforced insulation; no earth conductor", "Square inside a square symbol; usually a two-pin plug"],
+          ["Class III", "Runs from a safety extra-low voltage (SELV) supply", "Low-voltage plug or battery; marked with the Class III symbol"]
+        ] } },
+        { "h": "Inspection and testing of portable equipment" },
+        { "p": "Most faults in portable equipment are found by looking. A good programme has three levels:" },
+        { "table": { "head": ["Level", "By whom", "What"], "rows": [
+          ["User check", "The user, before each use", "Look at the plug, cord and case; do not use a damaged item."],
+          ["Formal visual inspection", "A trained person, at set intervals", "Take off the plug cover where possible; check the cord grip, terminals, fuse (if fitted), case, guards and labels."],
+          ["Combined inspection and test", "A competent person, at longer intervals and after repair", "Visual inspection plus the electrical tests below."]
+        ] } },
+        { "table": { "head": ["Test", "Class I", "Class II", "Typical pass figure (follow the code of practice the Centre uses)"], "rows": [
+          ["Earth continuity, plug earth pin to exposed metal", "Yes", "No: there is no earth", "About 0.1 Ω plus the resistance of the cord's earth conductor (a few hundredths of an ohm for a short cord)"],
+          ["Insulation resistance at 500 V DC, line and neutral joined, to earth or to the case", "Yes", "Yes", "At least 1 MΩ for Class I; at least 2 MΩ for Class II"],
+          ["Polarity and continuity of each conductor", "Leads and extension leads", "Leads and extension leads", "Each conductor connects pin to the matching socket contact"],
+          ["Function check", "By the instructor or competent person", "By the instructor or competent person", "Works as intended; no unusual noise or smell"]
+        ] } },
+        { "ul": [
+          "Keep a **register**: an ID number for each item, its description, class, location, test dates and results, and the next due date.",
+          "Set the interval by risk: tools on building sites and items in kitchens and laundries need checks more often than items in a quiet office.",
+          "Label each item that passes with the date and next test date. Tag failed items 'DO NOT USE' and remove them to a quarantine area until they are repaired or scrapped.",
+          "Repairs: use flex of the same type and size, make sure the cord grip clamps the outer sheath (not the conductors), and wire plugs correctly. Retest after every repair."
+        ] },
+        { "note": "Class II protection depends entirely on the case and insulation being whole. A Class II tool with a cracked case must be withdrawn even if it passes its insulation test: the crack can let a finger or water reach live parts.", "label": "Remember" }
+      ]
+    },
+    {
+      "title": "Contactors, starters, solenoids and timers",
+      "blocks": [
+        { "h": "Contactor faults" },
+        { "table": { "head": ["Fault", "Likely causes"], "rows": [
+          ["Buzzing or chattering", "Low coil voltage (weak control transformer, long control cable), wrong coil, dirt or rust on the magnet faces, a broken **shading ring** (the copper ring in an AC magnet face that stops chatter), sticking mechanism"],
+          ["Coil burnt out", "Coil voltage too high; voltage so low that the armature never closes and the coil keeps drawing its high starting current; a jammed armature; an AC coil used on DC"],
+          ["Main contacts welded", "Short circuit or heavy overload, contact bounce from low coil voltage, contactor too small for the duty (for example frequent inching)"],
+          ["Main contacts burnt or pitted", "Normal wear, overloads, or a contactor too small for the motor. Replace contacts in complete sets."]
+        ] } },
+        { "note": "Humid, salty air in Jamaica rusts magnet faces and makes contactors buzz. Clean the faces as the maker says; do not oil them.", "label": "Jamaica" },
+        { "h": "Overload relays" },
+        { "p": "A thermal overload relay uses bimetal strips heated by the motor current; an electronic one measures the current. It is normally set to the **motor's full-load current** from the nameplate, as the motor and overload makers advise. Never turn it up to stop it tripping." },
+        { "h": "Star-delta starters" },
+        { "p": "A star-delta starter reduces the starting current of a three-phase motor whose windings can be connected in delta for running." },
+        { "flow": [
+          "START pressed: the main and star contactors close",
+          "Windings in star: each gets the line voltage ÷ 1.73 (about 58%), so starting current and torque fall to about one-third of a direct-on-line start",
+          "The timer runs while the motor speeds up",
+          "The star contactor opens",
+          "After a very short pause, the delta contactor closes",
+          "Windings in delta: each gets full line voltage, and the motor runs normally"
+        ] },
+        { "ul": [
+          "The star and delta contactors are **interlocked**: an NC auxiliary contact of each is wired in the other's coil circuit, and often a mechanical interlock is fitted as well. The star contactor joins the ends of the windings together; if it were still closed when the delta contactor closed, the supply lines would be shorted together.",
+          "Where the overload relay is in the winding (phase) circuit, as in most star-delta starters, it carries the winding current, which is the line current ÷ 1.73. It is then set to about **0.58 × the full-load current**. Follow the starter drawing.",
+          "Timer set too short: the motor changes over before it is up to speed and takes a large current. Set it so the motor is near full speed at changeover."
+        ] },
+        { "table": { "head": ["Symptom", "Where to look"], "rows": [
+          ["Starts in star, never changes to delta", "Timer (setting, supply, contacts), delta contactor coil, the star contactor's NC interlock in the delta coil circuit, wiring"],
+          ["Changes over, then trips", "Timer too short; overload set wrongly; winding connections wrong, so the motor tries to reverse at changeover"],
+          ["Bang at changeover", "Star contactor welded or slow to open, interlock not working"],
+          ["Will not start at all", "Control supply, STOP or overload contact, main or star contactor coil"]
+        ] } },
+        { "h": "Reversing starters" },
+        { "p": "A forward-reverse starter swaps two supply lines to reverse the motor. The two contactors must be electrically and mechanically interlocked so they can never close together." },
+        { "h": "Solenoids" },
+        { "p": "An **AC solenoid** coil draws a high current while its plunger is out, because the air gap gives the coil little impedance, and a much smaller current once the plunger is in. If the plunger sticks (dirt, scale, damage, too much pressure across the valve), the coil keeps drawing the high current and burns out. Low voltage can stop it closing fully, with the same result. Find and fix the sticking before fitting a new coil, and match the coil's voltage, frequency and AC or DC type." },
+        { "h": "Timers" },
+        { "ul": [
+          "Common types: on-delay (contacts change after a set time once energised), off-delay, and star-delta timers.",
+          "Many timers are multi-function: check the function setting as well as the time range and the dial.",
+          "Supply terminals are usually A1–A2; changeover contacts 15 (common), 16 (NC) and 18 (NO).",
+          "When two machines start together instead of one after the other, check the timer's setting, its function and its wiring with the panel isolated."
+        ] }
+      ]
+    },
+    {
+      "title": "Generators, UPS units and batteries",
+      "blocks": [
+        { "h": "How a standby generator works" },
+        { "p": "A diesel or petrol engine turns an **alternator**. The **frequency** depends on the engine speed: frequency = speed × poles ÷ 120, so a 4-pole alternator needs 1 500 rpm for 50 Hz, and a 2-pole one 3 000 rpm. The **voltage** is set by the excitation, which the **automatic voltage regulator (AVR)** controls. Most alternators start building voltage from the small **residual magnetism** left in their field." },
+        { "table": { "head": ["Symptom", "Likely causes"], "rows": [
+          ["Engine at correct speed, no output voltage", "AVR or its fuse failed, exciter diodes failed, residual magnetism lost after long standing or work on the exciter, loose sensing wires, output breaker tripped"],
+          ["Voltage low on load", "AVR fault, overload, engine slowing"],
+          ["Frequency falls on load", "Engine slowing: governor, fuel supply or filters, air filter, or the engine overloaded"],
+          ["Voltage or frequency hunting up and down", "Governor or AVR stability setting"],
+          ["Voltage far too high", "AVR failed or its sensing lost: dangerous to the connected equipment"]
+        ] } },
+        { "p": "Restoring residual magnetism ('flashing the field') is done by a competent person following the alternator maker's procedure. Engine faults are for the mechanic; you deal with the alternator, controls and wiring, and work with the mechanic." },
+        { "h": "Automatic transfer switches (ATS)" },
+        { "flow": [
+          "Mains fails; the ATS senses it",
+          "The ATS signals the generator to start",
+          "The generator reaches correct voltage and frequency",
+          "The ATS switches the load to the generator",
+          "Mains returns; after a delay to be sure it is steady, the ATS switches the load back",
+          "The generator runs on unloaded to cool down, then stops"
+        ] },
+        { "ul": [
+          "The ATS (or a manual changeover switch) is **interlocked** so the generator and mains can never be connected together. Without this, the generator can **back-feed** the JPS lines and kill a line worker, and the two supplies would be damaged when mains returns.",
+          "A generator must never be connected through an outlet with a lead that has a plug on each end: the spare plug's pins are live, and the building can back-feed.",
+          "Before work on a generator or ATS, isolate the mains side **and** lock the generator's controls off so it cannot start automatically. Mains can return at any moment."
+        ] },
+        { "note": "Generators give off carbon monoxide, which has no smell and kills. They must run outdoors or in a properly ventilated generator room, well away from doors, windows and air intakes.", "label": "Safety" },
+        { "h": "UPS units" },
+        { "p": "A UPS keeps computers, tills and alarm panels running through a power cut. Its charger keeps a battery string charged, and its inverter supplies the load from the batteries when the mains fails. Common problems:" },
+        { "table": { "head": ["Symptom", "Likely causes", "Checks"], "rows": [
+          ["Shuts down soon after the mains fails", "Batteries have lost capacity; too much load", "Display and event log, battery age, battery test, load against rating"],
+          ["'Replace battery' alarm", "Battery test failed", "Measure each battery; check for swelling"],
+          ["Overload alarm", "Load above the VA or W rating", "Move non-essential loads, such as printers and heaters, off the UPS"],
+          ["Runs on battery although mains is present", "Input fuse or breaker, input voltage or frequency outside its limits", "Input supply; ask a competent person to check the input"]
+        ] } },
+        { "h": "Batteries" },
+        { "ul": [
+          "Sealed lead-acid (VRLA) batteries usually last three to five years in a cool room. **Heat shortens their life**: as a rough guide, life halves for every 8 to 10 °C above 25 °C. Hot rooms in Jamaica wear them out early.",
+          "A fully charged 12 V lead-acid battery at rest reads about 12.7–12.9 V. One that reads about 2 V lower than the others probably has a shorted cell.",
+          "Replace a whole string at once. A new battery among old ones is overcharged or discharged unevenly, and the old ones still limit the run time.",
+          "Tighten links to the maker's torque, and keep terminals clean."
+        ] },
+        { "note": "Battery safety: batteries are always live and can deliver thousands of amps. Use insulated tools, remove rings and watches, and never lay a tool on top of a battery. Charging gives off **hydrogen**, which explodes: keep the room ventilated and keep sparks and flames away. Wear eye protection and gloves, and know where the eye-wash is.", "label": "Safety" },
+        { "p": "Old lead-acid batteries are hazardous waste. Send them to an approved recycler, as the National Environment and Planning Agency (NEPA) rules require. Never put them in a skip, bury them or empty them into a drain." }
+      ]
+    },
+    {
+      "title": "Repair or refer, testing after repair and reports",
+      "blocks": [
+        { "h": "Repair, replace or refer" },
+        { "table": { "head": ["Decision", "When it is right"], "rows": [
+          ["Repair", "The fault is a part you can replace correctly, parts are available, and the cost is reasonable for the item's age and condition."],
+          ["Replace", "The repair costs close to a new item, parts cannot be had, the item is old or keeps failing, or a new one is much more efficient."],
+          ["Refer to a specialist", "Rewinding, engine work, armature skimming, machine-shop work on shafts, electronic board repair beyond your competence, or work under a maker's warranty."]
+        ] } },
+        { "p": "If a key part has a long delivery time, tell the client at once and agree a **safe** temporary plan: a standby pump, a hired unit, or a changed way of working. Never bypass a safety device or fit a part that merely 'looks similar' to keep a machine running." },
+        { "h": "Parts that must match" },
+        { "table": { "head": ["Part", "Must match"], "rows": [
+          ["HRC (cartridge) fuse", "Current rating, type (for example gG for general use, aM or gM for motor circuits), voltage and **breaking capacity**, so it can clear a large fault current safely; a wrong fuse can burst"],
+          ["Overload relay", "A range that covers the full-load current (or 0.58 × it, in a star-delta winding circuit)"],
+          ["Contactor", "Coil voltage and type, rating for the duty (AC-3 for motors), auxiliary contacts"],
+          ["Carbon brushes", "Size and grade from the maker"],
+          ["Capacitor", "Capacitance, the same or higher voltage, start or run type"],
+          ["Bearings", "Number, sealing or shields, clearance class"],
+          ["Motor", "See 'Rewind or replace?' in the induction motors section"]
+        ] } },
+        { "h": "Testing after repair" },
+        { "flow": [
+          "Inspect: terminals tight, links correct, no bare copper, glands and covers fitted, guards back, no tools left",
+          "Continuity of each conductor and of the protective conductor to exposed metal",
+          "Insulation resistance, windings to frame and between conductors",
+          "Winding resistance balance after reconnection",
+          "Compare with expected values and record",
+          "Function test by the instructor or an authorised person: rotation, controls, current against the nameplate",
+          "Run-in: listen, check temperature and vibration"
+        ] },
+        { "note": "At the Centre, only the instructor energises a repaired item. On site, the authorised person energises it after the dead tests are passed and the team is clear.", "label": "Remember" },
+        { "h": "The repair report" },
+        { "p": "The entry most useful to the next technician gives: the fault found, its root cause, the evidence (readings before the repair), the parts fitted with their ratings, and the test readings after the repair. Add recommendations, such as checking alignment at the next service. Update the equipment's history so trends can be seen. 'Fixed, working fine' tells the next person nothing." },
+        { "h": "Supervising a repair team" },
+        { "ul": [
+          "Brief the team on the jobs, hazards and isolation before work starts.",
+          "Match tasks to each person's skill; stay close when a task is new to them.",
+          "Check each person's isolation and dead test yourself.",
+          "Make sure they follow a method, record readings and show you any part they are unsure about.",
+          "Inspect each repair before it is closed up, and check the tests after repair are done and recorded.",
+          "At the end, check reports, clean-up and tool count, and report to your supervisor."
+        ] }
+      ]
+    },
+    {
+      "title": "Revision",
+      "blocks": [
+        { "h": "Checklist" },
+        { "p": "Tick each statement only when you can do it without looking at the notes." },
+        { "ul": [
+          "I can isolate plug-in equipment, fixed equipment, generators and UPS units correctly.",
+          "I can deal safely with capacitors, batteries and moving parts.",
+          "I can gather information from the user, the nameplate, the maker's data and the records.",
+          "I can use the turns ratio and VA rating to check a transformer, and test its windings and insulation.",
+          "I can work out an element's expected resistance and test elements, thermostats and cut-outs.",
+          "I can work out synchronous speed, slip and current unbalance.",
+          "I can find bearing, alignment and belt faults and find their root cause.",
+          "I can carry out and judge an insulation resistance test and a polarisation index test on a motor.",
+          "I can explain the dangers of using 60 Hz equipment on a 50 Hz supply.",
+          "I can find faults in brushes, commutators and armatures of universal motors.",
+          "I can explain the dangers of an open shunt field and of an unloaded series motor.",
+          "I can inspect and test Class I and Class II equipment and keep a register.",
+          "I can find faults in contactors, overloads, solenoids and timers.",
+          "I can explain how a star-delta starter works, why it is interlocked and how to set its overload.",
+          "I can find generator and ATS faults without creating a back-feed danger.",
+          "I can diagnose UPS and battery problems and handle batteries safely.",
+          "I can decide whether to repair, replace or refer, and choose matching parts.",
+          "I can test after repair and write a report the next technician can use.",
+          "I can supervise juniors and check their work."
+        ] },
+        { "h": "Numbers to remember" },
+        { "table": { "head": ["Figure", "What it is"], "rows": [
+          ["V2 = V1 × N2 ÷ N1", "Transformer secondary voltage from the turns"],
+          ["I = VA ÷ V", "Largest current from a transformer winding"],
+          ["R = V² ÷ P", "Expected resistance of a heating element"],
+          ["120 × f ÷ poles", "Synchronous speed: 3 000, 1 500, 1 000 rpm for 2, 4, 6 poles on 50 Hz"],
+          ["2–6%", "Typical full-load slip of an induction motor"],
+          ["500 V DC", "Usual insulation test voltage for 110/220 V equipment and motors up to 1 000 V"],
+          ["PI = 10-minute ÷ 1-minute reading", "Polarisation index; about 2 or more is generally good"],
+          ["1 MΩ / 2 MΩ", "Typical minimum insulation resistance for Class I / Class II portable equipment"],
+          ["About 0.1 Ω + cord", "Typical earth continuity limit for Class I equipment"],
+          ["0.58 × full-load current", "Overload setting in a star-delta winding circuit"],
+          ["12.7–12.9 V", "A fully charged 12 V lead-acid battery at rest"],
+          ["8–10 °C", "Each rise of this much above 25 °C roughly halves a sealed battery's life"]
+        ] } },
+        { "h": "Key terms" },
+        { "terms": [
+          ["Armature", "The rotating part of a universal or DC motor, carrying the coils connected to the commutator."],
+          ["Automatic transfer switch (ATS)", "A switch that changes a building's supply between mains and generator, interlocked so they never connect together."],
+          ["AVR", "Automatic voltage regulator: controls a generator's output voltage by adjusting its excitation."],
+          ["Back-feed", "A generator sending power back into the power company's lines."],
+          ["Bearing puller", "A tool that draws a bearing or pulley off a shaft without hammering."],
+          ["Breaking capacity", "The largest fault current a fuse or breaker can safely interrupt."],
+          ["Class I / Class II", "Equipment protected by an earth connection / by double or reinforced insulation."],
+          ["Commutator", "The ring of copper segments on an armature that the brushes rub on."],
+          ["Growler", "A test tool that finds shorted turns in an armature using an AC magnetic field."],
+          ["Interlock", "An electrical or mechanical arrangement that stops two contactors closing together."],
+          ["Misalignment", "Shafts joined by a coupling that are not in line, causing vibration and bearing wear."],
+          ["Polarisation index (PI)", "Ten-minute insulation reading divided by the one-minute reading."],
+          ["Register", "The list of portable equipment with IDs, tests, results and due dates."],
+          ["Residual magnetism", "The small magnetism left in an alternator's field that lets it start building voltage."],
+          ["Rewinding", "Replacing a motor's damaged windings, done by a specialist."],
+          ["Shading ring", "A copper ring in an AC contactor's magnet face that stops it chattering."],
+          ["Single-phasing", "Loss of one phase to a three-phase motor."],
+          ["Slip", "The difference between synchronous speed and the rotor's actual speed."],
+          ["Soft foot", "A motor or pump foot that does not sit flat on its base."],
+          ["Star-delta starter", "A starter that starts a motor in star to reduce current, then changes to delta to run."],
+          ["Synchronous speed", "The speed of the rotating magnetic field: 120 × frequency ÷ poles."],
+          ["Thermal cut-out", "A safety device that opens if an appliance overheats; it must never be bridged."],
+          ["UPS", "Uninterruptible power supply: keeps equipment running from batteries during a power cut."]
+        ] }
+      ]
+    }
+  ],
+  "cases": {
+    "c1": { "title": "A booster pump motor at Lacovia", "text": "A water company's pumping station at Lacovia, St Elizabeth, has a 15 kW, 4-pole, three-phase motor driving a booster pump. Last month the motor was refitted after new bearings were put in, and it now runs noisily and hotter than before. A competent person measured the running currents at 24 A, 24 A and 30 A; the nameplate full-load current is 29 A. With the motor isolated and disconnected, its windings read 0.62 Ω, 0.62 Ω and 0.63 Ω, and an insulation test at 500 V DC read 140 MΩ after 1 minute and 380 MΩ after 10 minutes." },
+    "c2": { "title": "A chiller pump starter at a Rose Hall hotel", "text": "The chilled-water pump at a hotel in Rose Hall, St James, has a 30 kW motor with a star-delta starter. The nameplate full-load current is 54 A, and the starter drawing shows the overload relay wired in the motor's winding (phase) circuit. Last night the motor started in star as usual, but at the changeover to delta there was a loud bang and the main breaker tripped. With the panel isolated, locked off and proved dead, the team finds the star contactor's main contacts welded together." },
+    "c3": { "title": "A standby generator at a Balaclava health centre", "text": "A health centre in Balaclava, St Elizabeth, has a 40 kVA, 4-pole diesel standby generator with an automatic transfer switch (ATS). It had not run for several months while the ATS controller was repaired. On its first test run the engine starts and runs smoothly at the correct speed, but the generator's own meter shows almost no output voltage. A week later, after that fault is fixed, the frequency falls to 48 Hz whenever the building's load is switched onto the generator." },
+    "c4": { "title": "A UPS at a Brown's Town credit union", "text": "A credit union in Brown's Town, St Ann, has a 3 kVA UPS feeding its servers and tills. Its string of eight 12 V sealed lead-acid batteries was fitted four years ago, in a small room that reaches about 33 °C in the afternoon. Last week the UPS shut down two minutes after a power cut, although it showed 'battery fully charged'. After the UPS is shut down as the maker says, the batteries are measured at rest: seven read between 12.7 V and 12.8 V, and one reads 10.6 V." },
+    "c5": { "title": "Returned tools at a Half Way Tree hire shop", "text": "Tashana runs the repair bench at a tool-hire shop in Half Way Tree, St Andrew, with two junior technicians. Today's returns include a Class I (metal-cased) bench drill with a 2 m cord, a Class II hedge trimmer with a crack in its case near the switch, and a demolition hammer that sparks heavily and has burn marks on two neighbouring commutator segments. The shop's instruments are a 500 V DC insulation tester and a low-resistance ohmmeter." }
+  },
+  "questions": [
+    { "id": "P-01", "c": "c1", "q": "The windings read almost the same. What is the best way to find out whether the high current on one line comes from the supply or from the motor?", "o": ["Swap two supply leads, so the motor runs the other way for a while", "Turn the overload up to 30 A so that it stops tripping on that line", "Replace the motor, as unequal currents always mean a winding fault", "Roll all three leads one terminal and see if the high reading moves"], "a": 3, "why": "Moving all three leads one terminal round keeps the direction of rotation. If the high current stays on the same supply line, the supply side (an unbalanced voltage or a loose connection upstream) is at fault; if it moves with the motor terminal, the motor is. The balanced winding readings already point to the supply side." },
+    { "id": "P-02", "c": "c1", "q": "What is the polarisation index from these readings, and what does it suggest?", "o": ["About 2.7, which suggests clean, dry insulation", "About 0.37, which suggests wet, dirty insulation", "About 240, which is the gain in megohms during the test", "About 2.7, which shows the windings must be rewound"], "a": 0, "why": "PI = 10-minute reading ÷ 1-minute reading = 380 ÷ 140 ≈ 2.7. Clean, dry insulation keeps charging, so the reading rises; a PI of about 2 or more is generally good. The insulation is not the cause of the noise and heat." },
+    { "id": "P-03", "c": "c1", "q": "What is the current unbalance, as a percentage of the average current?", "o": ["About 6%", "About 25%", "About 15%", "About 20%"], "a": 2, "why": "The average is (24 + 24 + 30) ÷ 3 = 26 A. The largest difference from the average is 30 − 26 = 4 A, and 4 ÷ 26 × 100 ≈ 15%. That is high: it heats the windings and explains part of the extra temperature, and one line is above the 29 A full-load current." },
+    { "id": "P-04", "c": "c2", "q": "Why did the welded star contacts make the changeover so violent?", "o": ["The motor ran too long in star and overheated its windings", "The delta contactor closed too slowly and the motor stalled", "When delta closed, the star contacts shorted the lines", "The breaker is too small for the starting current in delta"], "a": 2, "why": "The star contactor joins the ends of the three windings together. The delta contactor connects those same ends to the supply lines. With both closed, the lines are shorted together through the two contactors: a bang and a trip. That is why the two contactors are interlocked." },
+    { "id": "P-05", "c": "c2", "q": "Besides replacing the star contactor, what else must the team find out before the starter is used again?", "o": ["Why the interlock let the delta contactor close", "Whether the motor would run faster if it started in delta", "Whether the main breaker can be changed for a larger one", "Whether the timer can be set longer to hide the problem"], "a": 0, "why": "With the star contactor stuck closed, its NC interlock contact should have stayed open and stopped the delta contactor closing. It did not, so the interlock contact, its wiring or a mechanical interlock is faulty, and the same short could happen again. Also look for why the contacts welded, such as low coil voltage or an undersized contactor." },
+    { "id": "P-06", "c": "c2", "q": "Given where the overload relay is wired, what should it be set to?", "o": ["54 A, the full-load current on the nameplate", "About 94 A, which is 1.73 times the full-load current", "About 18 A, which is one-third of the full-load current", "About 31 A, which is 0.58 times the full-load current"], "a": 3, "why": "In the winding circuit the relay carries the winding current, which is the line current ÷ 1.73. 54 × 0.58 ≈ 31 A. Set at 54 A it would let the windings overheat without tripping. Follow the starter maker's drawing." },
+    { "id": "P-07", "c": "c3", "q": "The engine runs at the correct speed after months of standing, yet there is almost no output voltage. Which cause fits best?", "o": ["The engine's fuel filter is partly blocked", "The output cables are too large for the load", "The transfer switch is in the mains position", "The alternator has lost residual magnetism"], "a": 3, "why": "Most alternators start building voltage from the residual magnetism in their field. After long standing, or work on the exciter, it can be lost. A competent person restores it ('flashing the field') by the maker's procedure; the AVR and its fuse are also checked. The generator's own meter reads at the generator, so the ATS position does not affect it." },
+    { "id": "P-08", "c": "c3", "q": "On load the 4-pole generator gives 48 Hz. About what speed is the engine running at?", "o": ["About 1 500 rpm", "About 2 880 rpm", "About 1 440 rpm", "About 720 rpm"], "a": 2, "why": "Speed = 120 × frequency ÷ poles = 120 × 48 ÷ 4 = 1 440 rpm, instead of the 1 500 rpm needed for 50 Hz. The engine is slowing under load, so look at the governor, the fuel supply, the filters and the size of the load: an engine-side fault for the mechanic, not the AVR." },
+    { "id": "P-09", "c": "c3", "q": "When the mains returns, the ATS waits a few minutes before switching back, and the generator then runs unloaded for a few minutes. Why?", "o": ["To be sure the mains is steady, and to cool the engine", "To charge the generator's fuel tank from the returning mains", "To give JPS time to inspect the generator before reconnecting", "To let the AVR raise the mains voltage to its correct value"], "a": 0, "why": "Mains often comes back briefly and fails again, so the ATS waits until it has been steady for a set time before transferring. Running the engine unloaded for a few minutes lets it cool evenly, which protects the engine." },
+    { "id": "P-10", "c": "c4", "q": "What does the battery reading 10.6 V most likely have?", "o": ["A full charge, since sealed batteries rest at about 10.6 V", "A loose link, which lowers the reading only while at rest", "A surface charge that will clear after an hour of use", "A shorted cell, so it reads about one cell's voltage low"], "a": 3, "why": "A 12 V lead-acid battery has six cells of about 2.1 V each and reads about 12.7–12.9 V when charged. 10.6 V is about one cell low, which points to a shorted cell. That battery drags the whole string down and shortens the run time." },
+    { "id": "P-11", "c": "c4", "q": "What should the team recommend?", "o": ["Replace only the low battery, since the other seven are fine", "Add two more batteries to the string to raise its voltage", "Replace all eight batteries, and cool or ventilate the room", "Raise the charger voltage to bring the low battery back up"], "a": 2, "why": "After four years in a 33 °C room all the batteries have lost much of their capacity: heat roughly halves battery life for every 8–10 °C above 25 °C. A new battery among old ones is charged unevenly. Adding batteries changes the string voltage, and raising the charger voltage overcharges the rest. Recycle the old batteries as hazardous waste." },
+    { "id": "P-12", "c": "c4", "q": "Which precaution matters most when the junior technicians remove the battery links?", "o": ["Insulated tools, no watches or rings, nothing laid on top", "Rubber gloves on, after which any tools are safe to use", "Remove the links quickly while the UPS is still running", "Short each battery briefly to see whether it holds a charge"], "a": 0, "why": "Batteries are always live and can deliver thousands of amps; a spanner or ring across a terminal can weld, explode or burn badly. Use insulated tools, remove jewellery and never lay tools on the batteries. Ventilation, eye protection and keeping sparks away matter too, because of hydrogen." },
+    { "id": "P-13", "c": "c5", "q": "The bench drill's earth continuity, from the plug's earth pin to the metal case, reads 1.4 Ω. What should Tashana conclude?", "o": ["It passes, as anything under 2 Ω is acceptable for a tool", "It fails: it should be a small fraction of an ohm", "It passes, as the insulation test is the one that matters", "It fails, because the reading must be exactly zero"], "a": 1, "why": "The usual limit is about 0.1 Ω plus the resistance of the cord's earth conductor, which for a 2 m cord is only a few hundredths of an ohm. 1.4 Ω points to a loose or corroded earth terminal or broken strands. With a high-resistance earth, a fault may not trip the breaker. Repair and retest." },
+    { "id": "P-14", "c": "c5", "q": "The hedge trimmer passes its insulation test. What should happen to it?", "o": ["Return it to hire, since it has passed the electrical test", "Tape over the crack and return it to the hire shelf", "Give it an earth continuity test before it is hired", "Withdraw it, as the cracked case can expose live parts"], "a": 3, "why": "A Class II tool relies on its case and insulation being whole. A crack can let fingers or water reach live parts, whatever the insulation test shows, so it fails its visual inspection. Tape does not restore the protection, and Class II items have no earth to test." },
+    { "id": "P-15", "c": "c5", "q": "What do the burn marks on two neighbouring commutator segments point to?", "o": ["A shorted or open coil in the armature", "Brushes that are new and not bedded in", "A supply voltage that is slightly too low", "A cord that is broken close to the plug"], "a": 0, "why": "Each armature coil connects to two neighbouring segments. A faulty coil makes those segments arc every time they pass the brushes, burning them. Confirm with a bar-to-bar resistance test and a growler; usually the armature is replaced." },
+    { "id": "P-16", "c": "c5", "q": "A junior wants to clean the hammer's commutator with emery cloth. Why does Tashana stop him?", "o": ["Emery cloth is too soft to remove any dirt at all", "A commutator must never be cleaned by any method", "Emery grit conducts and can short the segments", "Emery cloth will magnetise the armature's core"], "a": 2, "why": "Emery grit is conductive and can lodge between segments, shorting them. Use a commutator stone or fine glass paper as the maker allows, then vacuum out the dust. A badly worn commutator needs skimming by a specialist or a new armature." },
+    { "id": "P-17", "c": null, "q": "A 220/24 V control transformer is rated 120 VA. What is the most current its secondary should supply?", "o": ["About 0.55 A", "About 5 A", "About 9.2 A", "About 2.4 A"], "a": 1, "why": "Current = VA ÷ volts = 120 ÷ 24 = 5 A on the secondary. (0.55 A is the full-load primary current at 220 V.) More than 5 A overheats the transformer; its secondary fuse should be chosen to protect it." },
+    { "id": "P-18", "c": null, "q": "A 4-pole, 50 Hz induction motor runs at 1 455 rpm on full load. What is its slip?", "o": ["3%", "4.5%", "30%", "97%"], "a": 0, "why": "Synchronous speed = 120 × 50 ÷ 4 = 1 500 rpm. Slip = (1 500 − 1 455) ÷ 1 500 = 45 ÷ 1 500 = 0.03 = 3%, within the usual 2–6% at full load. The rotor runs at 97% of synchronous speed." },
+    { "id": "P-19", "c": null, "q": "A replacement pump motor ordered from the US is marked '230 V, 60 Hz' only. What is likely if it runs on a Jamaican 220 V, 50 Hz supply?", "o": ["It runs about one-fifth faster and stays cooler", "It runs exactly as it would on a US supply", "It cannot turn at all on a 50 Hz supply", "It runs about one-sixth slower and may run hot"], "a": 3, "why": "Speed follows frequency: 50 ÷ 60 is five-sixths, so it runs about 17% slower and the pump delivers less. With nearly the same voltage at a lower frequency, its magnetic flux rises, so it draws more current and runs hot, while its fan cools it less. Order 50 Hz or dual-rated 50/60 Hz motors." },
+    { "id": "P-20", "c": null, "q": "After a water heater element is replaced, why must the tank be full before the supply is switched on?", "o": ["The thermostat works only once it is under water", "An element switched on in air burns out in seconds", "The RCD will trip unless the tank is completely full", "The new element needs water to complete its circuit"], "a": 1, "why": "An element is designed to pass its heat into water. Switched on in air ('dry firing') it overheats and burns out almost at once. Fill the tank and bleed the air from a hot tap before the supply is restored." }
+  ]
+}
