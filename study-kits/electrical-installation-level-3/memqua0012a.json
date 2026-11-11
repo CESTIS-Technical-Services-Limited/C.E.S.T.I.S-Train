@@ -1,0 +1,469 @@
+{
+  "format": "cestis-study-kit",
+  "version": 1,
+  "status": "to-check",
+  "written": "2026-11-07",
+  "programme": "Electrical Installation",
+  "qualification": { "id": "QUAL-EIM-L3", "title": "ELECTRICAL INSTALLATION AND MAINTENANCE LEVEL 3", "code": "MEM32507" },
+  "level": 3,
+  "unit": { "code": "MEMQUA0012A", "title": "Perform inspection (basic)" },
+  "summary": "This unit teaches you to inspect electrical work and materials against the specification. You will learn to turn the specification into clear acceptance criteria, plan inspections with hold points, choose and check measuring tools, inspect deliveries and installed work, judge what you find, deal with items that fail, and keep records and reports that others can trust.",
+  "sections": [
+    {
+      "title": "Unit overview",
+      "blocks": [
+        { "p": "**Inspection** means checking work or materials against a stated requirement and deciding whether they pass. At Level 3 you inspect your own team's work and the materials it uses, so that faults are found and fixed by you, not by the government inspector, the client or, worst of all, by a fire or a shock. This unit is about basic quality inspection: looking, measuring, judging, recording and following up. It uses a few simple dead tests, such as continuity, but the full testing of installations is covered in the testing units." },
+        { "h": "What you must be able to do" },
+        { "table": { "head": ["Task", "What it looks like on the job"], "rows": [
+          ["Find the requirements", "Read the specification, drawings, schedules, makers' instructions and the code the Centre uses, and turn them into clear acceptance criteria."],
+          ["Plan inspections", "Decide what is inspected, at which stage, by whom and with what, and where the hold points are; write the checklists."],
+          ["Prepare and check instruments", "Choose suitable measuring tools, check calibration dates, null test leads and prove voltage indicators."],
+          ["Inspect incoming materials", "Check deliveries against the order, read markings and approval marks, spot fake or damaged goods, and sample large batches."],
+          ["Inspect installed work", "Inspect boards, cable runs, accessories, enclosures, earthing and bonding, after safe isolation, before work is covered and at handover."],
+          ["Judge what you find", "Compare findings with the criteria and tolerances, allow for instrument accuracy, and notice results that pass but look wrong."],
+          ["Deal with work that fails", "Make it safe, label it, quarantine faulty materials, write a non-conformance report, agree the fix, re-inspect and close it out."],
+          ["Record and report", "Keep clear, traceable records made at the time, write factual reports that state what was not inspected, and report danger at once."]
+        ] } },
+        { "h": "Words you will use" },
+        { "table": { "head": ["Word", "Meaning"], "rows": [
+          ["Specification", "The document that lists the materials, methods, standards and limits a job must meet."],
+          ["Acceptance criterion", "The stated limit or standard that decides whether something passes."],
+          ["Tolerance", "How far a measurement may differ from the stated size and still pass."],
+          ["Non-conformance", "Work or material that does not meet a requirement."],
+          ["Hold point", "A stage where work stops until it has been inspected and signed off."],
+          ["Calibration", "Checking an instrument against a known reference to show it reads correctly."],
+          ["Traceability", "Being able to follow a result or an item back to who checked it, when, how and with what."]
+        ] } },
+        { "note": "A new or altered installation must be inspected and certified by a licensed electrical inspector, under the Government Electrical Regulator (GER), before JPS will connect it. Your own inspection does not replace that visit. Its aim is that the official inspection finds nothing: every failed visit costs a return trip, a delay for the client and damage to the company's name.", "label": "Jamaica" }
+      ]
+    },
+    {
+      "title": "Why, when and how we inspect",
+      "blocks": [
+        { "h": "Why inspect" },
+        { "ul": [
+          "To find faults **while they are still easy to fix**: before walls are plastered, ceilings closed, cables buried or the client moves in.",
+          "To stop unsafe work reaching the client.",
+          "To prove that the work meets the specification and the code, with records to show it.",
+          "To protect the client, the workers and the company's name.",
+          "To learn: the same defect turning up again and again points to a cause that can be fixed."
+        ] },
+        { "h": "The three stages of inspection" },
+        { "table": { "head": ["Stage", "What is inspected", "Electrical examples"], "rows": [
+          ["**Incoming** (goods-in)", "Materials and equipment when they arrive, before they are issued", "Cable size and markings, breaker ratings, counterfeit checks, damage, quantities."],
+          ["**In-process** (during the work)", "Work that will be hidden or hard to reach later", "Conduit and boxes before plastering; cable runs, supports and junction boxes before ceilings close; board terminations before covers go on; underground ducts before backfilling."],
+          ["**Final**", "The finished installation before handover", "A full visual inspection of boards, accessories, labels and charts, then the dead tests in the right order."]
+        ] } },
+        { "h": "Inspection and testing work together" },
+        { "p": "**Inspection** uses your senses (sight, touch, hearing, smell) and simple measuring tools. **Testing** uses instruments to measure electrical values. Each finds faults the other cannot." },
+        { "table": { "head": ["Found by inspection", "Found only by testing"], "rows": [
+          [["A breaker larger than the cable allows", "An indoor box on an outdoor wall", "A cable entering a board with no bushing", "A missing blanking piece", "A missing circuit chart"], ["A protective conductor broken inside a wall", "A nail or screw through a hidden cable", "A high-resistance joint in a closed box", "Damp in a buried cable", "Reversed polarity at a terminal you cannot see"]]
+        ] } },
+        { "p": "The visual inspection is done first, with the installation isolated, because some faults found by eye (a missing cover, a damaged cable) would make testing unsafe." },
+        { "h": "Who inspects" },
+        { "ul": [
+          "**The worker** checks their own work as they go (self-inspection).",
+          "**You, the Level 3 lead**, inspect the team's work at the planned stages. Someone who did not do the work sees more.",
+          "**The client's engineer** may witness some inspections and tests.",
+          "**The licensed electrical inspector** carries out the official inspection before connection."
+        ] },
+        { "h": "The quality loop" },
+        { "flow": ["Know the requirement", "Plan the inspection", "Inspect and measure", "Compare with the acceptance criteria", "Accept, or raise a non-conformance", "Correct the work", "Re-inspect", "Record and report", "Learn from the pattern"] }
+      ]
+    },
+    {
+      "title": "Specifications, standards and acceptance criteria",
+      "blocks": [
+        { "p": "You cannot judge work without knowing what it must meet. Start every inspection from the documents, not from memory or 'what we did on the last job'." },
+        { "table": { "head": ["Document", "What it tells the inspector"], "rows": [
+          ["Specification", "Materials, sizes, ratings, methods, standards and limits for this job."],
+          ["Drawings", "Positions, heights, cable routes, board layouts and details."],
+          ["Panel (circuit) schedule", "Each circuit's number, breaker rating, cable size and what it feeds."],
+          ["Makers' instructions", "How equipment must be fixed, terminated and tightened (torque values), clearances, IP needs, suitable locations."],
+          ["The code the Centre uses (based on the NEC)", "Minimum safety rules: where GFCIs are needed, bonding, support spacing, conduit fill, box access."],
+          ["Purchase order and delivery note", "What was ordered and what has been delivered."],
+          ["Quality plan or inspection and test plan (ITP)", "What is inspected, when, by whom and against which criteria."]
+        ] } },
+        { "p": "The code is the **minimum**; the specification may ask for more, and then the specification applies. If two documents disagree (for example the drawing shows a 20 A circuit and the schedule says 30 A), do not choose for yourself: raise a query with your supervisor or the designer and get the answer in writing." },
+        { "h": "Acceptance criteria" },
+        { "p": "An **acceptance criterion** says exactly what passes: what is checked, the limit, and how it is measured. With clear criteria, two inspectors judge the same work the same way, and the team knows the target before they start." },
+        { "table": { "head": ["Vague (cannot be judged)", "Clear (can be judged by anyone)"], "rows": [
+          ["Breakers correct", "Each breaker's rating matches the panel schedule and is not larger than the cable size allows."],
+          ["Cables neat and secure", "Cables secured within 300 mm of each box, and at no more than the spacing the specification gives along the run."],
+          ["Heights right", "Switch centres 1.20 m ± 20 mm above finished floor level."],
+          ["Outdoor fittings OK", "Every outdoor enclosure has at least the IP rating the specification asks for, with all cable entries sealed."],
+          ["Board tidy", "No bare copper visible outside any terminal; every terminal tightened to the maker's torque."]
+        ] } },
+        { "h": "Tolerances" },
+        { "p": "A **tolerance** is how far a measurement may be from the stated (nominal) size and still pass. Lower limit = nominal − tolerance; upper limit = nominal + tolerance. A value exactly on a limit passes, unless the specification says otherwise." },
+        { "table": { "head": ["Requirement", "Lower limit", "Upper limit"], "rows": [
+          ["1.20 m ± 20 mm", "1.18 m", "1.22 m"],
+          ["20.0 mm ± 0.3 mm", "19.7 mm", "20.3 mm"],
+          ["4.0 m ± 10%", "3.6 m", "4.4 m"],
+          ["2.40 m + 0 / − 50 mm (a one-sided tolerance)", "2.35 m", "2.40 m"]
+        ] } },
+        { "note": "Measure from the **reference point (datum)** the specification names. 'Above finished floor level' means the floor after tiles or screed are laid. If the tiles are not down yet, allow for their thickness: a box centre 1.21 m above a bare slab, with 15 mm of tiles to come, will be 1.21 − 0.015 = 1.195 m above the finished floor.", "label": "Tip" },
+        { "h": "Counting supports" },
+        { "p": "Count the **spaces**, then the clips. A 3.6 m run with clips every 300 mm has 3,600 ÷ 300 = 12 spaces, so it needs 13 clips if there is one at each end. Then check any extra rules, such as a clip within 300 mm of every box." }
+      ]
+    },
+    {
+      "title": "Planning an inspection",
+      "blocks": [
+        { "p": "Plan the inspections before the work starts, as part of the job's quality plan. The plan says what is inspected, at which stage, against which criterion, by whom, with what, and how it is recorded." },
+        { "h": "The inspection and test plan (ITP)" },
+        { "table": { "head": ["Stage", "What is checked", "Criterion", "Method or tool", "Who", "Point", "Record"], "rows": [
+          ["Delivery", "Cable, breakers, accessories", "Purchase order and specification", "Count, read markings, caliper, sample", "Lead", "H", "Goods-in sheet"],
+          ["Block walls", "Conduit, boxes, bends", "Drawings; bend limit; box depth", "Visual, tape, level", "Lead", "H", "Checklist"],
+          ["Ceilings", "Cable supports, junction boxes", "Spacing; boxes accessible", "Visual, tape", "Lead", "H", "Checklist"],
+          ["Boards", "Terminations, ratings, labels", "Schedule; maker's torque", "Visual, torque screwdriver", "Lead", "H", "Checklist"],
+          ["Testing", "Insulation resistance per floor", "Code and specification minimum", "Insulation tester", "Lead; client's engineer", "W", "Schedule of results"],
+          ["Handover", "Whole installation", "All of the above", "Visual and test records", "Lead and supervisor", "R", "Report and snag list"]
+        ] } },
+        { "h": "Hold, witness and review points" },
+        { "table": { "head": ["Point", "What it means"], "rows": [
+          ["**Hold point (H)**", "Work **must stop** at this stage until the inspection is done and signed off. The next stage may not start."],
+          ["**Witness point (W)**", "The client or their engineer is given the agreed notice and may attend. If they do not come at the agreed time, the work may go on and the inspection or test is done and recorded without them."],
+          ["**Review point (R)**", "Records (delivery sheets, test results) are reviewed. Nobody needs to attend."]
+        ] } },
+        { "h": "Typical hold points in electrical work" },
+        { "ul": [
+          "Materials on delivery, before they are given out.",
+          "Conduit and boxes in walls, before plastering or block filling.",
+          "Cable runs, supports and junction boxes, before ceilings are closed.",
+          "Underground cables and ducts, before backfilling (depth, warning tape, protection).",
+          "Earth electrodes and their connections, before they are covered.",
+          "Board terminations, before covers are fitted.",
+          "The final visual inspection, before testing; the test results, before anything is energised."
+        ] },
+        { "note": "Tell the other trades where your hold points are. A plasterer, ceiling fixer or tiler who does not know will close up the work you still need to see. If work is covered before it is inspected, it may have to be opened up again.", "label": "Tip" },
+        { "h": "Writing a checklist" },
+        { "ul": [
+          "One item per line, written as a clear, measurable criterion taken from the specification.",
+          "The limit on the line: 'Clip within 300 mm of each box', not 'Cables secure'.",
+          "Space for the actual finding or reading, pass or fail, and the inspector's initials.",
+          "In the order you will walk the job, so nothing is skipped.",
+          "A line for 'not inspected, because...' so gaps are recorded, not left blank."
+        ] },
+        { "h": "Resources" },
+        { "p": "Book the instruments and check their calibration dates; arrange access (keys, ladders, permits, the client's agreement to enter rooms); plan safe isolation for anything you must open; bring the forms, labels, quarantine tags, camera and torch; and agree the time with your supervisor and the other trades." }
+      ]
+    },
+    {
+      "title": "Inspection tools, accuracy and calibration",
+      "blocks": [
+        { "table": { "head": ["Tool", "Used for", "Good practice"], "rows": [
+          ["Steel tape and folding rule", "Lengths, heights, spacings", "Check the hook is square and not bent; read straight on; measure from the right datum."],
+          ["Spirit level or laser level", "Level and plumb of boxes, trunking and boards", "Check a spirit level by reading it, turning it end for end, and reading again: the bubble should sit in the same place."],
+          ["Vernier caliper (or digital caliper)", "Outside and inside diameters and depths, to 0.05 or 0.02 mm: conduit, conductors, gland sizes", "Close the jaws and check the zero first; do not force the jaws."],
+          ["Micrometer", "Conductor diameters to 0.01 mm", "Use the ratchet so the pressure is always the same."],
+          ["Feeler gauge", "Small gaps and clearances", "Keep the blades clean and straight."],
+          ["Go/no-go gauge", "A quick check that a size is inside its limits", "The 'go' end must fit; the 'no-go' end must not."],
+          ["Torque screwdriver or torque wrench", "Checking terminals are tightened to the maker's figure (in N·m)", "Set it to the maker's value; keep it in calibration; never use it to undo screws."],
+          ["Torch, inspection mirror and camera", "Seeing inside boards and behind equipment; recording defects", "Photograph each defect with a label showing where it is."],
+          ["Voltage indicator and proving unit", "Proving dead before anything is opened", "Prove the indicator before and after the test."],
+          ["Low-resistance ohmmeter", "Continuity of protective and bonding conductors", "Null the leads first."]
+        ] } },
+        { "h": "Reading a vernier caliper" },
+        { "flow": [
+          "Read the main scale: the whole millimetres before the vernier's zero",
+          "Find the one vernier line that lines up exactly with a main-scale line",
+          "Multiply that line's number by the vernier's resolution (0.05 mm or 0.02 mm)",
+          "Add the two parts together"
+        ] },
+        { "p": "**Example**: the vernier's zero is just past 25 mm, and on a 0.02 mm vernier the 17th line lines up. Reading = 25 + 17 × 0.02 = 25 + 0.34 = **25.34 mm**." },
+        { "h": "Checking a conductor's size" },
+        { "p": "The size printed on a cable sheath does not prove the size of the copper inside. Undersized cable sold with a full-size marking is a known problem. For a solid conductor, measure the diameter (d) and work out the area: **area = π × d² ÷ 4**." },
+        { "table": { "head": ["Diameter measured", "Area", "Size"], "rows": [
+          ["1.38 mm", "π × 1.38² ÷ 4 = 1.50 mm²", "1.5 mm²"],
+          ["1.78 mm", "π × 1.78² ÷ 4 = 2.49 mm²", "2.5 mm²"],
+          ["2.05 mm", "π × 2.05² ÷ 4 = 3.30 mm²", "12 AWG (3.31 mm²)"]
+        ] } },
+        { "p": "For a stranded conductor, measure one strand, work out its area and multiply by the number of strands, or compare with the maker's data." },
+        { "h": "Resolution and accuracy" },
+        { "p": "**Resolution** is the smallest step an instrument shows (for example 0.01 Ω). **Accuracy** is how close the reading is to the true value. Digital meters often state accuracy as ± (a percentage of the reading + a number of digits), where one digit is one step of the last figure." },
+        { "p": "**Example**: a reading of 1.50 Ω on a meter with ±(2% + 2 digits) and 0.01 Ω resolution. 2% of 1.50 = 0.03 Ω; 2 digits = 0.02 Ω; total ±0.05 Ω. The true value is between **1.45 and 1.55 Ω**. If the limit were 1.52 Ω, this 'pass' would be too close to call: retest with a more accurate instrument or treat it with caution." },
+        { "h": "Calibration" },
+        { "ul": [
+          "**Calibration** compares an instrument with a reference of known accuracy, by a laboratory whose own references are traceable to national or international standards. You get a certificate and a label with the date and the next due date.",
+          "Instruments drift with age, knocks, heat and damp. An instrument that reads wrongly can pass unsafe work or fail good work.",
+          "The interval (often 12 months) is set by the maker and the company. Keep a **register** of every instrument, its serial number and its due date, and check the label before every job.",
+          "Between calibrations, check instruments on a check box or known reference, check leads and batteries, and null the leads for low-resistance readings.",
+          "An instrument that has been dropped, wet or overloaded is checked again before use, whatever its label says."
+        ] },
+        { "h": "When an instrument is found out of calibration" },
+        { "flow": [
+          "Stop using it at once; tag it 'do not use' and report it",
+          "Find every job it was used on since its last good calibration (this is why records show the serial number)",
+          "Work out which results could be wrong: which way the error went, how big it was, and how close each result was to its limit",
+          "With your supervisor, retest those results with a calibrated instrument",
+          "Record what was found and done; send the instrument for repair or calibration",
+          "Ask why it was missed, and fix the system (for example, the register and the pre-job check)"
+        ] },
+        { "note": "Which way the error went matters. A meter that reads **low** makes continuity results look better than they are: circuits recorded just under their limit may really be over it, and must be retested first. A meter that reads high may have failed good work, which costs time but is not a hidden danger.", "label": "Remember" }
+      ]
+    },
+    {
+      "title": "Inspecting incoming materials",
+      "blocks": [
+        { "flow": [
+          "Check the delivery note against the purchase order: item, size or rating, quantity",
+          "Count what has actually arrived",
+          "Look for damage to boxes, drums, coils and sheaths",
+          "Read the markings on every type of item",
+          "Check approval marks and look for signs of fakes",
+          "Open and check a sample, or every item, as the plan says",
+          "Record the results on the goods-in sheet",
+          "Accept good items to stock; tag and quarantine the rest",
+          "Note shortages and damage on the delivery note, and report them to the purchaser"
+        ] },
+        { "note": "Sign only for what you received. If 36 of 40 items arrive, write '36 received' on the delivery note before you sign, and tell the purchaser. Never make up a shortage from another job's stock without recording it.", "label": "Tip" },
+        { "h": "What to check" },
+        { "table": { "head": ["Item", "Check"], "rows": [
+          ["Cable", ["Size (mm² or AWG), number of cores, type and insulation, voltage rating, colours", "Maker and standard printed along the sheath", "Coil or drum length", "Damage; measure the conductor if in doubt"]],
+          ["Circuit breakers", ["Rating (A), number of poles, type or curve", "Breaking capacity (kA) as ordered", "A type the panel is designed and listed for", "Approval marks; no damage"]],
+          ["Accessories", ["Type, rating and colour", "IP rating where needed", "Terminals, covers and screws all present"]],
+          ["Conduit and fittings", ["Diameter (caliper), type and wall thickness", "Length; fittings to match"]],
+          ["Luminaires and equipment", ["Voltage: 110 V or 220 V as needed", "Frequency: 50 Hz or 50/60 Hz", "IP rating; approval marks"]]
+        ] } },
+        { "note": "Jamaica runs at **50 Hz**, but much equipment comes from the US, where the supply is 60 Hz. Check the rating plate. A motor, pump, clock or timer marked for 60 Hz only may run slow, run hot or fail on a 50 Hz supply. Equipment for 220–240 V must never go on a 110 V circuit, nor 110–120 V equipment on 220 V.", "label": "Jamaica" },
+        { "h": "Approval marks and fakes" },
+        { "p": "An **approval (certification) mark** shows that a recognised testing body has tested the product to a known standard and checks the factory that makes it. Examples you will meet are the marks of North American and European testing bodies. A **CE** mark is different: it is the maker's own declaration for the European market, not a third-party test. A mark does not mean the item never needs inspecting, and marks can be faked. Most certifying bodies have an online list where you can check a maker and model." },
+        { "ul": [
+          "A price far below normal",
+          "Very light weight (less copper, thinner metal)",
+          "Poor, blurred or misspelt printing; no maker's name; missing ratings",
+          "Packaging that differs from the genuine product",
+          "Rough moulding, loose parts or poor terminals",
+          "A supplier who is not an authorised dealer"
+        ] },
+        { "p": "Any of these is a reason to quarantine the item and report it. Fake breakers may not trip; fake cable may have less copper than marked and overheat." },
+        { "h": "100% inspection or sampling" },
+        { "table": { "head": ["Point", "100% inspection", "Sample inspection"], "rows": [
+          ["What it is", "Every item is checked", "A set number of items, picked at random, are checked; the result is taken to show the quality of the batch"],
+          ["Good points", "Finds every faulty item", "Quicker and cheaper"],
+          ["Weak points", "Slow and costly; people get tired and miss things on long runs", "Faulty items outside the sample are missed"],
+          ["Best for", "Anything that affects safety, items made one at a time, **all installed work**", "Large batches of identical, low-risk items (clips, screws, blank plates, boxed accessories) from a supplier with a good record"]
+        ] } },
+        { "ul": [
+          "A **random** sample is taken from across the batch (different boxes, top and bottom), not just the easiest box to reach.",
+          "The quality plan gives the **sample size** and the **acceptance number**: for example, 'open 13; accept the batch if no more than 1 is faulty, reject it if 2 or more are'.",
+          "**Per cent faulty** = faulty ÷ sample × 100. Example: 3 faulty in a sample of 50 = 6%.",
+          "A rejected batch is quarantined and reported. Sorting it item by item, or returning it, is decided with the purchaser and supplier."
+        ] },
+        { "h": "Quarantine and concessions" },
+        { "p": "A **quarantine area** is a marked, separate place for failed or doubtful items, so they cannot be issued by mistake. Each item is tagged with what it is, why it is held, the date and who held it, and is logged. Its fate (return to supplier, repair, scrap) is decided by the person with authority. Accepting something that does not meet the specification is called a **concession**: it needs the written approval of the person who owns the requirement, usually the designer or the client. An inspector cannot grant a concession." }
+      ]
+    },
+    {
+      "title": "Visual inspection of installed work",
+      "blocks": [
+        { "note": "Before you remove any cover or open any accessory or board, **isolate, lock off, tag and prove dead** with a voltage indicator proved before and after. In roof spaces, plan for heat (Jamaican roofs get very hot by midday), poor light, stepping only on joists, insulation fibres, nails, wasps and rats: take a torch, a crawl board, water and a partner. In occupied buildings, keep tools and open boards away from the public.", "label": "Safety" },
+        { "h": "Distribution boards" },
+        { "table": { "head": ["Check", "Why it matters"], "rows": [
+          ["Board fixed firmly; cover, door and blanking pieces fitted; no open knockouts", "No live part can be touched; dust, water and vermin are kept out."],
+          ["Each breaker's rating matches the schedule and suits the cable size", "A breaker that is too large lets the cable overheat before it trips."],
+          ["No bare copper outside terminals; no insulation trapped under a clamp; correct strip length", "Bare copper can be touched or touch another conductor; trapped insulation makes a poor, hot joint."],
+          ["Terminals tight to the maker's torque; only one conductor per terminal unless the terminal is marked for more", "A second conductor under a single clamp often ends up loose: it arcs, heats and can start a fire."],
+          ["Neutrals and earths on the correct bars, in circuit order; in a sub-board, the neutral bar isolated from the earth bar", "Neutral and earth are joined only at the main service. A neutral landed on a sub-board's earth bar sends normal neutral current along earth conductors and metalwork."],
+          ["Cable entries through bushings, grommets or glands", "A sharp metal edge cuts into insulation and can make the enclosure live."],
+          ["Board labelled; circuit chart complete and matching the circuits", "Anyone isolating a circuit later must be able to switch off the right one."],
+          ["No signs of heat: discoloured insulation, scorching, a burning smell", "Heat means a loose or overloaded connection."]
+        ] } },
+        { "h": "Cable runs and containment" },
+        { "ul": [
+          "Cables supported at the specified spacing, and close to every box.",
+          "Cables passing through timber framing kept well back from the edge (the NEC asks for at least 32 mm), or protected by a steel plate, so nails and screws miss them.",
+          "Bends no tighter than the cable maker allows.",
+          "Cables kept clear of hot water pipes, flues and other services.",
+          "Conduit: joints secure, saddles at the specified spacing, and **no more than 360° of bends** between pull points (four quarter bends), or cables cannot be pulled in without damage.",
+          "Junction boxes **accessible** after the building is finished, never buried behind a solid ceiling or wall.",
+          "Fire-stopping made good where cables pass through fire-rated walls and floors.",
+          "Underground: correct depth, ducts where specified, warning tape above."
+        ] },
+        { "h": "Accessories and equipment" },
+        { "ul": [
+          "Outlets and switches fixed firmly, level, at the specified heights, with faceplates undamaged.",
+          "GFCI protection wherever the code requires it: bathrooms, kitchen counters, outdoors, garages, near sinks and laundry areas.",
+          "Outdoor and wet locations: enclosures rated for the location, with weatherproof covers that protect the plug while it is in use.",
+          "The right outlet type for each voltage, so a 110 V plug cannot go into a 220 V outlet; 220 V outlets labelled.",
+          "Luminaires secure, with the right lamps, clear of anything that can burn, and rated for wet areas where needed."
+        ] },
+        { "h": "The IP code" },
+        { "p": "An **IP rating** (ingress protection) is two digits. The **first** is protection against solid objects and dust; the **second** against water. Higher is better." },
+        { "table": { "head": ["Digit", "First digit (solids)", "Second digit (water)"], "rows": [
+          ["4", "Objects over 1 mm (wires)", "Splashing from any direction"],
+          ["5", "Dust-protected (some dust may enter, not enough to harm)", "Water jets"],
+          ["6", "**Dust-tight**", "Powerful water jets"],
+          ["7", "(not used)", "Short immersion in water"]
+        ] } },
+        { "p": "**Example**: IP65 is dust-tight and protected against water jets. You will also see US NEMA enclosure types on equipment from America (for example NEMA 3R for outdoor use against rain). Use the rating the specification asks for." },
+        { "h": "Earthing and bonding" },
+        { "ul": [
+          "Earth electrode and its clamp accessible and labelled; the clamp of the right type and tight.",
+          "Main bonding to metal water and gas pipes close to where they enter the building, with suitable clamps.",
+          "Conductor sizes as designed; no joints in the earthing conductor unless the code allows them.",
+          "Supplementary bonding where the design asks for it."
+        ] }
+      ]
+    },
+    {
+      "title": "Recording and judging results",
+      "blocks": [
+        { "h": "What a good record shows" },
+        { "ul": [
+          "The job, the location and the item or circuit checked.",
+          "The requirement or limit, and the actual finding or reading (a value, not a tick).",
+          "Pass or fail.",
+          "Who inspected, the date and the time.",
+          "The instrument used, its serial number and its calibration due date.",
+          "References to photos, and the inspector's signature."
+        ] },
+        { "h": "Rules for records" },
+        { "table": { "head": ["Do", "Do not"], "rows": [
+          [["Write at the time, on site", "Use pen", "Write clearly and in full", "Strike a mistake through once, write the correct value beside it, initial and date it", "Write 'not inspected' and the reason for anything you could not check"], ["Write it up later from memory", "Use pencil", "Use ticks or 'OK' instead of values", "Rub out, use correction fluid or tear out pages", "Leave a line blank"]]
+        ] } },
+        { "p": "Records must be **accurate** because people decide whether the installation is safe from them, **complete** so nobody thinks a part was checked when it was not, and **kept** (for as long as the company's procedure says) so they can be compared with later inspections, used to answer a complaint or claim, and used to trace a problem back to its cause." },
+        { "h": "Traceability" },
+        { "p": "**Traceability** means being able to follow a result or an item back to its source: who checked it, when, with which instrument, and which batch or cable drum it came from. If an instrument is later found faulty, or a batch of breakers is recalled, traceable records show exactly which jobs are affected. Without them, every job is in doubt." },
+        { "h": "Judging what you find" },
+        { "table": { "head": ["Situation", "What to do"], "rows": [
+          ["Inside the limits", "Pass; record the actual value."],
+          ["Outside the limits", "Fail: a non-conformance. Make safe if needed, label it and report it."],
+          ["Inside the limits but very different from similar items", "Investigate before you pass it. Example: three identical circuits read 0.42, 0.44 and 0.91 Ω, all under a 1.0 Ω limit; the 0.91 Ω circuit probably has a poor joint."],
+          ["Very close to a limit", "Allow for the instrument's accuracy; retest, or use a more accurate instrument."],
+          ["The same defect on several jobs", "Record it and report the pattern so its cause can be found."]
+        ] } },
+        { "p": "Compare readings with what you expect for that cable's size and length. A result that 'passes' but is not what the circuit should give is a warning sign: a wrong cable size, a poor joint, or a reading taken wrongly." },
+        { "note": "Photos are strong evidence. Take one of each defect with something in the picture that shows where it is (a label with the room and circuit number), and log the photo number on the record.", "label": "Tip" }
+      ]
+    },
+    {
+      "title": "Non-conformances, reporting and follow-up",
+      "blocks": [
+        { "h": "Dealing with a non-conformance" },
+        { "flow": [
+          "Make it safe: if there is any danger, isolate and lock off at once",
+          "Label the item where it was found, so nobody uses or covers it",
+          "Write a non-conformance report (NCR): what, where, which requirement it fails, who found it, when, with a photo",
+          "Report it to your supervisor",
+          "Agree the action (rework, repair, replace, or a concession from the person with authority), who will do it and by when",
+          "When it is fixed, re-inspect it, and retest it dead if needed",
+          "If it now passes, sign it off and close the NCR",
+          "If it keeps happening, look for the cause"
+        ] },
+        { "h": "How serious is it?" },
+        { "table": { "head": ["Category", "Meaning", "Examples", "Action"], "rows": [
+          ["**Danger present**", "Someone could be hurt now", "A live terminal showing through a cracked faceplate; a live board with its cover off; reversed polarity at an outlet", "Make safe at once (isolate and lock off) and tell the person in charge immediately, not in tomorrow's report."],
+          ["**Must be fixed before use**", "Will become dangerous in use or under a fault", "No GFCI where the code requires one; a breaker too large for its cable; missing bonding", "The area or circuit is not handed over or energised for use until it is fixed and re-inspected."],
+          ["**Minor**", "Does not affect safety", "A faceplate slightly out of level; a scuffed label", "Put on the snag list and fix by an agreed date."]
+        ] } },
+        { "h": "The snag list" },
+        { "p": "A **snag list** (or punch list) lists the small defects that must still be fixed before handover. Each line gives the location, the defect, who will fix it and by when. Each item is ticked off only after it has been re-inspected. Safety defects are never left on a snag list to be fixed 'after the client moves in'." },
+        { "h": "The inspection report" },
+        { "ul": [
+          "The job, the date, the inspector, and the documents inspected against.",
+          "What was inspected, and **what was not inspected, with the reason** (for example 'roof space over the stores not inspected: no access'), so nobody thinks it was checked.",
+          "A summary of the results.",
+          "Each non-conformance, with its category and the action needed.",
+          "Recommendations, and the inspector's signature."
+        ] },
+        { "table": { "head": ["Poor report line", "Good report line"], "rows": [
+          ["Board looks bad", "DB-2: no bushing on the cable entry at the top left knockout; insulation at risk of damage."],
+          ["Some outlets not right", "Room 9 bathroom outlet: no GFCI protection, required by the code; must be fixed before handover."],
+          ["Earth OK", "Main bonding clamp on the water pipe present and tight; 0.05 Ω from the main earthing terminal."]
+        ] } },
+        { "p": "The report goes to your **supervisor or the person in charge** of the job, and on to the client as the company's procedure says. Treat the client's information, layouts and security systems as confidential." },
+        { "h": "Patterns and causes" },
+        { "p": "Fixing a defect quietly every time you find it hides the problem. Count defects from the records: if 9 of 12 rewires had cables with no clip near the boxes, the cause is probably in the method, the tools or the training, not in one careless person. Report the pattern, help find the cause, agree a fix (a briefing, a new checklist line, the right tools), and watch the next inspections to see whether it has worked." },
+        { "note": "An inspector reports facts. Do not hide a defect, do not blame people in a report, and never sign that something was inspected when it was not.", "label": "Remember" }
+      ]
+    },
+    {
+      "title": "Revision",
+      "blocks": [
+        { "h": "Checklist" },
+        { "p": "Tick each statement only when you can do it without looking at the notes." },
+        { "ul": [
+          "I can explain why inspection is done, and the difference between incoming, in-process and final inspection.",
+          "I can say which faults inspection finds and which only testing finds.",
+          "I can find the requirements in the specification, drawings, schedules, makers' instructions and the code.",
+          "I can write clear, measurable acceptance criteria and checklist lines.",
+          "I can work out tolerance limits, allow for the datum, and count supports.",
+          "I can write an inspection and test plan, and explain hold, witness and review points.",
+          "I can choose measuring tools, read a vernier caliper, and work out a conductor's area from its diameter.",
+          "I can explain resolution and accuracy, and work out the range a true value could lie in.",
+          "I can explain calibration and what to do when an instrument is found out of calibration.",
+          "I can inspect a delivery, read markings, spot fakes, choose between 100% and sample inspection, and quarantine failed items.",
+          "I can carry out a visual inspection of boards, cable runs, accessories, enclosures, earthing and bonding after safe isolation.",
+          "I can explain the IP code.",
+          "I can keep accurate, complete, traceable records and correct a mistake properly.",
+          "I can judge results, including ones that pass but look wrong.",
+          "I can raise, follow up and close a non-conformance, and grade defects by how serious they are.",
+          "I can write a factual inspection report that states what was not inspected, and report a pattern of defects."
+        ] },
+        { "h": "Numbers and formulas" },
+        { "table": { "head": ["Figure", "What it is"], "rows": [
+          ["Nominal ± tolerance", "The lower and upper limits"],
+          ["Area = π × d² ÷ 4", "Cross-section of a solid conductor from its diameter"],
+          ["Faulty ÷ sample × 100", "Per cent faulty in a sample"],
+          ["± (% of reading + digits)", "How digital meter accuracy is often stated"],
+          ["360°", "Usual maximum total of bends in a conduit run between pull points"],
+          ["IP first digit 6 / second digit 5", "Dust-tight / protected against water jets"],
+          ["Often 12 months", "A common calibration interval; follow the maker and the company"]
+        ] } },
+        { "h": "Key terms" },
+        { "terms": [
+          ["Acceptance criterion", "The stated limit or standard that decides whether work or material passes."],
+          ["Approval mark", "A mark showing that a recognised body has tested a product to a known standard."],
+          ["Calibration", "Checking an instrument against a known reference to confirm that it reads correctly."],
+          ["Concession", "Written approval, by the person who owns the requirement, to accept something that does not meet it."],
+          ["Datum", "The reference point a measurement is taken from, such as the finished floor level."],
+          ["Go/no-go gauge", "A gauge that quickly shows whether a size is within its limits."],
+          ["Hold point", "A stage where work stops until it is inspected and signed off."],
+          ["In-process inspection", "Inspection during the work, especially of anything that will be hidden later."],
+          ["Inspection and test plan (ITP)", "The plan of what is inspected and tested, when, by whom and against which criteria."],
+          ["IP rating", "Two digits showing how well an enclosure keeps out solids and water."],
+          ["Non-conformance report (NCR)", "The record of a non-conformance, its action and its close-out."],
+          ["Quarantine area", "A marked place where failed or doubtful items are kept away from use."],
+          ["Resolution", "The smallest step an instrument can show."],
+          ["Sample inspection", "Checking a random selection from a batch to judge the whole batch."],
+          ["Snag list", "The list of small defects to be fixed before handover; also called a punch list."],
+          ["Specification", "The document that lists the requirements, materials and standards a job must meet."],
+          ["Tolerance", "How far a measurement may differ from the stated size and still pass."],
+          ["Traceability", "Being able to follow a result or item back to who, when, how and with what."],
+          ["Witness point", "A stage the client may attend after notice; work may go on if they do not come."]
+        ] }
+      ]
+    }
+  ],
+  "cases": {
+    "c1": { "title": "Goods-in at a Port Antonio contractor", "text": "Ms Tamika Reid, a Level 3 electrician, runs goods-in for a contractor in Port Antonio, Portland. A delivery arrives for a school job. The purchase order asks for 6 coils of 2.5 mm² cable, 40 single-pole 20 A breakers with a 10 kA breaking capacity, and 50 lengths of 20 mm PVC conduit with an outside diameter of 20.0 mm ± 0.3 mm. She has a vernier caliper, the order and the delivery note." },
+    "c2": { "title": "Hold points on a Liguanea apartment block", "text": "Mr Garth Campbell leads a crew wiring a four-storey apartment block in Liguanea, St Andrew. The inspection and test plan makes conduit and boxes in block walls a hold point before plastering, and gives the client's engineer a witness point for the insulation tests on each floor, with 24 hours' notice. The specification allows no more than 360° of bends in a conduit run between pull points, and says every junction box must stay accessible." },
+    "c3": { "title": "A sub-board at a Falmouth pharmacy", "text": "Ms Odette Wright inspects a new sub-board at a pharmacy in Falmouth, Trelawny, before the inspector's visit. The sub-board is fed from the main panel by a feeder with separate neutral and earth conductors. After isolating, locking off and proving dead, she finds that circuit 6 has a 30 A breaker on 12 AWG cable that the panel schedule lists as 20 A, that one neutral is landed on the earth (grounding) bar, and that one cable enters through a knockout with no bushing or grommet." },
+    "c4": { "title": "An overdue meter in Morant Bay", "text": "Mr Neville Thompson is the lead electrician at a contractor in Morant Bay, St Thomas. The low-resistance ohmmeter used for continuity checks on four jobs in the last three weeks turns out to be two months past its calibration due date. The laboratory finds that it was reading 0.15 Ω low on its lowest range. In calibration, its accuracy is ±(2% of the reading + 2 digits), with a resolution of 0.01 Ω." },
+    "c5": { "title": "Snags at a Treasure Beach guest house", "text": "Mr Romario Clarke inspects the rewiring of 24 guest rooms at a guest house in Treasure Beach, St Elizabeth, before the owner reopens on Friday. Each room has six outlets. Of the 14 items on his snag list, 12 are fixed. The two left are a bathroom outlet in room 9 with no GFCI protection, and a faceplate in room 4 that is slightly out of level. In room 12 he finds an outlet with a cracked faceplate and a live terminal showing. The owner asks him to open just a few outlets in each room 'to save time'." }
+  },
+  "questions": [
+    { "id": "P-01", "c": "c1", "q": "The breakers are the right make and 20 A rating, but each is marked 6 kA, not the 10 kA ordered. They are cheaper and look genuine. What should Tamika do?", "o": ["Accept them, since the amp rating is what matters on a school job", "Quarantine and report them; only the designer could accept them", "Accept them, but fit them only in boards far from the main panel", "Send half of them back and keep the rest for the first stage"], "a": 1, "why": "Breaking capacity is a safety rating: a breaker that cannot interrupt the fault current where it is fitted can fail violently. Items that do not meet the order are quarantined and reported; only the person who owns the requirement can accept them, by a written concession." },
+    { "id": "P-02", "c": "c1", "q": "Tamika measures a length of conduit with a 0.05 mm vernier. Its zero is just past 19 mm on the main scale, and its 12th line lines up exactly. What is the reading, and does it pass?", "o": ["19.12 mm, which fails the 19.7 mm lower limit", "19.60 mm, which passes, being within 0.5 mm", "20.20 mm, which passes the 20.3 mm upper limit", "19.60 mm, which fails the 19.7 mm lower limit"], "a": 3, "why": "Reading = main scale + line number × resolution = 19 + 12 × 0.05 = 19.60 mm. The limits are 20.0 ± 0.3 mm, so 19.7 to 20.3 mm; 19.60 mm is below the lower limit and fails. Undersized conduit may not fit the fittings properly." },
+    { "id": "P-03", "c": "c1", "q": "A 2.5 mm² solid conductor should be about 1.78 mm across. The conductors in one coil measure 1.60 mm. About what is their real cross-section?", "o": ["About 2.0 mm²", "About 1.6 mm²", "About 2.5 mm²", "About 8.0 mm²"], "a": 0, "why": "Area = π × d² ÷ 4 = 3.14 × 1.60 × 1.60 ÷ 4 ≈ 2.0 mm², a fifth less copper than marked, so the cable could overheat at its rated current. The sheath marking alone does not prove the size; quarantine the coil and report it. Forgetting to divide by 4 gives about 8.0." },
+    { "id": "P-04", "c": "c1", "q": "The delivery note says 40 breakers, but Tamika counts 36. The driver wants the note signed now. What should she do?", "o": ["Sign it as it is, then phone the supplier about it later in the week", "Refuse the whole delivery until the last 4 breakers have arrived", "Write '36 received' on the note, sign it, and tell the purchaser", "Sign it, and make up the 4 from another job's stock to save time"], "a": 2, "why": "A signature says what was received. Recording the shortage on the note before signing protects the company and lets the purchaser chase the missing items. Taking stock from another job without a record hides the problem and causes a shortage there." },
+    { "id": "P-05", "c": "c2", "q": "Garth gives the engineer the agreed 24 hours' notice of the level 2 insulation tests, but the engineer does not arrive. What does a witness point allow?", "o": ["The tests must wait until the engineer is able to come to site", "Level 2 may skip the tests, since nobody came to witness them", "The tests may go ahead and be recorded, as notice was given", "Garth signs the record in the engineer's name after testing"], "a": 2, "why": "At a witness point the client is given notice and may attend; if they do not come at the agreed time, the work goes on and the results are recorded without them. A hold point is different: work stops until the inspection is done and signed." },
+    { "id": "P-06", "c": "c2", "q": "The plasterers are ready to start on level 3 before Garth has inspected the conduit and boxes there. What should happen?", "o": ["Plastering on level 3 waits until the conduit is inspected and signed", "The plasterers start, and Garth inspects the conduit after it is covered", "The plasterers start, as long as they keep the boxes themselves clear", "Garth signs the hold point now, and inspects level 3 next week"], "a": 0, "why": "A hold point means the next stage may not start until the inspection is done and signed off. Once the walls are plastered, a bad bend, a crushed conduit or a box at the wrong depth can only be fixed by breaking the plaster. The plasterers can be offered another area in the meantime." },
+    { "id": "P-07", "c": "c2", "q": "One conduit run between two boxes has five 90° bends and no pull box. What should Garth record?", "o": ["A pass, as long as the cables can still be pulled into it by hand", "A pass, because the bend limit applies only to metal conduit runs", "A non-conformance, but only if the run is more than 10 m long", "A non-conformance: 450° of bends against the 360° limit"], "a": 3, "why": "Five quarter bends total 450°, over the 360° the specification allows between pull points. Pulling cables through too many bends can strip or stretch their insulation. The usual fix is a pull box part way along, and the run is re-inspected." },
+    { "id": "P-08", "c": "c2", "q": "On level 1, Garth finds a junction box fixed where a solid plasterboard ceiling will close it in. Why is this a defect?", "o": ["Its joints will be hidden, so nobody can reach or check them", "Junction boxes may be fitted in walls only, never in any ceiling", "The box will make the plasterboard ceiling harder to paint later", "The closed ceiling will trap heat in the box and melt its joints"], "a": 0, "why": "Junction boxes must stay accessible, because their joints may need checking, tightening or altering. A box buried behind a solid ceiling cannot be inspected or repaired without damage. The fix is to move it, or to fit an access panel the specification allows." },
+    { "id": "P-09", "c": "c3", "q": "Why is a neutral landed on the earth bar of this sub-board a defect?", "o": ["The earth bar is smaller than the neutral bar, so it will overheat", "It makes the breaker trip each time the circuit's load is switched on", "Neutral current would then flow on earth conductors and metal parts", "The inspector cannot read the circuit numbers on an earth bar"], "a": 2, "why": "Neutral and earth are joined only at the main service. In a sub-board fed with separate neutral and earth conductors, a neutral on the earth bar puts normal neutral current onto the earth conductors and metalwork, which can cause shocks, heat and nuisance tripping of RCDs." },
+    { "id": "P-10", "c": "c3", "q": "What is the danger of the 30 A breaker on circuit 6?", "o": ["The breaker will trip each time the pharmacy's big fridge starts", "The cable can overheat, as the breaker lets through up to 30 A", "The voltage on the circuit will be too high for its equipment", "None, as a larger breaker simply gives the circuit more margin"], "a": 1, "why": "A breaker is sized to protect its cable. 12 AWG cable is normally protected at 20 A, so a 30 A breaker lets the cable carry far more than it should before tripping; it can overheat inside the wall and start a fire. Record a non-conformance and have the 20 A breaker fitted." },
+    { "id": "P-11", "c": "c3", "q": "Why does the knockout with no bushing or grommet matter?", "o": ["The cable will look untidy when the client opens the board", "The bushing is the part that holds the board firm to the wall", "Without it, the voltage drop on that cable will be too large", "The sharp edge can cut into the cable and make the board live"], "a": 3, "why": "A bare metal knockout edge can cut through the cable's insulation as the cable moves, putting a live conductor against the enclosure. A bushing, grommet or gland protects the cable at the entry. Record it and have it fitted." },
+    { "id": "P-12", "c": "c4", "q": "Which continuity results from the four jobs most need retesting?", "o": ["Those recorded far below their limits, since the meter read high", "Those recorded within 0.15 Ω of their limits, as they may fail", "None, as every result recorded was under its limit at the time", "Only those taken in the final week before the fault was found"], "a": 1, "why": "A meter that read 0.15 Ω low made every result look better than it was. A circuit recorded, say, 0.10 Ω under its limit could really be 0.05 Ω over it. The error does not depend on the date, so every result from the period is in doubt; those closest to their limits are retested first." },
+    { "id": "P-13", "c": "c4", "q": "Back in calibration, the meter reads 0.80 Ω on a protective conductor. Between which values could the true value lie?", "o": ["About 0.78 Ω and 0.82 Ω", "About 0.64 Ω and 0.96 Ω", "About 0.76 Ω and 0.84 Ω", "About 0.70 Ω and 0.90 Ω"], "a": 2, "why": "2% of 0.80 Ω = 0.016 Ω, and 2 digits at 0.01 Ω resolution = 0.02 Ω, so the accuracy is ±0.036 Ω: about 0.76 to 0.84 Ω. Leaving out the digits gives 0.78 to 0.82 Ω. Allow for this when a result is close to its limit." },
+    { "id": "P-14", "c": "c4", "q": "Which change would best stop an overdue instrument being used again?", "o": ["Taking every reading twice on each job to make up for any error", "Buying a new meter each year instead of having it calibrated", "A register of due dates, with the label checked before each job", "Asking each electrician to remember when their own meter is due"], "a": 2, "why": "A register with serial numbers and due dates, and a check of the calibration label before every job, catches overdue instruments before they are used. Repeating a reading with a faulty meter repeats the same error, and a new meter still needs calibrating at its due date." },
+    { "id": "P-15", "c": "c5", "q": "What must Romario do about the outlet in room 12?", "o": ["Add it to the snag list, to be fixed before Friday's reopening", "Put tape over the crack, and note it in the end-of-day report", "Isolate and lock it off now, and report it at once", "Tell the owner to keep guests out of room 12 until it is fixed"], "a": 2, "why": "A live terminal that can be touched is danger present: someone could be hurt now. It is made safe at once (isolated, locked off and tagged) and reported immediately to the person in charge, not left on a snag list or covered with tape." },
+    { "id": "P-16", "c": "c5", "q": "The owner wants to reopen room 9 on Friday with its bathroom outlet still not GFCI protected. What should Romario's report say?", "o": ["Room 9 may open, as a missing GFCI is a minor item on the snag list", "Room 9 may open if a sign tells guests not to use the bathroom outlet", "Room 9 may open, and the GFCI can be fitted at the next inspection", "The outlet must have GFCI protection before room 9 is handed over"], "a": 3, "why": "A bathroom outlet without the GFCI protection the code requires is not a minor snag: it would become dangerous the moment a fault and a wet hand meet. It must be fixed and re-inspected before the room is handed over. A sign does not protect a guest." },
+    { "id": "P-17", "c": "c5", "q": "How should Romario answer the owner's request to open only a few outlets in each room?", "o": ["Agree, and open one outlet in each room as a random sample", "Agree, as sampling is the normal way to check installed work", "Inspect only the rooms where guests have complained before", "Inspect every outlet, as each is a safety item on its own"], "a": 3, "why": "Sampling suits large batches of identical, low-risk items such as boxed screws or clips. Each installed outlet was wired by hand and can have its own loose or wrong connection, so every one is inspected. A sample would leave most of them unchecked." },
+    { "id": "P-18", "c": null, "q": "An enclosure for an outdoor pump control is marked IP65. What does the 6 tell you?", "o": ["It is fully protected against dust", "It resists powerful jets of water", "It can be immersed in water for a time", "It is rated for up to 65 °C at most"], "a": 0, "why": "The first IP digit is protection against solids and dust; 6 means dust-tight. The second digit, here 5, is protection against water: 5 means water jets. Powerful jets would be a second digit of 6, and short immersion a 7." },
+    { "id": "P-19", "c": null, "q": "Which of these faults can be found only by testing, not by a visual inspection?", "o": ["A breaker larger than the panel schedule shows", "A protective conductor broken inside a wall", "An indoor outlet fitted on an outdoor wall", "A cable entering a board with no grommet"], "a": 1, "why": "A break hidden inside a wall cannot be seen; a continuity test finds it. The other three can all be seen by a careful visual inspection. That is why inspection and testing are both needed, with the visual inspection first." },
+    { "id": "P-20", "c": null, "q": "A specification says switch centres are 1.20 m ± 20 mm above finished floor level. Tiles adding 15 mm are not yet laid, and a box centre is 1.21 m above the bare floor. What is the finding?", "o": ["Fail: it is 10 mm higher than the 1.20 m height given", "Pass: it will be 1.195 m above the finished floor", "Fail: it will be 1.225 m once the tiles are laid", "No finding is possible until the tiles are laid"], "a": 1, "why": "Measure from the datum the specification names. The tiles raise the floor, so the box will be 1.21 − 0.015 = 1.195 m above the finished floor, inside the limits of 1.18 to 1.22 m. You can judge it now by allowing for the tiles." }
+  ]
+}
