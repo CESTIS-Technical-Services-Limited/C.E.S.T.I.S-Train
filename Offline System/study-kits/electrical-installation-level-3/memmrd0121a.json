@@ -1,0 +1,454 @@
+{
+  "format": "cestis-study-kit",
+  "version": 1,
+  "status": "to-check",
+  "written": "2026-11-07",
+  "programme": "Electrical Installation",
+  "qualification": { "id": "QUAL-EIM-L3", "title": "ELECTRICAL INSTALLATION AND MAINTENANCE LEVEL 3", "code": "MEM32507" },
+  "level": 3,
+  "unit": { "code": "MEMMRD0121A", "title": "Perform basic repair to electrical/electronic apparatus" },
+  "summary": "This unit teaches you to run a repair bench: to book in faulty appliances and electronic apparatus, find faults by a logical method using the maker's information and the right instruments, identify and test components, choose correct replacement parts, make sound repairs on boards and in mains appliances, test the repair, cost it, explain it to the customer and record it. You will also learn to supervise trainees doing this work safely.",
+  "sections": [
+    {
+      "title": "Unit overview",
+      "blocks": [
+        { "p": "At Level 2 you learned to find and fix simple faults in appliances. At Level 3 you take charge of the work: you decide the order of jobs, choose the method, read the circuit diagram and the data sheet, find the **root cause** rather than the symptom, decide whether a repair is worth doing, give the customer a price, and check and sign off the work of others. The appliances are the same, from fans and irons to power supplies and control boards; the difference is that the responsibility is yours." },
+        { "h": "What you must be able to do" },
+        { "table": { "head": ["Task", "What it looks like on the job"], "rows": [
+          ["Plan and organise repair work", "Book items in, set priorities with the customer, order parts early, match jobs to people and keep the bench safe."],
+          ["Find repair information", "Use the maker's service manual, circuit diagram, fault-finding chart and component data sheets; question the customer about the fault."],
+          ["Work safely", "Keep apparatus unplugged, deal with stored charge, protect against static, use soldering and cutting tools safely, and refer high-risk sections to specially trained people."],
+          ["Diagnose faults logically", "Inspect, then measure voltages stage by stage, then confirm with dead tests, following the diagram; never swap parts at random."],
+          ["Identify and test components", "Read resistor, capacitor and SMD markings; test resistors, capacitors, diodes, transistors, thermistors, fuses and regulators with a meter."],
+          ["Do the calculations", "Ohm's law, power, series and parallel resistance, LED series resistors, fuse ratings and rectifier output voltages."],
+          ["Choose replacement parts and fuses", "Match type, value, rating, pin-out and package; use approved equivalents; exact parts only for safety components."],
+          ["Repair boards and appliances", "Desolder and solder through-hole and surface-mount parts, repair tracks, replace cords, switches, elements and thermal fuses, and re-coat boards."],
+          ["Test after repair", "Dead tests (earth continuity, insulation resistance), a current-limited power-up for boards, and a function test on the protected bench."],
+          ["Cost, explain and record", "Prepare an estimate with GCT, advise repair or replace, keep old parts, and write a report with the root cause."],
+          ["Supervise trainees", "Set the method, check at key points, stop unsafe practice, and sign off the job card."]
+        ] } },
+        { "note": "Jamaican customers plug in appliances rated for 110 V, 220 V and both. The first question on many 'dead' items is whether a 110 V appliance was plugged into a 220 V outlet. Check the rating plate against the customer's supply before anything else.", "label": "Jamaica" },
+        { "h": "How to use this kit" },
+        { "p": "Read the sections in order: safety, information, method, components, calculations, repair, testing, and the customer. Work every calculation yourself. Then try the practice test and read each explanation." }
+      ]
+    },
+    {
+      "title": "Running the repair bench",
+      "blocks": [
+        { "h": "Booking in" },
+        { "p": "Every item is booked in on a **job card** and tagged with its job number before anything else happens. The card records:" },
+        { "ul": [
+          "Customer name and contact details; the date received.",
+          "The item: make, model, serial number and rating-plate details.",
+          "The fault the customer reports, in their words, and the answers to your questions.",
+          "The condition it arrived in: scratches, missing parts, cord condition, with a photo.",
+          "Accessories received (cord, remote, stand).",
+          "Whether it is under the maker's warranty."
+        ] },
+        { "h": "Questioning the customer" },
+        { "p": "The customer saw the fault happen. Their answers narrow the search before you open the case. Ask:" },
+        { "table": { "head": ["Question", "What it tells you"], "rows": [
+          ["What exactly does it do, or not do?", "A clear description of the symptom: 'no power', 'hums but does not turn', 'trips the breaker', 'works then stops'."],
+          ["When did it start? Suddenly or gradually?", "A sudden failure suggests a part that broke; a gradual one suggests wear, heat or a drying capacitor."],
+          ["What was happening at the time?", "A storm, a power cut, a spill, a fall, or being plugged into the wrong outlet."],
+          ["Does it happen all the time, or only when hot, cold, moved or tapped?", "Intermittent faults point to dry joints, cracked tracks and loose connections."],
+          ["Has anyone tried to repair it?", "Earlier work may have introduced faults or left parts out."],
+          ["Is it under warranty?", "Opening it may void the warranty: check with the customer first."]
+        ] } },
+        { "h": "Setting the order of work" },
+        { "ol": [
+          "**Safety risks first**: anything the customer reports as sparking, smoking, shocking or tripping the supply, which must not go back into use.",
+          "**The customer's urgency**: the hotel's only ice machine before its third fan.",
+          "**Parts lead time**: diagnose early the items that will need parts, so the parts can be ordered while other work goes on.",
+          "**Time needed** and the skill of the people available."
+        ] },
+        { "p": "A team leader matches each job to a person's skill, pairs a weaker trainee with a stronger one or with themselves on harder jobs, and keeps finished items on a separate shelf, tagged, ready for the function test and collection." },
+        { "h": "The bench" },
+        { "ul": [
+          "Good light, a magnifier or lamp with a lens, and an ESD-safe mat and wrist strap for electronic work.",
+          "A temperature-controlled soldering station in its stand, with fume extraction or good airflow.",
+          "A digital multimeter (DMM), and where possible an ESR meter, a current-limited bench power supply, a low-resistance ohmmeter and an insulation resistance tester.",
+          "A capacitor discharge tool, safety glasses, and a tidy parts store with labelled drawers.",
+          "A function-test bench with its own breaker, GFCI (RCD) protection and an isolating switch, used only by the instructor or an authorised person."
+        ] }
+      ]
+    },
+    {
+      "title": "Safety at the repair bench",
+      "blocks": [
+        { "table": { "head": ["Hazard", "Control"], "rows": [
+          ["Mains voltage", "Diagnose and repair with the appliance **unplugged, and the plug in view** on the bench. Live measurements on mains apparatus are made only by the instructor or an authorised person, on the protected test bench, with the covers that the method allows."],
+          ["Stored charge in capacitors", "Power supplies, motor capacitors, flash units, microwave ovens and drives hold a charge after unplugging. Wait, measure, discharge with a resistor discharge tool, measure again."],
+          ["High-voltage sections", "The high-voltage circuit of a microwave oven (transformer, capacitor, diode, magnetron), CRT displays and some other items are for specially trained technicians. Refer them."],
+          ["Static (ESD)", "Many components are damaged by static you cannot feel. Use an ESD mat and wrist strap connected to the earth point, keep parts in their anti-static bags, and avoid carpets, plastic bench tops and nylon clothing."],
+          ["Soldering", "Iron in its stand, fume extraction, eye protection, hands washed after handling solder."],
+          ["Cutting leads", "Cut ends fly off at speed: wear safety glasses, and cup your hand or point the cutters down."],
+          ["Heating elements and motors", "Let elements cool; keep fingers out of fan blades; watch for sharp sheet-metal edges."],
+          ["Batteries", "A swollen, hot or leaking lithium pack is a fire risk: stop using it, keep it in a metal container away from anything that burns, and recycle it through a proper route. Never pierce, crush or recharge it."],
+          ["Chemicals", "Flux, cleaners and solvents: read the label and SDS, ventilate, no smoking."]
+        ] } },
+        { "h": "Making a capacitor safe" },
+        { "flow": [
+          "Unplug the apparatus and wait at least the time the maker gives",
+          "Find the capacitor on the circuit diagram and board",
+          "Measure the voltage across it with a meter on a suitable DC range",
+          "If charge remains, discharge it through a discharge tool with a resistor, holding the insulated handle",
+          "Measure again: it must read near zero",
+          "Only then touch the terminals"
+        ] },
+        { "note": "**Never short a charged capacitor with a screwdriver.** The flash can burn you, weld the blade, destroy the capacitor and spray hot metal. A resistor limits the current so that the charge drains safely.", "label": "Safety" },
+        { "h": "Classes of appliance" },
+        { "table": { "head": ["Class", "Protection", "What it means for the repair"], "rows": [
+          ["Class I", "Metal parts connected to earth (ground) through the cord's earth conductor, with basic insulation", "A three-pin plug. The earth path must be sound after any repair: earth continuity test."],
+          ["Class II (double insulated)", "Two layers of insulation, or reinforced insulation; marked with a square inside a square", "A two-pin plug and no earth. Both insulation layers must be intact: never leave a cracked case or a missing barrier."],
+          ["Class III", "Supplied at safety extra-low voltage from a separate supply or adapter", "The item itself is low voltage; the adapter is the mains part."]
+        ] } }
+      ]
+    },
+    {
+      "title": "A logical method of diagnosis",
+      "blocks": [
+        { "h": "Repair information" },
+        { "table": { "head": ["Source", "What it gives you"], "rows": [
+          ["Maker's service manual", "Circuit diagrams, board layouts, test points and their expected readings, the fault-finding chart, disassembly steps, part numbers and safety warnings."],
+          ["Circuit diagram (schematic)", "How the parts connect: the signal or power path from input to output."],
+          ["Component data sheet", "The part's ratings, pin connections, package and typical use; needed before any substitute is chosen."],
+          ["Rating plate and labels", "Voltage, frequency, power, class, fuse rating."],
+          ["The customer", "The symptom and its history."],
+          ["Your own records", "Repeat faults on the same model, and what fixed them last time."]
+        ] } },
+        { "p": "The maker's **fault-finding chart** puts the checks in a logical order, from the most likely and easiest to the rarer and harder, so that time is not wasted and nothing is missed. Information of unknown origin, such as an anonymous video, may be wrong or for a different version of the product: use it only to point you to the manual, not instead of it." },
+        { "h": "The six-step method" },
+        { "flow": [
+          "Collect the symptoms: the customer's report, the rating plate, your own observation",
+          "Inspect: with the item unplugged and discharged, look, smell and feel under a magnifier",
+          "Think: use the diagram to list the stages that could cause the symptom",
+          "Test: measure to find which stage is faulty, then which component",
+          "Repair: replace or re-make the faulty part, and look for what caused it",
+          "Retest: dead tests, then a power-up with protection, then the function test; record it"
+        ] },
+        { "h": "What inspection finds" },
+        { "ul": [
+          "**Bulged or domed electrolytic capacitors**, or ones leaking brown fluid at the base: failed.",
+          "**Burnt, discoloured or cracked resistors** and scorched board around them: overheated, usually because of a fault elsewhere.",
+          "**Dry (cracked) solder joints**: a fine ring-shaped crack round a lead, common on parts that get hot or carry weight, such as connectors and large capacitors. They cause intermittent faults.",
+          "**Cracked tracks and lifted pads**, often near mounting holes or where a board has been flexed or dropped.",
+          "**Corrosion**: green or white deposits on terminals, battery contacts and tracks, from damp, salt air or leaked batteries.",
+          "**Blown fuses**: a clear break means a mild overload or age; blackened or silvered glass means a heavy short circuit.",
+          "**Dust, insects and lizards** blocking vents and fans, or bridging terminals."
+        ] },
+        { "h": "Half-splitting with voltage readings" },
+        { "p": "On a board fed from a bench supply, measure the DC voltages at the test points along the path from input to output, referring to the negative rail (or the point the manual names). Where the correct voltage is present at one point and missing at the next, the fault lies between them. On a long chain, start in the middle: each reading halves the part of the circuit still in doubt." },
+        { "p": "**Example.** A regulated 5 V supply shows 12 V at its input connector, 12 V after the protection diode, 12 V at the regulator's input pin and **0 V** at its output. The fault is the regulator, or a short on the output side holding the output down. Switch off and use dead tests to tell which: measure the resistance of the output rail to the negative rail (a short reads near 0 Ω), and test the regulator." },
+        { "h": "Dead tests and live tests" },
+        { "table": { "head": ["Test", "Done with", "Use"], "rows": [
+          ["Resistance and continuity", "Power off, capacitors discharged, often with one end of the part lifted", "Open and short circuits; fuses, elements, cords, switches, coils, tracks."],
+          ["Diode test", "Power off", "Diodes, rectifiers, LEDs and transistor junctions."],
+          ["Capacitance and ESR", "Power off, discharged", "Capacitor value and health."],
+          ["Voltage", "Power on: a low-voltage board from a current-limited bench supply; mains apparatus only on the protected bench by an authorised person", "Where the voltage is lost; whether rails and signals are right."]
+        ] } },
+        { "note": "**Current limiting.** Power a repaired or suspect low-voltage board from a bench supply set to the right voltage with the current limit set low. If a short or a reversed part is still there, the supply limits the current and the fault does less harm. Set the limit a little above the board's normal current, and check that the polarity of the connection is right before switching on.", "label": "Tip" },
+        { "h": "Why not swap parts until it works?" },
+        { "p": "Swapping parts at random wastes parts and time, risks damaging the board with every desoldering, and can **hide the real cause**: a new regulator may work for a week and then fail again because the short that killed the first one is still there. A Level 3 technician measures first, replaces second, and asks why the part failed." },
+        { "h": "Finding the root cause" },
+        { "table": { "head": ["Repeat symptom", "Possible root cause"], "rows": [
+          ["A fan's motor capacitor fails again and again", "The motor runs hot (blocked vents, worn bearings), the capacitor is under-rated for the voltage or temperature, or the wrong value has been fitted."],
+          ["A fuse blows every few weeks", "An intermittent short, a motor that is stalling, or a quick-acting fuse where a time-delay type is needed."],
+          ["A power supply's capacitors dry out early", "Poor ventilation, a hot room, or a capacitor with a low temperature rating."],
+          ["Corroded contacts return", "Damp or salt air at the customer's premises; leaked batteries left in."],
+          ["Dry joints return on the same connector", "The connector carries mechanical strain; it needs support, not just resoldering."]
+        ] } }
+      ]
+    },
+    {
+      "title": "Components: reading and testing them",
+      "blocks": [
+        { "h": "Resistors" },
+        { "p": "Colour bands: **black 0, brown 1, red 2, orange 3, yellow 4, green 5, blue 6, violet 7, grey 8, white 9**. Tolerance: gold ±5%, silver ±10%, brown ±1%. A four-band resistor has two digits, a multiplier and a tolerance; a five-band resistor has three digits, a multiplier and a tolerance." },
+        { "table": { "head": ["Marking", "Reading", "Value"], "rows": [
+          ["Yellow, violet, red, gold", "47 × 100, ±5%", "4.7 kΩ"],
+          ["Red, red, black, brown, brown (five bands)", "220 × 10, ±1%", "2.2 kΩ"],
+          ["Brown, black, orange, gold", "10 × 1 000, ±5%", "10 kΩ"],
+          ["SMD '103'", "10 followed by 3 zeros", "10 kΩ"],
+          ["SMD '2R2'", "R marks the decimal point", "2.2 Ω"],
+          ["SMD '150'", "15 followed by 0 zeros", "15 Ω"]
+        ] } },
+        { "p": "Test a resistor on the ohms range with at least one end lifted from the board, or other parts in parallel will lower the reading. A resistor that reads far above its value, or open, has failed; one that reads lower than marked is usually being measured in circuit." },
+        { "h": "Capacitors" },
+        { "table": { "head": ["Marking", "Value"], "rows": [
+          ["Ceramic '104'", "10 followed by 4 zeros = 100 000 pF = 100 nF = 0.1 µF"],
+          ["Ceramic '223'", "22 000 pF = 22 nF"],
+          ["Ceramic '47'", "47 pF"],
+          ["Electrolytic '1000 µF 25 V'", "Printed in full, with the voltage rating and a stripe marking the negative lead"]
+        ] } },
+        { "ul": [
+          "**Electrolytic** capacitors are polarised: fit them the right way round, or they heat up, vent and can burst. Their usual failure is drying out, which raises their **ESR (equivalent series resistance)** and causes hum, ripple, a slow start, resets and overheating.",
+          "An **ESR meter** tests an electrolytic capacitor in circuit, at low voltage, far faster than a capacitance test and more reliably: a capacitor can read the right capacitance and still have a high ESR.",
+          "A multimeter's capacitance range needs the capacitor discharged and usually lifted from the board. On the ohms range, a good large capacitor shows the reading rising as it charges; a short reads 0 Ω and stays there.",
+          "Replacement: the same capacitance, a voltage rating **the same or higher**, a temperature rating at least as high (105 °C types last longer than 85 °C in hot places), the same type, and a size that fits."
+        ] },
+        { "h": "Diodes, transistors, regulators and others" },
+        { "table": { "head": ["Component", "Test on a DMM", "Good reading"], "rows": [
+          ["Silicon diode or rectifier", "Diode range, each way", "About 0.5–0.7 V forward (red lead on the anode), OL (open) reverse. 0 V both ways: shorted. OL both ways: open."],
+          ["Bridge rectifier", "Diode range between the AC terminals and the + and − terminals", "Four diodes, each reading as above."],
+          ["LED", "Diode range", "About 1.6–3.3 V forward depending on its colour; it may glow faintly."],
+          ["Bipolar transistor", "Diode range, base to emitter and base to collector", "About 0.6–0.7 V one way only for each junction; nothing collector to emitter either way."],
+          ["NTC thermistor", "Ohms range, then warm it with your fingers", "Resistance **falls** as it gets hotter (NTC: negative temperature coefficient). A PTC type rises with temperature."],
+          ["Three-terminal regulator, e.g. 7805 / 7812", "Voltage, powered from the bench supply", "Output 5 V / 12 V, with the input a few volts higher. The last two digits give the output voltage."],
+          ["Triac (in dimmers and fan speed controls)", "Ohms between MT1 and MT2", "Open when unpowered; a short means it has failed. A full test needs the circuit."],
+          ["Relay or contactor coil", "Ohms", "A fixed resistance, from tens to thousands of ohms; open means a burnt coil."],
+          ["Heating element", "Ohms", "A steady resistance that matches its power (see the calculations); OL means open."],
+          ["Thermal fuse (thermal cut-out)", "Ohms", "Near 0 Ω; OL means it has opened, usually because something overheated."],
+          ["Switch, cord, plug fuse", "Continuity", "Near 0 Ω when closed or sound."]
+        ] } },
+        { "note": "A good reading across a part in circuit does not always clear it, and a bad one does not always condemn it, because of the parts around it. When in doubt, lift one end and measure again.", "label": "Remember" }
+      ]
+    },
+    {
+      "title": "Calculations for repair work",
+      "blocks": [
+        { "table": { "head": ["Need", "Formula", "Worked example"], "rows": [
+          ["Current from power and voltage", "I = P ÷ V", "A 1 500 W kettle on 110 V: 1 500 ÷ 110 = **13.6 A**"],
+          ["Element resistance", "R = V² ÷ P", "A 1 000 W, 220 V element: 220 × 220 ÷ 1 000 = **48.4 Ω**"],
+          ["Power in a resistor", "P = V × I = V² ÷ R = I² × R", "9 V across 56 Ω: 81 ÷ 56 = **1.45 W**; fit a 2 W or larger"],
+          ["Series resistance", "R = R1 + R2 + ...", "100 + 220 = **320 Ω**"],
+          ["Parallel resistance, two resistors", "R = (R1 × R2) ÷ (R1 + R2)", "470 and 1 000: 470 000 ÷ 1 470 = **320 Ω** (rounded)"],
+          ["Parallel resistance, equal resistors", "R = one value ÷ the number of them", "Three 330 Ω: 330 ÷ 3 = **110 Ω**"],
+          ["LED series resistor", "R = (Vsupply − Vled) ÷ Iled", "24 V supply, 2 V LED at 15 mA: (24 − 2) ÷ 0.015 = **1 467 Ω**, use 1.5 kΩ"],
+          ["Rectifier DC output (no load)", "Vdc ≈ Vrms × 1.414 − diode drops", "9 V AC into a bridge: 9 × 1.414 = 12.7 V, less about 1.4 V = **about 11 V**"],
+          ["Fuse rating", "Normal current, then the next standard rating above, as the maker says", "A 660 W, 110 V appliance draws 6 A: a 7 A or 8 A fuse of the correct type"]
+        ] } },
+        { "h": "Power ratings" },
+        { "p": "A resistor's power rating is the most it can dissipate without overheating. Standard small ratings are 0.125 W, 0.25 W, 0.5 W, 1 W, 2 W, 5 W. Choose a rating with margin: a resistor dissipating 1.45 W needs a 2 W part, and in a hot enclosure a larger one lasts longer. Fitting a resistor of the right value but too low a power rating is one of the commonest repair mistakes." },
+        { "h": "Fuses" },
+        { "table": { "head": ["Type", "Marking", "Use"], "rows": [
+          ["Quick-acting (fast-blow)", "F", "Protects sensitive electronics: blows very soon after the current passes its rating."],
+          ["Time-delay (slow-blow, anti-surge)", "T", "Carries a short surge, such as a transformer, motor or capacitor charging at switch-on, without blowing, but still opens on a lasting overload or a short."],
+          ["Thermal fuse", "Temperature marked, e.g. 192 °C", "Opens once, for good, when its temperature is exceeded; fitted in irons, kettles, rice cookers, hair dryers and transformers."]
+        ] } },
+        { "ul": [
+          "Replace a fuse with the **same type, current rating, voltage rating and size**, read from the old fuse, the label or the manual.",
+          "A time-delay fuse where a quick-acting one is specified leaves electronics unprotected; a quick-acting fuse where a time-delay one is specified blows every time the item is switched on.",
+          "A **larger** fuse, or a bypass with wire or foil, lets a fault current flow until something burns. Never do it, and never fit a thermal fuse of a higher temperature than specified.",
+          "A fuse blows for a reason. Find the fault before fitting the new fuse. A blackened fuse means a heavy short: look for a shorted rectifier, capacitor, triac or winding."
+        ] }
+      ]
+    },
+    {
+      "title": "Repair methods: boards and appliances",
+      "blocks": [
+        { "h": "Choosing a replacement part" },
+        { "flow": [
+          "Find the original part's ratings from the data sheet or the service manual",
+          "Prefer the exact part or the maker's approved equivalent",
+          "For a substitute: the same function, every rating the same or higher, the same pin-out, a package that fits the board and any heat sink",
+          "Safety parts (fuses, thermal cut-outs, mains-rated capacitors, cords, opto-isolators): exact or approved parts only",
+          "Record the substitute on the job card"
+        ] },
+        { "p": "'Equivalent' transistors and regulators sometimes have a **different pin order**, and a part in a smaller package may not handle the heat. Check the data sheet of both parts side by side." },
+        { "h": "Desoldering through-hole parts" },
+        { "ul": [
+          "Use a temperature-controlled iron with a clean, tinned tip of a size to suit the joint, and fresh flux on old joints.",
+          "Remove the solder from **every pin fully** with desoldering braid or a solder pump before lifting a multi-pin part. Pulling while heating one pin at a time tears the pads and tracks off the board.",
+          "Do not lever a part out with a screwdriver, and do not cut the pins and leave stubs unless the manual's method says so.",
+          "Clean the holes with braid and flux; do not drill them out.",
+          "Keep heat short: a lifted pad usually comes from too long on the joint, not too hot an iron."
+        ] },
+        { "h": "Surface-mount parts" },
+        { "flow": [
+          "ESD mat and wrist strap; magnifier; note the part's position and orientation; take a photo",
+          "Add flux to the joints",
+          "Heat both ends together with a fine tip or tweezers tips, or use hot air set as the maker suggests",
+          "Lift the part gently when the solder melts",
+          "Clean the pads with braid and flux, without lifting them",
+          "Tin one pad lightly; hold the new part with tweezers; solder that end; solder the other end",
+          "Clean off the flux; inspect for bridges, poor wetting and a crooked part"
+        ] },
+        { "h": "A good solder joint" },
+        { "table": { "head": ["Good", "Poor"], "rows": [
+          [["Bright (or evenly matt, with lead-free solder) and smooth", "Concave fillet that wets the pad and the lead", "Just enough solder to show the shape of the lead"], ["Dull, grainy or cracked: dry joint", "A ball sitting on the lead, not wetting the pad: cold joint", "A thread or blob joining two pads: bridge", "Too little solder, or a hole showing"]]
+        ] } },
+        { "h": "Tracks and boards" },
+        { "ul": [
+          "A cracked or burnt track is repaired with a short piece of **tinned wire** soldered neatly between sound points of the track, the same way the track ran. Conductive paint, pencil lines and tape are not repairs.",
+          "A lifted pad can be bypassed with a wire from the component lead to the next sound point on the track.",
+          "After repair, clean the flux off, and where the board has a **protective (conformal) coating**, re-coat the repaired area with the product the maker specifies: the coating keeps out damp and salt air.",
+          "Clean dust and corrosion from boards with a soft brush and an approved cleaner, as the SDS says."
+        ] },
+        { "h": "Mains appliances" },
+        { "table": { "head": ["Repair", "What matters"], "rows": [
+          ["Cord and plug", "The right cord: core size for the current, heat-resistant where it enters a hot appliance, three-core for Class I. The earth core is left slightly longer than the others inside, so that it is the last to pull out. The cord grip clamps the sheath, never the cores. The plug is wired correctly and its fuse, where fitted, is the right rating."],
+          ["Switch, thermostat, thermal fuse", "The exact type and rating; terminals clean and tight; a thermal fuse fitted at the position and with the contact to the hot part that the original had, and never bypassed."],
+          ["Element", "The correct part for the model; the sealing and the earth bonding restored."],
+          ["Motor capacitor", "The same capacitance, a voltage rating the same or higher, and the correct type (run or start)."],
+          ["Wiring inside", "Routed away from hot parts, moving parts and sharp edges, and secured as the original was; insulation sleeves refitted."],
+          ["Case and guards", "Every screw, cover, barrier and guard refitted. A Class II appliance with a cracked case has lost half its protection."]
+        ] } }
+      ]
+    },
+    {
+      "title": "Testing the repair",
+      "blocks": [
+        { "p": "A repair is not finished because the fault has gone. It is finished when tests show that the item is **safe**, that the reported fault is **cured**, and that the results are **recorded**." },
+        { "flow": [
+          "Visual check: parts right way round, joints sound, wiring routed, covers and screws fitted",
+          "Dead tests: earth continuity (Class I), insulation resistance, and resistance checks",
+          "First power-up with protection: current-limited bench supply for boards; the protected bench for mains items",
+          "Function test: the item does everything it should, through a full cycle",
+          "Record the results on the job card and the report"
+        ] },
+        { "h": "Dead tests on mains appliances" },
+        { "table": { "head": ["Test", "How", "Typical acceptance"], "rows": [
+          ["Earth continuity (Class I only)", "Low-resistance ohmmeter from the plug's earth pin to every exposed metal part, flexing the cord", "A low reading, commonly 0.1 Ω plus the cord's resistance; follow the Centre's figure. A high or unsteady reading means a loose, corroded or broken earth connection."],
+          ["Insulation resistance", "Insulation tester between line and neutral joined together and earth (Class I) or the exposed metal (Class II), with the switch on so that the whole circuit is included", "Commonly at least 1 MΩ for Class I and 2 MΩ for Class II, at the test voltage the Centre uses. Low readings mean damp, carbon tracks, a damaged element or crushed wiring."],
+          ["Polarity and fuse", "Continuity through the plug and switch", "Line switched; the correct fuse."]
+        ] } },
+        { "note": "Appliances with **electronic controls** (speed controls, timers, inverter boards) can be damaged by a 500 V insulation test. Check the maker's advice first: it may call for a lower test voltage, for the electronics to be disconnected, or for a different test.", "label": "Remember" },
+        { "h": "The function test" },
+        { "p": "Dead tests show that the appliance is safe to connect. They do not show that it works. The **function test**, done on the protected test bench by the instructor or an authorised person, runs the item through its normal use: an iron reaching temperature and its thermostat cycling, a fan on every speed, a power supply at full load. Watch, listen and smell: a repair that hums, runs hot or smells is not finished." },
+        { "h": "Boards" },
+        { "ul": [
+          "Power up first from the bench supply at the right voltage with a low current limit. If the supply goes into current limit at once, switch off and look for a short or a reversed part.",
+          "Measure the output and the test-point voltages and compare them with the manual.",
+          "Run the board for a while and check that nothing gets unusually hot.",
+          "Record the final readings."
+        ] }
+      ]
+    },
+    {
+      "title": "Costing, the customer, records and supervision",
+      "blocks": [
+        { "h": "Is it worth repairing?" },
+        { "ul": [
+          "List the parts needed, their prices and lead times, and estimate the labour time.",
+          "Add them up, then add **GCT at the current rate**.",
+          "Compare the total with the price of a new item of the same quality.",
+          "Consider the item's age and condition, the chance of other parts failing soon, whether parts are still available, and whether it can be made safe.",
+          "If the repair costs close to or more than a new item, or the item cannot be made safe, advise the customer to replace it."
+        ] },
+        { "p": "**Example.** Parts J$3 800, labour 1.5 hours at J$2 600 an hour = J$3 900. Total before GCT = **J$7 700**; GCT is then added at the current rate. A new item of the same kind costs J$9 500, so a repair saves little on an old unit, and you tell the customer so." },
+        { "h": "Dealing with the customer" },
+        { "table": { "head": ["Situation", "What to do"], "rows": [
+          ["Before starting", "Explain the estimate in plain words, give the customer the choice, and get their approval, in writing where you can. Some firms charge a diagnosis fee if the repair is declined: say so at booking in."],
+          ["The item is under the maker's warranty", "Check with the customer before opening it: an unauthorised repair may void the warranty, and the maker may repair it free."],
+          ["A part is delayed or the cost rises during the job", "Contact the customer, explain the delay and the new cost, and ask before going on. Never fit 'something close enough' instead."],
+          ["Old parts", "Keep the replaced parts until the customer collects the item; they may ask to see what was replaced."],
+          ["Handing back", "Show the test results, give the advice (ventilation, surge protection, the right outlet), state any warranty on the repair, and get a signature."]
+        ] } },
+        { "h": "Jamaica's climate and supply: advice for customers" },
+        { "ul": [
+          "**Heat** dries out electrolytic capacitors, stresses parts and cracks solder joints as they heat and cool. Dust blocks vents and fans. Advise ventilation, cleaning of vents, and a shaded, airy place.",
+          "**Humidity and salt air**, especially near the coast, corrode contacts, tracks and connectors. Advise keeping items away from sea spray, and have the Centre re-coat repaired boards.",
+          "**Lightning and power cuts** bring surges and spikes, particularly when the supply returns. Advise surge protectors, unplugging sensitive items in storms, and waiting a few minutes after power returns before switching them on.",
+          "**Wrong outlets**: a 110 V item on a 220 V outlet. Advise checking the plate, and never using adaptors to make a plug fit."
+        ] },
+        { "h": "The repair report" },
+        { "table": { "head": ["Part of the report", "Why it is useful"], "rows": [
+          ["Job number, customer, item, model, serial number, date", "Identifies the job for everyone."],
+          ["Fault reported and fault found, with the root cause and the signs that led to it", "The customer knows what was wrong; the next technician recognises the same fault quickly."],
+          ["Parts replaced, with part numbers and any substitutes; time spent", "Future repairs use the right parts; the bill is explained."],
+          ["Tests done and their results, and who did them", "Proof that the item was safe and working when handed back."],
+          ["Advice to the customer and any warranty on the repair", "Prevents the fault returning; sets expectations."]
+        ] } },
+        { "h": "Supervising trainees" },
+        { "ul": [
+          "Before work: check that the trainee understands the job card and the fault, that the item is unplugged with the plug in view, that capacitors will be checked and discharged, and that their tools and meter are in good order.",
+          "During work: ask for their plan and their readings; guide them to the logical method, not to guessing; check the work at key points: correct parts, sound joints, wiring routed, cord grip and earth tight, covers refitted.",
+          "Check every soldered joint under a magnifier, then test. Shaking the board, counting joints or asking the trainee are not checks.",
+          "**Stop unsafe practice at once** and explain why: a screwdriver across a capacitor, a live measurement on mains apparatus, a bypassed fuse.",
+          "The trainee does the dead tests while you watch; the instructor does the function test on the protected bench; you check and sign the job card.",
+          "At the end of the session: irons off, parts stored, benches clear, records done."
+        ] }
+      ]
+    },
+    {
+      "title": "Revision",
+      "blocks": [
+        { "h": "Checklist" },
+        { "p": "Tick each statement only when you can do it without looking at the notes." },
+        { "ul": [
+          "I can book an item in, question the customer, and set a sensible order of work.",
+          "I can find and use the service manual, circuit diagram, fault-finding chart and data sheets.",
+          "I can keep the bench safe: unplugged apparatus, discharged capacitors, ESD protection, soldering and cutting safety, and referral of high-voltage sections.",
+          "I can explain Class I, II and III appliances and what each needs after a repair.",
+          "I can follow the six-step method and use half-splitting with voltage readings.",
+          "I can explain why a current-limited bench supply is used and why parts are not swapped at random.",
+          "I can read resistor colour bands and SMD and ceramic capacitor markings.",
+          "I can test resistors, capacitors (including ESR), diodes, transistors, thermistors, regulators, elements and thermal fuses with a meter.",
+          "I can calculate current, resistance, power, series and parallel values, LED resistors, rectifier outputs and fuse ratings.",
+          "I can choose a replacement part or fuse correctly and say which parts must be exact.",
+          "I can desolder and solder through-hole and surface-mount parts, repair a track and re-coat a board.",
+          "I can replace a cord, switch, element or thermal fuse in a mains appliance correctly.",
+          "I can carry out and interpret earth continuity and insulation resistance tests, and know when to check the maker's advice.",
+          "I can explain why a function test is still needed after dead tests pass.",
+          "I can prepare an estimate, advise repair or replace, and deal with warranty, delays and old parts.",
+          "I can write a repair report with the root cause, and supervise a trainee safely."
+        ] },
+        { "h": "Figures and formulas to remember" },
+        { "table": { "head": ["Item", "What it is"], "rows": [
+          ["I = P ÷ V; R = V² ÷ P; P = V²÷ R = I² R", "Current, element resistance and power"],
+          ["R = (R1 × R2) ÷ (R1 + R2)", "Two resistors in parallel"],
+          ["R = (Vsupply − Vled) ÷ Iled", "LED series resistor"],
+          ["Vrms × 1.414, less the diode drops", "No-load DC from a rectifier and smoothing capacitor"],
+          ["0.5–0.7 V forward, OL reverse", "A good silicon diode or transistor junction on the diode range"],
+          ["104 = 100 nF; 103 = 10 kΩ", "Ceramic capacitor and SMD resistor codes"],
+          ["F and T", "Quick-acting and time-delay fuses"],
+          ["About 1 MΩ (Class I), 2 MΩ (Class II)", "Common minimum insulation resistance; follow the Centre's figures"],
+          ["Square inside a square", "The Class II (double insulated) symbol"]
+        ] } },
+        { "h": "Key terms" },
+        { "terms": [
+          ["Bridge rectifier", "Four diodes that turn AC into pulsing DC, smoothed by a capacitor."],
+          ["Class I / Class II", "An appliance protected by an earth connection / by double or reinforced insulation."],
+          ["Conformal coating", "A thin protective coating on a board that keeps out damp and salt air."],
+          ["Current limit", "The setting on a bench supply that caps the current it will deliver, so that a faulty board is not damaged further."],
+          ["Data sheet", "The maker's document giving a component's ratings, pin connections and package."],
+          ["DMM", "Digital multimeter: measures voltage, current, resistance and more."],
+          ["Dry joint", "A cracked or poorly wetted solder joint that makes an intermittent connection."],
+          ["ESD", "Electrostatic discharge: static electricity that can damage components; controlled with an earthed mat and wrist strap."],
+          ["ESR", "Equivalent series resistance: the internal resistance of a capacitor, which rises as it fails."],
+          ["Fault-finding chart", "The maker's ordered list of checks for each symptom."],
+          ["Function test", "Running the repaired item through its normal use on the protected bench, after the dead tests."],
+          ["Half-splitting", "Testing in the middle of a chain of stages to halve the part still in doubt."],
+          ["Job card", "The record of one repair from booking in to handing back."],
+          ["NTC / PTC thermistor", "A resistor whose resistance falls / rises as it gets hotter."],
+          ["Root cause", "The reason a part failed, which must be fixed or the fault returns."],
+          ["SMD", "Surface-mount device: a part soldered onto pads on the surface of a board."],
+          ["Thermal fuse", "A one-time fuse that opens for good when its temperature is exceeded."],
+          ["Time-delay fuse", "A fuse (marked T) that rides through the surge at switch-on but opens on a lasting overload."],
+          ["Triac", "A three-terminal semiconductor switch for AC, used in dimmers and fan speed controls."],
+          ["Voltage regulator", "A part that keeps a DC output steady at a set value, such as 5 V from a 7805."]
+        ] }
+      ]
+    }
+  ],
+  "cases": {
+    "c1": { "title": "Four jobs at a repair bench in Santa Cruz", "text": "Nathan Brown, a Level 3 technician, runs a repair bench in Santa Cruz, St Elizabeth, with two trainees. On Monday morning four items arrive: a 110 V standing fan that 'hums but will not turn'; a hair dryer that gave its owner a tingle from its metal nozzle; a sound-system amplifier whose fuse blew, with the glass blackened inside, after a storm; and a microwave oven that lights and turns but does not heat. The hair dryer and the amplifier are still under the maker's warranty, according to their owners." },
+    "c2": { "title": "A router's power adapter in Port Antonio", "text": "Trainee Shanique, supervised by Nathan, is repairing the power adapter of an internet router for a guest house in Port Antonio, Portland, which sits 200 m from the sea. The adapter should give 12 V DC at 1.5 A from a 110 V outlet. Inside, the output capacitor (1 000 µF, 16 V) has a domed top, and the board has green corrosion near the output connector. The store has these electrolytic capacitors: 1 000 µF 10 V; 470 µF 25 V; 1 000 µF 25 V 105 °C; and 2 200 µF 16 V. After the repair the board is to be powered up on the bench." },
+    "c3": { "title": "An LED sign board for a bakery in May Pen", "text": "A bakery in May Pen, Clarendon, brings in the control board of its illuminated sign. Its LED strings run from a 24 V supply. One string of a different colour was added by a previous repairer, with one LED that drops 3.2 V at 20 mA fed straight from the 24 V rail through a series resistor that has burnt black. Elsewhere, a surface-mount resistor marked '472' has cracked, and the board's 5 V logic supply comes from a 7805 regulator whose output measures 0 V while its input measures 23 V." },
+    "c4": { "title": "A rice cooker and an iron from a Linstead cook shop", "text": "Mrs Grant's cook shop in Linstead, St Catherine, sends two Class I appliances: a 110 V, 700 W rice cooker that stopped heating after boiling dry, and a 110 V, 1 200 W steam iron with a steel sole plate that trips the shop's GFCI as soon as it is plugged in. The rice cooker's element reads 17 Ω and its thermal fuse reads OL. The iron's insulation resistance reads 0.05 MΩ between its joined line and neutral pins and the earth pin, and water has been found in its element housing." },
+    "c5": { "title": "Supervising a repair at a hotel in Negril", "text": "Level 3 technician Kerry-Ann Lewis supervises trainee Marlon repairing a 220 V ceiling fan speed controller from a hotel in Negril, Westmoreland. The controller uses a triac. Marlon has found the triac reading a short between MT1 and MT2 and proposes to replace it with 'a similar triac' from the drawer whose data sheet shows a different pin order. He also wants to measure the voltages on the live controller 'quickly, with it plugged in'. The hotel asks for a price: the part is J$1 100 and the job takes 45 minutes at J$2 800 an hour." }
+  },
+  "questions": [
+    { "id": "P-01", "c": "c1", "q": "Which item should Nathan's bench deal with first?", "o": ["The standing fan, as it is probably a quick capacitor change", "The amplifier, as its blackened fuse points to a heavy short", "The microwave, as the customer cannot cook without it", "The hair dryer, as it may give a dangerous electric shock"], "a": 3, "why": "Safety risks come first. A tingle from a metal part means current is reaching something the user touches: next time it could be a fatal shock, so the dryer must be examined and kept out of use first. The others are then ordered by urgency, parts lead time and effort." },
+    { "id": "P-02", "c": "c1", "q": "The hair dryer and the amplifier are said to be under warranty. What should be done before either is opened?", "o": ["Open them, since the warranty covers only the original fault", "Remove the warranty seals so the repair cannot be traced", "Check the warranty with the customers and advise them first", "Charge a higher rate, as warranty items need more care"], "a": 2, "why": "Opening a warranted item may void the warranty, and the maker may repair it free. Confirm the warranty, explain the choice to the customer, and open the item only with their agreement, recorded on the job card." },
+    { "id": "P-03", "c": "c1", "q": "The amplifier's fuse is blackened inside. What does this tell the technician, and what is the right action?", "o": ["A heavy short occurred; find and clear it before fitting a fuse", "It aged and failed; fit a new fuse of the same rating and test", "The supply was low; fit a slightly larger fuse to prevent it", "The fuse holder was loose; clean the holder and fit any fuse"], "a": 0, "why": "Black or silvered glass means the fuse opened violently under a heavy short-circuit current, often after a surge. After a storm, suspect the rectifier, a mains capacitor or a shorted output stage. Fit a new fuse of the same type and rating only when the cause is found." },
+    { "id": "P-04", "c": "c1", "q": "A trainee offers to test the microwave's high-voltage transformer and capacitor to find why it does not heat. What should Nathan say?", "o": ["Go ahead, but unplug it and wait five minutes first", "Go ahead, if the capacitor is shorted with a screwdriver first", "Refer the high-voltage section to a specially trained technician", "Go ahead, but wear rubber gloves while making the measurements"], "a": 2, "why": "The microwave's high-voltage capacitor can hold a lethal charge and the circuit works at thousands of volts. Its high-voltage section is for specially trained technicians only, as the maker's manual says. Shorting the capacitor with a screwdriver is itself dangerous." },
+    { "id": "P-05", "c": "c2", "q": "Which capacitor from the store should Shanique fit?", "o": ["1 000 µF 10 V", "470 µF 25 V", "1 000 µF 25 V 105 °C", "2 200 µF 16 V"], "a": 2, "why": "The replacement needs the same capacitance and a voltage rating the same or higher. 1 000 µF at 25 V fits, and the 105 °C rating suits a hot enclosure. The 10 V part is under-rated for a 12 V output; 470 µF and 2 200 µF are the wrong values." },
+    { "id": "P-06", "c": "c2", "q": "Why did the original capacitor most likely fail, and what else should the repair include?", "o": ["Static damage; the adapter should be kept in an anti-static bag", "A wrong value fitted at the factory; nothing more is needed", "Too much load; advise the guest house to fit a smaller router", "Heat drying it out; clean the vents and advise a cooler, airy spot"], "a": 3, "why": "A domed electrolytic capacitor in a small sealed adapter is a classic sign of drying out from heat. Fitting a 105 °C part helps, but the root cause is the heat: keep the adapter ventilated and out of the sun. Static does not dome a capacitor." },
+    { "id": "P-07", "c": "c2", "q": "What should be done about the green corrosion near the output connector?", "o": ["Leave it, as it is only on the surface and will not spread", "Clean it off, repair any damaged track, and re-coat the area", "Cover it with insulating tape so that it cannot reach the tracks", "Scrape it off with a steel blade and leave the copper bare"], "a": 1, "why": "Near the sea, salt air corrodes copper, and the corrosion creeps under the coating and eats tracks. Clean it with an approved cleaner and a soft brush, check the tracks and connector, repair any damage, and re-coat the area with a conformal coating as the maker specifies." },
+    { "id": "P-08", "c": "c2", "q": "How should the repaired adapter board first be powered for testing?", "o": ["From a 12 V bench supply at its output, to check the capacitor", "On the trainee's bench, plugged into the nearest 110 V outlet", "By the instructor on the protected bench, from its own mains plug", "From a 110 V bench supply with its case left open on the mat"], "a": 2, "why": "The adapter's input is mains, so its first power-up is not a trainee's job on an open bench. The instructor runs it on the protected test bench with a GFCI and its own breaker, after the dead tests. A 12 V supply on the output would test nothing about the mains side." },
+    { "id": "P-09", "c": "c3", "q": "What series resistor value should the added LED have had?", "o": ["About 160 Ω", "About 1 040 Ω", "About 1 200 Ω", "About 1 360 Ω"], "a": 1, "why": "R = (Vsupply − Vled) ÷ I = (24 − 3.2) ÷ 0.020 = 20.8 ÷ 0.020 = 1 040 Ω, so a 1 kΩ or 1.1 kΩ resistor. 1 200 Ω forgets the LED's own drop; 160 Ω uses 3.2 V as the supply." },
+    { "id": "P-10", "c": "c3", "q": "The burnt resistor dissipated about 0.42 W. Why did it burn, and what should replace it?", "o": ["The LED drew too much current; fit a smaller LED instead", "The 24 V rail is too high; fit a 12 V supply for the sign", "It was a wrong value; any 0.25 W resistor of the right value will do", "It was a 0.25 W part; fit the right value rated 1 W or more"], "a": 3, "why": "P = V × I = 20.8 × 0.020 = 0.42 W. A common 0.25 W resistor dissipating 0.42 W overheats and burns. Fit the correct value with a power rating comfortably above 0.42 W: 1 W gives a good margin in a warm sign." },
+    { "id": "P-11", "c": "c3", "q": "What is the value of the cracked SMD resistor marked '472'?", "o": ["472 Ω", "47.2 Ω", "4.7 kΩ", "47 kΩ"], "a": 2, "why": "Three-digit SMD codes give two digits followed by the number of zeros: 47 with 2 zeros is 4 700 Ω, which is 4.7 kΩ. '473' would be 47 kΩ and '471' 470 Ω." },
+    { "id": "P-12", "c": "c3", "q": "The 7805 has 23 V in and 0 V out. What should the technician do next?", "o": ["Switch off and test the 5 V rail for a short first", "Replace the 7805 at once, as it has clearly failed", "Raise the input to 30 V to force the output up", "Replace the 7805 with a 7812 to give the logic more voltage"], "a": 0, "why": "Zero output with a good input means either the regulator has failed or something on its output is shorting the rail to ground. A dead test of the 5 V rail's resistance to ground tells which; replacing the regulator with the short still there would destroy the new one. A 7812 would feed 12 V to 5 V logic." },
+    { "id": "P-13", "c": "c4", "q": "Is the rice cooker's element reading of 17 Ω reasonable?", "o": ["No: a 700 W, 110 V element should read about 157 Ω", "Yes: a 700 W, 110 V element should read about 17 Ω", "No: it should read 0 Ω, so the element is open", "Yes, but only because the thermal fuse is also open"], "a": 1, "why": "R = V² ÷ P = 110 × 110 ÷ 700 = 12 100 ÷ 700 = 17.3 Ω. The element is sound; the open thermal fuse is the fault, and it opened because the pot boiled dry and overheated. Fit the correct thermal fuse in its original position, never a higher-temperature one, and never bypass it." },
+    { "id": "P-14", "c": "c4", "q": "What is the most likely reason the iron trips the GFCI, and what is the cure?", "o": ["A broken earth core in the cord; replace the cord", "A line to neutral short; fit a larger fuse in the plug", "The GFCI in the shop is too sensitive; fit an ordinary outlet", "Water in the element housing; dry it, repair, retest"], "a": 3, "why": "0.05 MΩ (50 kΩ) is far too low; at 110 V it lets about 2 mA leak to earth, and a GFCI trips at about 5 mA once the element warms and the leakage rises. Water in the housing is the cause. A broken earth core would not trip a GFCI, and the GFCI is doing its job." },
+    { "id": "P-15", "c": "c4", "q": "After the iron is repaired, which test must be done first, and what should it show?", "o": ["A function test on the bench, with the sole plate heating", "Earth continuity, plug earth pin to sole plate: low and steady", "A voltage test at the element with the iron plugged in", "A current measurement with a clamp meter, close to 11 A"], "a": 1, "why": "The iron is Class I, so its safety depends on the earth path to the steel sole plate. Earth continuity is tested dead, before anything is energised, with the cord flexed; then insulation resistance; only then the function test on the protected bench." },
+    { "id": "P-16", "c": "c5", "q": "What should Kerry-Ann say about the 'similar triac' with a different pin order?", "o": ["Choose a part with the same pin-out, or the exact part", "Use it, since its ratings are the same as the original", "Use it, but bend the leads to match the board's holes", "Use it, and swap the two outer leads over on the board"], "a": 0, "why": "A substitute must match in function, ratings, pin-out and package. A different pin order fitted straight in will fail at once and may damage the board; bending or crossing leads invites shorts and is not an accepted repair. Order the exact part or an approved equivalent." },
+    { "id": "P-17", "c": "c5", "q": "Marlon wants to measure the voltages on the live controller 'quickly'. What should Kerry-Ann do?", "o": ["Allow it if he wears safety glasses and gloves", "Allow it, as the controller is only 220 V single-phase", "Allow it once she has checked his meter leads", "Stop him: live tests are not done at a trainee's bench"], "a": 3, "why": "Trainees diagnose mains apparatus unplugged, using dead tests, with the plug in view. Live measurements on mains equipment are made only by the instructor or an authorised person on the protected test bench. A supervisor stops unsafe practice at once and explains why." },
+    { "id": "P-18", "c": "c5", "q": "What is the cost of the repair before GCT?", "o": ["J$3 200", "J$2 100", "J$3 900", "J$4 300"], "a": 0, "why": "Labour: 45 minutes is 0.75 hour, and 0.75 × J$2 800 = J$2 100. Add the part: 2 100 + 1 100 = J$3 200 before GCT, which is then added at the current rate. J$3 900 wrongly charges a full hour." },
+    { "id": "P-19", "c": null, "q": "A DMM on the diode range reads 0.00 V in both directions across one diode of a bridge rectifier, and about 0.55 V one way and OL the other across each of the other three. What does this show?", "o": ["The first diode is shorted and the bridge must be replaced", "All four diodes are good; the first is just a faster type", "The first diode is open and the other three are shorted", "The meter's battery is low, so the readings are unreliable"], "a": 0, "why": "A good silicon diode reads about 0.5–0.7 V forward and OL reverse. Reading zero both ways means the diode is shorted. A shorted diode in a bridge passes heavy current, which is a common reason for a blackened fuse. Replace the bridge, or the diode if it is a separate part." },
+    { "id": "P-20", "c": null, "q": "A 12 V AC transformer winding feeds a bridge rectifier and a smoothing capacitor. With no load, about what DC voltage should the capacitor show?", "o": ["About 8.5 V", "About 12 V", "About 15.5 V", "About 24 V"], "a": 2, "why": "The capacitor charges to near the peak of the AC: 12 × 1.414 = 17 V, less about 1.4 V for the two diodes conducting in a bridge, which gives about 15.5 V. Reading 12 V or lower with no load suggests a faulty rectifier or capacitor." }
+  ]
+}

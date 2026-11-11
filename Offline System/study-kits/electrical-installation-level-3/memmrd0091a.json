@@ -1,0 +1,474 @@
+{
+  "format": "cestis-study-kit",
+  "version": 1,
+  "status": "to-check",
+  "written": "2026-11-07",
+  "programme": "Electrical Installation",
+  "qualification": { "id": "QUAL-EIM-L3", "title": "ELECTRICAL INSTALLATION AND MAINTENANCE LEVEL 3", "code": "MEM32507" },
+  "level": 3,
+  "unit": { "code": "MEMMRD0091A", "title": "Terminate signal and data cables – (basic)" },
+  "summary": "This unit takes you from making a single good termination to planning and leading a signal and data cabling job. You will learn to plan routes, lengths and quantities, choose the right cable, install and dress it without harming its performance, terminate twisted pair, coax, audio and screened signal cables, work out signal losses in decibels, test and fault-find links, and label, record and hand over the work.",
+  "sections": [
+    {
+      "title": "Unit overview",
+      "blocks": [
+        { "p": "Signal and data cables carry information, not power: computer networks, telephones, CCTV, television, sound systems, alarms, access control and the instrument signals that run a factory. They work at low voltage, but they are far less forgiving than power cables. A kink, a tight tie, 20 mm too much untwisting or the wrong connector may still 'work' on a simple tester and yet fail when the customer needs speed. At Level 3 you plan the job, choose the cable and method, lead the team that terminates it, prove by testing that it performs, and hand over records that others can rely on." },
+        { "h": "What you must be able to do" },
+        { "table": { "head": ["Task", "What it looks like on the job"], "rows": [
+          ["Plan the cabling job", "Survey; fix outlet and cabinet positions and routes; check length limits; work out quantities; choose the colour code and labelling scheme; plan the tests."],
+          ["Work safely", "Control work at height and in ceiling voids; keep clear of power circuits or have them isolated; handle fibre, PoE and soldering hazards."],
+          ["Choose the right cable", "Match category, screening, impedance and sheath to the job: office data, noisy factory, outdoor run, CCTV, TV, audio or instruments."],
+          ["Install and dress cable", "Keep within pulling tension and bend radius, keep data apart from power and noise, support cables properly and leave service loops."],
+          ["Terminate twisted pair", "Punch down jacks and patch panels to one colour code, keeping the twists up to the contacts; bond screens where fitted."],
+          ["Terminate coax, audio and signal cables", "Fit compression F and BNC connectors, XLR plugs and ferrules; deal correctly with screens and drain wires; weatherproof outdoor joints."],
+          ["Work out signal levels", "Use decibels to add up cable and splitter losses and decide whether a signal is strong enough."],
+          ["Test and find faults", "Use wire-map and certification testers; read wire map, length, loss and crosstalk results; find and correct the cause."],
+          ["Label, record and hand over", "Label both ends to a scheme, save test results, draw the as-built layout and give the customer a handover pack."],
+          ["Lead the team", "Show the standard, share out the work, check each person's terminations and deal honestly with failures."]
+        ] } },
+        { "h": "Where you will meet these cables in Jamaica" },
+        { "ul": [
+          "Offices, call centres, banks, schools and hotels: structured data cabling to desks, Wi-Fi access points, phones and cameras.",
+          "Shops, wholesales, gas stations and homes: CCTV, alarm and access-control cabling.",
+          "Hotels, guest houses and apartments: satellite, cable and aerial TV distribution on coax.",
+          "Churches, schools and halls: microphone, loudspeaker and control cables for sound systems.",
+          "Factories, water and sewage plants: screened instrument cables carrying 4–20 mA and other control signals."
+        ] },
+        { "note": "The standards most often named in specifications are the **TIA-568** family (North American) and **ISO/IEC 11801** (international) for structured cabling, with the NEC for safety. Makers of warranted cabling systems add their own installation rules. Follow the job's specification; where this kit gives a figure, it is the usual one.", "label": "Remember" }
+      ]
+    },
+    {
+      "title": "Planning a cabling job",
+      "blocks": [
+        { "flow": [
+          "Read the customer's requirements, drawings and specification",
+          "Survey the site: outlet and equipment positions, cabinet position, routes",
+          "Check every run against the length limits",
+          "Choose cable types, containment and the colour code",
+          "Work out quantities and write the materials list",
+          "Write the labelling scheme and the test plan",
+          "Assess the risks; share out the tasks; agree access and times with the customer"
+        ] },
+        { "h": "The cabinet" },
+        { "p": "The patch panels, switch and other active equipment go in a **cabinet or rack** that is cool, dry, ventilated, lockable and easy to reach for maintenance. Keep it away from water pipes, sinks, roofs that leak and direct sun, and out of ceiling voids. It needs a power outlet (ideally on a UPS, with surge protection) and a connection to the building's earthing (grounding) system. Place it as near the centre of the outlets it serves as you can, to keep runs short." },
+        { "h": "Length limits for twisted-pair links" },
+        { "table": { "head": ["Part", "Limit", "What it is"], "rows": [
+          ["Permanent link", "90 m", "The fixed cable from the patch panel to the outlet, including service loops, not counting patch leads."],
+          ["Patch leads and equipment leads", "10 m in total", "The flexible leads at the cabinet end and at the desk end added together."],
+          ["Channel", "100 m", "The whole path from the switch port to the device: permanent link plus leads."]
+        ] } },
+        { "p": "Measure along the real route: up, along, round obstacles and down, plus the service loops. If a route is over 90 m, shorter patch leads do not fix it. Re-route it, move the cabinet, or add a second cabinet nearer those outlets and link the cabinets, usually with fibre." },
+        { "h": "Working out quantities" },
+        { "p": "**Worked example.** An office needs 18 data outlets. The runs average 41 m, including drops and service loops." },
+        { "table": { "head": ["Step", "Calculation", "Result"], "rows": [
+          ["Total cable", "18 × 41 m", "738 m"],
+          ["Add 10% for waste", "738 × 1.10", "811.8 m"],
+          ["Boxes of 305 m (1 000 ft)", "811.8 ÷ 305 = 2.66", "3 boxes"],
+          ["Cross-check: whole runs per box", "305 ÷ 45 m (a run plus 10%) = 6.7, so 6 runs per box; 18 ÷ 6", "3 boxes"],
+          ["Patch panel ports", "18 outlets, plus room to grow", "One 24-port panel"],
+          ["Jacks and faceplates", "18 jacks at the outlets, plus a few spares", "20 jacks"]
+        ] } },
+        { "note": "When runs are long, do the **runs-per-box** check. A box gives only whole runs: the piece left at the end is waste if it is too short for any run. With 60 m runs, a 305 m box gives 5 runs, not 5.08.", "label": "Tip" },
+        { "h": "One colour code for the whole site" },
+        { "p": "Twisted-pair jacks and panels are wired to **T568A** or **T568B**. Both work equally well, but every termination on a site must use the same one, so that every end matches and anyone who adds to the system later knows what to follow. If the building already has cabling, or the specification names a code, use that one. Write the choice on the plan and tell the whole team before the first jack is made." },
+        { "h": "Labelling scheme and test plan" },
+        { "ul": [
+          "Decide the label for every link before cables are pulled, for example **floor – cabinet – panel – port**: 2A-03-14 is floor 2, cabinet A, panel 3, port 14. Number by location, never by the name of the person at the desk.",
+          "Mark each cable at both ends with its label as it is pulled.",
+          "Decide how the links will be tested (wire map only, or certification to the cable's category), which tester will be used, and how the results will be saved.",
+          "Check whether the job carries a maker's system warranty. If so, only the maker's approved components and test methods may be used."
+        ] }
+      ]
+    },
+    {
+      "title": "Safety on signal and data jobs",
+      "blocks": [
+        { "table": { "head": ["Hazard", "Control"], "rows": [
+          ["Work at height: ceilings, cable trays, poles and walls", "Use podium steps, a tower or a fibreglass ladder that has been checked and set up correctly. Never stand, kneel or rest your weight on ceiling tiles or their grid."],
+          ["Ceiling voids and roof spaces", "They are hot, dusty and dark, with sharp edges, old wiring and sometimes wasps and rats. Use a head torch, gloves and a dust mask; take water and breaks; tell someone where you are."],
+          ["Power cables on the same route", "Do not disturb them. If you must work where power cables are damaged or exposed, they are first **isolated, locked off, tagged and proved dead** by a competent person, with a tester checked before and after."],
+          ["Drilling and fixing", "Check for hidden cables and pipes before drilling; wear eye protection."],
+          ["Power over Ethernet (PoE)", "A PoE port can supply up to about 57 V DC and many watts. Unplug the link at the switch before you re-terminate it; pulling a plug under load also burns the contacts."],
+          ["Optical fibre", "Never look into the end of a fibre or a fibre port: the light may be invisible and can damage the eye. Check for light with a fibre power meter. Fibre off-cuts are needle-sharp glass: pick them up with tape and put them in a sharps container; never brush or blow them away."],
+          ["Soldering", "Keep the iron in its stand; use fume extraction or good airflow; wear eye protection; wash your hands afterwards."],
+          ["Cutting conductors and braid", "Wear safety glasses; cut ends fly. Keep blades closed or covered."],
+          ["Occupied buildings", "Cordon off the work area, keep cables and tools off walkways, clear off-cuts as you go, and tell the staff what you are doing."],
+          ["Lightning", "Outdoor aerials, dishes and camera cables can carry surges indoors. Do not work on them in a thunderstorm; bond and protect them as the code and the maker require."]
+        ] } },
+        { "note": "Data cables are **never** put in the same conduit, box or trunking compartment as power cables without a fixed barrier between them. A fault could put mains voltage onto a data cable, and from there onto equipment and people far away.", "label": "Safety" }
+      ]
+    },
+    {
+      "title": "Choosing the cable",
+      "blocks": [
+        { "h": "Twisted-pair data cable" },
+        { "table": { "head": ["Category", "Tested to", "Typical use"], "rows": [
+          ["Cat 5e", "100 MHz", "1 Gb/s to 100 m. Still found everywhere; acceptable for small or low-cost jobs."],
+          ["Cat 6", "250 MHz", "1 Gb/s to 100 m with more margin; 10 Gb/s only on short links (roughly up to 55 m in good conditions). The usual choice for a new office."],
+          ["Cat 6A", "500 MHz", "10 Gb/s to the full 100 m. Thicker and stiffer; used for high-speed links, Wi-Fi access points and high-power PoE."]
+        ] } },
+        { "table": { "head": ["Choice", "Options", "When to use each"], "rows": [
+          ["Screening", "**UTP**: unshielded twisted pair. **F/UTP, STP, S/FTP**: foil and/or braid screens round the pairs or the whole cable.", "UTP suits most offices. Use screened cable near strong electrical noise (large motors, drives, welders), with screened jacks and panels, and bond the screen exactly as the maker says."],
+          ["Conductor", "**Solid** or **stranded**", "Solid for fixed links punched down on jacks and panels. Stranded for flexible patch leads."],
+          ["Sheath", "Indoor PVC or low-smoke; **outdoor** (UV-resistant, often black polyethylene); water-blocked or gel-filled", "Indoor cable breaks down in sunlight and soaks up water. Use outdoor grade outside, and water-blocked cable underground: buried conduit fills with water."],
+          ["Fire rating", "Markings such as CM, CMR (riser) and CMP (plenum) on NEC-type cable", "Use the rating the specification and the code require for risers and air-handling spaces."]
+        ] } },
+        { "h": "Coaxial cable" },
+        { "table": { "head": ["Cable", "Impedance", "Use"], "rows": [
+          ["RG6", "75 Ω", "Satellite, cable and aerial TV. The normal TV cable."],
+          ["RG11", "75 Ω", "Long TV trunk runs: thicker, with lower loss."],
+          ["RG59", "75 Ω", "Analogue and HD-over-coax CCTV on shorter runs; higher loss than RG6."],
+          ["Siamese (RG59 + power pair)", "75 Ω", "CCTV: coax for the picture and a two-core cable for the camera's power, in one sheath."],
+          ["RG58", "50 Ω", "Two-way radio and some test equipment. **Not** for TV or CCTV."]
+        ] } },
+        { "p": "**Impedance must match** all the way through: 75 Ω cable, 75 Ω connectors, 75 Ω splitters and 75 Ω terminators. Where the impedance changes, part of the signal is reflected back along the cable. The reflections weaken and distort the wanted signal: ghosting on analogue pictures, break-up and lost channels on digital ones." },
+        { "h": "Cabling for CCTV: PoE or Siamese?" },
+        { "table": { "head": ["Point", "IP cameras on twisted pair with PoE", "Coax cameras on Siamese cable"], "rows": [
+          ["Signal and power", "Data and power on one Cat 5e/6 cable", "Picture on the coax; power on the separate pair from a power supply at the recorder end"],
+          ["Connectors", "RJ45 jacks or plugs", "BNC for video, DC plug or terminals for power"],
+          ["Equipment", "PoE switch or PoE recorder", "Recorder with coax inputs; camera power supply"],
+          ["Length", "100 m channel limit", "Depends on the system; several hundred metres is possible for some"],
+          ["Testing", "Standard data tester", "Continuity and picture check"],
+          ["Best for", "New systems; fits the building's network; easy to upgrade", "Extending or reusing an existing coax system"]
+        ] } },
+        { "p": "**PoE power.** The switch must be able to supply every device. The common PoE standards allow about 15 W, 30 W, 60 W or 90 W at the switch port, with a little less reaching the device. Add up the maker's power figure for each camera, phone or access point and compare the total with the switch's **PoE budget**, leaving a margin. Example: 10 cameras at 7 W and 2 at 22 W need 70 + 44 = 114 W, so a switch with a 120 W budget is too tight; choose the next size up." },
+        { "h": "Audio, alarm and instrument cables" },
+        { "ul": [
+          "**Balanced audio** (microphones, line-level signals): a screened twisted pair. The two cores carry the signal in opposite senses, so noise picked up on both cancels at the input.",
+          "**Loudspeaker cable**: two cores sized for the power and length. Many public-address systems use **100 V line** distribution, where each speaker has a transformer with power taps.",
+          "**Alarm and access-control cable**: multi-core, often screened, as the equipment maker specifies.",
+          "**Instrument cable**: screened twisted pairs, singly or in multi-pair cables, with a **drain wire** in contact with the foil screen, for 4–20 mA loops and sensor signals."
+        ] }
+      ]
+    },
+    {
+      "title": "Installing and dressing cable",
+      "blocks": [
+        { "p": "A data cable's performance comes from the exact geometry of its pairs: the twist of each pair and the spacing between them. Everything in this section is about not disturbing that geometry between the box and the jack." },
+        { "table": { "head": ["Rule", "Usual figure", "What goes wrong if it is ignored"], "rows": [
+          ["Pulling tension", "No more than 110 N (25 lbf, about the weight of 11 kg) on a 4-pair cable; follow the maker", "The pairs stretch and untwist inside the sheath. The cable looks perfect and fails on crosstalk or return loss."],
+          ["Bend radius", "At least 4 × the cable diameter for UTP once installed; about 8 × for screened cable; more while pulling", "Tight bends and kinks deform the pairs and spoil performance for good."],
+          ["Ties", "Soft hook-and-loop straps, snug but not tight", "Tight plastic ties crush the pairs at every tie."],
+          ["Support", "Tray, basket, J-hooks or conduit made for the purpose, at close, regular spacing", "Cables laid loose on ceiling tiles or light fittings sag, get hot, are damaged by other trades and overload the ceiling."],
+          ["Untwisting", "No more than 13 mm (½ in) of a pair untwisted at a termination", "Crosstalk (NEXT) failure at that end."],
+          ["Sheath strip", "Only as much as the termination needs", "Loose, unsupported pairs lose their spacing."]
+        ] } },
+        { "p": "**Example.** A Cat 6 cable 6.2 mm across, with a limit of 4 × diameter, needs a bend radius of at least 4 × 6.2 = 24.8 mm, say **25 mm**: no tighter than a curve round a 50 mm pipe." },
+        { "h": "Keeping away from power and noise" },
+        { "p": "**Electrical noise** (interference) is unwanted voltage picked up from nearby equipment. It causes data errors and slow networks, hum and buzz on sound systems, and lines or break-up on pictures." },
+        { "ul": [
+          "Common sources: power cables, motors and their variable speed drives, fluorescent and other discharge lighting and their ballasts, lighting dimmers, welders, transformers, lift machinery and radio transmitters.",
+          "Keep signal and data cables in a **separate compartment, tray or conduit** from power cables. In shared trunking there must be a fixed divider.",
+          "Where no divider is possible, keep the gap the specification gives, and where the cables must cross, cross them at a **right angle**.",
+          "Route cables away from light fittings and motors, not over them.",
+          "The **twist** in each pair cancels much of the noise, which is another reason to keep the twists right up to the contacts.",
+          "Near heavy noise, use screened cable with the screen correctly terminated. A screen left floating, or earthed wrongly, can make matters worse."
+        ] },
+        { "h": "Other good practice" },
+        { "ul": [
+          "Pay the cable off the box or reel without twisting it; do not pull it round sharp corners or over tray edges.",
+          "Leave a **service loop**: neat spare cable near each end so that a termination can be re-made later. Typical allowances are about 3 m at the cabinet and 0.3 m at the outlet; follow the specification.",
+          "Large tight bundles of PoE cables warm up, which raises their loss. Follow the maker's limit on bundle size for high-power PoE.",
+          "Seal holes through fire walls and floors with the proper fire-stopping material after the cables are in.",
+          "Outdoors, form a **drip loop** before a cable enters a wall or a connector, so that water runs off instead of in.",
+          "Record the length left in each part-used box, and store it boxed for the next job."
+        ] }
+      ]
+    },
+    {
+      "title": "Terminating twisted pair",
+      "blocks": [
+        { "h": "The two colour codes" },
+        { "table": { "head": ["Pin", "T568A", "T568B"], "rows": [
+          ["1", "White/green", "White/orange"],
+          ["2", "Green", "Orange"],
+          ["3", "White/orange", "White/green"],
+          ["4", "Blue", "Blue"],
+          ["5", "White/blue", "White/blue"],
+          ["6", "Orange", "Green"],
+          ["7", "White/brown", "White/brown"],
+          ["8", "Brown", "Brown"]
+        ] } },
+        { "p": "The only difference is that the orange and green pairs change places. The pairs on the pins are always 1–2, 3–6, 4–5 and 7–8. Notice that pins 3 and 6 are one pair, split round the blue pair on 4–5. Jacks and panels have both codes printed on them: follow the one chosen for the site." },
+        { "h": "Punching down a jack or a panel port" },
+        { "flow": [
+          "Check the cable's label against the port or outlet",
+          "Strip the sheath only as far as the jack needs, without nicking the pairs",
+          "Bring the sheath right up to the back of the jack",
+          "Lay each pair into its slots by the colour code, untwisting no more than 13 mm",
+          "Punch each conductor down with the punch-down tool, cutting side outwards",
+          "Check colours and seating; fit the cap or strain relief",
+          "Fit the jack in its faceplate or panel without kinking the cable",
+          "Label, then test"
+        ] },
+        { "ul": [
+          "The contacts are **insulation displacement connectors (IDC)**: the tool pushes the insulated conductor between two blades that cut through the insulation and grip the copper. Never strip the conductors first.",
+          "A **keystone jack** is the snap-in socket module that clips into a faceplate or a modular patch panel.",
+          "Fixed links end on jacks and panel ports. Crimped **RJ45 plugs** are for patch leads made of stranded cable; a plug crimped onto solid cable needs a plug made for solid conductors.",
+          "A **screened** cable goes onto a screened jack. Its foil, braid or drain wire is bonded to the jack's metal body as the maker shows, and the panel is bonded to the rack's earth. Do not cut the screen off or leave it loose."
+        ] },
+        { "h": "Dressing a patch panel" },
+        { "ul": [
+          "Before starting, check that every cable is labelled, and agree the port order with the labelling plan.",
+          "Mount the panel and a cable manager. Bring the cables in from one side in a neat bundle with a service loop, and fan them out to their ports **in order**, without crossing.",
+          "Keep the bend radius; use soft straps; do not pull the cables tight against the panel.",
+          "Terminate port by port, so that each cable matches its label and the bundle stays tidy.",
+          "Fit printed port labels, test every link, and leave the cabinet clean with clear airflow."
+        ] },
+        { "h": "Wiring faults a tester will name" },
+        { "table": { "head": ["Fault", "What it is", "Usual cause"], "rows": [
+          ["Open", "A conductor does not connect end to end.", "Not punched down fully; conductor broken or cut by the tool; cable damaged."],
+          ["Short", "Two conductors touch.", "Insulation damaged; a strand or off-cut bridging contacts; crushed cable."],
+          ["Reversed pair", "The two wires of one pair are swapped at one end (for example pins 1 and 2).", "Colours laid the wrong way round in one pair."],
+          ["Crossed (transposed) pair", "One whole pair lands on another pair's pins at one end.", "T568A at one end and T568B at the other."],
+          ["Split pair", "Every pin connects to the right pin, but two wires from different pairs are used together as a 'pair'.", "Wiring in simple colour order (1-2, 3-4, 5-6, 7-8) instead of 1-2, 3-6, 4-5, 7-8. Continuity is correct, but crosstalk is very high."]
+        ] } },
+        { "note": "A simple continuity tester may pass a split pair, because each pin reaches the right pin. The link then runs slowly or drops out at speed. Only a tester that measures crosstalk will catch it, which is why colour-code discipline matters more than 'it lights all eight lamps'.", "label": "Remember" }
+      ]
+    },
+    {
+      "title": "Coax, connectors and signal levels",
+      "blocks": [
+        { "h": "Fitting a compression F connector" },
+        { "flow": [
+          "Cut the cable square",
+          "Strip with a coax stripper set for the cable: centre conductor bare, dielectric and braid exposed to the maker's lengths (often about 6 mm each)",
+          "Fold the braid back evenly over the sheath; leave the foil on the dielectric",
+          "Check that no strand of braid can touch the centre conductor",
+          "Push the connector on until the dielectric is flush with the inside face of the connector",
+          "Compress with the right tool for that connector",
+          "Check that the centre conductor is straight, clean and stands just proud of the connector, as the maker shows"
+        ] },
+        { "ul": [
+          "A **compression** connector grips the cable all round and seals against water. Twist-on and cheap crimp types pull off, let water in and leave the screen poorly connected.",
+          "A single whisker of braid touching the centre conductor shorts the signal, wholly or partly.",
+          "**BNC** connectors, used on CCTV and test equipment, lock with a quarter turn. Fit compression or crimp BNCs with the correct tool and die for the cable.",
+          "Finger-tight F connectors work loose: nip them up gently with a spanner, without overtightening."
+        ] },
+        { "h": "Outdoors" },
+        { "ul": [
+          "Use outdoor-grade cable. Fit **weatherproof boots** or wrap joints with self-amalgamating tape made for the purpose; do not rely on paint or grease.",
+          "Form drip loops, and mount splitters and amplifiers with their ports facing down or in a weatherproof box.",
+          "Where coax from an aerial or dish enters the building, bond its screen to the building's earthing (grounding) system through a **grounding block**, and bond the mast, as the NEC requires. This limits the voltage that lightning and faults can bring indoors.",
+          "Near the sea, salt corrodes connectors quickly: seal every joint and inspect it during maintenance."
+        ] },
+        { "h": "Decibels" },
+        { "p": "Signal gains and losses are measured in **decibels (dB)**. Decibels are convenient because you simply **add gains and subtract losses** along the path." },
+        { "table": { "head": ["Change", "Effect on signal power"], "rows": [
+          ["−3 dB", "About half"],
+          ["−6 dB", "About a quarter"],
+          ["−10 dB", "One tenth"],
+          ["−20 dB", "One hundredth"],
+          ["+3 dB, +10 dB", "Twice, ten times (an amplifier's gain)"]
+        ] } },
+        { "table": { "head": ["Item", "Typical loss", "Note"], "rows": [
+          ["Coax cable", "Loss per 100 m × length ÷ 100", "Loss rises with frequency: use the figure for the highest frequency carried. RG6 loses very roughly 20 dB per 100 m at the top of the TV band and more at satellite frequencies; use the maker's table."],
+          ["2-way splitter", "About 3.5 to 4 dB at each output", "Half the power to each side, plus a little lost inside."],
+          ["4-way splitter", "About 7 to 8 dB at each output", "A quarter of the power to each side"],
+          ["8-way splitter", "About 10 to 12 dB at each output", "Use the maker's figure"],
+          ["Each connector or wall plate", "A fraction of a dB to about 1 dB", "Poor connectors lose much more."]
+        ] } },
+        { "p": "**Worked example.** An amplifier gives 75 dBµV. It feeds 25 m of coax (22 dB per 100 m at the top frequency), a 4-way splitter (7.5 dB) and then 15 m of the same coax to the farthest outlet. Cable loss = 22 × 25 ÷ 100 = 5.5 dB, and 22 × 15 ÷ 100 = 3.3 dB. Level at the outlet = 75 − 5.5 − 7.5 − 3.3 = **58.7 dBµV**. Compare this with the range the receiver's maker gives. If it is too low, shorten runs, use lower-loss cable or add gain; if it is too high, fit an attenuator." },
+        { "ul": [
+          "**Too much signal is also a fault.** An overdriven amplifier or receiver distorts and loses channels. Set levels with a signal meter, not by 'turning it up'.",
+          "Every unused output on a splitter or tap is closed with a **75 Ω terminator**, so that the signal is absorbed there instead of being reflected back into the system.",
+          "Label each run at the splitter and at the outlet, and record the measured level at each outlet."
+        ] }
+      ]
+    },
+    {
+      "title": "Audio and multi-core signal cables",
+      "blocks": [
+        { "h": "Balanced audio on XLR connectors" },
+        { "table": { "head": ["XLR pin", "Connection"], "rows": [
+          ["1", "Screen (shield, ground)"],
+          ["2", "'Hot' or + signal"],
+          ["3", "'Cold' or − signal"]
+        ] } },
+        { "ul": [
+          "Wire both ends the same. If pins 2 and 3 are swapped at one end, the lead still passes sound, but its **polarity is reversed**: mixed with other microphones it cancels part of the sound and makes it thin.",
+          "The screen goes to pin 1 only. Do not join it to the plug's shell unless the system's drawings say so.",
+          "Slide the boot and strain relief onto the cable before soldering. Tin the cores and the solder cups, make each joint quickly, and keep the insulation right up to the cup. Use the cable clamp so that the joints carry no strain.",
+          "Test each lead: pin 1 to pin 1, 2 to 2, 3 to 3, and no connection between any two pins."
+        ] },
+        { "h": "Loudspeaker lines" },
+        { "p": "Keep the **polarity** the same at every speaker (+ to +), or speakers work against each other. On a **100 V line** system, each speaker's transformer is set to a tapping in watts. Add up the tappings of all the speakers on the line: the total must not be more than the amplifier's rated power, and good practice leaves a margin of about 20%. Example: a 120 W amplifier should carry no more than about 96 W of tappings, such as 16 speakers at 6 W." },
+        { "h": "Screened multi-core cable at screw terminals" },
+        { "flow": [
+          "Read the drawing: core numbers or colours, terminal numbers, and where the screen goes",
+          "Strip the sheath and screen without nicking the cores",
+          "Sleeve the drain wire and bring it to its terminal, or insulate it back, as the drawing says",
+          "Strip each core to the ferrule's length; fit a ferrule of the right size and crimp it with the ferrule tool",
+          "Fit core markers; terminate each core in its numbered terminal and tighten correctly",
+          "Tug each core gently; check against the drawing; test"
+        ] },
+        { "ul": [
+          "A **bootlace ferrule** gathers the strands of a flexible core into a solid pin, so that no strand escapes to short on the next terminal and the screw does not cut the strands.",
+          "For **low-frequency analogue signals**, such as 4–20 mA loops and sensor cables, the screen is normally earthed at **one end only**, usually the control panel. At the field end it is cut back and insulated. If both ends are earthed, any difference between the two earths drives a current along the screen (an earth loop, or ground loop), which adds noise to the signal.",
+          "Screened **data** cabling is different: its screens are bonded at the jacks and panels as the system's maker says. Always follow the drawing for the system in front of you.",
+          "Polarity matters on DC signals: a 4–20 mA loop connected the wrong way round reads nothing."
+        ] },
+        { "note": "Before an **insulation resistance test** on a signal cable, disconnect it at both ends from the instruments, cards and surge protectors. The test voltage can destroy electronic inputs, and the electronics would also give a false reading.", "label": "Remember" }
+      ]
+    },
+    {
+      "title": "Testing, fault-finding, records and leading the team",
+      "blocks": [
+        { "h": "Testers" },
+        { "table": { "head": ["Tester", "What it tells you"], "rows": [
+          ["Continuity / wire-map tester (verification)", "Each conductor reaches the right pin: opens, shorts, reversed and crossed pairs. Better ones show split pairs and length."],
+          ["Certification tester", "Everything above, and how the link **performs** at high frequency, compared with the limits for its category (Cat 5e, 6, 6A). It gives a pass or fail for each link and saves the result as a record."],
+          ["Multimeter", "Continuity and shorts on coax, audio and signal cables."],
+          ["Signal level meter", "The TV signal level and quality at an outlet."],
+          ["Fibre power meter and light source", "Whether a fibre carries light, and how much is lost."]
+        ] } },
+        { "h": "What a certification test measures" },
+        { "table": { "head": ["Result", "Meaning", "Likely cause of a failure"], "rows": [
+          ["Wire map", "Every conductor on the right pin", "A termination error: see the fault table in the twisted-pair section."],
+          ["Length", "Measured by timing a pulse reflected from the far end (time domain reflectometry, TDR)", "Link over 90 m. One pair much shorter than the rest: that pair is open at that distance."],
+          ["Insertion loss (attenuation)", "Signal lost along the link, in dB", "Link too long; lower-grade or damaged cable; poor terminations; heat."],
+          ["NEXT (near-end crosstalk)", "Signal leaking from one pair into another, measured at the same end as the signal is sent", "Too much untwisting at that end's termination; split pair; poor-quality jack or plug."],
+          ["Return loss", "Signal reflected back by changes in impedance", "Kinks, crushed or stretched cable, tight ties, mismatched components, a poor termination."]
+        ] } },
+        { "ul": [
+          "**Set the tester's reference**, as its maker says, before each day's testing, and check the batteries and the test leads or adapters. Readings from an uncalibrated set-up cannot be trusted.",
+          "Test the **permanent link** with permanent-link adapters, panel to outlet. Patch leads are not part of it.",
+          "The tester works out length from time, using the cable's **NVP** (nominal velocity of propagation). Set the NVP for the cable in use, or the lengths will be wrong.",
+          "The four pairs of one cable normally read a few per cent different in length, because each pair has a different twist rate. A **large** difference means a fault."
+        ] },
+        { "h": "Finding a fault" },
+        { "flow": [
+          "Check the tester first: reference set, batteries good, adapters sound; test a known good link",
+          "Read the result: which test failed, at which end, and at what distance",
+          "Identify the link from its labels: panel port and outlet",
+          "Inspect both terminations: colours, seating, untwist, sheath position",
+          "Inspect the route near the distance shown: kinks, crushing, tight ties, damage by other trades",
+          "Re-terminate or replace, to the colour code",
+          "Retest; record the fault, the repair and the passing result"
+        ] },
+        { "table": { "head": ["Pattern", "Where to look first"], "rows": [
+          ["Several links fail, all on one patch panel", "The terminations on that panel, or the person and tool that made them."],
+          ["NEXT fails at one end only", "That end's termination."],
+          ["Insertion loss fails, wire map passes", "Length and cable grade."],
+          ["A link that passed at handover stops working for a user", "The patch leads, the outlet connection and the equipment, before touching the permanent link."],
+          ["Coax outlet has no signal or a poor one", "Connectors (braid whiskers, corrosion, loose fittings), then splitter ports and levels."]
+        ] } },
+        { "h": "Labels, records and the handover pack" },
+        { "ul": [
+          "Label every link at **both ends**: on the cable, on the panel port and on the outlet faceplate, using the agreed scheme.",
+          "Use **printed** labels: they are clear, they last, and they do not smudge.",
+          "Good labels let anyone find the right link without tracing or guessing, and stop the wrong link being unplugged."
+        ] },
+        { "table": { "head": ["In the handover pack", "Why"], "rows": [
+          ["As-built drawing or floor plan with every outlet and its label", "Shows what was really installed, which may differ from the design."],
+          ["The labelling scheme explained; the cabinet and panel layout", "Lets others add to and maintain the system."],
+          ["Test results for every link, with the date, tester and limit used", "Proves every link passed at handover; needed for a maker's warranty."],
+          ["List of cable and components installed", "For matching parts later and for warranty claims."],
+          ["Spare links, known limits and support contacts", "Honest information the customer needs."]
+        ] } },
+        { "h": "Leading the team" },
+        { "ul": [
+          "Before work starts, **show the standard** once: strip length, keeping the twists, the colour code, the tools.",
+          "Give each person their own outlets or ports and **record who made each end**.",
+          "Check each person's **first few terminations** before they go on, then at intervals. Correct faults at once, with the reason, and have the person re-make them.",
+          "**Test every link**, not a sample, and have failures found and fixed by the person who made them, with your help.",
+          "If links fail at handover time, **tell the customer**, fix and retest. Never hide a failed result or mark a link as passed.",
+          "Keep the site tidy: off-cuts picked up as you go, part boxes recorded and stored, the cabinet left clean."
+        ] }
+      ]
+    },
+    {
+      "title": "Revision",
+      "blocks": [
+        { "h": "Checklist" },
+        { "p": "Tick each statement only when you can do it without looking at the notes." },
+        { "ul": [
+          "I can plan a cabling job: outlets, cabinet, routes, lengths, quantities, colour code, labels and tests.",
+          "I can state the 90 m, 10 m and 100 m limits and say what to do when a route is too long.",
+          "I can work out cable quantities with an allowance, and check them by runs per box.",
+          "I can describe the hazards of ceiling work, power cables, PoE, fibre and soldering, and their controls.",
+          "I can choose between Cat 5e, 6 and 6A, UTP and screened, solid and stranded, indoor and outdoor cable.",
+          "I can choose the right coax and explain why impedance must match.",
+          "I can compare PoE and Siamese cabling for CCTV and check a PoE power budget.",
+          "I can keep to pulling tension, bend radius and untwist limits, and explain why each matters.",
+          "I can keep signal and data cables apart from power and noise sources.",
+          "I can terminate jacks and patch panels to T568A or T568B and name the wiring faults a tester shows.",
+          "I can fit compression F and BNC connectors and weatherproof and bond outdoor coax.",
+          "I can add and subtract decibels to find the signal level at an outlet.",
+          "I can wire an XLR lead, set 100 V line tappings, and terminate a screened multi-core cable with ferrules.",
+          "I can say where a screen is earthed on an instrument cable, and why.",
+          "I can explain what wire map, length, insertion loss, NEXT and return loss results mean, and a likely cause of each failure.",
+          "I can follow a logical method to find and correct a cabling fault.",
+          "I can label, record and hand over a job, and lead a team to a consistent standard."
+        ] },
+        { "h": "Figures to remember" },
+        { "table": { "head": ["Figure", "What it is"], "rows": [
+          ["90 m + 10 m = 100 m", "Permanent link + patch leads = channel"],
+          ["305 m (1 000 ft)", "The usual box of data cable"],
+          ["13 mm (½ in)", "Most untwisting allowed at a termination"],
+          ["4 × diameter (UTP), about 8 × (screened)", "Usual minimum bend radius once installed"],
+          ["110 N (25 lbf)", "Usual maximum pull on a 4-pair cable"],
+          ["75 Ω / 50 Ω", "TV and CCTV coax / radio coax"],
+          ["3 dB", "Half the power"],
+          ["About 3.5–4 dB, 7–8 dB", "Loss at each output of a 2-way and a 4-way splitter"],
+          ["Pin 1 screen, pin 2 hot, pin 3 cold", "XLR balanced audio"]
+        ] } },
+        { "h": "Key terms" },
+        { "terms": [
+          ["As-built drawing", "A drawing showing the installation as it was actually built."],
+          ["Attenuation (insertion loss)", "The signal lost along a cable or through a device, in dB."],
+          ["Balanced line", "A signal carried on two cores in opposite senses, so that noise picked up on both cancels."],
+          ["Bend radius", "The tightest curve a cable may be bent to without harm."],
+          ["Certification test", "A test of a link's performance against the limits for its category, with a saved result."],
+          ["Channel", "The whole path from switch to device: permanent link plus patch leads, up to 100 m."],
+          ["Decibel (dB)", "The unit for signal gain and loss; gains are added and losses subtracted."],
+          ["Drain wire", "A bare wire in contact with a foil screen, used to connect the screen."],
+          ["Earth loop (ground loop)", "Unwanted current in a screen that is earthed at two points at different voltages."],
+          ["Ferrule", "A small metal tube crimped onto a stranded core to make a solid end for a screw terminal."],
+          ["IDC", "Insulation displacement connector: a contact that cuts through the insulation when the conductor is punched in."],
+          ["Keystone jack", "A snap-in socket module for faceplates and modular patch panels."],
+          ["NEXT", "Near-end crosstalk: signal leaking from one pair into another, measured at the sending end."],
+          ["NVP", "Nominal velocity of propagation: the speed of a signal in a cable, used by a tester to work out length."],
+          ["Permanent link", "The fixed cable from patch panel to outlet, up to 90 m."],
+          ["PoE", "Power over Ethernet: power for a device sent along its data cable."],
+          ["Return loss", "A measure of the signal reflected back by impedance changes in a link."],
+          ["Service loop", "Neat spare cable left near a termination so that it can be re-made."],
+          ["Split pair", "A wiring fault in which wires from two different pairs are used as one pair."],
+          ["Splitter", "A device that divides one signal between several outputs."],
+          ["STP / UTP", "Shielded (screened) twisted pair / unshielded twisted pair."],
+          ["TDR", "Time domain reflectometry: finding length or a fault by timing a reflected pulse."],
+          ["Terminator", "A resistor plug (75 Ω for TV) that closes an unused output so that no signal is reflected."]
+        ] }
+      ]
+    }
+  ],
+  "cases": {
+    "c1": { "title": "A call centre in downtown Kingston", "text": "Nordia Henry, a Level 3 technician, leads a team cabling 96 data outlets for a call centre on one floor of an office building in downtown Kingston. The longest permanent link, with its service loops, is 87 m. The client plans a 5 m lead at each desk and 3 m patch leads in the cabinet. Runs are up to 60 m, and cable comes in 305 m boxes. The building's other floors are terminated to T568A, though most of Nordia's team are used to T568B. Six supervisors' desks, up to 80 m from the cabinet, must have 10 Gb/s links." },
+    "c2": { "title": "Cameras for a supermarket in Junction", "text": "A supermarket in Junction, St Elizabeth, is replacing its old analogue cameras, which use RG59 Siamese cable, with IP cameras. Technician Akeem Powell plans six fixed cameras rated 9 W each and two pan-tilt cameras rated 25 W each, all powered by PoE from one switch. The owner's nephew has bought a switch with a PoE budget of 90 W. Three cameras are outdoors under the eaves, and one at the gate will be fed through a buried PVC conduit. The area has frequent thunderstorms." },
+    "c3": { "title": "A sound system for a school hall in Morant Bay", "text": "A high school in Morant Bay, St Thomas, is getting a new sound system in its hall. Four balanced microphone lines run 30 m from the stage to the amplifier rack and end on XLR connectors. A 240 W amplifier feeds 12 ceiling loudspeakers on a 100 V line; each speaker's transformer has tappings of 10 W, 20 W and 30 W. On test, microphone line 3 hums; for about 10 m it lies in the same tray as the cables from the stage-lighting dimmers. Line 2 gives a thin, weak sound whenever it is mixed with the microphone beside it." },
+    "c4": { "title": "Shared TV aerial at an apartment block in Hellshire", "text": "An apartment block in Hellshire, St Catherine, has one rooftop aerial feeding eight apartments. A masthead amplifier gives 78 dBµV at its output. Then come 10 m of RG6 to an 8-way splitter (11 dB loss at each output), and RG6 to each apartment; the longest run is 45 m. The cable loses 20 dB per 100 m at the highest channel, and the TV sets need at least 50 dBµV. Apartment 6 has a picture that breaks up; its outlet has a twist-on connector. The coax passes into the building with no connection to the building's earthing system." },
+    "c5": { "title": "A level transmitter at a bottled-water plant in Lluidas Vale", "text": "At a bottled-water plant in Lluidas Vale, St Catherine, technician Garfield Douglas supervises a trainee who has terminated a screened twisted-pair instrument cable. It runs 60 m from a tank level transmitter to the PLC panel and carries a 4–20 mA signal. The drawing shows the screen earthed at the panel end only, but the trainee has connected the drain wire to earth at both ends, and the reading on the screen wanders. Before the loop was first connected, the trainee also proposed an insulation resistance test at 500 V with everything connected." }
+  },
+  "questions": [
+    { "id": "P-01", "c": "c1", "q": "Is the longest link within the length limits for the planned leads?", "o": ["No: the 87 m link plus 8 m of leads is over the 90 m limit", "No: every permanent link must be kept below 80 m", "Yes, but only if the desk lead is cut down to 2 m", "Yes: the 87 m link and a 95 m channel are both within limits"], "a": 3, "why": "The permanent link may be up to 90 m and the leads up to 10 m in total, giving a channel of up to 100 m. Here the link is 87 m, the leads total 5 + 3 = 8 m, and the channel is 95 m. The 90 m limit applies to the fixed link, not to the link plus leads." },
+    { "id": "P-02", "c": "c1", "q": "A box gives only whole runs. With runs of up to 60 m, how many 305 m boxes should Nordia allow for the 96 runs?", "o": ["20 boxes", "16 boxes", "19 boxes", "24 boxes"], "a": 0, "why": "305 ÷ 60 = 5.08, so one box gives 5 whole runs and a short off-cut. 96 ÷ 5 = 19.2, which rounds up to 20 boxes. Dividing the total length by 305 (5 760 ÷ 305 = 18.9, so 19) forgets that the piece left in each box is too short to use." },
+    { "id": "P-03", "c": "c1", "q": "Which colour code should the new terminations use?", "o": ["T568B, since most of the team know it best", "T568B at the panel and T568A at the outlets", "T568A, to match the rest of the building", "Each installer's own choice, if both ends match"], "a": 2, "why": "One site, one code. The building is already T568A, so new work follows it, and the choice is written on the plan. Mixed codes on a site lead to crossed pairs whenever someone re-terminates one end, and letting installers choose guarantees a mixture." },
+    { "id": "P-04", "c": "c1", "q": "Which cable should be specified for the six supervisors' links?", "o": ["Cat 5e, as it supports 10 Gb/s over short patch leads", "Cat 6, which carries 10 Gb/s over any link up to 100 m", "Cat 6 with shorter desk leads to make up the difference", "Cat 6A, which carries 10 Gb/s to the full 100 m"], "a": 3, "why": "Cat 6 supports 10 Gb/s only on short links, roughly up to 55 m in good conditions; these links are up to 80 m. Cat 6A is tested to 500 MHz and carries 10 Gb/s over the full 100 m channel. Shorter desk leads do not change the category's limit." },
+    { "id": "P-05", "c": "c2", "q": "Is the 90 W switch suitable for the eight cameras?", "o": ["No: the cameras need 104 W, so a larger PoE budget is needed", "Yes: only the six fixed cameras count, and they need 54 W", "Yes: PoE switches share the power out, so any budget will do", "No: the cameras need 272 W, at 34 W for each of the eight"], "a": 0, "why": "Six cameras at 9 W is 54 W and two at 25 W is 50 W: 104 W in all, more than the 90 W budget. Choose a switch with a budget comfortably above 104 W, whose ports can supply the 25 W pan-tilt cameras." },
+    { "id": "P-06", "c": "c2", "q": "Which cable should Akeem use for the camera fed through the buried conduit?", "o": ["Indoor Cat 6, since the conduit keeps it dry", "The old RG59 Siamese with RJ45 plugs fitted", "Stranded patch cable, as it bends more easily", "Outdoor water-blocked or gel-filled Cat 6"], "a": 3, "why": "Buried conduit fills with water from condensation and rain, and indoor cable soaks it up and fails. Cable rated for wet, underground use has a water-blocking gel or tape and a tough sheath. Coax cannot simply be given RJ45 plugs, and stranded cable is for patch leads." },
+    { "id": "P-07", "c": "c2", "q": "The owner asks whether the old RG59 runs can be reused for the new IP cameras. Which answer is correct?", "o": ["Yes, directly: all cameras use the same kind of signal", "Yes, if BNC-to-RJ45 adaptor plugs are fitted at each end", "Only through Ethernet-over-coax adaptors; new Cat 6 is better", "No, because coax is not able to carry digital signals"], "a": 2, "why": "An IP camera needs an Ethernet link, which coax does not provide by itself; simple plug adaptors only change the connector shape. Active Ethernet-over-coax adaptors can carry it where re-cabling is impractical, but new outdoor-grade twisted pair is the cleaner, standard solution." },
+    { "id": "P-08", "c": "c2", "q": "What best protects the switch and recorder from lightning surges on the outdoor camera cables?", "o": ["Leaving the outdoor cables' screens unconnected at both ends", "Running the outdoor cables in the tray with the power cables", "Using longer cables, so that a surge weakens on the way in", "Surge protectors at the point of entry, bonded to earth"], "a": 3, "why": "Outdoor cables pick up surges from nearby lightning and carry them indoors. Data-line surge protectors where the cables enter, bonded by a short conductor to the building's earthing system, divert the surge before it reaches the equipment. An unconnected screen or extra length gives no real protection." },
+    { "id": "P-09", "c": "c3", "q": "What is the most likely cause of the hum on microphone line 3, and the best cure?", "o": ["A broken hot core; re-solder pin 2 at both ends of the line", "Noise from the dimmer cables; re-route the line away from them", "Too long a run; shorten the line to less than 10 m", "Too low a signal; turn the amplifier's gain up to cover it"], "a": 1, "why": "Lighting dimmers chop the mains waveform and their cables radiate strong electrical noise. A microphone signal is tiny, so even a balanced line picks some up when it lies beside them. Move the line to a separate route, and cross power cables at a right angle where it must cross. A broken core would give no sound, not hum." },
+    { "id": "P-10", "c": "c3", "q": "Line 2 sounds thin whenever it is mixed with the microphone beside it. Which wiring error would cause this?", "o": ["Pins 2 and 3 are swapped at one end", "The screen is missing from pin 1 at one end", "Pins 2 and 3 are shorted together at one end", "The screen is joined to pin 3 at both ends"], "a": 0, "why": "With pins 2 and 3 swapped at one end, the lead still works, but its polarity is reversed. Mixed with a nearby microphone picking up the same sound, the two signals partly cancel, and the bass disappears first. A missing screen gives hum; shorted signal pins give no sound." },
+    { "id": "P-11", "c": "c3", "q": "All 12 speakers are to use the same tapping, leaving at least 20% of the amplifier's power in reserve. What is the highest tapping that may be used?", "o": ["10 W", "20 W", "30 W", "20 W on six and 30 W on six"], "a": 0, "why": "80% of 240 W is 192 W. Shared between 12 speakers that is 16 W each, so the highest standard tapping within the limit is 10 W (120 W in all). At 20 W the total is 240 W, with no reserve at all." },
+    { "id": "P-12", "c": "c4", "q": "What signal level should reach the farthest TV outlet?", "o": ["47 dBµV", "56 dBµV", "58 dBµV", "65 dBµV"], "a": 1, "why": "Losses: 10 m of cable is 2 dB, the splitter 11 dB, and 45 m of cable 9 dB, a total of 22 dB. 78 − 22 = 56 dBµV, which is above the 50 dBµV the sets need. 58 dBµV leaves out the first 10 m; 65 dBµV leaves out the long run." },
+    { "id": "P-13", "c": "c4", "q": "At apartment 6 the installer finds strands of braid touching the centre conductor inside the twist-on connector. What should be done?", "o": ["Push the strands back and screw the same connector on again", "Fit an amplifier at the outlet to make up for the lost signal", "Replace the 45 m cable run, since its screen is now damaged", "Cut back and fit a compression F connector with the right tool"], "a": 3, "why": "Braid touching the centre conductor shorts the signal partly or wholly. Cut the cable back to clean cable, strip it with a coax stripper, fold the braid back clear of the centre conductor and fit a compression connector, which grips firmly and keeps water out. An amplifier cannot repair a short." },
+    { "id": "P-14", "c": "c4", "q": "A resident wants 'a stronger picture', so the caretaker proposes turning the amplifier up until its output is far above what the sets need. What is the likely result?", "o": ["A clearer picture in every one of the apartments", "No change at all, since splitters limit the signal", "Longer life for the amplifier and the television sets", "Distortion and lost channels from overloaded inputs"], "a": 3, "why": "Receivers and amplifiers work within a range of levels. Above it they overload and distort, and digital channels break up or vanish, just as they do when the signal is too weak. Levels are set with a meter to the makers' ranges, using an attenuator where a signal is too high." },
+    { "id": "P-15", "c": "c4", "q": "What should be fitted where the aerial's coax enters the building?", "o": ["A grounding block bonding the screen to earth", "A 75 Ω terminator, so that reflections stop at the wall", "A second splitter, so that the signal is shared earlier", "A 50 Ω adaptor, to match the cable to the outdoor section"], "a": 0, "why": "An outdoor aerial and its coax can bring lightning surges and fault voltages indoors. The NEC requires the coax screen, and the mast, to be bonded to the building's grounding system near the point of entry, which a grounding block does. A terminator is only for unused outputs." },
+    { "id": "P-16", "c": "c5", "q": "Why does the reading wander with the drain wire earthed at both ends, and what is the cure?", "o": ["The screen is too short; fit a longer drain wire at each end", "Two earths make the screen too strong; remove the screen entirely", "An earth loop drives current in the screen; earth it at the panel only", "The screen is leaking the signal to earth; use unscreened cable"], "a": 2, "why": "The earth at the tank and the earth at the panel are rarely at exactly the same voltage. With the screen joined to both, current flows along it and adds noise to the small signal: an earth loop. Earthing the screen at the panel only, with the field end cut back and insulated, keeps the protection without the loop." },
+    { "id": "P-17", "c": "c5", "q": "What was wrong with the trainee's plan to insulation-test the cable at 500 V with everything connected?", "o": ["Signal cables may only be tested at 1 000 V or more", "The test voltage could destroy the transmitter and PLC input", "A screened cable cannot be insulation tested at all", "The test is only valid while the loop is carrying 20 mA"], "a": 1, "why": "Insulation testers put hundreds of volts on the cores. Electronic transmitters, input cards and surge protectors can be destroyed by it, and they would also give a false low reading. Disconnect the cable at both ends, test it, discharge it, then reconnect." },
+    { "id": "P-18", "c": null, "q": "A certification tester reports the four pairs of a new link as 61.2 m, 62.0 m, 62.9 m and 63.5 m long. What does this show?", "o": ["One pair is broken about 61 m from the tester", "The cable is a fake, as real pairs are equal", "A normal result: pairs differ in twist rate", "The tester's reference has not been set today"], "a": 2, "why": "Each pair is twisted at a different rate to reduce crosstalk, so the copper in each pair is a slightly different length, usually within a few per cent. A fault shows as one pair far shorter than the others, at the distance of the break." },
+    { "id": "P-19", "c": null, "q": "A link passes its wire map, but fails return loss; the tester places the problem about 14 m from the panel. What should the technician look for there?", "o": ["A kink, crushed cable or an overtight tie", "The wrong colour code at the far-end outlet jack", "A missing label on the cable at that point", "Too much untwisting at the patch panel port"], "a": 0, "why": "Return loss measures reflections from changes in the cable's impedance. A kink, crushing, stretching or an overtight tie deforms the pairs and reflects part of the signal from that spot. A colour-code error would show on the wire map, and untwisting at the panel would show at 0 m." },
+    { "id": "P-20", "c": null, "q": "A desk phone powered by PoE is working, and its outlet must be re-terminated. What should be done first?", "o": ["Nothing special, because PoE is below 50 V AC", "Wear insulating gloves and re-terminate it live", "Unplug the phone and leave the port powered", "Unplug that link's patch lead at the switch"], "a": 3, "why": "A PoE port can supply up to about 57 V DC and tens of watts. Disconnecting the link at the switch removes the power from the cable before the conductors are handled, protecting the port, the tool and you. Unplugging only the phone leaves the switch free to power the pair again." }
+  ]
+}
