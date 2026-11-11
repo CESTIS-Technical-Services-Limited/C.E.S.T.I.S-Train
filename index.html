@@ -6036,6 +6036,7 @@ details.tidy-more > summary { cursor:pointer; font-weight:600; color:var(--text-
                   <button type="button" class="cloud-dropdown-item" onclick="closeSyncChipPanel(); restoreFromMasterBackup()"><span aria-hidden="true">🛟</span><span>Restore from Master Backup</span></button>
                   <button type="button" class="cloud-dropdown-item" id="weeklyRestoreItem" hidden onclick="closeSyncChipPanel(); restoreFromWeeklyBackup()"><span aria-hidden="true">🗓️</span><span>Restore from a Weekly Backup</span></button>
                   <button type="button" class="cloud-dropdown-item" onclick="closeSyncChipPanel(); syncAllUserLoginFoldersToDrive()"><span aria-hidden="true">👤</span><span>Build User Login Folders</span></button>
+                  <button type="button" class="cloud-dropdown-item" onclick="closeSyncChipPanel(); driveBuildContentFolders({ toast: true })"><span aria-hidden="true">📘</span><span>Build Tests &amp; Study Kit Folders</span></button>
                   <div class="cloud-dropdown-divider"></div>
                   <div class="last-sync-info" id="lastSyncInfo">Last sync: Never</div>
                   <div class="last-sync-info" id="lastSavedByInfo">Last saved by: --</div>
@@ -25321,6 +25322,38 @@ function studyKitFilter(filterId) {
   card.querySelectorAll('.kit-row').forEach(function(li) { li.hidden = !!q && li.getAttribute('data-kit-q').indexOf(q) === -1; });
   if (q) card.querySelectorAll('details.kit-prog').forEach(function(d) { d.open = !!d.querySelector('.kit-row:not([hidden])'); });
 }
+/* A trainee's own kits (and their learner guides) are fetched quietly once
+   the list shows, one at a time and only on a good connection, so they open
+   with no connection later. The page's worker keeps what is fetched; guides
+   go to their own store. Never blocks the page; a failure is ignored. */
+var _studyKitWarmed = {}, _studyKitWarmBusy = false;
+function studyKitWarm(progs, guides) {
+  try {
+    var c = navigator.connection || {};
+    if (navigator.onLine === false || c.saveData) return;
+    var K = CESTISCore.studyKits, todo = [];
+    (progs || []).forEach(function(p) { p.units.forEach(function(u) {
+      var url = u.kit && K.safeFile(u.kit.file) ? 'study-kits/' + u.kit.file : '';
+      if (url && !_studyKitWarmed[url]) todo.push({ url: url });
+    }); });
+    (guides || []).forEach(function(g) {
+      var k = 'guide:' + (g && g.id);
+      if (g && g.driveFileId && learnerGuideIsPage(g) && !_studyKitWarmed[k]) todo.push({ guide: g, key: k });
+    });
+    if (!todo.length) return;
+    if (!_studyKitWarmed['study-kits/kit.html']) { _studyKitWarmed['study-kits/kit.html'] = 1; todo.unshift({ url: 'study-kits/kit.html' }); }
+    if (_studyKitWarmBusy) return;
+    _studyKitWarmBusy = true;
+    var step = function() {
+      var t = todo.shift();
+      if (!t) { _studyKitWarmBusy = false; return; }
+      var done = function() { setTimeout(step, 150); };
+      if (t.guide) { _studyKitWarmed[t.key] = 1; learnerGuideText(t.guide).then(done, done); }
+      else { _studyKitWarmed[t.url] = 1; fetch(t.url).then(function(r) { return r.text(); }).then(done, done); }
+    };
+    (window.requestIdleCallback || function(f) { setTimeout(f, 1500); })(step);
+  } catch (e) { _studyKitWarmBusy = false; }
+}
 /* Fill one Resources page's kit list. el: the element; course: the
    programme ('' = all); opts as studyKitsCardHtml. The list of kits is
    fetched once; the page is filled again when it arrives. */
@@ -25330,6 +25363,7 @@ function renderStudyKitsInto(el, course, opts) {
     var progs = studyKitProgrammes(course);
     opts = Object.assign({ guides: learnerGuidesFor(course) }, opts || {});
     el.innerHTML = studyKitsCardHtml(progs, opts);
+    if (!opts.staff && typeof studyKitWarm === 'function') studyKitWarm(progs, opts.guides);
   };
   draw();
   if (!_studyKitIndex) studyKitLoadIndex().then(function() {
@@ -42237,6 +42271,83 @@ function profileRefreshOwnViews() {
   } catch (e) {}
 }
 
+/* ===================== TESTS & STUDY KITS FOLDERS =====================
+   On the Administrator's first sync (and again whenever a unit has no copy
+   yet) the Centre's Drive gets a "Tests" folder and a "Study Kits" folder in
+   the Main folder, each with one folder per programme holding one file per
+   unit. Copies are private (they hold the answers): never shared by link.
+   Only files not already there are added; nothing is ever overwritten or
+   removed, and a failure just leaves the rest for the next sync. */
+var DRIVE_CONTENT_SETS = [
+  { folder: 'Tests', index: 'assessments/index.json', list: 'banks', base: 'assessments/' },
+  { folder: 'Study Kits', index: 'study-kits/index.json', list: 'kits', base: 'study-kits/' }
+];
+var _driveContentBusy = false, _driveContentTimer = null;
+function driveContentFoldersSoon() {
+  if (currentRole !== 'admin' || _driveContentBusy || _driveContentTimer) return;
+  var last = 0;
+  try { last = parseInt(window.localStorage.getItem('cestis_drive_content_at') || '0', 10) || 0; } catch (e) {}
+  if (Date.now() - last < 12 * 3600 * 1000) return;
+  _driveContentTimer = setTimeout(function() { _driveContentTimer = null; driveBuildContentFolders(); }, 25000);
+}
+async function driveBuildContentFolders(opts) {
+  if (_driveContentBusy || !isCloudConnected || !googleAccessToken) return { added: 0, failed: 0 };
+  _driveContentBusy = true;
+  var added = 0, failed = 0, tok = googleAccessToken, root = GOOGLE_DRIVE_CONFIG.FOLDER_ID;
+  var auth = { 'Authorization': 'Bearer ' + tok };
+  try {
+    for (var si = 0; si < DRIVE_CONTENT_SETS.length; si++) {
+      var set = DRIVE_CONTENT_SETS[si];
+      var idx = null;
+      try { var ir = await fetch(set.index, { cache: 'no-cache' }); if (ir.ok) idx = await ir.json(); } catch (e) {}
+      var items = idx && Array.isArray(idx[set.list]) ? idx[set.list] : [];
+      if (!items.length) continue;
+      var top = await driveFindOrCreateFolder(set.folder, root, tok);
+      if (!top) { failed += items.length; continue; }
+      var byProg = {};
+      items.forEach(function(it) {
+        var m = /^([a-z0-9-]+)\/([a-z0-9]+\.json)$/.exec(String(it.file || ''));
+        if (m) (byProg[m[1]] = byProg[m[1]] || []).push({ name: m[2], file: it.file });
+      });
+      var progs = Object.keys(byProg);
+      for (var pi = 0; pi < progs.length; pi++) {
+        if (!googleAccessToken) break;
+        var pf = await driveFindOrCreateFolder(progs[pi], top, tok);
+        if (!pf) { failed += byProg[progs[pi]].length; continue; }
+        var have = {}, pageTok = '';
+        do {
+          var lq = encodeURIComponent("'" + pf + "' in parents and trashed=false");
+          var lr = await fetch('https://www.googleapis.com/drive/v3/files?q=' + lq + '&fields=nextPageToken,files(name)&pageSize=1000' + (pageTok ? '&pageToken=' + encodeURIComponent(pageTok) : ''), { headers: auth });
+          if (!lr.ok) { have = null; break; }
+          var ld = await lr.json();
+          (ld.files || []).forEach(function(f) { have[f.name] = 1; });
+          pageTok = ld.nextPageToken || '';
+        } while (pageTok);
+        if (!have) { failed += byProg[progs[pi]].length; continue; }
+        for (var ui = 0; ui < byProg[progs[pi]].length; ui++) {
+          var u = byProg[progs[pi]][ui];
+          if (have[u.name]) continue;
+          try {
+            var fr = await fetch(set.base + u.file);
+            if (!fr.ok) throw new Error('read ' + fr.status);
+            var blob = new Blob([await fr.text()], { type: 'application/json' });
+            var form = new FormData();
+            form.append('metadata', new Blob([JSON.stringify({ name: u.name, parents: [pf], mimeType: 'application/json' })], { type: 'application/json' }));
+            form.append('file', blob);
+            var cr = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', { method: 'POST', headers: auth, body: form });
+            if (cr.ok) added++; else throw new Error('upload ' + cr.status);
+          } catch (e) { failed++; if (/ 40[13]$| 429$/.test(String(e && e.message))) { si = DRIVE_CONTENT_SETS.length; pi = progs.length; break; } }
+        }
+      }
+    }
+  } catch (e) { console.warn('[DriveContent]', e); }
+  _driveContentBusy = false;
+  if (!failed) { try { window.localStorage.setItem('cestis_drive_content_at', String(Date.now())); } catch (e) {} }
+  console.log('[DriveContent] added ' + added + ', failed ' + failed);
+  if (opts && opts.toast && typeof showToast === 'function') showToast('Tests and study kits: ' + added + ' added' + (failed ? ', ' + failed + ' left for the next sync.' : '.'));
+  return { added: added, failed: failed };
+}
+
 // Backfill a named sub-folder for EVERY account (admin action). Sequential to
 // stay well under Drive rate limits.
 async function syncAllUserLoginFoldersToDrive() {
@@ -43182,6 +43293,7 @@ async function autoSyncOnLogin() {
 
   console.log('[AutoSync] Starting auto-sync from all Google Drive folders...');
   setCloudSyncing(true);
+  try { if (typeof driveContentFoldersSoon === 'function') driveContentFoldersSoon(); } catch (e) {}
 
   try {
     let anyChanged = false;
