@@ -1,0 +1,1278 @@
+{
+  "format": "cestis-study-kit",
+  "version": 1,
+  "status": "to-check",
+  "written": "2026-11-07",
+  "programme": "Business Administration",
+  "qualification": {
+    "id": "QUAL-BAM-L5",
+    "title": "BUSINESS ADMINISTRATION (MANAGEMENT) LEVEL 5",
+    "code": ""
+  },
+  "level": 5,
+  "unit": {
+    "code": "BSBADM0034B",
+    "title": "Develop and use complex spreadsheets"
+  },
+  "summary": "This unit teaches you to plan, build, check and protect complex spreadsheets that managers use to decide: designing a workbook with separate input, calculation and output areas, using absolute and relative references and named cells, logical, lookup and summary functions, cleaning imported data, tables, filters, validation, conditional formatting, pivot tables and charts, combining sheets and files, protecting personal data, testing for errors and documenting the work. It is written for supervisors and managers in Jamaican businesses and public bodies.",
+  "sections": [
+    {
+      "title": "Unit overview",
+      "blocks": [
+        {
+          "p": "This unit is part of the Business Administration (Management) Level 5 qualification. A manager who can build a good spreadsheet can track a budget, forecast sales, work out commission and show a board what is happening, without waiting for someone else. A manager who builds a bad one can mislead the whole organisation. This unit teaches you to build **complex spreadsheets that are correct, clear, safe and easy for others to use**."
+        },
+        {
+          "p": "The notes use the functions common to Microsoft Excel, Google Sheets and LibreOffice Calc. Names of functions are the same in all three; menu names differ a little. Follow the program your Centre uses."
+        },
+        {
+          "p": "**Who it is for:** supervisors, officers and managers who prepare budgets, sales and staff reports, and who check spreadsheets prepared by others."
+        },
+        {
+          "table": {
+            "head": [
+              "What you must be able to do",
+              "What this means in practice"
+            ],
+            "rows": [
+              [
+                "Plan and design a workbook",
+                "Decide the purpose, users, inputs and outputs first, then lay out separate, labelled areas for inputs, calculations and results."
+              ],
+              [
+                "Build correct formulas",
+                "Use relative, absolute and mixed references, named cells, and the right order of operations."
+              ],
+              [
+                "Use logical, lookup and summary functions",
+                "Use IF, AND, OR, SUMIFS, COUNTIFS, lookups, IFERROR and ROUND to make the sheet decide and report."
+              ],
+              [
+                "Clean and prepare data",
+                "Fix imported data: extra spaces, text stored as numbers, duplicates, dates and leading zeros."
+              ],
+              [
+                "Organise and present data",
+                "Use tables, sort, filter, validation, conditional formatting, pivot tables and honest charts."
+              ],
+              [
+                "Combine sheets and files",
+                "Bring branch or department figures into one summary, and manage the links."
+              ],
+              [
+                "Protect and share safely",
+                "Lock formulas, protect personal data, control versions and treat macros with care."
+              ],
+              [
+                "Test, check and document",
+                "Test with known figures, trace errors, and leave a notes sheet so others can use and maintain the file."
+              ]
+            ]
+          }
+        },
+        {
+          "h": "How you will be assessed"
+        },
+        {
+          "ul": [
+            "A **multiple-choice theory paper** with scenario questions on formulas, functions, data and security. Some ask what a formula returns.",
+            "A **written paper** with short answers (function names, error values, results of formulas) and longer written answers.",
+            "**Group practical tasks** on a Centre computer: a budget-against-actual workbook, and a clean-up and pivot-table analysis of a year of sales data. Each member has a named role."
+          ]
+        },
+        {
+          "note": "In this unit, the one habit that earns most marks is **testing with figures you already know the answer to**. Work the sum by hand first, then check the sheet.",
+          "label": "Tip"
+        }
+      ]
+    },
+    {
+      "title": "Planning and designing a workbook",
+      "blocks": [
+        {
+          "p": "Do not open the program and start typing. Spend five minutes on the plan. A spreadsheet that grows without a plan becomes hard to check and easy to break."
+        },
+        {
+          "h": "The questions to answer first"
+        },
+        {
+          "flow": [
+            "**Purpose**: what decision will the sheet help someone make?",
+            "**Users**: who will enter data, who will read results, and how skilled are they?",
+            "**Outputs**: what totals, comparisons, flags and charts are needed?",
+            "**Inputs**: what data is needed, from where, how often, in what form?",
+            "**Calculations**: what rules join inputs to outputs (for example, variance = actual − budget)?",
+            "**Layout** and **controls**: sheets, names, validation, protection, backup"
+          ]
+        },
+        {
+          "h": "Separate inputs, calculations and outputs"
+        },
+        {
+          "table": {
+            "head": [
+              "Area",
+              "What goes there",
+              "Good practice"
+            ],
+            "rows": [
+              [
+                "Settings or inputs sheet",
+                "Rates, thresholds, lists (such as departments), and the figures people type in",
+                "Label each cell clearly and give key cells a **name**. Mark input cells with one colour, such as light yellow."
+              ],
+              [
+                "Data sheet",
+                "The raw records: a list or table, one row per record, one heading per column",
+                "No blank rows or columns inside the list. One type of data per column."
+              ],
+              [
+                "Calculation sheet or area",
+                "Formulas that work on the data",
+                "Never type a number into a formula if it can be a labelled cell: no 'hard-coding'."
+              ],
+              [
+                "Summary or dashboard",
+                "Results, flags, charts for the manager",
+                "Short, clear, printable on one page. Everything here comes from formulas, not typing."
+              ],
+              [
+                "Notes sheet",
+                "Purpose, inputs, key formulas, owner, version, date",
+                "So others can use, check and maintain the file."
+              ]
+            ]
+          }
+        },
+        {
+          "p": "Keeping them separate makes the workbook easier to **check, use and update**. If the GCT rate changes, you change one settings cell, not forty formulas."
+        },
+        {
+          "h": "Naming and layout"
+        },
+        {
+          "ul": [
+            "Give sheets meaningful names ('Budget', 'Actuals', 'Summary'), not 'Sheet1'.",
+            "Put headings in the first row, and use **freeze panes** so they stay on screen when you scroll.",
+            "Use consistent formats: dates as dates, money with J$ and two decimal places or none, percentages as percentages.",
+            "Keep totals at the top or clearly separated, and do not leave unexplained blank cells."
+          ]
+        },
+        {
+          "h": "Named cells"
+        },
+        {
+          "p": "A **named cell or range** is given a label such as USDRate instead of a reference such as $H$1. A formula like =B2*USDRate is easier to read, easier to check, and still points to the right cell when copied. Names must not contain spaces and must not look like a cell reference."
+        },
+        {
+          "note": "Complex does not mean difficult to follow. If you cannot explain a formula in one sentence, split it into steps in helper columns.",
+          "label": "Remember"
+        }
+      ]
+    },
+    {
+      "title": "Formulas, references and basic functions",
+      "blocks": [
+        {
+          "h": "How formulas work"
+        },
+        {
+          "p": "Every formula starts with **=**. It can use cell references (B2), numbers, operators (+ − * / ^) and functions. The program follows the order **brackets, then powers, then multiplication and division, then addition and subtraction**. Use brackets to make your meaning clear."
+        },
+        {
+          "table": {
+            "head": [
+              "Formula",
+              "Result if A1 = 10, B1 = 4, C1 = 2",
+              "Reason"
+            ],
+            "rows": [
+              [
+                "=A1+B1*C1",
+                "18",
+                "Multiplication first: 4 × 2 = 8, then 10 + 8"
+              ],
+              [
+                "=(A1+B1)*C1",
+                "28",
+                "Brackets first: 14 × 2"
+              ],
+              [
+                "=A1/B1",
+                "2.5",
+                "Division"
+              ],
+              [
+                "=A1^C1",
+                "100",
+                "10 squared"
+              ]
+            ]
+          }
+        },
+        {
+          "h": "Relative, absolute and mixed references"
+        },
+        {
+          "p": "When you **copy** a formula, the program adjusts the references. This is useful and also the commonest source of error."
+        },
+        {
+          "table": {
+            "head": [
+              "Type",
+              "Looks like",
+              "What happens when copied",
+              "Use for"
+            ],
+            "rows": [
+              [
+                "Relative",
+                "B2",
+                "Both column and row move with the formula. Copy =B2*C2 down from D2, and D5 holds =B5*C5",
+                "Calculations along a row or down a column"
+              ],
+              [
+                "Absolute",
+                "$H$1",
+                "Neither moves. The cell stays H1 wherever the formula goes",
+                "A single rate, threshold or total, such as the GCT rate"
+              ],
+              [
+                "Mixed (column fixed)",
+                "$A2",
+                "The column stays A, the row changes",
+                "Tables where one reference runs across and another down"
+              ],
+              [
+                "Mixed (row fixed)",
+                "A$2",
+                "The row stays 2, the column changes",
+                "Same, the other way"
+              ]
+            ]
+          }
+        },
+        {
+          "p": "The **$ sign** is placed before the column letter or row number you want to fix. The shortcut key F4 cycles through the types in most programs."
+        },
+        {
+          "p": "**Example:** a price list in column B and a rate in H1. If C2 holds =B2*H1 and is copied down, C3 becomes =B3*H2, which points to an empty cell, so the results are wrong. The fix is =B2*$H$1, copied down."
+        },
+        {
+          "h": "Common summary functions"
+        },
+        {
+          "table": {
+            "head": [
+              "Function",
+              "What it does",
+              "Example",
+              "Notes"
+            ],
+            "rows": [
+              [
+                "SUM",
+                "Adds the numbers in a range",
+                "=SUM(B2:B5)",
+                "If the cells hold 1,200, 850, 0 and 450, the result is 2,500"
+              ],
+              [
+                "AVERAGE",
+                "Mean of the numbers in a range",
+                "=AVERAGE(C2:C6)",
+                "**Ignores empty cells and text.** 12, 18, empty, 30, 20 gives 80 ÷ 4 = 20, not 80 ÷ 5. A zero is counted."
+              ],
+              [
+                "MAX / MIN",
+                "Largest and smallest",
+                "=MAX(D2:D5)-MIN(D2:D5)",
+                "With 45, 12, 78, 33 the range is 78 − 12 = 66"
+              ],
+              [
+                "COUNT",
+                "Counts cells holding numbers",
+                "=COUNT(B2:B9)",
+                "Ignores text and blanks"
+              ],
+              [
+                "COUNTA",
+                "Counts cells that are not empty (numbers or text)",
+                "=COUNTA(A2:A50)",
+                "Useful for counting records"
+              ],
+              [
+                "ROUND",
+                "Rounds to a set number of decimal places",
+                "=ROUND(2.346,2) gives 2.35",
+                "Round money to two decimals so that shown and stored amounts agree"
+              ],
+              [
+                "COUNTIF / SUMIF",
+                "Count or add only the cells that meet one condition",
+                "=COUNTIF(B2:B9,\">=50000\")",
+                "The condition goes in quotes, with the operator"
+              ]
+            ]
+          }
+        },
+        {
+          "note": "Rounding in the display (formatting) changes only what you see, not the stored number. If invoice lines are rounded for display but added unrounded, the printed total may be a cent out. Use **ROUND** inside the formula where the cent matters, for example for GCT on invoices.",
+          "label": "Remember"
+        },
+        {
+          "h": "Percentages"
+        },
+        {
+          "ul": [
+            "Percentage of a whole: =part/whole, formatted as a percentage.",
+            "Percentage change: =(new−old)/old. If last year's sales are J$800,000 in A2 and this year's J$920,000 in B2, =(B2-A2)/A2 shows 15%.",
+            "Variance: =actual−budget; variance %: =variance/budget.",
+            "Share of total: =B2/$B$10 (the total cell is absolute)."
+          ]
+        },
+        {
+          "note": "A cell formatted as a percentage holds the fraction: typing 5% stores 0.05. Do not type 5 and then format it as a percentage, or it becomes 500%.",
+          "label": "Tip"
+        }
+      ]
+    },
+    {
+      "title": "Logical, summary and lookup functions",
+      "blocks": [
+        {
+          "h": "IF and the logical functions"
+        },
+        {
+          "p": "**IF(test, value if true, value if false)** makes the sheet decide. The test compares things with >, <, >=, <=, = or <>."
+        },
+        {
+          "table": {
+            "head": [
+              "Need",
+              "Formula idea",
+              "Example result"
+            ],
+            "rows": [
+              [
+                "Pay 5% of sales as bonus if sales are at least J$50,000, otherwise 0",
+                "=IF(B2>=50000,B2*0.05,0)",
+                "B2 = 64,000 gives 3,200"
+              ],
+              [
+                "Show 'High' if A1 is more than three times B1",
+                "=IF(A1>3*B1,\"High\",\"Low\")",
+                "A1 = 20, B1 = 5 gives High (20 > 15)"
+              ],
+              [
+                "Both conditions must be true (**AND**)",
+                "=IF(AND(B2>=1000000,C2=0),\"Bonus\",\"None\")",
+                "Sales at least J$1,000,000 and no complaints"
+              ],
+              [
+                "Either condition (**OR**)",
+                "=IF(OR(D2=\"Late\",E2>7),\"Chase\",\"OK\")",
+                "Chase if marked late or more than 7 days"
+              ],
+              [
+                "Three or more outcomes (**nested IF**, or IFS)",
+                "=IF(B2>=75,\"Distinction\",IF(B2>=50,\"Pass\",\"Refer\"))",
+                "Test the highest band first"
+              ]
+            ]
+          }
+        },
+        {
+          "p": "For many bands, a **lookup to a table** of band limits is easier to maintain than a long nested IF, because you change the table rather than the formula."
+        },
+        {
+          "h": "Conditional totals"
+        },
+        {
+          "table": {
+            "head": [
+              "Function",
+              "Meaning",
+              "Example"
+            ],
+            "rows": [
+              [
+                "SUMIF(range, condition, sum_range)",
+                "Add the values in sum_range where range meets one condition",
+                "=SUMIF(A2:A6,\"Bar\",C2:C6). With Bar, Kitchen, Bar, Rooms, Bar against 1,500, 2,000, 2,500, 3,000, 500 the result is 4,500"
+              ],
+              [
+                "SUMIFS(sum_range, range1, cond1, range2, cond2, ...)",
+                "Add where **all** conditions are met (note the order: sum range first)",
+                "=SUMIFS(D:D,A:A,\"Ocho Rios\",B:B,\"March\")"
+              ],
+              [
+                "COUNTIF / COUNTIFS",
+                "Count the cells that meet one or several conditions",
+                "=COUNTIFS(A:A,\"Kitchen\",D:D,\">10000\")"
+              ],
+              [
+                "AVERAGEIF(S)",
+                "Average of the cells that meet the conditions",
+                "Average sale for one branch"
+              ]
+            ]
+          }
+        },
+        {
+          "h": "Lookup functions"
+        },
+        {
+          "p": "A **lookup** finds a value in the first column of a table, such as a product code, and returns a value from the same row, such as a price. The price list should have one **unique code** per row."
+        },
+        {
+          "table": {
+            "head": [
+              "Function",
+              "How it works",
+              "Points to watch"
+            ],
+            "rows": [
+              [
+                "VLOOKUP(value, table, column number, FALSE)",
+                "Looks down the **first column** of the table and returns from the column number given",
+                "**Use FALSE (exact match)** for codes. TRUE (approximate match) can return a wrong price silently. Cannot look to the left. Column number changes if you insert columns."
+              ],
+              [
+                "XLOOKUP(value, lookup range, return range, if not found)",
+                "Looks in one range and returns from another; exact match by default; can look left",
+                "Newer function: not in very old versions of the program."
+              ],
+              [
+                "INDEX with MATCH",
+                "MATCH(value, range, 0) finds the row; INDEX returns the value from that row of another column",
+                "Works in all versions, looks in any direction, survives inserted columns."
+              ]
+            ]
+          }
+        },
+        {
+          "p": "**Example:** =VLOOKUP(A2,Prices!$A$2:$C$200,3,FALSE) looks up the code in A2 in column A of the Prices sheet and returns the third column of that row. The table reference is **absolute** so it does not slip when copied down."
+        },
+        {
+          "h": "Error values and what they mean"
+        },
+        {
+          "table": {
+            "head": [
+              "Error",
+              "Usual cause",
+              "Fix"
+            ],
+            "rows": [
+              [
+                "#DIV/0!",
+                "Dividing by zero or by a blank cell (a month with no guests)",
+                "Test first: =IF(B2=0,\"\",A2/B2)"
+              ],
+              [
+                "#N/A",
+                "A lookup cannot find the value (a new code, a typing error, extra spaces)",
+                "Check the code and spaces; add the code to the table"
+              ],
+              [
+                "#REF!",
+                "A formula refers to cells that have been deleted",
+                "Undo, or rebuild the reference"
+              ],
+              [
+                "#NAME?",
+                "A misspelt function or an unknown name, such as =SUMM(A1:A5)",
+                "Correct the spelling"
+              ],
+              [
+                "#VALUE!",
+                "Wrong type of data, such as text in a calculation",
+                "Check for text stored where a number is expected"
+              ],
+              [
+                "Circular reference warning",
+                "A formula refers, directly or through others, to its own cell",
+                "Rewrite so that the total does not include itself"
+              ],
+              [
+                "#####",
+                "The column is too narrow for the number or date",
+                "Widen the column"
+              ]
+            ]
+          }
+        },
+        {
+          "p": "**IFERROR(formula, message)** shows a message instead of an error value, for example =IFERROR(VLOOKUP(...),\"Code not found\"). Use it carefully: a message such as 'Code not found' helps; replacing every error with 0 hides problems and makes totals wrong."
+        },
+        {
+          "note": "A lookup that returns the wrong answer without an error is more dangerous than one that shows #N/A. Always use exact match for codes and test a few lines by hand.",
+          "label": "Safety"
+        }
+      ]
+    },
+    {
+      "title": "Preparing and cleaning data",
+      "blocks": [
+        {
+          "p": "Data that comes from an accounts system, a till or a CSV file is often untidy. **Clean it before you analyse it**, record each fix, and keep a copy of the original."
+        },
+        {
+          "h": "Common problems and cures"
+        },
+        {
+          "table": {
+            "head": [
+              "Problem",
+              "Why it matters",
+              "Cure"
+            ],
+            "rows": [
+              [
+                "Extra spaces before or after text",
+                "'Kitchen ' is not the same as 'Kitchen', so lookups and SUMIF miss it",
+                "**TRIM** function, or Find and Replace"
+              ],
+              [
+                "Different spellings (Mobay, Montego Bay)",
+                "The pivot table lists them as two branches",
+                "Standardise with Find and Replace or a lookup table; then use a drop-down list for new data"
+              ],
+              [
+                "Numbers stored as text (left-aligned, green corner mark)",
+                "SUM ignores them; sorting is wrong",
+                "Convert to number (Text to Columns, VALUE, or multiply by 1)"
+              ],
+              [
+                "Dates stored as text, or in a different order (day/month or month/day)",
+                "Date calculations fail",
+                "Convert with the date format or DATE function; check a few by eye"
+              ],
+              [
+                "Leading zeros lost (account number 00123 becomes 123)",
+                "Codes no longer match",
+                "Format the column as Text **before** pasting or opening the CSV file"
+              ],
+              [
+                "Duplicate rows",
+                "Totals are overstated",
+                "Remove Duplicates, or check by a key such as invoice number; keep the original"
+              ],
+              [
+                "Blank rows or merged cells inside a list",
+                "Break sorting, filtering and pivot tables",
+                "Delete blank rows; avoid merged cells in data"
+              ]
+            ]
+          }
+        },
+        {
+          "h": "Text functions"
+        },
+        {
+          "table": {
+            "head": [
+              "Function",
+              "Use",
+              "Example"
+            ],
+            "rows": [
+              [
+                "TRIM",
+                "Remove extra spaces",
+                "=TRIM(A2)"
+              ],
+              [
+                "& or CONCAT / TEXTJOIN",
+                "Join text",
+                "=A2&\" \"&B2 joins first name and surname"
+              ],
+              [
+                "LEFT, RIGHT, MID",
+                "Pick out part of a code",
+                "=LEFT(A2,3) gives the first three characters"
+              ],
+              [
+                "UPPER, LOWER, PROPER",
+                "Change case",
+                "=PROPER(A2)"
+              ],
+              [
+                "LEN",
+                "Count characters",
+                "Check that every code is the same length"
+              ]
+            ]
+          }
+        },
+        {
+          "h": "Date functions"
+        },
+        {
+          "p": "A date is stored as a number of days, so you can calculate with it. If an invoice date is in A2 and customers have 30 days to pay, the **due date** is =A2+30. Days overdue today = **TODAY() minus the due date**, for example =TODAY()-(A2+30), shown only if the answer is above zero: =MAX(0,TODAY()-(A2+30)). Other useful functions are EDATE (add months), EOMONTH (month end), DATEDIF and NETWORKDAYS (working days)."
+        },
+        {
+          "h": "After importing a CSV file"
+        },
+        {
+          "ul": [
+            "Check the **row count** and the **total value** against the source system.",
+            "Check that dates, numbers and leading zeros came in correctly.",
+            "Check column headings and that there are no hidden rows.",
+            "Keep the raw file unchanged and work on a copy."
+          ]
+        },
+        {
+          "note": "Never delete the original import. Keep it on its own sheet and write down every cleaning step in your notes. The assessor and your manager need to see that nothing was lost.",
+          "label": "Tip"
+        }
+      ]
+    },
+    {
+      "title": "Organising, analysing and presenting data",
+      "blocks": [
+        {
+          "h": "Tables, sorting and filtering"
+        },
+        {
+          "p": "Format a list as a **table** (structured range). Formulas and charts built on a table take in new rows automatically, and headings stay with the data. **Sort** to order records. **Filter** to show only some, for example the Montego Bay branch in March. A filter hides rows, it does not delete them; totals typed with SUM still include hidden rows, while SUBTOTAL ignores filtered rows."
+        },
+        {
+          "h": "Data validation"
+        },
+        {
+          "p": "**Data validation** limits what can be typed into a cell: a drop-down list of departments, whole numbers between 1 and 31, dates in this year, or a custom rule. It stops staff typing department names in different ways. Add a clear input message and an error message. Validation does not check data that was pasted over it, so check after pasting."
+        },
+        {
+          "h": "Conditional formatting"
+        },
+        {
+          "p": "**Conditional formatting** changes the look of a cell by a rule: turn a line red when the variance is more than 10% over budget, amber when between 5% and 10%, green when within. Rules use the data, so they update automatically. Do not rely on colour alone: add a text flag as well, for people who cannot see the colours and for printouts in black and white."
+        },
+        {
+          "h": "Pivot tables"
+        },
+        {
+          "p": "A **pivot table** summarises a large list without writing formulas: drag 'Branch' to rows, 'Month' to columns and 'Amount' to values to see sales by branch and month in seconds."
+        },
+        {
+          "table": {
+            "head": [
+              "Feature",
+              "Notes"
+            ],
+            "rows": [
+              [
+                "Source",
+                "A clean list with one heading per column and no blank rows. Best if formatted as a table."
+              ],
+              [
+                "Refresh",
+                "A pivot table does not update by itself. **Refresh** it after the data changes, and make sure its source range includes the new rows (a table does this)."
+              ],
+              [
+                "Grouping",
+                "Group dates by month, quarter or year."
+              ],
+              [
+                "Show values as",
+                "% of total, running total, difference from previous month."
+              ],
+              [
+                "Compared with SUMIFS",
+                "Pivot tables are quick and flexible for exploring. SUMIFS formulas update at once, sit in fixed positions and can be linked to a budget or other calculations."
+              ]
+            ]
+          }
+        },
+        {
+          "h": "Charts: choose the type and keep it honest"
+        },
+        {
+          "table": {
+            "head": [
+              "Chart",
+              "Best for",
+              "Avoid"
+            ],
+            "rows": [
+              [
+                "Line",
+                "A trend over time, such as occupancy by month over two years",
+                "Too many lines"
+              ],
+              [
+                "Column or bar",
+                "Comparing groups or categories, such as branches",
+                "3-D effects"
+              ],
+              [
+                "Pie",
+                "Shares of a whole, with only a few parts (up to about five)",
+                "Many slices, or comparing two pies"
+              ],
+              [
+                "Scatter",
+                "Whether two measures are related, such as price and number sold",
+                "Using it for categories"
+              ],
+              [
+                "Combination",
+                "Columns for amounts and a line for a percentage",
+                "Confusing double axes"
+              ]
+            ]
+          }
+        },
+        {
+          "ul": [
+            "Give each chart a **title that states the message**, label the axes and units (J$ thousands), and add a legend only if needed.",
+            "Start the vertical axis at **zero** for columns and bars, or the chart exaggerates small changes.",
+            "Use one colour scheme, and colours that people with colour-blindness can tell apart.",
+            "One message per chart; put no more than two or three charts on a dashboard."
+          ]
+        },
+        {
+          "h": "Freeze panes, printing and layout"
+        },
+        {
+          "p": "**Freeze panes** keeps headings on screen. To print a wide sheet, set **print titles** (repeat heading rows on every page), **fit to one page wide**, choose landscape, and set a print area."
+        }
+      ]
+    },
+    {
+      "title": "Combining sheets and files; protecting and sharing",
+      "blocks": [
+        {
+          "h": "Linking sheets and workbooks"
+        },
+        {
+          "ul": [
+            "**Another sheet in the same workbook:** =Kingston!F20 takes cell F20 from the sheet named Kingston.",
+            "**Adding the same cell across sheets:** =SUM(Kingston:Portmore!F20) adds F20 on every sheet between the two (a 3-D reference).",
+            "**Another file (external link):** formulas contain the file name and path. They break or show old data if files are moved, renamed or opened without updating."
+          ]
+        },
+        {
+          "p": "To combine several branches, give every branch **the same template**: same cost lines in the same rows, same headings, layout locked. Then the summary can add them cell by cell. Add a **check cell**: the sum of the branch totals must equal the summary total."
+        },
+        {
+          "note": "Double counting is the commonest consolidation error: adding a branch's total row as well as its individual lines, or including the same branch twice. Compare the summary total with a total worked on a calculator.",
+          "label": "Remember"
+        },
+        {
+          "h": "Protecting formulas"
+        },
+        {
+          "p": "To let branch heads enter figures but not change formulas: **unlock the input cells, then protect the sheet** (with a password if needed). Locked is the default for all cells, and it only takes effect when the sheet is protected."
+        },
+        {
+          "h": "Protecting personal and confidential data"
+        },
+        {
+          "p": "A workbook holding staff salaries, bank details or customers' phone numbers contains **personal data**. The general aims of the **data protection law** are to collect only what is needed, use it only for its purpose, keep it accurate and secure, and keep it no longer than necessary."
+        },
+        {
+          "ul": [
+            "Remove columns that are not needed (for example, bank details in a report for managers).",
+            "Store the file in a **secure folder** with limited access, and set a **strong file password**.",
+            "Do not e-mail it or copy it to a personal phone or flash drive.",
+            "Share a summary without names where possible.",
+            "Delete it securely when the retention policy says it is no longer needed."
+          ]
+        },
+        {
+          "note": "Hiding a column or sheet is not security: anyone can unhide it. Protect the whole file with access controls and a password.",
+          "label": "Safety"
+        },
+        {
+          "h": "Version control and teamwork"
+        },
+        {
+          "ul": [
+            "Keep one **master file** in a shared, backed-up location.",
+            "Use a clear file name: Budget_2026-27_v03_2026-11-07.",
+            "Keep a **version log** on the notes sheet: date, who, what changed.",
+            "Agree who may edit which area; use sharing features that track changes, and do not circulate copies by e-mail."
+          ]
+        },
+        {
+          "h": "Macros"
+        },
+        {
+          "p": "A **macro** is a set of recorded steps that can be replayed, for example formatting a monthly report in one click. Benefits: saves time, same steps every time. Risks: errors repeated faster, hard to maintain if no one understands it, and **macro-enabled files can carry harmful code**. Open only macro files from trusted sources, never turn on macros in an unknown file, and document what each macro does."
+        },
+        {
+          "h": "When to move beyond a spreadsheet"
+        },
+        {
+          "p": "A spreadsheet is cheap and flexible. But when many staff update one large file, versions multiply, there is no audit trail, data is duplicated and errors increase. That is the time to consider a **database or business system** with controlled access and records of who changed what."
+        }
+      ]
+    },
+    {
+      "title": "Testing, auditing and keeping healthy",
+      "blocks": [
+        {
+          "h": "Testing before use"
+        },
+        {
+          "flow": [
+            "Check the design against the purpose",
+            "Enter **test data with known answers** (including zero, blank, large and missing items) and compare",
+            "Check totals **cross-cast**: the sum of the row totals must equal the sum of the column totals",
+            "Compare totals and row counts with the source system",
+            "Ask someone else to try to break it",
+            "Record the tests and sign off before using it for real"
+          ]
+        },
+        {
+          "h": "Auditing tools and checks"
+        },
+        {
+          "table": {
+            "head": [
+              "Tool or check",
+              "What it does"
+            ],
+            "rows": [
+              [
+                "Trace precedents",
+                "Shows the cells that feed a formula, useful for a total that looks wrong"
+              ],
+              [
+                "Trace dependents",
+                "Shows which formulas use a cell"
+              ],
+              [
+                "Show formulas / Evaluate formula",
+                "See the formulas rather than results; step through a long formula"
+              ],
+              [
+                "Error checking",
+                "Flags inconsistent formulas, numbers stored as text and circular references"
+              ],
+              [
+                "Reasonableness checks",
+                "Does the result make sense? Is it close to last month? Is a percentage between 0 and 100?"
+              ],
+              [
+                "Compare with source",
+                "Row counts and control totals match the accounts system"
+              ]
+            ]
+          }
+        },
+        {
+          "h": "Documenting the workbook"
+        },
+        {
+          "p": "Add a **notes sheet** with the purpose, inputs and sources, key formulas explained, assumptions, limits, the owner and the version log. So others can use, check and maintain it, and so that your work does not depend on your memory."
+        },
+        {
+          "h": "Worked example: commission"
+        },
+        {
+          "p": "A company pays 3% commission on monthly sales up to J$1,000,000 and 5% on the whole amount if sales are above J$1,000,000, but only if there are no unresolved complaints. Put the threshold (F1), the lower rate (F2) and the higher rate (F3) in labelled cells. With sales in B2 and complaints in C2:"
+        },
+        {
+          "p": "=IF(C2>0,0,IF(B2>$F$1,B2*$F$3,B2*$F$2))"
+        },
+        {
+          "p": "Test: sales J$800,000 with no complaints gives 800,000 × 3% = J$24,000. Sales J$1,200,000 with no complaints gives 1,200,000 × 5% = J$60,000. Sales J$1,200,000 with a complaint gives 0. Always test the boundary: exactly J$1,000,000 gives 3%, because 'above' means more than."
+        },
+        {
+          "h": "Health and ergonomics"
+        },
+        {
+          "p": "Long hours at a screen cause neck, back, eye and wrist problems. Set the screen at **eye level**, sit well supported with feet flat, keep wrists straight, take short breaks every 30 to 60 minutes, and look away from the screen. Learn keyboard shortcuts to reduce mouse strain."
+        },
+        {
+          "note": "A spreadsheet is only as good as its inputs and checks. A wrong figure that looks professional is more dangerous than an untidy sheet that is right.",
+          "label": "Remember"
+        }
+      ]
+    },
+    {
+      "title": "Revision",
+      "blocks": [
+        {
+          "h": "I can ..."
+        },
+        {
+          "ul": [
+            "plan a workbook by purpose, users, inputs, calculations and outputs",
+            "keep inputs, data, calculations and results in separate, labelled areas and name key cells",
+            "write formulas using the correct order of operations",
+            "use relative, absolute and mixed references and say what a copied formula becomes",
+            "use SUM, AVERAGE, MAX, MIN, COUNT, COUNTA and ROUND and work out their results by hand",
+            "use IF, AND, OR and nested IF for decisions, with test cases",
+            "use SUMIF(S), COUNTIF(S) and lookups with exact match, and explain common lookup mistakes",
+            "name common error values and fix them, and use IFERROR sensibly",
+            "clean imported data: spaces, text numbers, duplicates, dates and leading zeros",
+            "use tables, sorting, filters, data validation and conditional formatting",
+            "build and refresh a pivot table and choose an honest chart",
+            "combine branch sheets or files and manage the risks of links",
+            "protect formulas and personal data and control versions",
+            "test a workbook with known answers, trace errors and document it on a notes sheet"
+          ]
+        },
+        {
+          "h": "Key terms"
+        },
+        {
+          "terms": [
+            [
+              "Workbook / worksheet",
+              "The file; one sheet inside it."
+            ],
+            [
+              "Cell reference",
+              "The address of a cell, such as B2."
+            ],
+            [
+              "Relative / absolute / mixed reference",
+              "A reference that moves when copied; one fixed with $; one with only the column or row fixed."
+            ],
+            [
+              "Named range",
+              "A label given to a cell or range, used in place of its reference."
+            ],
+            [
+              "Function",
+              "A built-in calculation such as SUM or IF."
+            ],
+            [
+              "Nested IF",
+              "An IF placed inside another IF to give more than two outcomes."
+            ],
+            [
+              "Lookup",
+              "A function that finds a value in a table and returns related data."
+            ],
+            [
+              "Exact match",
+              "A lookup that accepts only an identical value (FALSE or 0)."
+            ],
+            [
+              "Data validation",
+              "Rules that limit what can be entered in a cell."
+            ],
+            [
+              "Conditional formatting",
+              "Formatting that changes automatically by a rule."
+            ],
+            [
+              "Pivot table",
+              "A tool for summarising a list by groups without writing formulas."
+            ],
+            [
+              "Circular reference",
+              "A formula that refers to its own cell."
+            ],
+            [
+              "Trace precedents",
+              "A tool that shows which cells feed a formula."
+            ],
+            [
+              "Macro",
+              "A recorded set of steps that can be replayed."
+            ],
+            [
+              "Cross-cast",
+              "Checking that row totals and column totals give the same grand total."
+            ],
+            [
+              "Hard-coding",
+              "Typing a fixed number into a formula instead of using a labelled cell."
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "cases": {
+    "c1": {
+      "title": "Treasure Beach guest house",
+      "text": "Mrs Sandra Willis runs a guest house in Treasure Beach with 8 rooms. Her workbook has a settings sheet and a data sheet. Each row of the data sheet gives a room type in column A, nights sold in column B, the nightly rate in column C and revenue in column D (=B*C). The GCT rate is kept in cell G1. In September (30 days) the guest house sold 168 room-nights in total. Some rows of the data sheet were typed with a space after the room type."
+    },
+    "c2": {
+      "title": "Hardware store price list",
+      "text": "A hardware store in Savanna-la-Mar keeps a price list on one sheet: column A holds the product description, column B the price and column C the product code. Order lines are typed on another sheet, where staff enter the code in column A. The owner, Mr Wayne Brissett, wants the unit price to appear automatically in column B and the line value in column C. Some items were added to the list last week and a few order lines now show errors."
+    },
+    "c3": {
+      "title": "Regional sales summary",
+      "text": "A distributor has three branch sheets in one workbook: Portmore, Mandeville and Black River. Each sheet has monthly sales by product line in rows 3 to 12 and the branch total in row 13. The finance officer, Ms Tracy-Ann Powell, builds a summary sheet to give the company total. She also receives the budget from a separate file kept on a shared drive. Branch heads must enter their own sales figures but must not be able to change any formula."
+    },
+    "c4": {
+      "title": "Commission workbook",
+      "text": "The sales manager of a car parts firm builds a workbook to work out monthly commission. The rule: 4% is paid on the part of a salesperson's monthly sales above J$900,000, but only if there are no unresolved complaints. The threshold is in F1 and the rate in F2. Sales are in column B and complaints in column C. The workbook lists 25 sales staff with their names, TRN numbers and salaries, and several managers have asked for a copy. The manager records a macro to format the monthly report."
+    },
+    "c5": {
+      "title": "Till export and monthly analysis",
+      "text": "A supermarket in Half Way Tree exports each month's sales as a CSV file from its till system. The analyst, Kerry-Ann Mills, opens it and notices that product codes beginning with 0 have lost their zero, some dates look odd, and the export shows 5,320 data rows while the till system reports 5,326 transactions. She builds a pivot table of sales by department and week, and later adds new rows to the data but the pivot table still shows the old totals. She then charts weekly sales for a presentation."
+    }
+  },
+  "questions": [
+    {
+      "id": "P-01",
+      "c": "c1",
+      "q": "In column E, Mrs Willis wants the GCT on each line, using the rate in G1. Which formula in E2, copied down, gives the right result on every row?",
+      "o": [
+        "=D2*G1, which is typed once and then copied to every row in the column to save time",
+        "=D2*$G$1",
+        "=D$2*$G$1, which fixes the row of the revenue figure and the position of the rate cell",
+        "=D2*$G1, which fixes the column of the rate and lets the row follow the revenue figure"
+      ],
+      "a": 1,
+      "why": "$G$1 stays fixed when the formula is copied, while D2 changes to D3, D4 and so on. The other versions either move the rate cell or fix the wrong part of the revenue reference."
+    },
+    {
+      "id": "P-02",
+      "c": "c1",
+      "q": "SUMIF is used to total revenue for 'Deluxe' rooms, but the answer is lower than expected. Which is the most likely cause, and the best fix?",
+      "o": [
+        "Some cells hold 'Deluxe ' with a trailing space; clean them with TRIM",
+        "The SUMIF range is too long, so it should be shortened to the first few rows",
+        "The nightly rates are formatted as text, so the revenue column should be re-typed",
+        "The room type is in capital letters, so the formula needs to use UPPER first"
+      ],
+      "a": 0,
+      "why": "A trailing space makes 'Deluxe ' a different text from 'Deluxe', so SUMIF skips those rows. TRIM removes extra spaces. SUMIF is not case-sensitive."
+    },
+    {
+      "id": "P-03",
+      "c": "c1",
+      "q": "What was the occupancy rate in September, and how is it worked out?",
+      "o": [
+        "21%: 168 room-nights sold divided by 8 rooms, then shown as a percentage of the month",
+        "5.6%: 168 room-nights sold divided by 30 days, then divided by the 8 rooms again",
+        "56%: 168 room-nights sold divided by 300 room-nights, using 10 days as the planning period",
+        "70%: 168 room-nights sold divided by 240 room-nights available (8 rooms × 30 days)"
+      ],
+      "a": 3,
+      "why": "Occupancy = room-nights sold ÷ room-nights available. 8 × 30 = 240, and 168 ÷ 240 = 0.70, or 70%. Check: 70% of 240 = 168."
+    },
+    {
+      "id": "P-04",
+      "c": "c1",
+      "q": "Mrs Willis wants any room type with revenue under J$150,000 to show 'Review' in column F and nothing otherwise. Which formula is correct?",
+      "o": [
+        "=IF(D2>150000,\"Review\",\"\"), which shows the message when revenue is above the limit",
+        "=IF(D2<150000,\"Review\"), which leaves out the value used when the test is not met",
+        "=IF(D2<150000,\"Review\",\"\")",
+        "=IF(D2=150000,\"Review\",\"\"), which shows the message only when revenue is exactly that figure"
+      ],
+      "a": 2,
+      "why": "IF(test, value if true, value if false). The test must be 'less than', and the empty text \"\" stands for 'nothing'. The other forms test the wrong condition or leave out part of the formula."
+    },
+    {
+      "id": "P-05",
+      "c": "c2",
+      "q": "Mr Brissett wants the price in column B of the order sheet to come from the price list using the code typed in column A. The code column of the list is to the right of the price column. Which approach works?",
+      "o": [
+        "VLOOKUP with the column number set to 1, because the price column is the first column of the list",
+        "VLOOKUP with a negative column number, which tells the program to look back along the row",
+        "XLOOKUP, or INDEX with MATCH, because they can return a value from a column to the left of the code",
+        "A SUMIF on the code column, which will return the matching price without a lookup"
+      ],
+      "a": 2,
+      "why": "VLOOKUP searches only the first column of its table and returns from the right, so it cannot return a price that sits to the left of the code. XLOOKUP and INDEX/MATCH can look in any direction."
+    },
+    {
+      "id": "P-06",
+      "c": "c2",
+      "q": "Several order lines show #N/A after new items were added to the price list. What should Mr Brissett check first?",
+      "o": [
+        "Whether the price column has been formatted as currency, since text prices can stop a lookup",
+        "Whether the codes typed on those lines exist in the list exactly as typed, with no extra spaces",
+        "Whether the order sheet has been protected, since a protected sheet cannot return values",
+        "Whether the list has been sorted in ascending order of description"
+      ],
+      "a": 1,
+      "why": "#N/A means the lookup did not find the value. Codes typed with a mistake or a space, or items missing from the list, are the usual causes. Sorting matters only for approximate match."
+    },
+    {
+      "id": "P-07",
+      "c": "c2",
+      "q": "One lookup column uses the last argument TRUE (approximate match). Some lines show prices for the wrong product, with no error. What should he do?",
+      "o": [
+        "Change to exact match (FALSE, or 0 in MATCH) for product codes and test some lines by hand",
+        "Leave it, because approximate match is faster and an error would show if it were wrong",
+        "Wrap the formula in IFERROR so that any wrong price is replaced by zero",
+        "Sort the order lines by code so the approximate match can find them in order"
+      ],
+      "a": 0,
+      "why": "Approximate match returns the nearest smaller value when the code is not found, so wrong prices appear without any warning. Exact match shows #N/A for a missing code, which is the safe result."
+    },
+    {
+      "id": "P-08",
+      "c": "c2",
+      "q": "The owner wants a clear message instead of #N/A on an order line when a code is not in the list. Which formula idea is best?",
+      "o": [
+        "IFERROR around the lookup, returning 0 so the total of the order still adds up",
+        "Delete the line from the order sheet until the code has been added to the list",
+        "Format the cell so that error values are shown in white text on a white background",
+        "IFERROR around the lookup, returning the text 'Code not found' so the line is noticed"
+      ],
+      "a": 3,
+      "why": "A clear message makes the problem visible and the line can be corrected. Returning 0 or hiding the error makes the order total wrong and the mistake easy to miss."
+    },
+    {
+      "id": "P-09",
+      "c": "c3",
+      "q": "Ms Powell's summary needs the Portmore total from cell F13 of the Portmore sheet. Which formula is correct?",
+      "o": [
+        "=F13!Portmore",
+        "=Portmore.F13 typed in the summary cell",
+        "='F13'Portmore, with the cell reference placed first",
+        "=Portmore!F13"
+      ],
+      "a": 3,
+      "why": "A reference to a cell on another sheet puts the sheet name, an exclamation mark and the cell address: SheetName!Cell. The other forms are not valid references."
+    },
+    {
+      "id": "P-10",
+      "c": "c3",
+      "q": "The summary total is far larger than the company's real sales. Ms Powell used =SUM(Portmore!F3:F13)+SUM(Mandeville!F3:F13)+SUM(BlackRiver!F3:F13). What is the likely error?",
+      "o": [
+        "The sheet names should have been written in capital letters, so that the program can recognise them",
+        "SUM cannot add cells on different sheets, so the answer has been estimated by the program",
+        "Each range includes row 13, the branch total, as well as its lines, so sales are counted twice",
+        "The three formulas should have been typed as text and joined, so that the program adds them in the right order"
+      ],
+      "a": 2,
+      "why": "Rows 3 to 12 hold the lines and row 13 already adds them, so including row 13 double counts. Compare the summary with a total worked on a calculator, and use a check cell."
+    },
+    {
+      "id": "P-11",
+      "c": "c3",
+      "q": "The budget figures come from a separate file on a shared drive, linked into the summary. What is the main risk?",
+      "o": [
+        "The link makes the summary sheet too large to be printed on a single page",
+        "If the file is moved or renamed, the link breaks or shows old figures",
+        "Links to other files cannot be used in formulas, so the figures will not calculate",
+        "A linked file is always opened in read-only mode so that nobody can correct or update the budget"
+      ],
+      "a": 1,
+      "why": "External links hold the file name and path. If the file moves or is renamed the link breaks, and if it is not updated the summary may show out-of-date figures. Document the sources and check them each month."
+    },
+    {
+      "id": "P-12",
+      "c": "c3",
+      "q": "How can Ms Powell let branch heads type in their sales but stop them changing formulas?",
+      "o": [
+        "Unlock the input cells, then protect the sheet",
+        "Hide the formula rows and the columns so that branch heads cannot see them",
+        "Protect the sheet first and then unlock the input cells afterwards in a new file",
+        "Save the workbook as a PDF and ask each branch head to type into the PDF"
+      ],
+      "a": 0,
+      "why": "Cells are locked by default, but locking works only when the sheet is protected. Unlock the cells people may edit, then protect the sheet. Hidden rows can be unhidden and a PDF cannot update the workbook."
+    },
+    {
+      "id": "P-13",
+      "c": "c4",
+      "q": "Which formula in D2 correctly works out the commission for the rule in the case, using F1 and F2?",
+      "o": [
+        "=IF(C2=0,MAX(0,B2-$F$1)*$F$2,0)",
+        "=IF(C2=0,B2*$F$2,0), which pays 4% of the whole sales figure when there are no complaints",
+        "=IF(B2>$F$1,B2*$F$2,0), which pays 4% on the whole amount once sales pass the threshold",
+        "=IF(C2>0,(B2-$F$1)*$F$2,0), which pays only when there is an unresolved complaint"
+      ],
+      "a": 0,
+      "why": "The rate applies only to the amount above the threshold, and only when there are no complaints. MAX(0, ...) stops a negative amount for sales below J$900,000."
+    },
+    {
+      "id": "P-14",
+      "c": "c4",
+      "q": "To test the workbook before use, the manager enters sales of J$1,350,000 with no complaints. What should the commission be, and what does the test show?",
+      "o": [
+        "J$54,000, which is 4% of the whole J$1,350,000 of sales for the month",
+        "J$13,500, which is 1% of the sales since the threshold is about two-thirds of the total",
+        "J$0, because the sales are too high for the commission rule to apply",
+        "J$18,000, which she can check by hand: 450,000 × 4%"
+      ],
+      "a": 3,
+      "why": "(1,350,000 − 900,000) × 4% = 450,000 × 0.04 = J$18,000. A test with a known answer shows whether the formula follows the rule; also test sales below the threshold and a case with a complaint."
+    },
+    {
+      "id": "P-15",
+      "c": "c4",
+      "q": "Several managers ask for a copy of the whole workbook. What is the most appropriate response?",
+      "o": [
+        "Send the whole file by e-mail, since managers are trusted and the file has a password",
+        "Hide the personal columns before sending the file, so that the data does not need to be removed",
+        "Send a version without names, TRN numbers or salaries, or share a protected summary only",
+        "Print the whole sheet for each manager, because paper copies cannot be shared or changed by anyone else"
+      ],
+      "a": 2,
+      "why": "TRN numbers and salaries are personal data. The general aim of the data protection law is to use only what is needed for the purpose and keep it secure. Hidden columns can be unhidden, so remove the data or restrict access."
+    },
+    {
+      "id": "P-16",
+      "c": "c4",
+      "q": "The manager records a macro to format the monthly report. What should she keep in mind?",
+      "o": [
+        "A macro cannot make mistakes, so it needs no testing once it has been recorded",
+        "Document what the macro does and open macro-enabled files only from trusted sources",
+        "Macros work only on one computer and cannot be used in a shared file",
+        "Macro files are always safe, because the program checks them for harmful code"
+      ],
+      "a": 1,
+      "why": "A macro repeats its steps, including mistakes, and macro-enabled files can carry harmful code. Test it, document it and be careful about the source of files with macros."
+    },
+    {
+      "id": "P-17",
+      "c": "c5",
+      "q": "After opening the CSV file, the product codes that begin with 0 have lost the zero. What is the best way to prevent this next month?",
+      "o": [
+        "Add the zero back by hand each time and then check the codes against the till",
+        "Format the code column as Text before importing, or import it as text",
+        "Use ROUND on the code column so the leading zeros are retained",
+        "Change the number format to percentage so that the zeros are displayed"
+      ],
+      "a": 1,
+      "why": "Leading zeros are dropped when a column is treated as numbers. Setting the column to Text before import keeps codes as they are. ROUND and percentage formats do not restore them."
+    },
+    {
+      "id": "P-18",
+      "c": "c5",
+      "q": "The export shows 5,320 rows but the till system reports 5,326 transactions. What should Kerry-Ann do?",
+      "o": [
+        "Find out which six transactions are missing before analysing, since totals may be understated",
+        "Go ahead with the analysis, because a difference of six rows out of 5,326 is too small to matter",
+        "Add six rows of average value to the data so that the count matches the till system",
+        "Delete the till system's figure, since the CSV file is the one the pivot table uses"
+      ],
+      "a": 0,
+      "why": "Row counts and control totals should match the source. A gap means records are missing, perhaps because the export was cut off, and results may be wrong. Find the cause first."
+    },
+    {
+      "id": "P-19",
+      "c": "c5",
+      "q": "She adds new rows to the data but the pivot table's totals do not change. What should she do?",
+      "o": [
+        "Retype the totals on the pivot table, since the program does not update summaries",
+        "Protect the sheet so the pivot table is locked to the correct figures",
+        "Sort the data from the oldest to the newest so the pivot table can read it",
+        "Refresh the pivot table, and make sure its source range includes the new rows"
+      ],
+      "a": 3,
+      "why": "A pivot table does not update automatically. It needs a refresh, and its source range must take in the new rows; formatting the source as a table does this automatically."
+    },
+    {
+      "id": "P-20",
+      "c": "c5",
+      "q": "For the presentation she wants to show how weekly sales changed over twelve weeks. Which chart is best, and what is an honest choice for its vertical axis?",
+      "o": [
+        "A pie chart with twelve slices, starting each slice at the top of the circle",
+        "A line chart with the axis starting just below the lowest value, to make the changes easier to see",
+        "A line chart, starting the vertical axis at zero or clearly marking any break",
+        "A scatter chart of week against department, with no labels so that it looks cleaner"
+      ],
+      "a": 2,
+      "why": "A line chart shows a trend over time. Starting the axis at zero (or marking a break) avoids exaggerating small changes. A pie shows shares of a whole, not change over time."
+    }
+  ]
+}
