@@ -1,0 +1,401 @@
+{
+  "format": "cestis-study-kit",
+  "version": 1,
+  "status": "to-check",
+  "written": "2026-11-07",
+  "programme": "Electrical Installation",
+  "qualification": { "id": "QUAL-EIM-L3", "title": "ELECTRICAL INSTALLATION AND MAINTENANCE LEVEL 3", "code": "MEM32507" },
+  "level": 3,
+  "unit": { "code": "MEMINS0092A", "title": "Install electrical/electronic machinery appliances, fixtures" },
+  "summary": "This unit covers installing the things that the wiring is there to serve: motors and machines, water heaters, cookers, air conditioners, pumps, fans, light fittings, emergency lights and electronic equipment such as CCTV and UPS units. You will learn to plan each installation from the maker's data, mount and connect the equipment safely, commission it in the right order, hand it over to the client and supervise a team doing the same.",
+  "sections": [
+    {
+      "title": "Unit overview",
+      "blocks": [
+        { "p": "At Level 3 you are the person who reads the manual and the rating plate, decides whether the existing circuit will do, plans where the equipment goes and how it is fixed, leads the installation, and takes it through testing and commissioning to handover. You must know enough about each kind of equipment to install it correctly and to explain to a client or a trainee **why** it is done that way." },
+        { "h": "What you must be able to do" },
+        { "table": { "head": ["Task", "What it looks like on the job"], "rows": [
+          ["Plan from the maker's information", "Read the manual and rating plate; check voltage, 50 Hz, current and the circuit the maker asks for; check the board's capacity; agree positions and routes with the client and other trades."],
+          ["Work safely", "Isolate with every worker's own lock, plan lifts, barrier the area, use safe access, release stored energy and find hidden services before drilling."],
+          ["Mount and fix equipment", "Choose fixings from the maker's load data for the wall or ceiling; use fan-rated boxes, anti-vibration mounts, strut channel and safety chains where needed; leave working space."],
+          ["Install motors and machines", "Mount, level and align; fit the starter, local isolator and emergency stop; make a flexible final connection with a separate protective conductor; set the overload."],
+          ["Install appliances", "Give water heaters, cookers, air conditioners and dryers their own circuits, isolators and earthing; install pumps with their controls and protection."],
+          ["Install fixtures", "Install light fittings, emergency lights, fans and controls to the layout, with the right IP rating, support and supply."],
+          ["Install electronic equipment", "Protect CCTV, UPS and similar equipment from surges, static, heat and the wrong supply."],
+          ["Connect standby and solar supplies correctly", "Use a changeover switch for a generator; connect grid-tied inverters only as JPS and the inspector require."],
+          ["Test, commission and hand over", "Inspect, do the dead tests, set the controls, have an authorised person energise, check operation, record everything, label and train the client's staff."],
+          ["Supervise", "Set the standard, check the first installations of each person, then spot-check against a checklist."]
+        ] } },
+        { "h": "Installing equipment in Jamaica" },
+        { "ul": [
+          "The supply is **110 V and 220 V, single-phase, 50 Hz**, with three-phase in larger premises. Much equipment sold in the region is made for the 60 Hz, 120/240 V systems of North America. **Always check that the rating plate includes 50 Hz** and a voltage you have.",
+          "Lights, ceiling fans and general outlets are usually on 110 V circuits. Water heaters, stoves, clothes dryers, air conditioners and many pumps are 220 V and need their own circuits.",
+          "Lightning and supply surges are common and destroy electronics: plan surge protection.",
+          "JPS outages make standby generators, inverters and solar systems common. A wrong connection can send power back into JPS lines and kill a line worker.",
+          "Salt air, sun and heavy rain decide the IP rating and fixings of anything outdoors.",
+          "New installations are inspected under the Government Electrical Regulator (GER) before JPS connects them."
+        ] },
+        { "note": "The maker's installation instructions are part of the job documents. Where they ask for more than the general rules (a bigger circuit, a special isolator, a clearance), follow them.", "label": "Remember" }
+      ]
+    },
+    {
+      "title": "Planning the installation",
+      "blocks": [
+        { "h": "Read the rating plate and the manual" },
+        { "table": { "head": ["Rating plate item", "What you do with it"], "rows": [
+          ["Voltage", "Match it to the supply. A 110 V fan goes on a 110 V circuit; a 220 V heater on a 220 V circuit. Connecting 110 V equipment to 220 V destroys it."],
+          ["**Frequency**", "It must include **50 Hz**. A 60 Hz-only motor on 50 Hz runs about one-sixth slower and can overheat; timers and clocks may run slow."],
+          ["Phases", "Single-phase or three-phase: must match the supply."],
+          ["Power (kW) or current (A)", "Gives the load current for sizing the cable, breaker and isolator. For a motor, the **full-load current (FLC)** is also the overload setting."],
+          ["IP rating", "Says where the item may be installed."],
+          ["Class and earthing", "Class I equipment has a metal case that must be earthed; Class II (double-insulated, square-in-square symbol) has no earth connection."],
+          ["Duty, temperature, weight", "Affect ventilation, mounting and fixings."]
+        ] } },
+        { "h": "Does it need its own circuit?" },
+        { "p": "Large fixed appliances are given a **dedicated circuit** from the board, because their load would overload a circuit shared with other things, and so that each can be isolated on its own." },
+        { "table": { "head": ["Equipment", "Usual arrangement"], "rows": [
+          ["Electric range (stove) and oven", "Own 220 V circuit; many ranges need two lines, a neutral and an earth, because their clock, lamp and controls run on 110 V"],
+          ["Storage or instantaneous water heater", "Own 220 V circuit with a double-pole isolator; RCD/GFCI protection where the maker or the code asks, as for a shower heater"],
+          ["Clothes dryer", "Own 220 V circuit; metal case earthed"],
+          ["Split air conditioner", "Own circuit as the maker specifies, with a lockable isolator within sight of the outdoor unit"],
+          ["Water pump", "Own circuit with isolator, and the control and protection the pump needs"],
+          ["Ceiling fans, extract fans, most light fittings", "From the 110 V lighting circuit, through their own controller or switch"]
+        ] } },
+        { "h": "Will the existing circuit do?" },
+        { "p": "When a new appliance replaces an old one, compare what the manual asks for with what is there. If the manual asks for a 20 A circuit and the existing breaker is 16 A, **do not simply fit a 20 A breaker**: first check the rating of the existing cable for the way it is installed. If the cable cannot carry 20 A, run a new one. The breaker protects the cable; a breaker bigger than the cable's rating lets the cable overheat." },
+        { "h": "Positions, space and sequence" },
+        { "ul": [
+          "Agree positions with the client and the other trades: plumber, air-conditioning fitter, kitchen fitter, ceiling contractor.",
+          "Leave **clear working space in front of every board, control panel and isolator**, so that a person can stand, open the door fully and work safely. The NEC asks for a clear space at least about 900 mm deep in front of low-voltage panels; nothing may be stored in it.",
+          "Keep electrical equipment away from heat and from water. The condensate pipe from an air conditioner, for example, must be routed so that it can never drip onto electrical parts.",
+          "Run the cables for kitchen appliances **before the cupboards and tiles go in**, to positions agreed from the kitchen layout. Chasing through new tiles is slow, costly and often cracks them.",
+          "Plan access for maintenance: can the motor be lifted out, the filter reached, the lamp changed?"
+        ] },
+        { "h": "The installation plan" },
+        { "p": "For each item, write down: its position measured from the layout, the fixing method, the circuit it is fed from (and whether it is switched or unswitched), the access equipment, the tests to be done, and who does what. On a group job this plan is also what each member's work is checked against." }
+      ]
+    },
+    {
+      "title": "Working safely",
+      "blocks": [
+        { "table": { "head": ["Hazard", "Controls"], "rows": [
+          ["Electric shock while connecting", "Isolate; **each worker fits their own lock and tag**; prove dead with a tester checked on a proving unit before and after. Only an authorised person energises."],
+          ["Heavy lifts: motors, panels, compressors, outdoor units", "Plan the lift; use a hoist, forklift or trolley as the site rules allow; check slings and eyebolts; nobody under the load; team lifts for awkward items."],
+          ["Other people in a working building", "Barrier and sign the area; agree working times; brief the client's staff."],
+          ["Stored energy in a machine: springs, compressed air, hydraulic pressure, charged capacitors", "Release, block or discharge it as the manual says before working."],
+          ["Work at height: fans, light fittings, high-bay luminaires", "Podium steps, a tower or a powered platform; never a ladder on a pallet, a stack of boxes or the forks of a forklift."],
+          ["Drilling for fixings", "Detector and drawings first; safety glasses, dust mask and ear protection; extra care when drilling overhead."],
+          ["Rotating parts on a test run", "**Coupling and belt guards fitted before any run**; everyone clear of shafts; loose clothing secured."],
+          ["Static damage to electronics (and small shocks to you)", "Anti-static wrist strap and mat; hold boards by the edges."],
+          ["Trailing leads and off-cuts", "Good housekeeping throughout, not just at the end."]
+        ] } },
+        { "h": "Group lock-off and restoring the supply" },
+        { "flow": ["Switch off at the isolator", "Fit a multi-lock hasp", "Each worker fits their own padlock and tag", "Prove dead with a tester proved before and after", "Do the work and the dead tests", "Each worker removes **their own** lock when clear", "When the last lock is off, the authorised person energises"] },
+        { "p": "Nobody removes another person's lock, and nobody switches on 'because the job looks finished'. On Centre practicals only the instructor energises, after the dead tests pass." },
+        { "note": "Give a short **toolbox talk** before the job: the lift plan, the isolation, the barriers, who energises, and what to do if something goes wrong. Five minutes at the start prevents most accidents.", "label": "Tip" }
+      ]
+    },
+    {
+      "title": "Mounting and fixing equipment",
+      "blocks": [
+        { "p": "Equipment falls for two reasons: the fixing was wrong for the load, or it was wrong for the material it was fixed into. Neither can be judged by how strong a wall 'feels'." },
+        { "table": { "head": ["Item", "How it is fixed"], "rows": [
+          ["Heavy cabinets, panels and wall-mounted machines", "Anchors chosen from the **fixing maker's load data** for that wall material (solid concrete, hollow block, steel), with a safety margin; the number and size the equipment maker gives"],
+          ["Ceiling fans", "A **fan-rated box or bracket fixed to the structure** (slab, joist or truss). An ordinary ceiling box is not made for a moving, vibrating load"],
+          ["Light fittings and LED panels", "By their own fixings to the structure or the ceiling grid; **never hung by the cable**"],
+          ["High-bay and heavy luminaires", "Rated hooks or brackets, plus a **safety chain or wire** to the structure on each fitting"],
+          ["Rows of equipment, trunking and brackets", "**Strut channel** (slotted steel channel) fixed to the wall or hung from the slab"],
+          ["Vibrating machines: compressors, large pumps, generators", "A firm base or plinth, levelled with shims, on the **anti-vibration mounts the maker specifies**"],
+          ["Outdoor equipment", "Stainless or hot-dip galvanised fixings and brackets; sealed cable entries, from below where possible"]
+        ] } },
+        { "ul": [
+          "Mount equipment level and plumb, at a height where it can be operated and read.",
+          "Do not drill enclosures where water could enter: use the entries provided, with glands, and keep the **IP rating**. If a gasket is damaged, fit a new one. Sealant in the gap, or leaving the gasket off, does not restore the rating.",
+          "Use lock washers or self-locking nuts on anything that vibrates.",
+          "Label each item as it is fixed: it saves hours at commissioning."
+        ] },
+        { "h": "IP ratings for the place" },
+        { "table": { "head": ["Place", "What to look for"], "rows": [
+          ["Above or beside a shower; where water sprays", "A sealed fitting rated by its maker for spray in that position (IPX4 or better; IPX5 where hosed)"],
+          ["Public washrooms: hand dryers, fans", "An IP rating that suits a wet room, and vandal resistance"],
+          ["Outdoors: floodlights, isolators, pump controls", "Rain- and dust-tight, such as IP65 or IP66; UV- and salt-resistant materials"],
+          ["Kitchens and wash-down areas", "Jet-proof ratings and smooth, cleanable cases"]
+        ] } }
+      ]
+    },
+    {
+      "title": "Motors, starters and machinery",
+      "blocks": [
+        { "h": "Starting methods" },
+        { "p": "A motor connected straight to the supply draws a large current until it is up to speed. The starting method is chosen to keep that current, and the mechanical jolt, within what the supply and the machine can take." },
+        { "table": { "head": ["Method", "How it works", "Starting current", "Good for"], "rows": [
+          ["**Direct-on-line (DOL)**", "A contactor connects the motor straight to full voltage", "High: about 6 times full-load current (often 6 to 8)", "Small motors, where the supply can take the surge"],
+          ["**Star-delta**", "Windings connected in star to start, then changed to delta to run", "About one-third of the DOL value (and one-third of the torque)", "Larger three-phase motors that start on a light load, such as fans; the motor must be wound for delta running at the supply voltage"],
+          ["**Soft starter**", "Electronics raise the voltage smoothly", "Reduced and adjustable", "Pumps and conveyors, where a sudden start causes water hammer or shock"],
+          ["**Variable speed drive (VSD)**", "Electronics change the frequency and voltage, so the speed can be set at any time", "Low; very smooth start", "Fans and pumps that do not always need full speed: large energy savings"]
+        ] } },
+        { "h": "Protection" },
+        { "table": { "head": ["Device", "Protects against"], "rows": [
+          ["Fuses or circuit breaker", "Short circuits and earth faults in the cable and motor"],
+          ["**Thermal overload relay**", "**Too much current for too long**: a jammed or overloaded machine, low voltage, or the loss of one phase. It opens the contactor's coil circuit"],
+          ["Dry-run protection (on pumps)", "The pump running with no water, which overheats and wrecks the pump even though the motor current is low"],
+          ["Thermistors in the windings (some motors)", "Overheating from any cause, including blocked cooling"]
+        ] } },
+        { "p": "Set the overload relay to the motor's **full-load current from its rating plate**: a plate showing 9.2 A means a setting of 9.2 A. Set too high, it will not protect the motor; set too low, it trips in normal use. After commissioning, write the setting on a label inside the starter door, so that a later check can see whether anyone has changed it." },
+        { "note": "In many star-delta starters the overload relay sits in the winding circuit, where the current is 58% of the line current. The setting is then full-load current × 0.58. Follow the starter maker's diagram and your instructor.", "label": "Tip" },
+        { "h": "Control" },
+        { "ul": [
+          "A **contactor** is an electrically operated switch: when its coil is energised, its main contacts close and feed the motor.",
+          "Pressing start energises the coil; a **hold-in contact** then keeps it energised when the button is released. Pressing stop, or the overload tripping, breaks the coil circuit.",
+          "If the supply fails, the coil drops out and the contactor opens. When the supply returns the motor **stays off until someone presses start**. This **no-volt release** stops machines starting by themselves after a power cut, when a hand may be in the machine.",
+          "An **emergency stop** has a **red mushroom head on a yellow background**. It latches when pressed and must be reset by hand; resetting it must not restart the machine. It is placed within the operator's reach.",
+          "A **local isolator** near the machine lets a technician isolate and **lock it off where they work**, in sight of the machine. Label it with what it isolates and the board and circuit that feed it."
+        ] },
+        { "h": "Mounting a motor and its machine" },
+        { "flow": ["Check the motor and starter against the order and the rating plate", "Lift the motor onto its base with proper lifting gear", "Level it with shims", "Line up the motor shaft with the driven shaft, as the maker says", "Tighten the holding-down bolts and re-check the alignment", "Fit the coupling or belt guard", "Connect with flexible conduit or cable and a separate protective conductor", "Label the motor, isolator and starter"] },
+        { "ul": [
+          "A **flexible coupling** joins the two shafts and allows for slight misalignment, but only slight. Poor alignment causes vibration, noise, hot bearings and early failure. Check with a straight edge and feeler gauges, or a dial gauge or laser tool, to the maker's limits, **with the motor isolated**.",
+          "The final connection is **flexible** so that vibration, and the movement needed to tension a belt or align a shaft, does not crack rigid conduit or loosen terminals.",
+          "Flexible metal conduit is not a reliable earth path. Run a **separate protective conductor** to the motor's earth terminal.",
+          "Keep the terminal box gasket and the cable gland sealed, so the motor keeps its IP rating.",
+          "After a short run-in period, isolate and **re-check the fixings, alignment and terminals**: things settle and loosen at first."
+        ] },
+        { "h": "Direction of rotation" },
+        { "p": "A three-phase motor turns one way or the other depending on the order of the phases. A pump, fan or compressor running backwards may deliver nothing or be damaged. So the authorised person 'bumps' the motor briefly at commissioning and watches the shaft. To reverse a three-phase motor, **swap any two of the three line conductors** at the motor or the starter, with the circuit isolated." }
+      ]
+    },
+    {
+      "title": "Appliances: water heaters, cookers, air conditioners, pumps and fans",
+      "blocks": [
+        { "h": "Water heaters" },
+        { "table": { "head": ["Type", "Points to get right"], "rows": [
+          ["Instantaneous shower heater (220 V)", ["Its own circuit, with cable and breaker sized from its current and the length of run", "RCD/GFCI protection: it is in a wet place", "A double-pole isolator that can be reached, but **not by a person standing in the shower**, unless the maker says otherwise", "Mounted where its IP rating allows; cable entry sealed as the maker says", "Earth connected; metal pipework bonded as required", "**Filled with water before it is ever switched on**: heating with no water burns out the element in seconds"]],
+          ["Storage water heater (220 V)", ["Its own circuit and double-pole isolator", "A **thermostat** that switches the element to hold the set temperature", "A separate **high-limit cut-out** that cuts the supply if the thermostat fails and the water overheats; it usually needs a manual reset", "A pressure and temperature relief valve, fitted by the plumber", "Tank full before switching on"]]
+        ] } },
+        { "note": "A high-limit cut-out that has tripped is a warning, not a nuisance. It means the thermostat has probably stuck on. Find and fix the cause; never bridge the cut-out or keep resetting it.", "label": "Safety" },
+        { "h": "Cookers, dryers and air conditioners" },
+        { "ul": [
+          "Read the range's manual for the supply it needs: many need **two lines, a neutral and an earth**. The elements run on 220 V between the lines; the clock, lamp and controls run on 110 V between one line and the neutral.",
+          "A **dryer's metal case must be earthed**, so that a fault from a live part to the case trips the protection instead of leaving the case live for the next person who touches it.",
+          "A **split air conditioner** needs the circuit and breaker its maker specifies, an outdoor-rated **lockable isolator within sight of the outdoor unit**, both units earthed, and the interconnecting cable connected terminal for terminal as the diagram shows."
+        ] },
+        { "h": "Water pumps" },
+        { "table": { "head": ["Part", "What it does"], "rows": [
+          ["Pressure switch", "**Starts and stops the pump by pressure**: it switches on when the pressure falls to the cut-in setting and off at the cut-out setting"],
+          ["Pressure tank", "Holds water against a cushion of air, so the pump does not start for every small draw-off"],
+          ["Dry-run protection (float switch, probes or an electronic controller)", "Stops the pump when there is no water in the well or tank; essential on borehole pumps, where the level can fall in dry weather"],
+          ["Control box and overload", "Start the motor and protect it"]
+        ] } },
+        { "p": "A pump that starts and stops every few seconds (short cycling) usually has a pressure tank that has lost its air charge, so there is no cushion; the constant starting overheats the motor and wears out the switch contacts. It is reported for the plumber or pump technician to put right." },
+        { "h": "Fans and hand dryers" },
+        { "ul": [
+          "**Ceiling fans** are fed from the 110 V lighting circuit through a **fan speed controller**. An ordinary lamp dimmer must not be used: it makes the motor hum and overheat.",
+          "A fan that **wobbles** after fitting: check first for **loose mounting or blade screws and blades out of balance** (a bent blade arm, blades at different heights). Use the maker's balancing kit.",
+          "An **extract fan** in a bathroom with no window often has an **overrun timer**: the fan runs on for a set time after the light is switched off, to clear the steam. It needs a permanent live as well as the switched live.",
+          "A **hand dryer** in a public washroom must have an IP rating that suits a wet room, be on RCD/GFCI protection where required, and be **hard-wired**: connected straight into the fixed wiring through an isolator, with no plug and socket."
+        ] },
+        { "h": "Energy use and running cost" },
+        { "p": "**Energy (kWh) = power (kW) × time (hours). Cost = kWh × the price per kWh.** A 2 kW heater used for 3 hours a day uses 6 kWh a day, or 180 kWh in a 30-day month. At an example price of J$60 per kWh that is J$10,800 a month. (JPS prices change: use the client's bill.) Clients often ask for this when choosing between appliances." }
+      ]
+    },
+    {
+      "title": "Luminaires, emergency lighting and lighting controls",
+      "blocks": [
+        { "h": "Light fittings" },
+        { "ul": [
+          "Follow the lighting layout, and check each fitting's datasheet for voltage, power, IP rating and fixing method before it goes up.",
+          "**LED fittings** run from a driver, built in or separate. Mount a separate driver where it stays cool and can be reached.",
+          "To use a dimmer, the lamp or fitting must be marked **dimmable**, and the dimmer must be a type its maker lists as suitable.",
+          "**Recessed downlights** give off heat. Where roof insulation will be laid over them, they must be **rated by the maker to be covered**; otherwise the insulation must be kept clear of them.",
+          "Outdoor **floodlights** need a suitable IP rating, sealed entries and non-rusting fixings, and must be **aimed** down at the area to be lit, so that they do not dazzle drivers or shine into neighbours' windows.",
+          "Disconnect LED drivers and electronic controls before an insulation resistance test, as the makers say."
+        ] },
+        { "h": "Emergency lighting" },
+        { "table": { "head": ["Type", "How it behaves"], "rows": [
+          ["**Maintained**", "Lit all the time in normal use, and **stays lit on its battery** when the supply fails. Used over exits and in places of public gathering"],
+          ["**Non-maintained**", "Normally off; **lights only when the supply fails**"],
+          ["Sustained (combined)", "Has one lamp for normal use and a second that lights on battery when the supply fails"]
+        ] } },
+        { "ul": [
+          "A self-contained emergency light has its own battery and charger. It must be fed from an **unswitched (permanent) supply taken from the local lighting circuit**: unswitched so the battery always charges, and from the local circuit so that it comes on when the lighting in that area fails.",
+          "If it is wrongly fed from the switched side, the fitting sees a 'power failure' every time the lights are switched off: it runs on its battery each night and the battery is soon ruined.",
+          "It is tested with its **test switch** (often a key switch), which cuts its mains supply as a power failure would: a short function test regularly (often monthly) and a **full-duration test** (commonly 3 hours; some fittings are rated for 1 hour) at the interval the standard or the maker gives, often yearly.",
+          "A fitting that does not last its rated time needs a new battery or replacement. Record every test in the log book."
+        ] },
+        { "h": "Lighting controls" },
+        { "table": { "head": ["Control", "What it does"], "rows": [
+          ["**PIR** (passive infrared) sensor", "Detects the movement of warm bodies and switches the light on"],
+          ["**Photocell**", "Senses daylight and **stops the light coming on in daylight**"],
+          ["Timer on a sensor light", "Sets how long the light stays on after movement stops"],
+          ["Time switch", "Switches at set times of day"],
+          ["Dimmer", "Sets the light level; must suit the lamps"]
+        ] } },
+        { "p": "A security light often has both a PIR and a photocell: it comes on only when there is movement **and** it is dark. Aim the PIR across the path people will take, away from roads, waving branches and air-conditioner outlets that cause false switching." }
+      ]
+    },
+    {
+      "title": "Electronic equipment, standby supplies and earthing",
+      "blocks": [
+        { "h": "Electronic equipment: CCTV, access control, alarms, network equipment" },
+        { "ul": [
+          "Plan positions with the client and check each maker's data for voltage, power and cable types.",
+          "Put recorders, controllers and UPS units in a **cool, dry, ventilated, secure** place.",
+          "Many items run on low voltage (12 V or 24 V DC, or power over the data cable). **Check and label every supply**: connecting such equipment to 110 V or 220 V destroys it, and DC polarity matters.",
+          "Keep signal and camera cables apart from power cables, and seal outdoor connections.",
+          "Handle circuit boards and connectors with anti-static precautions.",
+          "After testing, check each camera's picture and that recording works. **Change default passwords, and give the settings and passwords to the client privately**, not on a note left at the site."
+        ] },
+        { "h": "Surge protection" },
+        { "p": "Lightning does not need to strike a building to damage it: a strike nearby puts a surge on supply lines and on any long cable outdoors. A **surge protective device (SPD)** diverts the surge to earth. Fit SPDs on the **supply** to electronic equipment and on **signal lines that run outside**, such as camera cables, at the point where they enter the building. An SPD works only if it is bonded to earth with a **short, straight** conductor." },
+        { "h": "UPS units" },
+        { "p": "An uninterruptible power supply keeps equipment running from a battery when the supply fails. Its rating plate shows two limits, **VA and watts**, and the load must be below both. Add up the watts of everything it will feed, add a margin (often about 25%) and choose the next size up. **Example:** loads of 90 W, 140 W and 50 W total 280 W; with 25% margin, 350 W; choose a unit rated at least 350 W. Longer running time needs a bigger battery, not just a bigger VA figure." },
+        { "h": "Standby generators" },
+        { "ul": [
+          "The only safe way to run a building from a generator is through an **inlet and a changeover (transfer) switch** that disconnects the building from JPS before it connects the generator. The two can never be connected together.",
+          "Never back-feed through a lead with a plug on both ends, or by clipping onto the meter or board. It makes the plug pins live, overloads circuits, and sends power out through the transformer onto JPS lines at thousands of volts, where it can kill a line worker.",
+          "The changeover switch and generator must be rated for the load; the generator is earthed and placed outdoors, away from windows, because of exhaust fumes."
+        ] },
+        { "h": "Grid-tied solar inverters" },
+        { "p": "A grid-tied inverter runs in step with the JPS supply and can **feed power into the lines**. It must shut down automatically when the JPS supply fails (anti-islanding), so that it cannot energise lines that workers believe are dead. That is why it may be connected **only as the power company and the inspector require**: with JPS's approval for the connection, the specified isolators and labels, and inspection before it is switched on." },
+        { "h": "Earthing and bonding of installed equipment" },
+        { "ul": [
+          "Every Class I item (metal case) has its **earth connected**, so that a fault to the case trips the protection.",
+          "**Bonding**: metal water and gas pipes entering a building are connected to the main earthing terminal, so that in a fault they stay at the same potential as the earthed metalwork and no dangerous voltage can appear between a tap and an appliance.",
+          "Machines fed through flexible conduit have a separate protective conductor.",
+          "Electronic equipment is earthed as its maker says; some needs a clean, dedicated earth connection."
+        ] }
+      ]
+    },
+    {
+      "title": "Testing, commissioning, handover and supervising",
+      "blocks": [
+        { "h": "The order of commissioning, and why" },
+        { "flow": ["Inspect, with everything dead", "Dead tests: continuity, insulation resistance, polarity", "Make the settings from the rating plate and manual", "An authorised person energises", "Live and function checks", "Record, label, train and hand over"] },
+        { "table": { "head": ["Step", "What is done", "Why it comes here"], "rows": [
+          ["1. Visual inspection", "Fixings, guards, alignment, terminations, earthing, labels, IP seals, correct supply to each item", "Many faults can be seen and fixed safely before any test"],
+          ["2. Dead tests, isolated and proved dead", "Continuity of protective conductors; insulation resistance (electronics disconnected); polarity", "They find hidden faults, such as a broken earth, damaged insulation or a switch in the neutral, that would cause shock or fire at switch-on"],
+          ["3. Settings", "Overload to full-load current; timers, thermostats, pressure switches as the manual says", "The equipment must be protected from its first start"],
+          ["4. Energise", "By an authorised person, only after the dead tests pass", "Nothing is made live until it is proved safe"],
+          ["5. Live and function checks", "Motors: brief run for **direction of rotation**, then **running current** measured with a **clamp meter** round one conductor and compared with the **full-load current on the rating plate**; **start, stop and emergency stop** all work. Lighting: every switch, sensor and control; emergency lights on battery for their rated time. RCD/GFCI test button. Heaters, fans, pumps: correct operation", "Proves that it does its job and that its safety devices work"],
+          ["6. Records and handover", "Test results, settings, commissioning record, as-built drawings, manuals, labels", "The client can operate, maintain and re-test it"]
+        ] } },
+        { "p": "A running current well above the rating plate figure means the motor is overloaded or something is wrong (binding, misalignment, low voltage, a wrong connection). It is stopped and the cause found; the overload setting is never raised to suit." },
+        { "h": "Labels" },
+        { "ul": [
+          "Each **isolator**: what it isolates, and the board and circuit that feed it.",
+          "Each circuit at the board; each starter and control.",
+          "The **overload setting**, inside the starter door.",
+          "Emergency lights, generator inlets, solar isolators and other special items as the standards require."
+        ] },
+        { "h": "Handover" },
+        { "p": "Show the client's staff how to **operate the equipment and how to isolate and stop it** in an emergency, so they can use it safely and stop it fast. Make clear what they must not do: change protective settings, defeat interlocks or attempt repairs. Hand over the manuals, test and commissioning records, warranty papers and any passwords, and get a signature for them." },
+        { "h": "Supervising a team" },
+        { "ul": [
+          "Check the drawings and the delivered items first: right type, right voltage, undamaged, with every fan position having a fan-rated support.",
+          "Plan the work area by area, share it by skill and pair less experienced members with experienced ones.",
+          "Before anything is connected, confirm that **the circuit is proved dead** and that the support is right for the item.",
+          "Demonstrate the standard once. Then **check the first installations of each person closely** (fixing, earth connection, terminations, level, operation), and after that spot-check against a checklist for each room or area.",
+          "Have each item checked by a second member against its datasheet, and initialled.",
+          "Keep a progress record and report problems early."
+        ] }
+      ]
+    },
+    {
+      "title": "Revision",
+      "blocks": [
+        { "h": "Checklist" },
+        { "p": "Tick each statement only when you can do it without looking at the notes." },
+        { "ul": [
+          "I can read a rating plate and manual and say what circuit an appliance or machine needs.",
+          "I can explain why the frequency on a rating plate matters in Jamaica.",
+          "I can say which equipment needs a dedicated circuit, and check whether an existing circuit will do.",
+          "I can plan positions with working space, safe routes and the right sequence with other trades.",
+          "I can describe group lock-off and how the supply is restored.",
+          "I can choose fixings from load data and name the right support for fans, luminaires and vibrating machines.",
+          "I can choose equipment with the right IP rating for a wet or outdoor place.",
+          "I can compare DOL, star-delta, soft starter and VSD starting and choose one for a job.",
+          "I can explain what the overload relay, contactor, no-volt release, emergency stop and local isolator do, and set an overload.",
+          "I can describe how a motor is mounted, aligned and connected, and how its rotation is corrected.",
+          "I can install water heaters, cookers, dryers and air conditioners with the right circuit, isolator and earthing.",
+          "I can explain a pump's pressure switch and dry-run protection.",
+          "I can install ceiling and extract fans and deal with a wobbling fan.",
+          "I can work out energy use in kWh and a running cost.",
+          "I can install LED fittings, downlights and floodlights correctly.",
+          "I can explain maintained and non-maintained emergency lights, feed them correctly and test them.",
+          "I can explain what PIR sensors and photocells do.",
+          "I can install electronic equipment with surge protection and choose a UPS for a load.",
+          "I can explain the safe way to connect a generator and the rules for a grid-tied inverter.",
+          "I can list the steps of commissioning in order and give the reason for each.",
+          "I can label, record and hand over an installation and train the client's staff.",
+          "I can plan, supervise and check a team's installation work."
+        ] },
+        { "h": "Numbers to remember" },
+        { "table": { "head": ["Figure", "What it is"], "rows": [
+          ["110 V / 220 V, 50 Hz", "Jamaican supply; check every rating plate against it"],
+          ["About 6 times full-load current", "Starting current of a motor started direct-on-line"],
+          ["About one-third", "Starting current in star-delta, compared with DOL"],
+          ["Full-load current from the rating plate", "Overload relay setting"],
+          ["kWh = kW × hours", "Energy used"],
+          ["VA and watts, with a margin", "UPS rating against the load"],
+          ["Red on yellow", "Emergency stop: red mushroom head, yellow background"],
+          ["Inspect, dead tests, settings, energise, function checks, records", "Order of commissioning"]
+        ] } },
+        { "h": "Key terms" },
+        { "terms": [
+          ["Anti-vibration mount", "A rubber or spring mount that stops a machine's vibration passing into the building."],
+          ["Bonding", "Connecting metal pipes and other metalwork to the main earthing terminal so that they stay at earth potential in a fault."],
+          ["Changeover (transfer) switch", "A switch that connects a building to either the mains or a generator, never both."],
+          ["Clamp meter", "An instrument clipped round one conductor to measure the current in it."],
+          ["Contactor", "An electrically operated switch that closes when its coil is energised."],
+          ["Direct-on-line (DOL)", "Starting a motor by connecting it straight to full voltage."],
+          ["Dry-run protection", "A device that stops a pump when it has no water."],
+          ["Flexible coupling", "The part that joins a motor shaft to a driven shaft and allows for slight misalignment."],
+          ["Full-load current (FLC)", "The current a motor draws at its rated load, shown on its rating plate."],
+          ["Hard-wired", "Connected straight into the fixed wiring, with no plug and socket."],
+          ["Local isolator", "A lockable switch near a machine that isolates it where the work is done."],
+          ["Maintained emergency light", "One that is lit normally and stays lit on battery when the supply fails."],
+          ["Non-maintained emergency light", "One that is normally off and lights only when the supply fails."],
+          ["No-volt release", "The feature of a contactor starter that keeps a motor off after a power cut until start is pressed."],
+          ["Overload relay", "A device that trips a starter when the motor draws too much current for too long."],
+          ["Overrun timer", "A timer that keeps an extract fan running for a set time after it is switched off."],
+          ["Photocell", "A sensor that switches lighting according to daylight."],
+          ["PIR", "Passive infrared: a sensor that detects the movement of warm bodies."],
+          ["Star-delta", "A starting method that connects a motor's windings in star, then changes them to delta."],
+          ["Strut channel", "Slotted steel channel used to mount equipment and fittings."],
+          ["Surge protective device (SPD)", "A device that diverts voltage surges, such as those from lightning, to earth."],
+          ["UPS", "Uninterruptible power supply: keeps equipment running from a battery when the supply fails."],
+          ["VSD", "Variable speed drive: changes a motor's speed by changing the frequency of its supply."]
+        ] }
+      ]
+    }
+  ],
+  "cases": {
+    "c1": { "title": "A shower heater and an air conditioner in Gordon Town", "text": "Level 3 trainee Tashana Reid leads two Level 2 trainees installing equipment in a house in Gordon Town, St Andrew: a 220 V, 5.5 kW instantaneous water heater for the main shower, and a 220 V split air conditioner with its outdoor unit on a bracket on the back wall. The plumber has fixed the heater to the wall but has not yet connected the water. The air-conditioning fitter proposes to run the condensate pipe down the wall directly above the outdoor unit's isolator." },
+    "c2": { "title": "A borehole pump at a Negril guest house", "text": "A guest house in Negril, Westmoreland, takes its water from a borehole with a 1.5 kW, 220 V submersible pump, a pressure switch and a pressure tank. The pump runs for about 5 hours a day. The owner uses an example electricity price of J$70 per kWh to compare costs. Since last week the pump has been starting and stopping every few seconds whenever a tap is opened a little. Level 3 trainee Damion Rowe is asked to look at the installation." },
+    "c3": { "title": "A mixer motor at a block factory in Old Harbour", "text": "At a concrete block factory in Old Harbour, St Catherine, Level 3 trainee Shaquille Dixon and his team have installed a three-phase motor that drives a mixer through a flexible coupling, with a starter, a local isolator and a flexible connection. The dead tests have passed and the overload is set. The supervisor, Mr Lennox Baker, an authorised person, is about to energise for the first test run. One trainee has left the coupling guard off 'so we can watch the shaft'." },
+    "c4": { "title": "CCTV and a UPS at a pharmacy in May Pen", "text": "Level 3 trainee Kimberly Foster is installing a CCTV system at a pharmacy in May Pen, Clarendon. The recorder (60 W), the camera power switch (150 W) and a monitor (30 W) are to run from a UPS. The supplier offers three units: 400 VA / 240 W, 650 VA / 390 W and 1000 VA / 600 W, and the designer asks for a margin of at least 25% over the load. Two of the cameras are on the outside wall of the car park, with cables that run outdoors. The recorder is delivered with the maker's default password." },
+    "c5": { "title": "Lighting a supermarket in Port Maria", "text": "Level 3 trainee Rajae Simms supervises a team installing the lighting in a new supermarket in Port Maria, St Mary: LED high-bay fittings 6 m above the floor, emergency lights over the exits and along the aisles, and floodlights in the car park beside the main road. On his inspection he finds one high-bay fitting hanging from its supply cable alone, an emergency light connected to the switched side of the aisle lighting circuit, and a floodlight aimed straight out across the road. At the full-duration test, one non-maintained fitting rated for 3 hours goes out after 40 minutes." }
+  },
+  "questions": [
+    { "id": "P-01", "c": "c1", "q": "About how much current will the shower heater draw?", "o": ["12.5 A", "50 A", "25 A", "2.5 A"], "a": 2, "why": "Current = power ÷ voltage: 5,500 W ÷ 220 V = 25 A. The cable, breaker and isolator are all chosen from this figure and the maker's instructions, which is why the heater needs its own circuit." },
+    { "id": "P-02", "c": "c1", "q": "A trainee wants to switch the heater on for a moment 'to see if it works' before the plumber returns. What should Tashana say?", "o": ["Yes, but only for a few seconds at the lowest setting", "Yes, as long as the RCD has been tested first", "No: it can be tested dry only with the cover off", "No: with no water in it, the element will burn out"], "a": 3, "why": "The element relies on water flowing over it to carry the heat away. Dry, it overheats and fails within seconds. The heater is filled and the water run through before it is ever energised." },
+    { "id": "P-03", "c": "c1", "q": "Where should the isolating switch for the shower heater be fitted?", "o": ["Inside the shower area, so the user can switch it off quickly", "Nearby, but out of reach of a person in the shower", "At the main board only, so that no switch is near the water", "Behind the heater's cover, where water cannot get to it"], "a": 1, "why": "The heater needs a double-pole isolator that can be reached for maintenance and in an emergency, but a person standing in the shower, wet and barefoot, must not be able to touch it, unless the maker specifies a switch made for that place." },
+    { "id": "P-04", "c": "c1", "q": "What should Tashana do about the fitter's proposed route for the condensate pipe?", "o": ["Agree a route that cannot drip onto electrical parts", "Accept it, because the isolator is an outdoor-rated type", "Accept it, but wrap the isolator in plastic sheet and tape", "Move the isolator indoors, out of sight of the outdoor unit"], "a": 0, "why": "An outdoor rating is tested against rain, not against a pipe that drips on one spot for years, and joints leak. Positions and routes are co-ordinated so that water is kept away from electrical parts, while the isolator stays within sight of the unit." },
+    { "id": "P-05", "c": "c2", "q": "At the owner's example price, about how much does the pump cost to run in a 30-day month?", "o": ["About J$525", "About J$7,875", "About J$3,150", "About J$15,750"], "a": 3, "why": "Energy = 1.5 kW × 5 h = 7.5 kWh a day, or 225 kWh in 30 days. 225 × J$70 = J$15,750. J$525 is the cost of a single day." },
+    { "id": "P-06", "c": "c2", "q": "What is the most likely cause of the pump starting and stopping every few seconds?", "o": ["The pressure tank has lost its air cushion", "The pump's supply is 220 V instead of 110 V", "The dry-run protection is switching the pump", "The overload relay has been set too high"], "a": 0, "why": "Without its air cushion the tank stores almost no water, so the pressure falls the moment a tap opens and jumps back as soon as the pump starts. Short cycling overheats the motor and burns the switch contacts, so it must be put right quickly." },
+    { "id": "P-07", "c": "c3", "q": "What must happen before Mr Baker starts the motor for the first time?", "o": ["The trainees stand close to the coupling to watch it turn", "The overload is turned up to its highest setting for the test", "The coupling guard is fitted and everyone stands clear", "The local isolator is bypassed so that the starter has control"], "a": 2, "why": "A turning coupling can catch a sleeve or a glove in an instant. Guards are fitted before any run, however short, and rotation is judged from the shaft end or the fan, from a safe position." },
+    { "id": "P-08", "c": "c3", "q": "On the brief first run the mixer turns the wrong way. How is this put right, with the circuit isolated again?", "o": ["Swap the earth and one line at the motor terminals", "Swap any two of the three line conductors to the motor", "Change the links in the terminal box from delta to star", "Swap the wires on the start and the stop buttons"], "a": 1, "why": "The direction of a three-phase motor depends on the order of its phases. Swapping any two lines reverses it. The control wiring and the star or delta links have nothing to do with direction, and the earth is never used as a line." },
+    { "id": "P-09", "c": "c3", "q": "The mixer has run for its first week. What should Shaquille plan to do now?", "o": ["Raise the overload setting, as the motor has bedded in", "Nothing, since it passed all its commissioning checks", "Remove the anti-vibration mounts now that it runs well", "Isolate it and re-check bolts, alignment and terminals"], "a": 3, "why": "Fixings, shims and terminals settle during the first hours of running, and a vibrating machine loosens anything that is not tight. A planned re-check after the run-in period, with the machine isolated and locked off, catches this before it causes a failure." },
+    { "id": "P-10", "c": "c4", "q": "Which UPS should Kimberly choose?", "o": ["The 400 VA / 240 W unit", "The 650 VA / 390 W unit", "The 1000 VA / 600 W unit", "Any of them, as all three will do"], "a": 1, "why": "The load is 60 + 150 + 30 = 240 W. With a 25% margin the UPS must supply at least 300 W. The 240 W unit has no margin at all; the 390 W unit is the smallest that meets the need." },
+    { "id": "P-11", "c": "c4", "q": "Where should surge protection be fitted for this system?", "o": ["On the monitor only, as it is the most costly item to replace", "On each outdoor camera's lens housing, to stop lightning striking it", "On the supply, and on the outdoor camera lines where they come in", "On the UPS battery leads, since surges are stored in the battery"], "a": 2, "why": "Surges arrive along the supply and along any long cable that runs outdoors. Devices on the supply and on the outdoor camera lines at the point of entry, bonded to earth with short, straight conductors, divert the surge before it reaches the electronics." },
+    { "id": "P-12", "c": "c4", "q": "What should Kimberly do about the recorder's password at handover?", "o": ["Leave the default password, so that any technician can get in later", "Write the password on a label stuck to the front of the recorder", "Keep the new password herself, in case the owner forgets it", "Change the default, and give the new one to the owner privately"], "a": 3, "why": "Default passwords are published and are the first thing an intruder tries. The system holds images of staff and customers, so the password is changed and handed only to the person responsible for it." },
+    { "id": "P-13", "c": "c5", "q": "What is wrong with the high-bay fitting that hangs from its supply cable?", "o": ["The cable is not made to carry the fitting's weight", "The fitting will be too dim hanging at that height", "The cable will pick up interference from the fitting", "The fitting cannot be earthed unless it is on a chain"], "a": 0, "why": "A cable and its terminals are not a support: the weight strains the connections until one pulls out and the fitting falls 6 m. Each fitting hangs from its own rated fixing, with a safety chain or wire to the structure as well." },
+    { "id": "P-14", "c": "c5", "q": "What will happen if the emergency light is left on the switched side of the aisle lighting circuit?", "o": ["It will never light, because it has no neutral connection at all", "It will stay lit all day and wear out its lamp", "It will run on its battery each time the lights go off", "It will trip the lighting breaker each time it charges"], "a": 2, "why": "The fitting treats the loss of its supply as a power failure. Fed from the switched side, it discharges every night when the lights go off, which ruins the battery, and it may be flat when a real failure comes. It needs an unswitched supply from the local lighting circuit." },
+    { "id": "P-15", "c": "c5", "q": "What should be done about the fitting that went out after 40 minutes of the 3-hour test?", "o": ["Pass it, as 40 minutes is long enough to leave the building", "Replace the battery or fitting, re-test and record it", "Change it to a maintained fitting so that it stays lit", "Leave it on charge for a week, then record it as passed"], "a": 1, "why": "An emergency light must run for its full rated time, because people may need that long to leave or to be rescued. A fitting that falls short has a failed battery: it is replaced, re-tested and the result entered in the log book." },
+    { "id": "P-16", "c": "c5", "q": "What should Rajae have done about the floodlight aimed across the main road?", "o": ["Have a brighter lamp fitted so that drivers can see it clearly", "Have it switched by a PIR sensor so that it lights less often", "Have it painted over on the half that faces the road", "Have it re-aimed down onto the car park, away from the road"], "a": 3, "why": "A floodlight aimed out at eye level dazzles drivers and wastes its light. It is aimed down at the area it is meant to light, and shielded if needed, so that it does not blind road users or shine into neighbours' windows." },
+    { "id": "P-17", "c": null, "q": "The high-limit cut-out on a storage water heater in a Mandeville salon has tripped twice in one week. What does this most likely show?", "o": ["The cut-out is too sensitive and should be bridged out", "The thermostat is failing to switch the element off", "The breaker for the heater circuit is rated too low", "The heater is too small for the salon's hot water use"], "a": 1, "why": "The cut-out acts only when the water gets hotter than the thermostat should ever allow, so repeated trips point to a thermostat stuck on. The cause is found and fixed; a cut-out is never bridged or simply reset again and again." },
+    { "id": "P-18", "c": null, "q": "A client wants to control a ceiling fan's speed with a spare lamp dimmer. What should you tell her?", "o": ["It will work well, as long as the dimmer is rated above the fan's watts", "It will work, but the fan will only run at its two lowest speeds", "It must not be used: a fan needs a controller made for fan motors", "It can be used if the fan's capacitor is taken out first"], "a": 2, "why": "A lamp dimmer chops the supply in a way that suits lamps, not motors: the fan hums, runs hot and can burn out, and the dimmer can fail. Use the fan maker's controller or one rated for fan motors." },
+    { "id": "P-19", "c": null, "q": "The manual for a new 220 V range asks for two lines, a neutral and an earth. Why does a 220 V appliance need a neutral?", "o": ["Its clock, lamp and controls run on 110 V, line to neutral", "The neutral carries the fault current if the case becomes live", "The neutral lets the two lines share the load more evenly", "A neutral is needed before any breaker can trip on overload"], "a": 0, "why": "The heating elements are connected across the two lines at 220 V. The 110 V parts are connected between one line and the neutral. The earth is separate: it carries current only in a fault." },
+    { "id": "P-20", "c": null, "q": "A hotel's 7.5 kW circulation pump runs at full speed all day, although full flow is needed for only a few hours. Which starter would be the best choice for a replacement?", "o": ["A direct-on-line starter, as it is the simplest and cheapest", "A star-delta starter, to cut the current at each start", "A variable speed drive, so that the speed can match the need", "A soft starter, to make every start smooth for the pipework"], "a": 2, "why": "Star-delta and soft starters help only during starting; after that the motor runs at full speed. A variable speed drive lets the pump slow down when less flow is needed, and on pumps and fans a small cut in speed gives a large saving in energy." }
+  ]
+}

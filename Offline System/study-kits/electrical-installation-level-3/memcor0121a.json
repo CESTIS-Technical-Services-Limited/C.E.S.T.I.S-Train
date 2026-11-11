@@ -1,0 +1,595 @@
+{
+  "format": "cestis-study-kit",
+  "version": 1,
+  "status": "to-check",
+  "written": "2026-11-07",
+  "programme": "Electrical Installation",
+  "qualification": { "id": "QUAL-EIM-L3", "title": "ELECTRICAL INSTALLATION AND MAINTENANCE LEVEL 3", "code": "MEM32507" },
+  "level": 3,
+  "unit": { "code": "MEMCOR0121A", "title": "Classify engineering materials – (basic)" },
+  "summary": "This unit teaches you to sort the materials used in electrical work into conductors, insulators, semiconductors and magnetic materials, and to explain why each one is used where it is. You will work out conductor resistance, size and mass, allow for temperature, compare copper with aluminium, and choose insulation, enclosures, fixings and terminations that last in Jamaica's heat, sun and salt air. You will also check that materials are genuine and traceable before your team uses them.",
+  "sections": [
+    {
+      "title": "Unit overview",
+      "blocks": [
+        { "p": "Every job you lead depends on materials: the copper in the cables, the plastic round it, the steel in the conduit and fixings, the core of every transformer and motor, and the silver on every contactor tip. At Level 3 you choose these materials, check them when they arrive, and explain your choices to clients, designers and your team. This unit gives you the groups of materials, the properties that matter, the sums that compare them, and the checks that stop the wrong material, or a fake one, reaching a job." },
+        { "h": "What you must be able to do" },
+        { "table": { "head": ["Task", "What it looks like on the job"], "rows": [
+          ["Classify materials", "Sort the materials on a job into conductors, insulators, semiconductors and magnetic materials, and into ferrous and non-ferrous metals, plastics, ceramics and composites."],
+          ["Explain the properties that matter", "Explain resistivity, temperature coefficient, dielectric strength, temperature limit, strength, ductility, corrosion and UV resistance and magnetic behaviour, and say which ones matter for a given part."],
+          ["Work out conductor resistance, size and mass", "Use R = ρ × L ÷ A, the area of a round conductor, the effect of temperature and the density of the metal, and check that each answer is sensible."],
+          ["Compare copper and aluminium", "Explain the differences in conductivity, size, weight and cost, the jointing problems of aluminium, and how a safe aluminium joint is made."],
+          ["Choose insulation and plastics", "Choose PVC, XLPE, EPR, LSZH, rubber, mica, ceramics and resins to suit the temperature, the fire risk and the place, and read the insulation class on a motor nameplate."],
+          ["Explain magnetic and special-purpose materials", "Explain soft and hard magnetic materials, laminations and ferrites, and why nichrome, silver, tungsten, bimetal strips, fuse alloys and solders are used."],
+          ["Explain semiconductors", "Describe doping, the PN junction and thermistors, and name the devices in an installation that depend on them."],
+          ["Choose materials that last", "Allow for heat, sun, salt, rain, chemicals and different metals touching; read IP and NEMA ratings; write a materials schedule with a reason for each choice."],
+          ["Identify, test and control materials", "Read markings and certification marks, use simple tests (magnet, measurement, resistance), quarantine unmarked or doubtful items and keep materials traceable."],
+          ["Lead the team on materials", "Brief the team, check their choices, stop the use of wrong or scrap material, and record what was used where."]
+        ] } },
+        { "h": "Materials in Jamaican conditions" },
+        { "ul": [
+          "**Heat.** Roof spaces, roofs and some plant rooms are far hotter than the outside air in the middle of the day. Insulation and electronics age faster when hot, and cables carry less current.",
+          "**Sun.** Strong ultraviolet (UV) light all year breaks down many plastics left outdoors, unless they are made to resist it.",
+          "**Salt air.** On and near the coast, where many hotels, homes and businesses stand, salt and moisture corrode steel, galvanising and aluminium quickly, and attack joints between different metals.",
+          "**Humidity, rain and flooding.** Damp gets into boxes and cable ends, lowers insulation resistance and starts corrosion. The hurricane season (June to November) brings wind-driven rain and floods.",
+          "**US and British standards side by side.** Jamaica's electrical code is based on the US National Electrical Code (NEC), so many cables and accessories are made to US standards and sized in AWG, while others follow British or international (IEC) standards and are sized in mm². You must be able to read both kinds of marking."
+        ] },
+        { "note": "Cable and copper theft from building sites, pumping stations and overhead lines is a costly problem in Jamaica. It is one reason some owners choose aluminium for long runs, and a reason to lock up drums and offcuts on site every evening.", "label": "Jamaica" },
+        { "h": "How to use this kit" },
+        { "p": "Read the sections in order. Work every example yourself with a calculator before you look at the answer. Then try the practice test and read every explanation. Your instructor will show you real samples of each material in the workshop." }
+      ]
+    },
+    {
+      "title": "Groups of materials and their properties",
+      "blocks": [
+        { "p": "You can group a material by what it does with electricity, and by what it is made of. Both groupings tell you how it will behave on a job." },
+        { "h": "The four electrical groups" },
+        { "table": { "head": ["Group", "How it behaves", "Examples", "Where you meet it"], "rows": [
+          ["**Conductors**", "Many free electrons, so current flows easily. In metals, resistance rises as they get hotter.", "Copper, aluminium, silver, brass, steel, carbon (graphite)", "Cable cores, busbars, earth (grounding) conductors, terminals, contacts, motor brushes"],
+          ["**Insulators**", "Almost no free electrons, so current hardly flows. They can break down when the voltage is too high, or when they are hot, wet, dirty or damaged.", "PVC, XLPE, rubber, mica, porcelain, glass, GRP, varnish, mineral oil, dry air", "Cable insulation, accessory bodies, line insulators, winding insulation, transformer oil"],
+          ["**Semiconductors**", "Between conductors and insulators. Their conduction can be controlled by doping, voltage, light or heat. Most conduct better as they get warmer.", "Silicon, germanium, gallium compounds, some metal-oxide ceramics", "Diodes, LEDs, solar cells, transistors in drives and inverters, thermistors, surge protectors"],
+          ["**Magnetic materials**", "Can be strongly magnetised, so they carry magnetic flux far better than air.", "Iron, silicon steel, nickel, cobalt, ferrites, permanent-magnet alloys", "Transformer, motor, relay and contactor cores; permanent magnets"]
+        ] } },
+        { "note": "A material can belong to more than one group. Steel is a conductor and is magnetic. Copper is a conductor but is not magnetic. Knowing both tells you, for example, that steel conduit can carry fault current but will heat up if the wrong cables pass through it.", "label": "Remember" },
+        { "h": "Groups by what a material is made of" },
+        { "table": { "head": ["Group", "Meaning", "Examples"], "rows": [
+          ["Ferrous metals", "Made mostly of iron. Most are magnetic and rust.", "Mild steel conduit, cast-iron boxes, steel wire armour, silicon steel laminations"],
+          ["Non-ferrous metals", "Little or no iron. They do not rust, although they can corrode.", "Copper, aluminium, brass, bronze, lead, tin, zinc, silver"],
+          ["Alloys", "A metal mixed with other elements to improve it.", "Brass (copper and zinc), bronze (copper and tin), stainless steel (iron with chromium and nickel), nichrome (nickel and chromium), solder (mostly tin)"],
+          ["Polymers", "Plastics and rubbers made of long chain-like molecules: thermoplastics, thermosets and elastomers.", "PVC, polyethylene, nylon, polycarbonate, phenolic, epoxy, EPR, silicone rubber"],
+          ["Ceramics and glass", "Hard, brittle, heat-resistant and good insulators.", "Porcelain, glass, steatite, mica (a natural mineral), ferrites"],
+          ["Composites", "Two materials combined, each doing its own job.", "GRP (glass fibres in polyester resin), copper-bonded steel earth rods, ACSR line conductor (aluminium strands round a steel core)"]
+        ] } },
+        { "p": "**Stainless steel is a trap for the magnet test.** The common grades used in the electrical trade, 304 and 316, are ferrous but mostly non-magnetic. They may pull weakly on a magnet where they have been bent or threaded. Do not decide that a fixing is 'not steel' just because a magnet hardly sticks." },
+        { "h": "Properties that matter" },
+        { "table": { "head": ["Property", "What it means", "Why it matters in electrical work"], "rows": [
+          ["**Resistivity** (its opposite is conductivity)", "How strongly a material opposes current, for a set length and cross-section. Given in ohm-metres (Ω·m) or Ω·mm²/m.", "Low for cable cores and busbars; high for heating elements and insulators."],
+          ["Temperature coefficient of resistance", "How much the resistance changes for each °C.", "Copper's resistance rises by about 0.4% per °C, which affects voltage drop and winding tests."],
+          ["**Dielectric strength**", "The voltage an insulator stands per millimetre of thickness before it breaks down (kV/mm).", "Sets how thick insulation must be for a voltage. Dry air breaks down at roughly 3 kV/mm; good solid insulators stand many times more."],
+          ["Insulation resistance", "The resistance measured through insulation, usually in megohms (MΩ).", "Falls sharply with moisture, heat, dirt and age."],
+          ["Melting point", "The temperature at which it turns to liquid.", "Tungsten filaments, fuse elements, solders."],
+          ["Maximum working temperature", "The highest temperature it stands for a normal life.", "Sets cable current ratings and the insulation class of windings."],
+          ["Thermal conductivity", "How well heat flows through it.", "Heat sinks (aluminium), busbars, thermal paste."],
+          ["Thermal expansion", "How much it grows when it gets hot.", "Bimetal strips; aluminium joints working loose; long PVC conduit runs."],
+          ["Tensile strength", "The pull it stands before it breaks.", "Overhead spans, cable pulling, fixings."],
+          ["Ductility and malleability", "How well it can be drawn into wire, or bent and shaped, without cracking.", "Soft copper for building wire; terminals that are crimped."],
+          ["Hardness, brittleness and toughness", "Hard resists scratching and wear; brittle breaks without bending; tough absorbs knocks.", "Contact tips are hard; porcelain is brittle; sun-damaged PVC turns brittle."],
+          ["Corrosion and UV resistance", "How well it stands up to air, water, salt, chemicals and sunlight.", "Outdoor and coastal enclosures, fixings and conduit."],
+          ["Fire behaviour", "How it burns, and how much smoke and toxic gas it gives off.", "Cables in escape routes, hotels, hospitals and data rooms."],
+          ["Permeability and retentivity", "How easily it is magnetised, and how much magnetism it keeps afterwards.", "Cores need high permeability and low retentivity; permanent magnets need high retentivity."]
+        ] } }
+      ]
+    },
+    {
+      "title": "Conductors and resistance calculations",
+      "blocks": [
+        { "h": "Copper" },
+        { "ul": [
+          "Second only to silver as a conductor: resistivity about **0.0172 Ω·mm²/m** at 20 °C.",
+          "**Annealed (soft) copper** has been heated and cooled slowly after drawing. It is soft and ductile, so it bends again and again without cracking. It is used for building wire and flexible cords.",
+          "**Hard-drawn copper** is stronger and springier but less easy to bend. It is used for some overhead conductors and busbars.",
+          "**Tinned copper** has a thin coat of tin. It resists corrosion in damp and salty air and is easy to solder. It is used for lugs, marine and coastal cables and some flexible cords.",
+          "Copper is heavy (about **8,900 kg/m³**) and costly, which makes it a target for thieves."
+        ] },
+        { "h": "Aluminium" },
+        { "ul": [
+          "Resistivity about **0.028 Ω·mm²/m**: about 61% of copper's conductivity. For the same resistance, an aluminium conductor needs about **1.6 times** the cross-section of copper (0.028 ÷ 0.0172 = 1.63).",
+          "Light: about **2,700 kg/m³**, roughly a third of copper's density. Even at 1.6 times the area, it weighs only about half as much as copper of the same resistance.",
+          "Usually cheaper than copper in large sizes, and less attractive to thieves.",
+          "Used for overhead lines and service drops, large sub-mains and feeders, some busbars and heat sinks.",
+          "**ACSR** (aluminium conductor, steel reinforced) has aluminium strands round a galvanised steel core. The steel gives the strength to carry a long span between poles; the aluminium carries the current.",
+          "Its weak points are at the joints: oxide film, creep, expansion and galvanic corrosion (see the section on corrosion and joints)."
+        ] },
+        { "h": "Other conductor materials" },
+        { "table": { "head": ["Material", "Typical use", "Why it is chosen"], "rows": [
+          ["Silver", "Contact facings, fuse elements", "The best conductor; its tarnish still conducts."],
+          ["Brass (copper and zinc)", "Terminals, glands, neutral and earth bars", "Stronger and easier to machine than copper; conducts less well."],
+          ["Steel", "Conduit and armour used as an earth path; the core of ACSR; earth rods", "Strong and cheap, but a poor conductor (roughly 6 to 12 times copper's resistivity)."],
+          ["Carbon (graphite)", "Motor and generator brushes", "Conducts, lubricates itself, and wears away instead of the commutator or slip rings."],
+          ["Gold plating", "Data connectors, signal relay contacts", "Never tarnishes, so it passes tiny currents reliably."]
+        ] } },
+        { "h": "Resistivity of common materials" },
+        { "table": { "head": ["Material", "Resistivity at 20 °C (approx., Ω·mm²/m)", "Compared with copper"], "rows": [
+          ["Silver", "0.016", "Slightly better"],
+          ["Copper (annealed)", "0.0172", "1"],
+          ["Aluminium", "0.028", "About 1.6 times"],
+          ["Tungsten", "0.055", "About 3 times"],
+          ["Brass", "0.06 to 0.08", "About 4 times"],
+          ["Mild steel", "0.1 to 0.2", "About 6 to 12 times"],
+          ["Nichrome", "About 1.1", "About 65 times"]
+        ] } },
+        { "note": "Figures vary with the exact alloy and temper. In an exam, use the figure the question gives you. 0.0172 Ω·mm²/m is the same as 1.72 × 10⁻⁸ Ω·m, because 1 mm² is 10⁻⁶ m².", "label": "Remember" },
+        { "h": "Working out resistance: R = ρ × L ÷ A" },
+        { "p": "R is the resistance in ohms, ρ (rho) the resistivity in Ω·mm²/m, L the length in metres and A the cross-sectional area in mm². Double the length and the resistance doubles; double the area and it halves." },
+        { "p": "**Example 1.** A 220 V circuit runs 35 m in 6 mm² copper. One conductor: R = 0.0172 × 35 ÷ 6 = **0.10 Ω**. Current goes out on one conductor and back on the other, so the loop is about 0.20 Ω. At 25 A the voltage drop is 25 × 0.20 = 5.0 V, which is about 2.3% of 220 V." },
+        { "h": "Area of a round conductor" },
+        { "p": "A = π × d² ÷ 4, where d is the diameter in mm. **Example 2.** A solid conductor measures 2.76 mm across: A = 3.142 × 2.76 × 2.76 ÷ 4 = 3.142 × 7.62 ÷ 4 = **5.98 mm²**, so it is a 6 mm² conductor. For a stranded conductor, work out one strand and multiply by the number of strands: 7 strands of 1.04 mm give 7 × 0.85 = 5.95 mm²." },
+        { "table": { "head": ["AWG size", "Area (mm², approx.)", "Nearest metric size"], "rows": [
+          ["14 AWG", "2.08", "Between 1.5 and 2.5 mm²"],
+          ["12 AWG", "3.31", "Between 2.5 and 4 mm²"],
+          ["10 AWG", "5.26", "Just under 6 mm²"],
+          ["8 AWG", "8.37", "Between 6 and 10 mm²"],
+          ["6 AWG", "13.3", "Between 10 and 16 mm²"],
+          ["4 AWG", "21.2", "Between 16 and 25 mm²"],
+          ["2 AWG", "33.6", "Just under 35 mm²"]
+        ] } },
+        { "note": "In AWG, the **bigger** the number, the **smaller** the wire. Going down three gauge numbers roughly doubles the area. AWG and metric sizes do not match exactly, so never swap one for the other without checking the current rating and voltage drop.", "label": "Tip" },
+        { "h": "Copper or aluminium for the same duty" },
+        { "p": "**Example 3.** A design calls for 16 mm² copper. For the same resistance, aluminium needs 16 × 1.63 = 26 mm². That is larger than 25 mm², so you choose the next standard size, **35 mm²**. Always check the aluminium cable's current rating in the maker's tables as well: equal resistance is only the starting point." },
+        { "h": "Mass of a conductor" },
+        { "p": "Mass = density × volume, and volume = area × length. Change the area to m² first (multiply mm² by 10⁻⁶)." },
+        { "p": "**Example 4.** 250 m of 25 mm² copper: volume = 25 × 10⁻⁶ × 250 = 0.00625 m³; mass = 0.00625 × 8,900 = **55.6 kg** per core. The same run in 50 mm² aluminium: 50 × 10⁻⁶ × 250 = 0.0125 m³; mass = 0.0125 × 2,700 = **33.8 kg**. The aluminium core has twice the area but weighs less." },
+        { "h": "Temperature and resistance" },
+        { "p": "The resistance of copper and aluminium rises with temperature, by about **0.004 per °C** (0.4% per degree). Use: **R hot = R at 20 °C × (1 + 0.004 × temperature rise)**." },
+        { "p": "**Example 5.** A winding reads 3.2 Ω at 20 °C. At 75 °C the rise is 55 °C: R = 3.2 × (1 + 0.004 × 55) = 3.2 × 1.22 = **3.9 Ω**." },
+        { "p": "**Example 6: finding a winding's temperature.** A winding reads 1.10 Ω cold at 20 °C and 1.30 Ω straight after running. 1.30 ÷ 1.10 = 1.182, so the resistance rose by 18.2%. 0.182 ÷ 0.004 = 45.5 °C of rise, so the winding was at about **65 °C**. Motor repairers use this 'resistance method' to find how hot a winding runs." },
+        { "p": "Some alloys, such as constantan and manganin, hardly change their resistance with temperature, so they are used for meter shunts and precision resistors. Carbon and semiconductors do the opposite of metals: their resistance falls as they warm." },
+        { "h": "Why heat reduces a cable's current rating" },
+        { "p": "A cable's rating is the current that brings the conductor up to its insulation's limit, for example 70 °C for general-purpose PVC, when the air around it is at the temperature the tables assume (often 30 °C). In a roof space at 45 °C there is less room for the temperature to rise before the limit is reached, so the cable must carry less current. Tables give a **correction factor**: for 70 °C PVC at 45 °C it is about 0.79, so a cable rated 32 A in the table carries only about 25 A. A hot cable also has a higher resistance, so the voltage drop is larger." },
+        { "h": "Workshop method: finding resistivity and the temperature coefficient" },
+        { "flow": [
+          "Check the low-resistance ohmmeter on its leads and null (zero) them, because the leads' own resistance is close to what you will measure",
+          "Connect at the two ends of a measured length, 10 m for example, with clips that bite through any oxide",
+          "Record the resistance with its unit, and the room temperature",
+          "Measure the diameter in three places with a micrometer or caliper and take the average",
+          "Work out the area: A = π × d² ÷ 4",
+          "Work out the resistivity: ρ = R × A ÷ L",
+          "Compare with the usual figure and explain any difference: temperature, lead resistance, reading errors, or a conductor that is not what it claims to be"
+        ] },
+        { "p": "**Example 7.** A 10 m length of 1.78 mm diameter conductor reads 0.0712 Ω at 28 °C. A = 3.142 × 1.78 × 1.78 ÷ 4 = 2.49 mm². ρ = 0.0712 × 2.49 ÷ 10 = 0.0177 Ω·mm²/m. That is about 3% above 0.0172, which matches copper warmed 8 °C above 20 °C (8 × 0.4% = 3.2%)." },
+        { "p": "To find the temperature coefficient, measure a coil cold, then again after it has stood in warm water with a thermometer beside it: **α = (R hot − R cold) ÷ (R cold × temperature rise)**. A copper coil reading 2.40 Ω at 25 °C and 2.81 Ω at 68 °C gives α = 0.41 ÷ (2.40 × 43) = 0.0040 per °C." }
+      ]
+    },
+    {
+      "title": "Insulating materials, plastics and thermal classes",
+      "blocks": [
+        { "h": "What makes a good insulator" },
+        { "ul": [
+          "Very high resistivity and insulation resistance",
+          "High dielectric strength, so a thin layer stands the working voltage and surges",
+          "Stands the working temperature for many years",
+          "Resists moisture, oil, chemicals and, outdoors, UV light",
+          "Strong or flexible enough for the job, and burns in a way that suits the place"
+        ] },
+        { "p": "Insulation fails because of heat (slow ageing), moisture and dirt (current tracking across surfaces), mechanical damage, over-voltage from lightning and switching, UV light, chemicals and rodents. When water gets into a cable or a joint, its insulation resistance usually **falls sharply**." },
+        { "h": "Cable insulation and sheath materials" },
+        { "table": { "head": ["Material", "Typical maximum conductor temperature", "Strengths and uses", "Watch out for"], "rows": [
+          ["**PVC** (polyvinyl chloride), general purpose", "70 °C", ["Cheap, flexible, easy to strip, resists water and many chemicals", "General wiring, flexible cords, conduit and trunking"], ["Softens when overheated", "Brittle in sun unless UV-stabilised", "Dense black smoke and hydrogen chloride (acid) gas in a fire"]],
+          ["Heat-resistant PVC with a nylon jacket (US building wire such as THHN)", "Marked 90 °C dry; some types 75 °C wet", ["Thin, slippery jacket for pulling into conduit", "Common in Jamaican installations"], ["Breaker and accessory terminals are often rated only 60 °C or 75 °C, and the lowest-rated part limits the circuit"]],
+          ["**XLPE** (cross-linked polyethylene)", "90 °C", ["Runs hotter safely, so the same size carries more current", "Excellent insulation; good in moisture", "Sub-mains, armoured underground cables, medium-voltage cables, XHHW wire"], ["Stiffer than PVC", "Needs UV protection outdoors unless made for it"]],
+          ["**EPR** (ethylene propylene rubber)", "90 °C", ["Flexible, stands heat and moisture", "Flexible and trailing cables, motor leads, medium-voltage cables"], ["Costs more than PVC"]],
+          ["Silicone rubber", "About 150 to 180 °C", ["Very heat-resistant and flexible", "Heater and lamp connections, some fire-resistant cables"], ["Mechanically weak: tears and cuts easily"]],
+          ["**LSZH** (low smoke, zero halogen) compounds", "Depends on the compound, often 70 or 90 °C", ["Little smoke and no halogen acid gas in a fire", "Escape routes, hotels, hospitals, schools, data rooms"], ["Costs more", "Some types resist oil and water less well than PVC"]],
+          ["Mineral insulation (magnesium oxide inside a copper sheath)", "Very high; survives fire", ["Fire alarm, emergency lighting and fire pump circuits; very hot places"], ["Magnesium oxide soaks up water, so ends must be sealed with the maker's terminations"]]
+        ] } },
+        { "note": "These are typical figures. The real rating is printed on the cable or given in the maker's data. In NEC-style installations, check the temperature rating of the terminals as well as the cable.", "label": "Remember" },
+        { "h": "Other insulating materials" },
+        { "table": { "head": ["Material", "Properties", "Uses"], "rows": [
+          ["Porcelain (a ceramic)", "Hard, strong when squeezed, weatherproof, unaffected by UV; brittle", "Overhead line insulators, fuse carriers, lampholders for hot lamps, element supports"],
+          ["Toughened glass", "Like porcelain; a cracked unit is easy to see", "Line insulators, lamp envelopes"],
+          ["**Mica**", "A natural mineral that splits into thin sheets; stands very high temperatures and has a very high dielectric strength", "Heating elements in irons and toasters, insulating washers under power transistors, motor commutators"],
+          ["Phenolic, urea and melamine resins", "Thermosets: hard and heat-resistant", "Switch plates and bases, lampholders, breaker bodies"],
+          ["Epoxy resin", "Thermoset: strong, sticks well, waterproof", "Cable joint kits, cast insulators, dry-type transformer windings, circuit boards (with glass fibre)"],
+          ["GRP (glass-reinforced plastic, 'fibreglass')", "Composite: strong, does not rust, does not conduct", "Enclosures, cable tray, ladders"],
+          ["Insulating varnish or resin", "Soaks into a winding and is baked hard", "Rewound motors and transformers: bonds the wires, keeps out moisture and helps heat escape"],
+          ["Enamel on winding wire", "A thin polymer film with its own temperature class", "Motor, transformer, relay and contactor coils"],
+          ["Mineral oil (transformer oil)", "Insulates and carries heat from the windings to the tank and fins; tested for breakdown strength and water content", "Oil-filled distribution transformers and some switchgear"],
+          ["Rubber", "Flexible and stretchy", "Insulating gloves and mats"],
+          ["Dry air", "Insulates when clean and dry", "Clearances in switchgear and between overhead line conductors"]
+        ] } },
+        { "h": "Thermoplastics, thermosets and elastomers" },
+        { "table": { "head": ["Type", "What heat does to it", "Examples", "Uses"], "rows": [
+          ["**Thermoplastic**", "Softens when heated and hardens when cooled, again and again. It can be bent, welded and recycled.", "PVC, polyethylene, nylon, polycarbonate, ABS, polypropylene", "Cable insulation, conduit (bent with a heat gun or bending spring), trunking, glands, enclosures"],
+          ["**Thermoset**", "Sets hard for good when it is made, by a chemical change. It does not soften again; too much heat makes it char.", "Phenolic, urea-formaldehyde, melamine, epoxy, polyester resin", "Switch and lampholder bodies, breaker cases, cast resin, GRP"],
+          ["Elastomer (rubber)", "Stretches and springs back", "EPR, silicone, neoprene, natural rubber", "Flexible cords, seals and gaskets, gloves"]
+        ] } },
+        { "p": "XLPE starts life as polyethylene, a thermoplastic. **Cross-linking** ties its long molecules to each other, so it no longer melts and flows like ordinary polyethylene, and it can run at 90 °C." },
+        { "h": "Plastics in the sun" },
+        { "p": "UV light breaks the long molecules near the surface of a plastic. It fades and turns chalky, then becomes **brittle and cracks**, often within a few years in full Jamaican sun; then water gets in. Outdoors, use plastics marked as UV-stabilised or sunlight-resistant, black compounds (carbon black absorbs UV), or shade the plastic from direct sun. Inspect outdoor plastics at every maintenance visit." },
+        { "h": "Insulation classes of windings" },
+        { "p": "Motor and transformer nameplates show an **insulation class**: a letter that gives the hottest temperature the winding insulation system can stand for its normal life." },
+        { "table": { "head": ["Class", "Temperature limit", "Typical materials and use"], "rows": [
+          ["A", "105 °C", "Cotton, paper and older varnishes; old equipment"],
+          ["E", "120 °C", "Some small motors"],
+          ["**B**", "**130 °C**", "Mica, glass fibre and polyester with suitable resins"],
+          ["**F**", "**155 °C**", "Many modern motors"],
+          ["**H**", "**180 °C**", "Silicone-based systems; hot or heavy-duty motors, dry-type transformers"]
+        ] } },
+        { "ul": [
+          "A common rule of thumb: for every **10 °C or so above** the limit, the insulation's life is roughly **halved**. Heat dries and cracks the varnish until the turns short together and the winding burns out.",
+          "Many motors are built with class F insulation but designed to run no hotter than class B. The extra margin gives a longer life in hot places.",
+          "A rewind must use wire, varnish and slot insulation of the **same class or higher**. Cheaper, lower-class materials in a motor that runs hot will fail early.",
+          "What makes motors run hot in Jamaican workshops and plants: hot air, dust and trash blocking the fins and fan, direct sun on the frame, closed rooms with no air flow, overloading, low or unbalanced supply voltage, frequent starting and worn bearings."
+        ] },
+        { "h": "Fire behaviour of cables" },
+        { "ul": [
+          "**PVC** gives off dense black smoke, carbon monoxide and **hydrogen chloride**, which forms hydrochloric acid with moisture. The smoke hides escape routes; the acid harms lungs and eyes and corrodes electronics long after the fire.",
+          "**LSZH** cables give off little smoke and no halogen acid gas, so they are chosen where many people must escape, or where smoke would ruin equipment.",
+          "**Flame-retardant** means the cable does not carry a flame along its length. **Fire-resistant** means it keeps working in a fire for a stated time, for fire alarms, emergency lighting and fire pumps. They are not the same thing."
+        ] }
+      ]
+    },
+    {
+      "title": "Magnetic materials",
+      "blocks": [
+        { "p": "Iron, nickel, cobalt, their alloys and the ceramic ferrites are **ferromagnetic**: they can be strongly magnetised and carry magnetic flux hundreds or thousands of times better than air. Copper, aluminium, brass, plastics and most stainless steel are not." },
+        { "h": "Soft and hard magnetic materials" },
+        { "table": { "head": ["Feature", "Soft magnetic material", "Hard magnetic material"], "rows": [
+          ["Behaviour", "Easy to magnetise; loses almost all its magnetism when the current stops (low retentivity); small losses when the magnetism reverses", "Hard to magnetise but keeps its magnetism (high retentivity); hard to demagnetise"],
+          ["Examples", "Soft iron, silicon steel, nickel-iron alloys, ferrites", "Ferrite (ceramic) magnets, alnico, neodymium (NdFeB) and samarium-cobalt magnets"],
+          ["Uses", "Transformer, motor, generator, relay, contactor and solenoid cores; current transformer cores", "Permanent magnets in fan, DC and many inverter-driven compressor motors; loudspeakers; magnetic catches; some meters"]
+        ] } },
+        { "p": "A relay or contactor core must be soft: if it kept its magnetism, the armature would stay pulled in and the contacts would not open when the coil is switched off. Some contactors have a thin non-magnetic gap or shim for the same reason." },
+        { "h": "Core losses" },
+        { "table": { "head": ["Loss", "Cause", "How it is kept small"], "rows": [
+          ["**Hysteresis loss**", "Energy is used each time the magnetism in the core reverses: at 50 Hz it reverses 100 times a second. The energy becomes heat.", "A soft material with a 'narrow' magnetising loop, such as silicon steel; grain-oriented steel in transformers"],
+          ["**Eddy-current loss**", "The changing flux induces voltages in the core metal itself, which drive currents round inside the core. These heat it.", "Thin **laminations**, insulated from each other by a coating, break up the current paths; **silicon** (about 3%) raises the steel's resistivity; ferrite cores at high frequency"]
+        ] } },
+        { "ul": [
+          "Laminations are usually between about 0.25 mm and 0.5 mm thick. Eddy-current loss falls steeply as the sheets get thinner.",
+          "Together these 'iron losses' happen whenever a transformer is energised, even with no load. That is why an idle transformer still uses some energy.",
+          "If a rewinder burns old windings out at too high a temperature, the coating between laminations can be damaged. Eddy currents then rise and the rewound motor runs hotter and less efficiently. Good rewinders strip windings at a controlled temperature."
+        ] },
+        { "h": "Ferrites" },
+        { "p": "Ferrites are ceramics made from iron oxide mixed with other metal oxides. They are magnetic but have a **very high resistivity**, so eddy currents in them are tiny even at thousands or millions of hertz. They are used for the cores of switched-mode power supplies, LED drivers, inverters and chokes. Clip-on ferrite cores on data and control cables soak up high-frequency interference." },
+        { "h": "Magnetism and installation practice" },
+        { "ul": [
+          "Run **all the conductors of an AC circuit together** through the same steel conduit, or the same hole in a steel gland plate. Their magnetic fields then cancel. If one conductor passes through steel on its own, the steel round it is magnetised back and forth and heats up from induced currents.",
+          "For large single-core cables, use a non-magnetic gland plate (aluminium or brass, for example), and single-core armoured cables have **aluminium** wire armour rather than steel.",
+          "The magnet test: a strong pull means iron or ordinary steel (or nickel). No pull means copper, aluminium, brass or, usually, 304 or 316 stainless steel.",
+          "Strong neodymium magnets can trap fingers, wipe cards and upset meters and heart pacemakers. Handle them with care."
+        ] }
+      ]
+    },
+    {
+      "title": "Semiconductors and special-purpose materials",
+      "blocks": [
+        { "h": "Semiconductors" },
+        { "p": "Silicon is the main semiconductor. Pure silicon conducts poorly. Heat or light frees a few more charge carriers, so most semiconductors conduct **better** as they get warmer: their resistance falls, the opposite of copper. Their conduction can be controlled very precisely, which is why every electronic device depends on them." },
+        { "table": { "head": ["Term", "Meaning"], "rows": [
+          ["**Doping**", "Adding tiny, controlled amounts of another element to pure silicon to change how it conducts."],
+          ["N-type", "Silicon doped with an element such as phosphorus, which has one more outer electron than silicon. The spare electrons carry current."],
+          ["P-type", "Silicon doped with an element such as boron, which has one fewer outer electron. The gaps, called holes, carry current."],
+          ["**PN junction**", "The boundary where P-type and N-type material meet. It lets current flow easily in one direction only, once the forward voltage passes about 0.6 to 0.7 V for silicon. It is the heart of a diode."],
+          ["Thermistor", "A resistor made from a semiconducting metal-oxide ceramic whose resistance changes strongly with temperature. In an **NTC** thermistor the resistance **falls** as it warms. In a **PTC** thermistor it **rises sharply** above a set temperature."]
+        ] } },
+        { "h": "Semiconductors in installations" },
+        { "table": { "head": ["Device", "What the semiconductor does"], "rows": [
+          ["Diodes and bridge rectifiers", "Change AC to DC in chargers, power supplies, DC drives and welders."],
+          ["LEDs", "A PN junction, made from gallium compounds, that gives off light. LED lamps and indicator lights."],
+          ["LED drivers and switched-mode power supplies", "Transistors switch on and off thousands of times a second to give a steady DC output."],
+          ["Solar PV cells", "A large silicon PN junction that turns light into direct current."],
+          ["Inverters, variable-speed drives and inverter air-conditioners", "Power transistors (IGBTs or MOSFETs) switch DC to build AC of any frequency."],
+          ["Thermistors", "PTC chains in motor windings trip a protection relay when the winding gets too hot; NTC sensors read temperatures in air-conditioners and chargers."],
+          ["Surge protective devices", "Metal-oxide varistors (zinc oxide) conduct heavily above a set voltage, diverting surges to earth."],
+          ["Control electronics", "RCDs and GFCIs, arc-fault breakers, dimmers, timers, PLCs and smart meters."]
+        ] } },
+        { "note": "Semiconductors are damaged by heat, over-voltage and static. An insulation-resistance test at 500 V or 1,000 V can destroy the electronics in drives, dimmers, LED drivers, smart controls and surge devices. **Disconnect electronic equipment before an insulation test**, or test only where the maker allows. Lightning surges are common in Jamaica's thunderstorm season, so surge protection and good earthing protect electronics.", "label": "Safety" },
+        { "h": "Resistance and heating materials" },
+        { "p": "**Nichrome** (about 80% nickel and 20% chromium) has a resistivity about 65 times that of copper, so a modest length of wire gives the resistance an element needs. When hot it forms a thin, tight chromium-oxide skin that protects it, instead of scaling away as steel would, and it stands red heat. It is used in elements for water heaters, stoves, irons, toasters and kettles." },
+        { "p": "In a **sheathed element**, such as a water heater element, the nichrome coil sits in magnesium oxide powder inside a metal tube. The powder passes heat but insulates electrically. If the sheath cracks, water gets in, current leaks to earth, and the GFCI or RCD trips." },
+        { "h": "Contact materials" },
+        { "table": { "head": ["Material", "Why", "Where"], "rows": [
+          ["**Silver and silver alloys** (silver-nickel, silver-tin oxide)", "The best conductor; its tarnish still conducts or wipes off; the alloys resist welding together and wear from arcing", "Contactor, relay, switch and breaker contacts"],
+          ["Copper", "Cheap and conducts well, but its oxide conducts poorly, so it needs high pressure and clean surfaces", "Busbar joints (cleaned, often tinned or silver-plated)"],
+          ["Tungsten and silver-tungsten", "Very high melting point; resists arc erosion", "Arcing contacts in breakers and heavy switching"],
+          ["Gold plating", "Never tarnishes", "Data connectors and low-current signal contacts"]
+        ] } },
+        { "p": "When contacts open under load, an **arc** forms between them. It slowly wears the contact faces away, especially on DC and on motor loads. Silver contacts that are dark but smooth are normal and still conduct: **do not file them**, because filing removes the silver. Replace badly pitted or worn contacts as a set, as the maker says." },
+        { "h": "Bimetal strips" },
+        { "p": "Two metals that expand by different amounts are bonded together. When heated, the strip bends towards the metal that expands less. Bimetals are used in thermal overload relays (heated by the motor current), the thermal trip of a circuit breaker, and thermostats and cut-outs in irons, kettles and water heaters. A bimetal takes time to heat up, which gives the delay an overload trip needs, and it must cool before it can be reset." },
+        { "h": "Fuse elements" },
+        { "p": "Fuse elements are made of **silver** or copper, with **narrow sections** where the heat builds up. Many have a small spot of tin or tin alloy, which melts at a lower temperature and makes the element open on a moderate overload. In a cartridge (HRC) fuse the element sits in quartz sand, which absorbs the arc's heat and puts it out. Replace a fuse only with one of the same type and rating; never with wire." },
+        { "h": "Lamp filaments" },
+        { "p": "Incandescent and halogen lamps use **tungsten** because it has the highest melting point of any metal, about 3,400 °C, so the filament can glow white-hot (around 2,500 °C or more) without melting. LEDs have now replaced most of these lamps." },
+        { "h": "Solder" },
+        { "table": { "head": ["Solder", "Melts at about", "Notes"], "rows": [
+          ["Tin-lead (63/37 or 60/40)", "183 to 190 °C", "Easy to use. Lead is toxic: wash your hands and never eat at the bench."],
+          ["**Lead-free** (mostly **tin**, with some silver and copper)", "217 to 227 °C", "Used in most new electronics because lead harms people and the environment. Needs a hotter iron; joints look duller."]
+        ] } },
+        { "p": "Flux removes oxide and helps solder flow. In power wiring, a soldered joint must first be made **mechanically secure** (crimped, clamped or twisted), because solder alone can soften and let go when a fault heats the joint." },
+        { "h": "Thermal paste and pads" },
+        { "p": "A power transistor or rectifier is fixed to a metal **heat sink** to carry its heat away. Thermal paste or a pad fills the tiny air gaps between them, because air is a poor conductor of heat. Where the device's metal tab is live, an insulating pad of mica or silicone keeps it electrically apart from the heat sink while still passing heat. Use a thin, even layer: too much paste slows the heat flow." }
+      ]
+    },
+    {
+      "title": "Corrosion, joints and the Jamaican environment",
+      "blocks": [
+        { "h": "How metals corrode" },
+        { "p": "Corrosion is the slow chemical attack of a metal by its surroundings, mainly oxygen and water. Salt (chlorides), acids and heat speed it up. Steel rusts, and rust is porous and flakes off, so the attack keeps going. Aluminium, stainless steel and copper form thin oxide films that protect them, but chlorides from sea air or pool chemicals can break through these films and cause pitting." },
+        { "h": "Galvanic corrosion: different metals touching" },
+        { "p": "When two different metals touch and water connects them, they act like a small battery. The **less noble** metal (higher in the list below) corrodes faster; the more noble one is protected. The further apart the metals are in the list, the wetter and saltier the place, and the smaller the less noble part is compared with the other, the faster the attack." },
+        { "ol": [
+          "Magnesium (most likely to corrode)",
+          "Zinc (galvanising)",
+          "Aluminium",
+          "Mild steel and cast iron",
+          "Lead and tin",
+          "Brass, copper and bronze",
+          "Nickel",
+          "Stainless steel (with its protective film intact)",
+          "Silver",
+          "Gold and platinum (least likely to corrode)"
+        ] },
+        { "ul": [
+          "An aluminium lug bolted straight onto a copper busbar outdoors: the aluminium corrodes, the joint loosens and runs hot.",
+          "Brass or copper screws in aluminium brackets near the sea: the aluminium round each screw is eaten away.",
+          "Stainless screws in a large aluminium plate are less of a problem than aluminium rivets in stainless sheet, because a small, noble part in a large anode spreads the attack thinly. Even so, isolate them near the sea."
+        ] },
+        { "p": "**Cures:** avoid mixing metals; use bimetal parts made for the joint; separate the metals with nylon or neoprene washers and sleeves; keep the joint dry and sealed; coat it as the maker says." },
+        { "h": "Aluminium conductors and their joints" },
+        { "table": { "head": ["Problem", "What happens"], "rows": [
+          ["Oxide film", "A hard, thin oxide forms within seconds of the metal meeting air. It conducts poorly, so a joint can have a high resistance and run hot."],
+          ["Creep (cold flow)", "Under the steady pressure of a terminal screw, aluminium slowly flows away, so the joint loosens."],
+          ["Expansion", "Aluminium expands about 1.4 times as much as copper. Each heating and cooling with the load works a joint looser."],
+          ["Galvanic corrosion", "Where aluminium touches copper or brass in moisture, the aluminium corrodes."]
+        ] } },
+        { "flow": [
+          "Check that every terminal and lug is marked as rated for aluminium (for example AL, AL/CU or CU/AL); use bimetal lugs or connectors where aluminium meets copper",
+          "Strip the insulation without nicking the strands",
+          "Wire-brush the strands to break the oxide, and at once apply the oxide-inhibiting compound the maker specifies (many lugs come filled with it)",
+          "Crimp with the correct tool and die for that lug",
+          "Bolt with the right washers (often spring washers to keep the pressure) and tighten to the maker's torque",
+          "Record the torque, and check the joint later, for example with a thermal camera under load during maintenance"
+        ] },
+        { "note": "Never put an aluminium conductor into a terminal marked only CU, and never mix copper and aluminium in one terminal unless it is marked for both. A hot aluminium joint can burn out a terminal and start a fire.", "label": "Safety" },
+        { "h": "Protecting steel" },
+        { "table": { "head": ["Method", "How it protects", "Notes"], "rows": [
+          ["Hot-dip galvanising", "A thick zinc coat. Zinc corrodes first (it is 'sacrificial') and protects the steel underneath.", "Conduit, tray, boxes, fixings. Salt air uses the zinc up quickly."],
+          ["**Zinc-rich paint** ('cold galvanising')", "Puts zinc back where it was removed", "Paint cut ends, threads, drilled holes and scratches on galvanised conduit and tray."],
+          ["Electroplating (zinc, nickel)", "A thin metal coat", "Fine indoors; zinc-plated screws rust within months near the sea."],
+          ["Paint and powder coating", "A barrier against air and water", "Fails at scratches and edges; touch it up."],
+          ["Stainless steel", "Chromium forms a thin, self-healing oxide film", "Grade 304 for general use; **316**, which contains molybdenum, for the coast, pools and chemical plants."],
+          ["Change the material", "Nothing to rust", "GRP, PVC, polycarbonate, sometimes aluminium."]
+        ] } },
+        { "h": "Earth rods and armour" },
+        { "ul": [
+          "**Copper-bonded steel earth rods**: the steel core is strong enough to be driven deep without bending; the copper skin, bonded to it, resists corrosion and makes good contact with the soil. If the copper is torn while driving, the steel underneath rusts. Use clamps rated for direct burial and compatible with copper.",
+          "**Steel wire armour (SWA)** under the outer sheath of an armoured cable protects the cores from digging, crushing and rodents. It can also serve as an earth path if its cross-section is enough and the glands grip it properly: the designer checks this, and some jobs require a separate earth core as well."
+        ] },
+        { "h": "Jamaican conditions and the materials that suit them" },
+        { "table": { "head": ["Condition", "What it does to materials", "What to choose and do"], "rows": [
+          ["Salt air on and near the coast", "Rusts steel, uses up galvanising, pits aluminium, speeds galvanic corrosion, leaves salt films that let current track across insulators", "316 stainless, GRP, UV-stabilised polycarbonate, tinned copper, sealed glands; wash down and inspect regularly"],
+          ["Strong sun and heat", "Plastics go brittle, labels fade, enclosures overheat inside, cable ratings fall", "UV-rated plastics, shade, light-coloured enclosures, correction factors for hot places, ventilation"],
+          ["Rain, humidity and flooding", "Water in boxes and cable ends, falling insulation resistance, corrosion, condensation inside enclosures", "The right IP rating, drain or breather where needed, sealed entries, capped cable ends, equipment above flood level"],
+          ["Chemicals: chlorine (pools, water treatment), ammonia (cold stores, farms), fertiliser, fuel, battery acid", "Attack steel, aluminium and some plastics", "GRP, PVC or suitable stainless; check the maker's chemical-resistance chart"],
+          ["Vermin and insects", "Rats chew insulation; ants and wasps nest in boxes", "Conduit or armour, sealed entries, clean surroundings"],
+          ["Lightning", "Surges break down insulation and destroy electronics", "Good earthing and bonding, surge protective devices"]
+        ] } }
+      ]
+    },
+    {
+      "title": "Choosing materials for a job",
+      "blocks": [
+        { "p": "At Level 3 you are expected to choose materials and justify each choice. Work through the job in this order." },
+        { "flow": [
+          "Find out what each part must do: carry current, insulate, support, enclose or protect",
+          "List the conditions on site: heat, sun, salt, water, chemicals, knocks, fire risk and the people around",
+          "Check the specification, the drawings and the code requirements, including IP or NEMA ratings and fire performance",
+          "Compare the properties of the possible materials",
+          "Check compatibility: metals that touch, plastics and chemicals, the temperature ratings of terminals",
+          "Weigh up cost, working life, availability and maintenance",
+          "Choose, record the reason in the materials schedule, and get approval where the specification requires it"
+        ] },
+        { "h": "Enclosure ratings: IP codes" },
+        { "p": "An **IP rating** (ingress protection), such as IP65, tells you how well an enclosure keeps out solid objects (first digit) and water (second digit). It holds only if the enclosure is fitted correctly, with the right glands, seals and plugs." },
+        { "table": { "head": ["First digit (solids)", "Meaning", "Second digit (water)", "Meaning"], "rows": [
+          ["2", "Fingers kept out (objects over 12.5 mm)", "3", "Spraying water (up to 60° from upright)"],
+          ["4", "Wires and tools over 1 mm kept out", "4", "Splashing from any direction"],
+          ["5", "Dust-protected: some dust may enter but not enough to cause harm", "5", "Water jets from any direction"],
+          ["6", "Dust-tight", "6", "Powerful water jets"],
+          ["–", "–", "7", "Temporary immersion, up to 1 m"],
+          ["–", "–", "8", "Continuous immersion, as the maker states"]
+        ] } },
+        { "p": "Equipment made to US standards is often marked with a **NEMA type** instead: type 1 for general indoor use, 3R for outdoor rain, 4 for watertight hose-down, **4X** for watertight and corrosion-resistant (stainless steel, GRP or polycarbonate), and 12 for indoor dust and drips." },
+        { "h": "Enclosure and containment materials compared" },
+        { "table": { "head": ["Material", "Good for", "Watch out for"], "rows": [
+          ["Painted or powder-coated mild steel", "Indoor, dry places; strong and cheap", "Rusts at scratches; poor near the sea"],
+          ["Galvanised steel (conduit, tray, boxes)", "Indoor and sheltered outdoor work where strength is needed", "Zinc used up in salt air; cut ends must be painted"],
+          ["Stainless steel 304 or 316", "Food plants and outdoor work; 316 for the coast and pools", "Costly; 304 can pit near the sea; keep apart from aluminium"],
+          ["Aluminium", "Light; carries heat away; good in many outdoor places", "Pits in salt air; galvanic corrosion against copper and steel"],
+          ["GRP", "Chemicals, the coast, pool plant rooms; does not conduct", "Not an earth path, so metal parts must be bonded separately; the surface can weather after many years in sun"],
+          ["Polycarbonate (UV-stabilised)", "Outdoor accessory boxes and clear lids; tough", "Grades that are not UV-stabilised yellow and crack; some solvents attack it"],
+          ["PVC (conduit, boxes, trunking)", "Corrosion-free, light, cheap", "Expands a lot with heat; needs a UV grade outdoors; not an earth path, so run an equipment grounding conductor"]
+        ] } },
+        { "p": "**PVC expansion example.** PVC conduit grows by about 0.06 mm per metre for each °C. A 30 m run that warms by 40 °C from dawn to midday grows by 30 × 40 × 0.06 = **72 mm**. Long, sunny runs need expansion couplings and fixings that let the conduit slide, or it will bow and pull out of boxes." },
+        { "h": "Fixings, glands and terminations outdoors" },
+        { "table": { "head": ["Item", "Choice for a coastal or harsh site", "Why"], "rows": [
+          ["Fixings", "316 stainless screws, bolts and anchors, with nylon or neoprene washers where they meet aluminium", "Zinc-plated screws rust within months; isolating washers stop galvanic attack"],
+          ["Cable glands", "UV-stable nylon, or nickel-plated brass, with the IP rating of the enclosure", "Plain steel rusts; the seal must suit the cable's diameter"],
+          ["Lugs and terminals", "Tinned copper lugs; bimetal lugs where aluminium meets copper; heat-shrink sleeves; inhibiting compound as the maker says", "Bare copper turns green and aluminium-copper joints corrode"],
+          ["Conduit", "Sunlight-resistant PVC rated for outdoor use, or stainless or well-coated steel where strength is needed", "Ordinary PVC cracks in sun; plain steel rusts"],
+          ["Cable", "Types marked for wet locations, and sunlight-resistant where exposed; underground runs in ducts; ends capped until they are terminated", "Water in a cable end lowers its insulation resistance for years"]
+        ] } },
+        { "h": "The materials schedule" },
+        { "p": "A materials schedule lists each part, the material and rating chosen, and the reason. It lets the client, the designer and your team see why each choice was made. Part of one for a beach restaurant might read:" },
+        { "table": { "head": ["Part", "Material and rating chosen", "Reason"], "rows": [
+          ["Outdoor 110 V and 220 V outlets", "UV-stabilised polycarbonate weatherproof boxes, IP66, with lockable lids", "Does not corrode; stands sun and hosing down"],
+          ["Isolator for the cold-room unit", "GRP enclosure, IP66 (NEMA 4X)", "No corrosion in salt air; insulating"],
+          ["Fixings to aluminium posts", "316 stainless steel with nylon washers", "Salt air; stops galvanic attack on the aluminium"],
+          ["Buried sub-main", "Copper, XLPE-insulated cable in PVC duct; ends capped until terminated", "Higher rating; good in damp ground; protected from digging"],
+          ["Terminations", "Tinned copper compression lugs, sealed with heat-shrink", "Resists corrosion in damp, salty air"]
+        ] } },
+        { "note": "A 316 stainless fixing or a GRP box costs more than a zinc-plated one, but replacing rusted fittings, and the downtime at a hotel or restaurant, costs far more in J$. Put the life of the material, not just its price, in front of the client.", "label": "Tip" }
+      ]
+    },
+    {
+      "title": "Identifying, testing and controlling materials",
+      "blocks": [
+        { "h": "Reading markings" },
+        { "table": { "head": ["Where", "What to look for"], "rows": [
+          ["Cable sheath printing", ["Maker and type (for example THHN/THWN-2 or XHHW-2 on US-style wire)", "Conductor size (AWG or mm²) and metal (CU or AL)", "Voltage rating (for example 600 V, or 450/750 V)", "Temperature rating (for example 90 °C)", "'Sunlight resistant' or 'direct burial' where it applies", "The standard and a certification mark", "Length marks and a batch or date code"]],
+          ["Drum or coil label", "All of the above, plus length, drum number, weight and the test certificate reference"],
+          ["Breakers and accessories", "Current and voltage ratings, breaking capacity (kA), number of poles, terminal rating (CU or AL/CU, 60 °C or 75 °C), the standard and certification mark"],
+          ["Enclosures and glands", "IP or NEMA rating, material, UV rating, temperature range"],
+          ["Motors", "Insulation class, the ambient temperature it is rated for, IP rating"]
+        ] } },
+        { "p": "A **certification mark** from a recognised test body shows that samples of the product were tested to a stated standard and that its factory is checked. In Jamaica you will see the marks of US and Canadian test bodies on goods made to US standards, and marks for British, European or IEC standards on others. Your specification says which marks are acceptable. A CE mark is the maker's own declaration, not an independent test. The Bureau of Standards Jamaica publishes Jamaican standards, and some electrical products must meet them." },
+        { "h": "Simple identification tests" },
+        { "table": { "head": ["Test", "What it tells you", "Limits"], "rows": [
+          ["Magnet", "Iron and ordinary steel pull strongly; copper, aluminium and brass do not", "304 and 316 stainless barely pull; nickel plating pulls"],
+          ["Cut and scrape", "Solid copper is red-brown right through; copper-clad aluminium shows a silver-white core", "Look at a fresh cut end"],
+          ["Weight", "Aluminium is about a third as heavy as copper; a 'copper' coil that feels light is suspect", "Compare with a known coil of the same size"],
+          ["Measure the size", "Micrometer or caliper on the diameter; count the strands; work out the area and compare with the marking", "Allow for compacted strands"],
+          ["Resistance per length", "With a low-resistance ohmmeter: work out R × A ÷ L and compare with 0.0172 for copper", "Correct for temperature; null the leads"],
+          ["Insulation resistance of a sample", "A very low reading means wet or damaged insulation", "Done only by trained people, at the test voltage the specification gives"],
+          ["Data sheets and certificates", "Temperature, UV, fire and voltage ratings", "These cannot be seen by eye: rely on markings and paperwork"]
+        ] } },
+        { "h": "Signs of fake or substandard goods" },
+        { "ul": [
+          "Missing, faint or badly printed markings, and spelling mistakes",
+          "Coils or breakers that feel light; loose parts inside a breaker",
+          "Conductors smaller than marked, or copper-clad aluminium sold as copper",
+          "Insulation thinner than usual",
+          "A price far below the usual market price, and no certificate",
+          "A supplier who cannot say where the goods came from"
+        ] },
+        { "h": "Receiving, storing and issuing" },
+        { "flow": [
+          "Order from the specification and the approved materials list, stating type, size, rating, standard and mark",
+          "Buy only from approved suppliers",
+          "Check each delivery against the order and the delivery note: markings, quantities, damage and certificates",
+          "Record drum and batch numbers and file the certificates",
+          "Quarantine anything unmarked, damaged or doubtful: label it 'HOLD – DO NOT USE', keep it apart and report it",
+          "Store each item correctly",
+          "Issue materials and record which drum or batch went to which circuit"
+        ] },
+        { "h": "Storage" },
+        { "ul": [
+          "Stand cable drums on their flanges on firm, level ground, chocked so they cannot roll. Roll them only in the direction of the arrow, and never drop them off a truck.",
+          "Seal cut cable ends with end caps to keep water out of the cores.",
+          "Keep cables and plastic parts out of direct sun and away from solvents, fuel and heat.",
+          "Keep accessories in their boxes in a dry store, and use the oldest stock first.",
+          "Keep insulating gloves and mats in their bags, out of the sun and away from sharp objects.",
+          "Lock up copper cable and offcuts."
+        ] },
+        { "h": "Leading the team" },
+        { "ul": [
+          "Brief the team on the materials schedule before work starts, and show them how to read the markings.",
+          "Check materials as they are installed, not only at the end.",
+          "Stop the use of scrap, unmarked or wrongly sized material, and explain why.",
+          "Record changes and substitutions, and get the designer's written approval for any change to the specification."
+        ] },
+        { "note": "A cord or cable of unknown type may be too small, rated for a lower voltage or temperature, or not copper at all. On a 220 V water heater or air-conditioning circuit it can overheat and start a fire. If its type and rating cannot be proved from its markings, it does not go into the job.", "label": "Safety" }
+      ]
+    },
+    {
+      "title": "Revision",
+      "blocks": [
+        { "h": "Checklist" },
+        { "p": "Tick each statement only when you can do it without looking at the notes." },
+        { "ul": [
+          "I can sort materials into conductors, insulators, semiconductors and magnetic materials, and into ferrous and non-ferrous metals, plastics, ceramics and composites.",
+          "I can explain resistivity, temperature coefficient, dielectric strength and temperature limit, and say which properties matter for a given part.",
+          "I can work out a conductor's resistance with R = ρ × L ÷ A, its area from its diameter, and its mass from its density.",
+          "I can work out a conductor's resistance at another temperature, and a winding's temperature from its resistance.",
+          "I can compare copper and aluminium and size an aluminium conductor for the same resistance.",
+          "I can explain why aluminium joints fail and make a safe aluminium termination.",
+          "I can compare PVC, XLPE, EPR, silicone, LSZH and mineral insulation and choose one for a job.",
+          "I can explain the difference between thermoplastics and thermosets, and the effect of sun on plastics.",
+          "I can read an insulation class and explain why a hot motor has a short life.",
+          "I can explain soft and hard magnetic materials, laminations, hysteresis and eddy currents, and ferrites.",
+          "I can explain doping, the PN junction and thermistors, and name devices that use semiconductors.",
+          "I can explain why nichrome, silver, tungsten, bimetals, fuse alloys and lead-free solder are used.",
+          "I can explain galvanic corrosion and choose fixings, glands, enclosures and lugs for a coastal site.",
+          "I can read IP and NEMA ratings and choose a rating for a place.",
+          "I can write a materials schedule with a reason for each choice.",
+          "I can read cable and accessory markings and spot signs of fake or substandard goods.",
+          "I can measure a conductor's resistance and diameter and work out its resistivity.",
+          "I can receive, quarantine, store and trace materials, and lead my team to use only the right ones."
+        ] },
+        { "h": "Numbers to remember" },
+        { "table": { "head": ["Figure", "What it is"], "rows": [
+          ["0.0172 Ω·mm²/m", "Resistivity of copper at 20 °C"],
+          ["0.028 Ω·mm²/m", "Resistivity of aluminium at 20 °C"],
+          ["About 1.6", "How many times larger an aluminium conductor must be for the same resistance"],
+          ["8,900 and 2,700 kg/m³", "Density of copper and of aluminium"],
+          ["About 0.004 per °C", "Temperature coefficient of copper and aluminium"],
+          ["70 °C / 90 °C", "Usual limits for general-purpose PVC / XLPE and EPR"],
+          ["A 105, E 120, B 130, F 155, H 180 °C", "Insulation class limits"],
+          ["About 10 °C", "Extra heat that roughly halves insulation life"],
+          ["About 3%", "Silicon in electrical steel"],
+          ["About 3,400 °C", "Melting point of tungsten"],
+          ["About 183 °C / 217–227 °C", "Melting range of tin-lead / lead-free solder"],
+          ["About 3 kV/mm", "Breakdown strength of dry air"]
+        ] } },
+        { "h": "Key terms" },
+        { "terms": [
+          ["ACSR", "Aluminium conductor, steel reinforced: overhead line conductor with aluminium strands round a steel core."],
+          ["Annealed copper", "Copper softened by heating and slow cooling, so it bends without cracking."],
+          ["Bimetal strip", "Two bonded metals that expand differently, so the strip bends when heated."],
+          ["Certification mark", "A mark showing that a test body has tested the product to a standard."],
+          ["Creep", "The slow flow of a metal, such as aluminium, under steady pressure, which loosens joints."],
+          ["Dielectric strength", "The voltage per millimetre an insulator stands before it breaks down."],
+          ["Doping", "Adding tiny amounts of another element to a semiconductor to control how it conducts."],
+          ["Eddy currents", "Currents induced in a magnetic core by changing flux; they waste energy as heat."],
+          ["Ferrite", "A magnetic ceramic with a very high resistivity, used for high-frequency cores."],
+          ["Ferrous", "Containing mostly iron."],
+          ["Galvanic corrosion", "Faster corrosion of the less noble of two different metals touching in moisture."],
+          ["Hysteresis loss", "Energy lost as heat each time the magnetism in a core reverses."],
+          ["Insulation class", "A letter giving the temperature limit of a winding's insulation system."],
+          ["IP rating", "Two digits giving an enclosure's protection against solids and water."],
+          ["Laminations", "Thin insulated steel sheets that make up a core, to cut eddy currents."],
+          ["LSZH", "Low smoke, zero halogen: cable materials that give little smoke and no acid gas in a fire."],
+          ["PN junction", "The boundary between P-type and N-type semiconductor, which conducts one way only."],
+          ["Resistivity", "How strongly a material opposes current, for a set length and cross-section."],
+          ["Soft magnetic material", "One that is easily magnetised and loses its magnetism when the current stops."],
+          ["Temperature coefficient", "The fraction by which resistance changes for each °C."],
+          ["Thermistor", "A resistor whose resistance changes strongly with temperature (NTC falls, PTC rises)."],
+          ["Thermoplastic", "A plastic that softens each time it is heated."],
+          ["Thermoset", "A plastic that sets hard for good and does not soften with heat."],
+          ["XLPE", "Cross-linked polyethylene: cable insulation that runs at 90 °C."]
+        ] }
+      ]
+    }
+  ],
+  "cases": {
+    "c1": { "title": "Outdoor lighting at a Hellshire fish fry", "text": "Team leader Andre Watson is planning lights and outlets for a fish-fry restaurant on the beach at Hellshire, St Catherine. The fittings go on aluminium brackets fixed to posts about 15 m from the sea, in full sun. The owner has already bought zinc-plated screws and grey PVC conduit with no outdoor marking. Staff hose down the posts and tables every night after closing." },
+    "c2": { "title": "A cold-room sub-main at a Junction packing house", "text": "A farm packing house in Junction, St Elizabeth, needs a 120 m sub-main from its main board to a new cold room. The designer's schedule shows 35 mm² copper. The owner asks team leader Kerry-Ann Bennett whether aluminium would be cheaper and less likely to be stolen. Take copper as 0.0172 Ω·mm²/m and 8,900 kg/m³, and aluminium as 0.028 Ω·mm²/m and 2,700 kg/m³." },
+    "c3": { "title": "A burnt-out pump motor near Lionel Town", "text": "A 15 kW pump motor at an irrigation station near Lionel Town, Clarendon, burnt out after its cooling fins were packed with cane trash and dust. Its nameplate shows insulation class F. Team leader Marlon Gordon has two rewind quotes: one with class F materials, and a cheaper one with class B materials. In service, the winding's hottest spot reaches about 140 °C on hot afternoons. Before it failed, the winding measured 0.80 Ω at 20 °C." },
+    "c4": { "title": "Cheap cable at a Harbour View store", "text": "Shawn Campbell runs the stores for an electrical contractor in Harbour View, Kingston. A new supplier has delivered twenty 100 m coils labelled '12 AWG copper THHN' at a price well below the usual. The coils feel light, the sheath printing is faint, and there is no certificate. 12 AWG is about 3.3 mm²." },
+    "c5": { "title": "Maintenance week at a Rose Hall hotel", "text": "Tamara Lewis leads the maintenance electricians at a large hotel in Rose Hall, St James. This week a kitchen contactor's silver-faced contacts are dark grey but smooth; new large single-core cables for the laundry feeder must enter a panel through its steel gland plate; ferrite cores are clipped onto the cables of new door-access controllers; and the laundry circuits, which feed dryers with electronic controls, are due for insulation tests at 500 V." }
+  },
+  "questions": [
+    { "id": "P-01", "c": "c1", "q": "Andre must fix the aluminium brackets to the posts. Which fixings will last best so close to the sea?", "o": ["Brass screws, since brass does not rust", "The zinc-plated screws, painted after fixing", "316 stainless screws with nylon washers", "Copper nails, since copper resists salt water"], "a": 2, "why": "316 stainless resists salt air, and nylon washers keep it from touching the aluminium, so there is no galvanic attack. Brass and copper are far more noble than aluminium and would eat it away in wet salty air; zinc plating is used up within months by the sea." },
+    { "id": "P-02", "c": "c1", "q": "Before installing the grey PVC conduit on the sunny posts, which marking should Andre check for?", "o": ["Rated 90 °C for use in wet or damp locations", "Sunlight-resistant, rated for outdoor use", "Flame-retardant, with low smoke in a fire", "Rated for 600 V conductors drawn inside"], "a": 1, "why": "Ordinary PVC breaks down in UV light: it fades, turns brittle and cracks, then lets water in. Outdoors in Jamaican sun, use conduit marked as sunlight-resistant or UV-stabilised, or shade it." },
+    { "id": "P-03", "c": "c1", "q": "A 25 m straight run of PVC conduit along the fence warms from 25 °C at dawn to 60 °C at midday. Taking 0.06 mm per metre per °C, about how much does it grow?", "o": ["About 5 mm", "About 0.5 mm", "About 525 mm", "About 53 mm"], "a": 3, "why": "Growth = length × temperature rise × coefficient = 25 × 35 × 0.06 = 52.5 mm. That is enough to bow the conduit or pull it out of a box, so long sunny runs need expansion couplings and fixings that let the conduit slide." },
+    { "id": "P-04", "c": "c1", "q": "Which rating should the outlet enclosures on the posts have, given the nightly hosing?", "o": ["IP66", "IP44", "IP54", "IP23"], "a": 0, "why": "The second digit 6 means protected against powerful water jets, and the first digit 6 means dust-tight. A 4 only stands splashing and a 3 only spraying, so hosing would get water inside." },
+    { "id": "P-05", "c": "c2", "q": "What is the resistance of one 35 mm² copper conductor over the 120 m run?", "o": ["About 0.0050 Ω", "About 0.059 Ω", "About 0.59 Ω", "About 0.118 Ω"], "a": 1, "why": "R = ρ × L ÷ A = 0.0172 × 120 ÷ 35 = 0.059 Ω. 0.118 Ω is the loop of two conductors; 0.0050 Ω comes from dividing by the length instead of the area." },
+    { "id": "P-06", "c": "c2", "q": "If aluminium is used, what is the smallest standard size with no more resistance than the 35 mm² copper? (Standard sizes: 35, 50, 70, 95 mm².)", "o": ["35 mm², the same as the copper", "50 mm², as 57 mm² rounds down", "70 mm², since about 57 mm² is needed", "95 mm², double the copper size and more"], "a": 2, "why": "35 × 0.028 ÷ 0.0172 = 57 mm². Rounding down to 50 mm² would give more resistance than the design allows, so the next size up, 70 mm², is needed. Kerry-Ann must still check the aluminium cable's current rating and voltage drop in the maker's tables." },
+    { "id": "P-07", "c": "c2", "q": "Compare the conductor mass per core: 35 mm² copper against 70 mm² aluminium, both 120 m long. Which is true?", "o": ["The copper is lighter, because it is half the size", "The aluminium is heavier, because it has twice the area", "Both weigh about the same for the same resistance", "The aluminium is lighter, though it has twice the area"], "a": 3, "why": "Copper: 35 × 10⁻⁶ × 120 × 8,900 = 37.4 kg. Aluminium: 70 × 10⁻⁶ × 120 × 2,700 = 22.7 kg. Aluminium is about a third as dense as copper, so even at twice the area it is much lighter to carry and pull." },
+    { "id": "P-08", "c": "c2", "q": "Aluminium is chosen and terminated with bimetal lugs. A few months later, which check best shows the joints are still sound?", "o": ["A thermal-camera scan of the joints under load", "A visual check that the lug covers are in place", "An insulation resistance test on the sub-main", "A voltage reading at the cold-room board"], "a": 0, "why": "A loosening or corroding aluminium joint shows up first as heat at the joint, long before it fails. A thermal camera finds it under load without dismantling anything; an insulation test checks the insulation, not the joint." },
+    { "id": "P-09", "c": "c3", "q": "Why is the cheaper class B rewind a poor choice for this motor?", "o": ["Its 130 °C limit is below the 140 °C hot spot", "Class B is meant only for small 110 V motors", "Class B varnish adds iron losses to the motor core", "Its 155 °C limit is too high for the pump"], "a": 0, "why": "Class B insulation is rated for 130 °C. At 140 °C it runs about 10 °C over its limit, which roughly halves its life. A rewind must use materials of the original class F (155 °C) or higher." },
+    { "id": "P-10", "c": "c3", "q": "What should Marlon change so that the rewound motor does not burn out again?", "o": ["Fit a larger breaker so the motor cannot trip", "Keep the fins and fan clear of trash and dust", "Wrap the motor in plastic to keep dust out", "Paint the frame black so the dust does not show"], "a": 1, "why": "Blocked fins and fan stop the heat getting out, so the winding overheats. Regular cleaning removes the root cause. Wrapping the motor or painting it black would trap or absorb more heat, and a larger breaker would only remove protection." },
+    { "id": "P-11", "c": "c3", "q": "After the rewind, the motor is stopped after an hour and its winding at once measures 0.98 Ω. Taking 0.004 per °C, about how hot is the winding?", "o": ["About 56 °C", "About 98 °C", "About 76 °C", "About 45 °C"], "a": 2, "why": "0.98 ÷ 0.80 = 1.225, a rise of 22.5% in resistance. 0.225 ÷ 0.004 = 56 °C of rise, added to the 20 °C start: about 76 °C. 56 °C is the rise only, not the temperature." },
+    { "id": "P-12", "c": "c3", "q": "One rewind shop burns the old coils out over an open fire. Why should this worry Marlon?", "o": ["It turns the silicon steel into a hard magnetic material", "It can melt the old copper into the core slots", "It anneals the core, so that it loses its shape", "It can damage the insulation between laminations"], "a": 3, "why": "The thin coating between laminations keeps eddy currents small. Uncontrolled heat can damage it, so eddy currents rise and the motor runs hotter and less efficiently. Good shops strip windings at a controlled temperature." },
+    { "id": "P-13", "c": "c4", "q": "Which quick check shows whether the conductor is copper-clad aluminium rather than solid copper?", "o": ["Hold a strong magnet against the bare conductor", "Scrape a fresh cut end to see the core's colour", "Test the insulation resistance of a coil", "Check the sheath colour against the label"], "a": 1, "why": "Copper-clad aluminium shows a silver-white core under a thin copper skin. Copper and aluminium are both non-magnetic, so a magnet tells you nothing, and an insulation test checks the insulation, not the metal." },
+    { "id": "P-14", "c": "c4", "q": "Shawn measures one 100 m conductor at 0.85 Ω with nulled leads, in a room at about 25 °C. What should he conclude?", "o": ["It is right for 3.3 mm² copper at 25 °C", "It is low, so the wire must be oversized", "It is far too high for 3.3 mm² copper", "It shows the insulation has been damaged"], "a": 2, "why": "3.3 mm² copper should read 0.0172 × 100 ÷ 3.3 = 0.52 Ω, or about 0.53 Ω at 25 °C. 0.85 Ω is over 60% higher: the wire is undersized or not solid copper, so the coils are held and reported." },
+    { "id": "P-15", "c": "c4", "q": "If coils from this supplier are later proved genuine and issued, which record would help most if a fault appeared years later?", "o": ["The coil and batch numbers used on each circuit", "The name of the driver who delivered each batch", "The price paid for each coil before GCT was added", "The colour of the sheath printed on each coil label"], "a": 0, "why": "Traceability links each circuit to the batch it came from. If a batch is later found faulty or recalled, the firm knows exactly which circuits to check, instead of checking every job." },
+    { "id": "P-16", "c": "c5", "q": "An apprentice wants to file the dark kitchen contactor contacts until they shine. What should Tamara tell him?", "o": ["File them bright, since the dark film blocks current", "Leave them: the dark silver film still conducts", "Coat them with grease to stop them arcing", "Fit plain copper tips, which stay clean longer"], "a": 1, "why": "Silver's tarnish still conducts, so dark but smooth silver contacts are normal. Filing removes the thin silver facing; grease traps dirt and burns; copper's oxide conducts poorly. Badly pitted contacts are replaced as a set." },
+    { "id": "P-17", "c": "c5", "q": "How should the single-core cables of the laundry feeder pass into the panel?", "o": ["Each core through its own hole in the steel plate", "Lines through the steel; the neutral through plastic", "Through the steel plate, earthed at two points", "All the circuit's cores through a non-magnetic plate"], "a": 3, "why": "A single AC conductor passing through steel on its own magnetises it back and forth, so the steel heats up from induced currents. A non-magnetic plate (aluminium or brass), with all the circuit's cores passing together, avoids this." },
+    { "id": "P-18", "c": "c5", "q": "Why are ferrite cores, rather than laminated steel, used where interference at very high frequencies must be absorbed?", "o": ["Ferrite's high resistivity keeps eddy currents tiny", "Ferrite is not magnetic, so it blocks all stray fields", "Ferrite conducts well, so it earths the noise directly", "Ferrite is a hard magnet that holds a steady field"], "a": 0, "why": "At high frequency, eddy-current loss in metal cores would be huge. Ferrite is a magnetic ceramic with a very high resistivity, so it works as a core while eddy currents stay tiny." },
+    { "id": "P-19", "c": "c5", "q": "What must be done about the dryers' electronic controls before the 500 V insulation tests?", "o": ["Nothing, as 500 V DC is too low to harm electronics", "Switch the dryers off at their front panels beforehand", "Disconnect them: the test can destroy semiconductors", "Test them at 1,000 V instead, so the test is quicker"], "a": 2, "why": "Insulation testers apply hundreds of volts DC, which can break down the transistors and other semiconductors in electronic controls. Disconnect them, or test only as the maker allows; a front-panel switch may not separate the electronics." },
+    { "id": "P-20", "c": null, "q": "Why can XLPE insulation run at 90 °C when ordinary polyethylene would soften well below that?", "o": ["It contains copper fibres that carry heat away", "Cross-linking ties its molecules together", "It is a ceramic that does not burn at all", "It is filled with oil that cools the conductor"], "a": 1, "why": "XLPE is polyethylene whose long molecules have been cross-linked. They can no longer slide past each other, so it does not melt and flow, which lets the cable run hotter and carry more current than PVC of the same size." }
+  ]
+}

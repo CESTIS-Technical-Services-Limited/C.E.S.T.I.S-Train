@@ -1,0 +1,395 @@
+{
+  "format": "cestis-study-kit",
+  "version": 1,
+  "status": "to-check",
+  "written": "2026-11-07",
+  "programme": "Electrical Installation",
+  "qualification": { "id": "QUAL-EIM-L3", "title": "ELECTRICAL INSTALLATION AND MAINTENANCE LEVEL 3", "code": "MEM32507" },
+  "level": 3,
+  "unit": { "code": "MEMINS0071A", "title": "Prepare for electrical conduits/wiring installation" },
+  "summary": "This unit is about everything that must be right before the first box is fixed. You will learn to read the drawings and specification, survey a site and an existing installation, choose the wiring system, check loads, cable sizes and voltage drop, and plan safe isolation, permits and risk controls. You will also learn to order, check and store materials, set out the work with other trades, and brief and lead the team.",
+  "sections": [
+    {
+      "title": "Unit overview",
+      "blocks": [
+        { "p": "At Level 2 you prepared for a job that someone else had planned. At Level 3 **you prepare the job**: you read all the information, find the problems before they reach the site, do the sums, write the safety documents, get the right materials delivered at the right time, and brief the people who will do the work. A well-prepared job is safer, quicker and cheaper; most delays and accidents on site can be traced back to something missed at this stage." },
+        { "h": "What you must be able to do" },
+        { "table": { "head": ["Task", "What it looks like on the job"], "rows": [
+          ["Read the job information", "Use the drawings, specification, schedules and equipment nameplates together; find conflicts and raise a written query with the designer."],
+          ["Survey the site", "Check routes, surfaces, access and hidden services; on an existing installation, check the board, earthing, capacity and condition, and report dangers at once."],
+          ["Choose the wiring system", "Match concealed or surface conduit, trunking, cable tray or flexible connections to each area's conditions and the customer's needs."],
+          ["Do the planning calculations", "Work out load current, how many loads a circuit can carry, cable size with correction factors, voltage drop, lengths from scale drawings, box heights and order dates."],
+          ["Plan safe isolation and permits", "Agree outages, plan lock-off for every worker, know which parts stay live, and work under a permit where the client controls the system."],
+          ["Assess and control risks", "Write the risk assessment and method statement, choose access equipment, and plan for heat, dust, height, hidden services and storms."],
+          ["Get tools and instruments ready", "List the tools and test instruments, check calibration dates and book what is needed."],
+          ["Order, check and store materials", "Make a materials schedule, order by lead time, check deliveries, get approval for substitutes, and store and secure materials properly."],
+          ["Programme and co-ordinate", "Fit your first fix and second fix into the builder's programme and agree routes, sleeves and levels with other trades."],
+          ["Brief and lead the team", "Induct new members, share tasks by skill, set out accurately, check progress and keep records."]
+        ] } },
+        { "h": "Preparing work in Jamaica" },
+        { "ul": [
+          "JPS supplies homes and most businesses at **110 V and 220 V, single-phase, 50 Hz**. General outlets and lights are usually 110 V; water heaters, stoves, air conditioners and many pumps are 220 V. Larger buildings may have a three-phase supply: check the drawings.",
+          "The code is based on the US National Electrical Code (NEC), but many designers and suppliers use British methods and terms, such as cable sizes in mm², voltage drop in millivolts per amp per metre, and 'first fix'. This kit gives both where they differ.",
+          "New and altered installations are inspected and certified before JPS connects them, under the **Government Electrical Regulator (GER)**. Build the inspection into your programme.",
+          "Plan for the climate: roof spaces that pass 50 °C, heavy rain, the **hurricane season from June to November**, and salt air on the coast.",
+          "Copper is a target for thieves. Plan the security of cable from the day it is delivered."
+        ] },
+        { "note": "Every figure in a real job comes from the specification, the code the job is designed to and the maker's tables. The figures in this kit are typical ones for learning the method.", "label": "Remember" }
+      ]
+    },
+    {
+      "title": "Reading the job information",
+      "blocks": [
+        { "table": { "head": ["Document", "What it tells you"], "rows": [
+          ["Work order or contract scope", "What is included, what is not, who the client is, the dates."],
+          ["Drawings: layouts, single-line diagram, details", "Where everything goes: boards, outlets, lights, routes, heights. Drawn to a **scale**, with a **revision** letter and date."],
+          ["**Specification**", "The materials, methods, standards and tests the job must meet, much of which is never drawn: conduit type and finish, minimum cable sizes, fixing spacing, segregation, voltage drop limits, the tests and records."],
+          ["**Cable schedule**", "A table of every cable: its size, type, route, length and the circuit it serves."],
+          ["Board (panel) schedule", "Each circuit, its breaker rating and what it feeds."],
+          ["Equipment schedule and makers' manuals", "What each item of equipment needs: voltage, current, circuit size, fixing and clearances."],
+          ["Programme", "The order and dates of the work of every trade."]
+        ] } },
+        { "h": "Why you read all of it" },
+        { "ul": [
+          "A drawing shows **where**; the specification says **what with and how**. A team that works from the drawings alone will fit the wrong conduit neatly in the right place.",
+          "Check that you hold the **latest revision** of every drawing, and remove old copies from the site.",
+          "Where the documents disagree, or the site does not match them, **do not choose for yourself**. Raise a written query (often called a request for information) with the designer through your supervisor, and keep the written answer. Neither the supplier, the trainee doing the run nor the first person on site has the authority to change the design.",
+          "A cheaper or different material from the one specified needs the **designer's written approval** before it is bought."
+        ] },
+        { "h": "Equipment nameplates" },
+        { "p": "Before planning a circuit for any machine or appliance, above all one bought overseas, read its nameplate." },
+        { "table": { "head": ["On the nameplate", "Why it matters"], "rows": [
+          ["Voltage", "Must match a supply you have: 110 V or 220 V single-phase, or the site's three-phase voltage."],
+          ["Frequency", "Must include **50 Hz**. Equipment made only for 60 Hz may run slow, overheat or be damaged."],
+          ["Phases", "A three-phase machine cannot run from a single-phase supply without approved equipment."],
+          ["Power (W or kW) or current (A); starting current", "Gives the circuit current, so you can size the cable and protection and check that the board and the service have the capacity."],
+          ["IP rating, earthing needs, maker's instructions", "Decide where and how it can be installed."]
+        ] } },
+        { "p": "Report any mismatch **before** circuits are planned. The customer may need a different model, or a transformer or other equipment that the maker approves. Check anything unclear with the supplier or the designer." },
+        { "h": "Scale" },
+        { "p": "On a 1:50 drawing, 1 mm on paper is 50 mm on site; on 1:100, 1 mm is 100 mm. **Real length = measured length × scale.** Example: a route measures 84 mm on a 1:50 plan: 84 × 50 = 4,200 mm = 4.2 m. Remember to add the vertical drops and rises, which a plan does not show, and a waste allowance. Never scale a dimension that is written on the drawing: use the written figure." }
+      ]
+    },
+    {
+      "title": "Surveying the site and the existing installation",
+      "blocks": [
+        { "p": "A survey turns the drawings into facts. Walk every room with the drawing, with the owner or site manager where you can, and write down what you find." },
+        { "h": "The site" },
+        { "ul": [
+          "Routes: are they clear? What will they cross: beams, ducts, pipes, fire walls?",
+          "Surfaces and fixings: concrete, block, timber, steel, ceilings that will not take weight.",
+          "Access: what height, what floor, what is underneath, where can a tower stand?",
+          "Hidden services: scan the planned routes with a cable and pipe detector **and** check the drawings. A detector can miss plastic pipes and dead or deep cables, so if a drawing shows a pipe where the detector shows nothing, move the fixing or confirm the pipe's route before drilling.",
+          "Hazards: fragile ceilings, possible asbestos in old cement sheets, heat, pests, the public.",
+          "Storage, parking, working hours, and who must be told before power goes off.",
+          "**Existing damage**: note and photograph cracked tiles, marked walls and broken fittings before work starts, so that there is no argument later about who caused them."
+        ] },
+        { "h": "The existing installation" },
+        { "table": { "head": ["Check", "What you record"], "rows": [
+          ["Supply", "Voltage arrangement (110 V and 220 V circuits, any three-phase), size of the service and main switch, position of the meter."],
+          ["Board", "Make, type and age; condition; signs of overheating such as browned insulation or a smell; **spare ways**; whether the right breakers can still be bought for it."],
+          ["Capacity", "The loads already on the board and the new loads to be added, against the rating of the main switch and service. If the total is too much, the service must be upgraded through JPS before the new loads go on."],
+          ["Earthing", "That a main earth is present, connected and sound: electrode, earthing conductor, clamps, bonding."],
+          ["Circuits", "Which circuit feeds what. Where the schedule is missing, identify and label them."],
+          ["Wiring", "Type and condition: perished rubber, scorched or brittle insulation, undersized or overloaded cables, open joints."]
+        ] } },
+        { "ul": [
+          "The survey is **visual** unless you isolate. Do not open a board, box or accessory on a live installation. Where something must be opened, isolate, lock off and prove dead first.",
+          "To identify unlabelled circuits safely, agree a time with the owner, switch one breaker off at a time and note what goes dead, then label the board.",
+          "An old earth made to a metal water pipe may no longer work: pipes are often repaired or replaced in plastic. Report it."
+        ] },
+        { "note": "If you find a danger, such as no main earth, a broken earth connection, scorched cables or exposed live parts, **report it in writing at once** to your supervisor and the owner, before the work goes on. Do not leave it for the end of the job, and do not 'fix' it with a connection to the nearest pipe. New circuits must not be added to an installation that cannot protect them.", "label": "Safety" },
+        { "h": "The survey report" },
+        { "p": "Write up the survey: what was checked, what was found, photographs, measured route lengths, the dangers reported, and what you recommend. It becomes the basis of the take-off, the risk assessment and the price." }
+      ]
+    },
+    {
+      "title": "Choosing the wiring system",
+      "blocks": [
+        { "p": "The specification usually names the wiring system. At Level 3 you should understand the reasons, be able to suggest a choice when asked, and notice when a specified system does not suit what you find on site." },
+        { "table": { "head": ["System", "Suits", "Limits"], "rows": [
+          ["**Concealed conduit** in walls, slabs and ceilings", "Places where no wiring may show: lobbies, homes, offices", "Must go in before walls and ceilings are finished; hard to change later; draw-in points must stay reachable"],
+          ["**Surface conduit** (PVC or steel)", "Plant rooms, kitchens, workshops, stores, and additions to finished buildings", "Visible; needs neat work; choose the material for the conditions"],
+          ["**Trunking** (wall, skirting, dado or ceiling)", "Offices, labs and classrooms where outlets will be added or moved", "Not for wet or greasy places unless sealed and rated for them"],
+          ["**Cable tray or ladder**", "Many or large cables on main runs in plant rooms, factories and above ceilings; easy to add to", "Open: collects dirt and grease, gives little protection from knocks"],
+          ["Flexible conduit or flexible cable", "The final drop to a motor or machine that vibrates or moves", "Short lengths only; separate earth conductor"],
+          ["Sheathed cables clipped to the surface or in roof spaces", "Houses and light buildings, where the code and specification allow", "Little protection from damage"]
+        ] } },
+        { "h": "What decides the choice" },
+        { "ul": [
+          "**Appearance**: may the wiring be seen?",
+          "**Flexibility**: will machines or outlets be added and moved? Then choose tray or trunking with spare room.",
+          "**The environment**: heat, steam, grease, washing down, dust, salt air, sun, impact.",
+          "**Cleaning and hygiene**: kitchens and food areas need smooth, sealed systems that are easy to wash.",
+          "**The stage of the building**: a finished building limits you to surface systems or existing voids.",
+          "**Cost and time**, within what the specification allows."
+        ] },
+        { "table": { "head": ["Area", "A sound choice", "Reason"], "rows": [
+          ["Hotel lobby", "Concealed conduit fixed before the finishes", "Nothing may show"],
+          ["Commercial kitchen", "Surface PVC or galvanised steel conduit with sealed, IP-rated boxes, away from hot surfaces", "Heat, steam, grease and washing; open tray would collect grease"],
+          ["Plant room", "Tray or trunking for main runs; conduit and flexible drops to machines", "Many large cables; equipment changes"],
+          ["Workshop where machines move often", "Tray or trunking with spare capacity on the main runs", "Easy to add and re-route circuits"],
+          ["Science lab or office with finished walls", "Surface or dado trunking with spare room", "Outlets can be added without cutting walls"]
+        ] } },
+        { "note": "Whatever you think is best, the specification rules. If you believe a specified system will not suit the conditions, raise it with the designer in writing and wait for the answer.", "label": "Remember" }
+      ]
+    },
+    {
+      "title": "Planning calculations",
+      "blocks": [
+        { "h": "Load current" },
+        { "p": "**Current = power ÷ voltage (I = P ÷ V).** A 2,640 W water heater on 220 V draws 2,640 ÷ 220 = **12 A**. The same power on 110 V would draw 24 A, which is why large loads are put on 220 V. For a load given in kW, multiply by 1,000 first: 2.5 kW on 220 V is 2,500 ÷ 220 = 11.4 A." },
+        { "p": "**Several loads on one circuit.** Add the powers, or the currents, of everything that can run at the same time. Three 880 W loads on 220 V: 2,640 ÷ 220 = 12 A. **How many loads can a circuit carry?** Find the current of one, divide the circuit rating by it and **round down**: 1,500 W heaters on 110 V draw 13.6 A each, so a 30 A circuit carries 30 ÷ 13.6 = 2.2, which means **2 heaters**, not 3." },
+        { "h": "Choosing the cable size" },
+        { "p": "Three figures must line up: the **design current** of the load, the **rating of the protective device** (breaker or fuse), and the **current the cable can carry as it is installed**. The device rating must be at least the design current, and the cable's installed rating must be at least the device rating." },
+        { "p": "A cable's current rating in the tables assumes it is run alone in air at 30 °C. Real conditions lower it:" },
+        { "table": { "head": ["Condition", "Effect", "Factor"], "rows": [
+          ["**Ambient temperature**: a hot roof space, a boiler room", "The cable starts off warmer, so it can carry less current before its insulation overheats", "Temperature (ambient) factor from the tables: for example about 0.87 at 40 °C and 0.71 at 50 °C for ordinary PVC cable"],
+          ["**Grouping**: several circuits bunched in one conduit, trunking or bundle", "The cables heat each other and cannot lose their heat", "**Grouping factor** from the tables: for example about 0.80 for two circuits and 0.70 for three"],
+          ["Thermal insulation round the cable", "Heat is trapped", "A further factor from the tables"],
+          ["How the cable is installed: in conduit, clipped direct, on tray", "Changes how well it loses heat", "Use the table column for that method"]
+        ] } },
+        { "p": "**Rating needed from the table = device rating ÷ (temperature factor × grouping factor).**" },
+        { "p": "**Worked example.** A 16 A circuit runs through a roof space at 40 °C (factor 0.87), in a conduit with two other circuits (three circuits: factor 0.70). Rating needed = 16 ÷ (0.87 × 0.70) = 16 ÷ 0.61 = **26.3 A**. Choose the smallest cable whose table rating, for that method of installation, is at least 26.3 A. A cable picked from the breaker rating alone would have been too small." },
+        { "h": "Voltage drop" },
+        { "p": "Every cable has resistance, so some voltage is lost along it. Too much drop makes lights dim, motors run hot and struggle to start, and electronics misbehave. The specification sets a limit, usually a **percentage of the supply voltage** (figures of 3% to 5% are common). Cable tables give the drop in **millivolts per amp per metre (mV/A/m)**." },
+        { "p": "**Voltage drop (V) = mV/A/m × current (A) × length (m) ÷ 1,000.**" },
+        { "p": "**Worked example.** A cable with a figure of 7.3 mV/A/m carries 24 A over a 40 m route. Drop = 7.3 × 24 × 40 ÷ 1,000 = **7.0 V**. On 220 V that is 7.0 ÷ 220 × 100 = 3.2%. If the limit is 4%, the largest drop allowed is 0.04 × 220 = 8.8 V, so this cable passes." },
+        { "ul": [
+          "The cable must pass **both** checks: current rating and voltage drop. On a long run the voltage drop often decides, and a larger cable is needed even though the smaller one could carry the current.",
+          "If a cable fails on voltage drop, choose a larger size or find a shorter route. Fitting a bigger breaker does nothing for voltage drop and removes the cable's protection.",
+          "Check also that the cable **type** suits the place: its temperature rating, sheath and protection."
+        ] },
+        { "h": "Heights and levels" },
+        { "p": "Heights of switches, outlets and boards are measured from the **finished floor level (FFL)**: the top of the finished tiles or screed, which the builder sets. During first fix the floor is often a bare slab below FFL. **Height above the slab = height above FFL + the thickness of the finishes still to come.** Example: an outlet at 300 mm above FFL, with 65 mm of screed and tile still to be laid, is fixed 365 mm above the slab. Always get the FFL mark (the datum) from the builder before setting box heights." },
+        { "h": "Ordering dates" },
+        { "p": "**Latest order date = the date the item is needed on site − the supplier's lead time.** Count back on a calendar, and leave a margin for checking and for late deliveries. Example: fittings needed on 20 May with a 2-week lead time must be ordered by 6 May; with a week's margin, by 29 April." }
+      ]
+    },
+    {
+      "title": "Planning safe isolation, permits and risk control",
+      "blocks": [
+        { "h": "Planning an outage" },
+        { "ul": [
+          "**Agree the time** with the owner or manager, and give **notice to everyone affected**. People need to plan for fridges and freezers, water pumps, security and fire alarm systems, computers, lifts and medical equipment.",
+          "Find **every source of supply**: the JPS service, standby generators (an automatic transfer switch starts the generator when the JPS supply is lost), solar PV inverters, batteries and UPS units. The method statement must say how each is isolated and locked.",
+          "Decide where the lock-off will be and who is in charge of it.",
+          "Have lighting, tools and tested instruments ready, so that the outage is as short as possible."
+        ] },
+        { "h": "Team lock-off" },
+        { "flow": ["Identify the right isolator from the schedule and drawings", "Switch off", "Fit a multi-lock hasp", "Every worker fits their own padlock and keeps their own key", "Fit a danger tag: name, date, reason", "Prove the two-pole tester on a proving unit", "Test at the point of work between all conductors", "Prove the tester again", "Work; at the end each person removes only their own lock", "Restore the supply only when all locks are off, the work is tested and everyone is clear"] },
+        { "ul": [
+          "A **hasp** lets several workers each lock one isolator. The supply cannot come back until the last person has removed their lock. One leader's lock does not protect the others.",
+          "The **incoming terminals** of a main switch are on the supply side: they stay live when the switch is off and locked. Shroud or barrier them, and warn the team.",
+          "A neon test screwdriver, a non-contact detector or a lamp is **not** a reliable test: none of them tests between all conductors or can be proved before and after."
+        ] },
+        { "h": "Permit to work" },
+        { "p": "A **permit to work** is a signed document that lets named people do stated work on a system that someone else controls, under set conditions and for a set time. You are most likely to need one where the **client controls the isolation**: hotels, hospitals, factories, schools, and anything involving JPS. The person in control isolates and issues the permit; you sign to accept it, do only the work it covers, and sign it back when you finish. A permit does not replace your own lock and your own test at the point of work." },
+        { "h": "Risk assessment and method statement" },
+        { "table": { "head": ["Document", "What it does", "Contents"], "rows": [
+          ["**Risk assessment**", "**Finds the hazards** and decides the controls", "Each hazard, who could be harmed, how likely and how serious, the controls, who is responsible"],
+          ["**Method statement**", "**Sets out the safe steps** of the job, in order", "The sequence of work, isolation method, access equipment, PPE, supervision, emergency arrangements"]
+        ] } },
+        { "p": "Both are written before the work, approved by your supervisor, and **read and signed by everyone doing the work**. A risk assessment kept in the van protects nobody. Review them when anything changes." },
+        { "h": "Hazards of preparation work in Jamaica" },
+        { "table": { "head": ["Hazard", "Controls"], "rows": [
+          ["Heat stress in roof spaces under zinc or concrete roofs", "Work in the cool of the early morning; short spells with rest breaks; drinking water throughout the day; fans or airflow; workers check on each other (buddy checks); someone outside always knows who is inside"],
+          ["Fragile ceilings in roof spaces", "Stand only on joists or on boards laid across them, never on the ceiling itself"],
+          ["Hidden cables, nails, wasps and rats in roof spaces", "Good lighting, gloves and long sleeves; isolate circuits you must touch"],
+          ["Falls from height", "The right access equipment, checked, set up correctly and used by trained people; area below kept clear"],
+          ["Drilling into hidden pipes and cables", "Detector **and** drawings; move the mark or confirm the route when they disagree"],
+          ["Dust from old ceilings and from drilling", "Masks and goggles; extraction; treat old cement sheets as possible asbestos until tested"],
+          ["Manual handling of cable drums and bundles of conduit", "Trolleys, team lifts, drum stands"],
+          ["Storms in the hurricane season", "A plan to secure materials and equipment, make the site safe and stop work when a warning is issued"]
+        ] } }
+      ]
+    },
+    {
+      "title": "Access equipment, tools and test instruments",
+      "blocks": [
+        { "h": "Choosing access equipment" },
+        { "table": { "head": ["Equipment", "Use it for", "Key checks"], "rows": [
+          ["Stepladder or podium steps", "Short, light work at low height", "Fully open and locked, on firm level ground; do not stand on the top; podium steps give a guarded platform"],
+          ["Leaning ladder", "Access, and short light work only", "1 out for every 4 up (about 75°); tied or footed; three points of contact"],
+          ["**Mobile tower**", "Longer work at height, such as fixing a long run along a ceiling", "Built and checked by a trained person; base level and on firm ground; **wheels locked**; guardrails and toe boards fitted; outriggers where the maker requires; nobody on it when it is moved"],
+          ["Powered platform (scissor lift)", "High, long-duration work in large buildings", "Trained operator; level ground; harness where required"]
+        ] } },
+        { "p": "A mobile tower is usually better than a ladder for conduit work because it gives a **stable platform with both hands free** and room for tools and materials, and the worker does not have to climb down to move every metre. No access equipment is safe until it has been checked." },
+        { "p": "**Ladder rule: 1 out for every 4 up.** A ladder whose top rests 6 m up a wall should have its foot 6 ÷ 4 = 1.5 m from the wall." },
+        { "h": "Tools" },
+        { "ul": [
+          "List the tools the job needs at the planning stage: setting-out tools (laser level, chalk line, tape, plumb line), detector, drills and fixings tools, conduit tools, lock-off kit.",
+          "Check power tools, leads and plugs before use, and the inspection labels where the Centre or company uses them.",
+          "A **laser level** marks a level line right round a room quickly and accurately. Never look into the beam."
+        ] },
+        { "h": "Test instruments" },
+        { "ul": [
+          "The plan should **list the test instruments needed at the end of the job**, so that they are booked, in date and on site in time. A job that cannot be tested cannot be handed over.",
+          "Check each instrument's **calibration date** before the job starts. An instrument out of calibration may give wrong readings, and results taken with it may be rejected.",
+          "Record the instruments and their calibration dates in a calibration log.",
+          "Check the two-pole voltage tester and its proving unit, test leads and probes for damage."
+        ] }
+      ]
+    },
+    {
+      "title": "Materials: ordering, delivery, storage and waste",
+      "blocks": [
+        { "h": "The materials schedule" },
+        { "p": "From the drawings and the survey, do a **take-off** and turn it into a materials schedule: every item with its type, size, quantity (with a waste allowance), supplier, lead time, the date it is needed and the date it must be ordered. The schedule must match the specification exactly." },
+        { "h": "Ordering and delivery" },
+        { "flow": ["Ask suppliers for prices and lead times", "Order by counting back from the date each item is needed", "Plan staged deliveries, so items arrive shortly before they are used", "Agree a delivery point and a store with the owner", "Check each delivery against the delivery note and the schedule", "Write shortages and damage on the delivery note before signing", "Report problems to the supplier and your supervisor at once"] },
+        { "ul": [
+          "Check deliveries **when they arrive**, not when the items are needed: there is still time to replace wrong or damaged items without stopping the job.",
+          "Check type, size, quantity, finish and damage, not just the number of boxes.",
+          "Special fittings and boards can take weeks. Order them first.",
+          "If a supplier offers a substitute, do not accept it or mix it in. Get the designer's written approval first."
+        ] },
+        { "h": "Storage and security" },
+        { "table": { "head": ["Material", "How to store it"], "rows": [
+          ["PVC conduit, trunking and fittings", "Flat, supported along the length, **out of direct sun**: sun and heat warp the lengths and weaken the plastic"],
+          ["Steel conduit and tray", "Off the ground on timbers, under cover, so it stays dry and does not rust"],
+          ["**Cable drums**", "In a **locked store**, with every drum logged in and out; copper cable is often stolen from sites"],
+          ["Accessories, breakers and fittings", "In their boxes, in a dry, locked store, labelled by area"],
+          ["Solvent cement and other flammables", "Lids on, cool, away from heat and sparks, as the label says"],
+          ["Test instruments", "In their cases, in a secure, dry place"]
+        ] } },
+        { "p": "Agree the storage area and the working hours with the building owner before the job starts, so that materials are safe and the work disturbs nobody. Lift drums and bundles with help or a trolley." },
+        { "h": "Waste" },
+        { "ul": [
+          "The plan should say how waste will be handled: **separate metal, plastic and packaging** for recycling or proper disposal.",
+          "Scrap copper and steel have value: collect and account for them.",
+          "Never burn off-cuts, insulation or packaging on site.",
+          "Old fluorescent tubes, batteries and suspect asbestos need special disposal: ask your supervisor.",
+          "At the end, return unused stock and record what was used."
+        ] }
+      ]
+    },
+    {
+      "title": "Programme, co-ordination, setting out and leading the team",
+      "blocks": [
+        { "h": "First fix and second fix" },
+        { "table": { "head": ["Stage", "Work", "When"], "rows": [
+          ["**First fix** (rough-in)", "Conduit, boxes, trunking, tray and cables fixed in place", "Before walls are plastered, slabs poured and ceilings closed"],
+          ["**Second fix**", "Switches, outlets, light fittings, breakers and equipment connected", "After plastering, tiling and painting"],
+          ["Testing and commissioning", "Inspection, tests, energising, handover", "After second fix"]
+        ] } },
+        { "h": "The programme" },
+        { "p": "A programme, often drawn as a **bar chart**, shows each task, how long it takes, the order and who does it. Your work depends on other trades and theirs on yours. When another trade's delay stops you in one area, **tell your supervisor and re-plan**: move the team to an area that is ready. Do not wait idle, and do not fix work that will have to be moved." },
+        { "h": "Working with the builder and other trades" },
+        { "ul": [
+          "Go through the drawings with the builder, plumber and air-conditioning installer **before work starts**. Their ducts, pipes and drains may need the same space as your routes; agree who goes where.",
+          "Ask for **sleeves and openings** through walls, beams and floors to be placed before these are built. Holes cut later cost more and can weaken the structure, and holes in structural members need the engineer's approval.",
+          "For conduit cast into a slab: agree the date of the pour, **fix and cap the conduit and boxes in time, and have the work checked before the concrete is placed**. Once the concrete is in, nothing can be put right.",
+          "Get the finished floor and ceiling levels from the builder before setting any heights.",
+          "Attend site meetings, raise delays early, and get every agreed change in writing and onto the drawings."
+        ] },
+        { "h": "Setting out" },
+        { "flow": ["Get the FFL datum mark from the builder", "Scan the surfaces with a detector and check the drawings", "Project a level line round the room with the laser level", "Measure box heights from the line", "Mark box centres and routes with chalk line and pencil", "Check positions against doors, furniture layouts and other services", "Have a second person check the marks before fixing"] },
+        { "h": "Leading the team" },
+        { "ul": [
+          "A **new member gets a site induction first**: the hazards, the rules, emergency points, who to report to. Nobody starts work without it.",
+          "Brief the team each morning: the scope, the day's tasks, the hazards and controls, and any changes.",
+          "**Match tasks to skills**, and pair a new trainee with an experienced member so that they learn safely. Never give the riskiest job to the least experienced person.",
+          "Safe isolation is done only by competent members, with every worker's lock on.",
+          "Check work at stages, correct mistakes early and explain why.",
+          "At the end of each day, check progress against the programme, record it and agree the next day's tasks."
+        ] },
+        { "h": "Records from the preparation stage" },
+        { "p": "Keep the job pack together: the survey report with photos of existing damage, queries and written answers, the risk assessment and method statement with signatures, permits, the materials schedule and delivery records, the programme, the isolation records, the calibration log and the daily progress notes." }
+      ]
+    },
+    {
+      "title": "Revision",
+      "blocks": [
+        { "h": "Checklist" },
+        { "p": "Tick each statement only when you can do it without looking at the notes." },
+        { "ul": [
+          "I can say what the drawings, the specification and the cable schedule each tell me, and why I need all three.",
+          "I can deal correctly with a conflict between documents, and with an offer of a substitute material.",
+          "I can read a nameplate and say why voltage, frequency and phases matter in Jamaica.",
+          "I can convert a scaled length and add drops and waste.",
+          "I can survey a site and an existing board, and record spare ways, condition, earthing and capacity.",
+          "I can say what to do when I find a danger such as a missing main earth.",
+          "I can choose a wiring system for a lobby, kitchen, plant room, workshop or lab and give the reason.",
+          "I can work out load current and how many loads a circuit can carry.",
+          "I can explain why heat and grouping make a larger cable necessary, and use the factors.",
+          "I can work out a voltage drop and compare it with a percentage limit.",
+          "I can plan an outage, a team lock-off and the removal of locks.",
+          "I can explain which terminals stay live when a main switch is off.",
+          "I can say when a permit to work is needed and what it does not replace.",
+          "I can explain the difference between a risk assessment and a method statement.",
+          "I can name the hazards of roof spaces and work at height and their controls.",
+          "I can choose and check access equipment and use the 1-in-4 rule.",
+          "I can plan for calibrated test instruments to be on site.",
+          "I can make a materials schedule, work out order dates and check a delivery.",
+          "I can store PVC, steel and cable correctly and plan for waste.",
+          "I can co-ordinate first fix with the builder and other trades.",
+          "I can set out from the finished floor level with a laser level.",
+          "I can induct, brief, organise and supervise a small team."
+        ] },
+        { "h": "Formulas and figures to remember" },
+        { "table": { "head": ["Formula or figure", "Use"], "rows": [
+          ["I = P ÷ V", "Load current"],
+          ["Rating needed = device rating ÷ (temperature factor × grouping factor)", "Cable size under real conditions"],
+          ["Drop (V) = mV/A/m × A × m ÷ 1,000", "Voltage drop"],
+          ["Limit (V) = percentage × supply voltage ÷ 100", "Largest voltage drop allowed"],
+          ["Real length = measured length × scale", "Lengths from drawings"],
+          ["Height above slab = height above FFL + finishes", "Box heights at first fix"],
+          ["Order date = need date − lead time", "Ordering"],
+          ["1 out for every 4 up", "Ladder angle"],
+          ["110 V and 220 V, 50 Hz", "JPS supply: outlets and lights / heaters, stoves, air conditioners"]
+        ] } },
+        { "h": "Key terms" },
+        { "terms": [
+          ["Bar chart", "A programme drawn as bars against dates, showing each task, its length and its order."],
+          ["Cable schedule", "The table that lists every cable with its size, type, route and circuit."],
+          ["Calibration", "Checking an instrument against a known standard so that its readings can be trusted; it has a date and an expiry."],
+          ["Datum", "A fixed reference mark, such as the finished floor level, that heights are measured from."],
+          ["Design current", "The current a circuit is expected to carry in normal use."],
+          ["Finished floor level (FFL)", "The level of the top of the finished floor, from which heights are measured."],
+          ["First fix (rough-in)", "Fixing conduit, boxes and cables before walls and ceilings are finished."],
+          ["Grouping factor", "The factor that lowers a cable's current rating when it is bunched with other circuits."],
+          ["Hasp (multi-lock hasp)", "A clamp that lets several workers each fit a padlock to one isolator."],
+          ["Lead time", "The time between placing an order and the delivery."],
+          ["Method statement", "The document that sets out, step by step, how a job will be done safely."],
+          ["Permit to work", "A signed document allowing stated work on a system that someone else controls, under set conditions."],
+          ["RCD", "Residual current device: switches off when current leaks to earth (US: GFCI)."],
+          ["Risk assessment", "The document that lists a job's hazards, who could be harmed and the controls."],
+          ["Second fix", "Fitting and connecting accessories and equipment after the finishes."],
+          ["Specification", "The written document that sets the materials, methods, standards and tests for a job."],
+          ["Take-off", "Counting and measuring the materials a job needs from the drawings."],
+          ["Voltage drop", "The voltage lost along a cable because of its resistance."]
+        ] }
+      ]
+    }
+  ],
+  "cases": {
+    "c1": { "title": "First fix at a medical centre in Linstead", "text": "Jhanelle Brown, a Level 3 trainee, is preparing the first fix for a new two-storey medical centre in Linstead, St Catherine. The first-floor slab, with cast-in conduits, is to be poured at 7 a.m. on Friday, but the client's engineer, who must check the conduits, can only come at 9 a.m. that day. The electrical drawings show two conduit routes passing through ground beams that have not yet been cast. On the 1:100 layout, one corridor route measures 64 mm, and it has a 1.2 m drop to a box at each end." },
+    "c2": { "title": "Surveying an old shop in Falmouth", "text": "Level 3 trainee Marlon Reid is surveying an old shop in Falmouth, Trelawny, before a partial rewire. The owner wants to add a 220 V water heater and two air conditioners. Marlon finds a 60 A main switch and a board with two spare ways, on which two circuits are not labelled. The only earth connection is a corroded clamp on a metal water pipe, and the plumber says most of that pipe was replaced with plastic last year. In the roof space, cables with cracked rubber insulation are still in use. His load check shows that the new loads would take the shop's demand well above 60 A." },
+    "c3": { "title": "An outage at a guest house in Oracabessa", "text": "A team of three, led by Level 3 trainee Kadeem Hall, will add circuits to the main board of a guest house in Oracabessa, St Mary. The whole board must be off for two hours. The guest house has a standby generator with an automatic transfer switch and a solar inverter with batteries. The maintenance manager controls all isolation on the property: he will switch off, fit his own lock to the main switch and issue a permit to work." },
+    "c4": { "title": "A new oven circuit for a bakery in Chapelton", "text": "Level 3 trainee Tashoy Bennett is planning a new 220 V circuit for an oven that draws 18 A at a small bakery in Chapelton, Clarendon. It will be protected by a 20 A breaker. The 32 m route runs in conduit through a roof space at 40 °C (temperature factor 0.87) together with one other circuit (grouping factor 0.80). The cable data sheet gives, for cables in conduit: 2.5 mm², 24 A and 18 mV/A/m; 4 mm², 32 A and 11 mV/A/m; 6 mm², 41 A and 7.3 mV/A/m. The specification limits voltage drop to 4%." },
+    "c5": { "title": "Materials for a church hall in Seaforth", "text": "Level 3 trainee Renae Fisher is preparing a conduit and wiring job at a church hall in Seaforth, St Thomas. Steel conduit and fittings must be on site on Monday 12 October 2026; the supplier's lead time is 3 weeks, and Renae wants one more week in hand. When the first delivery arrives, two boxes of saddles are missing and one bundle of PVC conduit is crushed, and the driver is in a hurry for a signature. Part of the route is in the roof space above a plasterboard ceiling on light timber joists." }
+  },
+  "questions": [
+    { "id": "P-01", "c": "c1", "q": "The pour is at 7 a.m. on Friday, but the engineer cannot check the cast-in conduits until 9 a.m. What should Jhanelle do?", "o": ["Let the pour go ahead, and show the engineer photographs afterwards", "Tell the site manager now, so the check or the pour can be re-timed", "Check the conduits herself and sign the engineer's form for him", "Leave the conduit ends uncapped so that they can be found later"], "a": 1, "why": "Once the concrete is placed, nothing in the slab can be inspected or put right. The conflict must be raised at once so that either the inspection is brought forward or the pour is delayed; photographs do not replace the required check." },
+    { "id": "P-02", "c": "c1", "q": "What should be done about the two routes drawn through the ground beams?", "o": ["Core-drill the beams after they have cured, where the drawing shows", "Leave gaps in the beams' steel so the conduit can pass through later", "Ask for approved sleeves to be placed before the beams are cast", "Run the conduit over the top of each beam and cover it with screed"], "a": 2, "why": "A sleeve set in the formwork before the pour, in a position the structural engineer has approved, costs little. Drilling a finished beam costs more, can cut the reinforcement and weaken the structure, and needs the engineer's approval in any case." },
+    { "id": "P-03", "c": "c1", "q": "With 10% added for waste, about how much conduit does the corridor route need?", "o": ["About 9.7 m", "About 8.8 m", "About 7.0 m", "About 6.4 m"], "a": 0, "why": "At 1:100, 64 mm is 6.4 m. The plan does not show the two 1.2 m drops: 6.4 + 2.4 = 8.8 m. Adding 10% gives 9.68 m, about 9.7 m. Forgetting the drops is the usual mistake." },
+    { "id": "P-04", "c": "c2", "q": "What should Marlon's report say about the earth connection?", "o": ["It is acceptable, as the clamp only needs a good clean and tightening", "It is a danger to report in writing now: the pipe is not an earth", "It can be dealt with at the end, when the new circuits are tested", "It is not needed, as the new circuits will have their own earth wires"], "a": 1, "why": "A plastic section breaks the path to earth, so the installation may have no working earth at all. Earth wires in the new circuits are useless unless the board itself is properly earthed. This is a danger to report in writing before the work goes on." },
+    { "id": "P-05", "c": "c2", "q": "How should Marlon find out what the two unlabelled circuits feed?", "o": ["Take the board cover off and trace the cables while it is live", "Ask the owner to guess, and write his answer on the board", "Assume they are spare, since nobody knows what they feed", "Agree a time, switch each off in turn and see what goes dead"], "a": 3, "why": "Switching one breaker off at a time, at a time agreed with the owner, identifies each circuit without opening anything live. A survey is visual unless the installation is isolated and proved dead; guesses and assumptions end up as wrong labels." },
+    { "id": "P-06", "c": "c2", "q": "The new loads would take the demand well above the 60 A main switch. What should the report recommend?", "o": ["Use the two spare ways, since the board has room for the breakers", "Fit a larger main switch on the existing service cable", "Apply through the owner to JPS for a larger service first", "Tell the owner to run only one new appliance at a time"], "a": 2, "why": "Spare ways only mean there is room for breakers, not that the supply can carry the load. The service, meter and main switch are sized together; the owner must apply to JPS for an upgrade, and the board and earthing are renewed to suit." },
+    { "id": "P-07", "c": "c2", "q": "How should the cracked rubber-insulated cables in the roof space be treated in the survey?", "o": ["As a danger: tell the owner in writing and advise replacement", "As normal for the building's age, needing no mention in the report", "As outside the job, since only part of the shop is being rewired", "As a small fault that the team can wrap with tape during the job"], "a": 0, "why": "Perished insulation can expose live conductors and start a fire. It is outside the agreed work, but you have a duty to report a danger you find, in writing, and to recommend the remedy. Tape is not a repair." },
+    { "id": "P-08", "c": "c3", "q": "Which supplies must Kadeem's method statement show as isolated before work on the board?", "o": ["The JPS supply only, since the manager is locking the main switch", "The JPS supply and the generator, but not the solar inverter", "The JPS supply, the generator and the solar and battery system", "The generator only, since JPS will be told about the outage"], "a": 2, "why": "When the JPS supply is switched off, the transfer switch will start the generator, and the inverter and batteries can also feed the board. Every source must be isolated and locked in the way its maker and the site procedure say." },
+    { "id": "P-09", "c": "c3", "q": "The manager has locked the main switch and issued the permit. What must the team still do before touching the board?", "o": ["Nothing more, since the permit shows that the board is dead", "Ask the manager to leave his key with Kadeem for the two hours", "Fit a danger tag over the manager's lock and then begin work", "Fit their own locks and prove dead at the point of work"], "a": 3, "why": "A permit and another person's lock do not replace your own protection. Each worker fits their own padlock to the hasp, and the board is proved dead with a tester checked before and after. The incoming terminals of the main switch stay live." },
+    { "id": "P-10", "c": "c3", "q": "The work is finished and tested after 1 hour 40 minutes. When may the supply be restored?", "o": ["When Kadeem, as team leader, removes his lock and says so", "When every lock is off and the permit is signed back", "When the two hours agreed with the guests have fully passed", "When the manager decides, whether or not the locks are off"], "a": 1, "why": "Each person removes only their own lock, when they are clear of the work. Only when the last lock is off, the work is tested and the permit is signed back to the manager is the system his to re-energise." },
+    { "id": "P-11", "c": "c4", "q": "After applying both factors, which is the smallest cable that can carry the current?", "o": ["2.5 mm²", "1.5 mm²", "6 mm²", "4 mm²"], "a": 3, "why": "Rating needed = 20 ÷ (0.87 × 0.80) = 20 ÷ 0.696 = 28.7 A. The 2.5 mm² cable is rated 24 A, which is too low; the 4 mm² cable at 32 A is the smallest that passes. Note that the breaker rating, not the 18 A load, is divided by the factors." },
+    { "id": "P-12", "c": "c4", "q": "What is the voltage drop on the 4 mm² cable, and does it meet the 4% limit?", "o": ["About 6.3 V, which is within the limit", "About 10.4 V, which is over the limit", "About 63 V, which is far over the limit", "About 2.9 V, which is within the limit"], "a": 0, "why": "Drop = 11 × 18 × 32 ÷ 1,000 = 6.3 V. The limit is 4% of 220 V = 8.8 V, so the cable passes (6.3 V is 2.9%: do not confuse the percentage with the volts). The 2.5 mm² cable would drop 10.4 V and fail." },
+    { "id": "P-13", "c": "c4", "q": "The owner asks why the cable cannot simply be sized from the 20 A breaker, as on his last job. What is the best answer?", "o": ["Breaker ratings are only a guide and are often wrong", "A 20 A breaker always needs a cable rated at 40 A", "Heat, grouping and length all change the size needed", "Ovens are a special case and always need 6 mm² cable"], "a": 2, "why": "A cable's table rating assumes it is cool and alone. In a hot roof space, bunched with another circuit, it can carry less, and on a long run the voltage drop may need a larger size still. Both checks must pass." },
+    { "id": "P-14", "c": "c5", "q": "By which date must Renae place the order for the steel conduit and fittings?", "o": ["Monday 21 September", "Monday 28 September", "Monday 14 September", "Monday 5 October"], "a": 2, "why": "Three weeks of lead time plus the one week in hand is four weeks. Four weeks before Monday 12 October is Monday 14 September. Ordering on 21 September would leave no margin for checking the delivery or for a late lorry." },
+    { "id": "P-15", "c": "c5", "q": "The driver wants a signature at once. What should Renae do about the missing saddles and the crushed conduit?", "o": ["Sign as received, and telephone the supplier about it next week", "Refuse the whole delivery and send every item back on the lorry", "Sign as received, and take the cost out of the team's waste allowance", "Write the shortage and damage on the delivery note, then sign"], "a": 3, "why": "A clear signature says everything arrived in good order. Writing the shortage and damage on the note before signing, then reporting it to the supplier and supervisor the same day, protects the job and leaves time for replacements." },
+    { "id": "P-16", "c": "c5", "q": "Where may the team put their weight while working above the plasterboard ceiling?", "o": ["Anywhere, as long as they move slowly and spread their weight", "Only on the joists, or on boards laid across the joists", "On the plasterboard beside the joists, where it is strongest", "On the conduit runs already fixed in the roof space"], "a": 1, "why": "Plasterboard cannot carry a person: a foot between joists goes straight through, and the fall can be several metres. Stand and kneel only on the joists or on crawl boards laid across them." },
+    { "id": "P-17", "c": null, "q": "A school's science lab has finished walls, and the teachers expect to add bench outlets over the next few years. Which wiring system suits the lab best?", "o": ["Conduit chased into the finished walls for each new outlet", "Sheathed cables clipped neatly along the top of the benches", "Surface trunking round the room, with spare capacity", "Extension leads from the existing outlets to each bench"], "a": 2, "why": "Trunking with spare room lets circuits and outlets be added or moved without cutting finished walls. Chasing each time is slow, dusty and costly, and extension leads are a temporary measure, never a wiring system." },
+    { "id": "P-18", "c": null, "q": "A specification limits voltage drop on every circuit. What is the main reason for such a limit?", "o": ["Too much drop makes equipment run badly and motors overheat", "Too much drop makes the breaker trip whenever a load starts", "Too much drop raises the voltage at the far end of the cable", "Too much drop lets the cable carry more current than its rating"], "a": 0, "why": "Voltage lost in the cable is not available at the load: lights dim, motors struggle to start and run hot, and electronics misbehave. The limit ensures that equipment gets close to its rated voltage." },
+    { "id": "P-19", "c": null, "q": "On a new house, which task belongs to second fix?", "o": ["Fixing conduit and boxes into the block walls", "Casting conduit into the roof slab", "Drawing the cables into the wall conduits", "Connecting the switches and outlets"], "a": 3, "why": "First fix is everything that is hidden or fixed before the finishes: conduit, boxes and cables. Second fix comes after plastering, tiling and painting: fitting and connecting switches, outlets, light fittings and breakers." },
+    { "id": "P-20", "c": null, "q": "Your team is about to use a mobile tower to fix conduit along a 4 m ceiling. Which check matters most before anyone climbs?", "o": ["That it stands on boxes or blocks to gain a little extra height", "That its wheels are locked and its guardrails are fitted", "That it can be pulled along with one person still on top", "That the tallest member of the team is the one who climbs"], "a": 1, "why": "A tower is safe only when a trained person has built and checked it: level on firm ground, wheels locked, guardrails and toe boards in place. Never raise it on loose packing, and never move it with anyone on it." }
+  ]
+}

@@ -1,0 +1,406 @@
+{
+  "format": "cestis-study-kit",
+  "version": 1,
+  "status": "to-check",
+  "written": "2026-11-07",
+  "programme": "Electrical Installation",
+  "qualification": { "id": "QUAL-EIM-L3", "title": "ELECTRICAL INSTALLATION AND MAINTENANCE LEVEL 3", "code": "MEM32507" },
+  "level": 3,
+  "unit": { "code": "MEMINS0011A", "title": "Install terminate and connect electrical wiring" },
+  "summary": "This unit covers the installation of electrical wiring at Level 3: working out the load, choosing the cable and its protection, allowing for Jamaican site conditions, installing cables and wiring systems, terminating and connecting at accessories and boards, and inspecting and testing the finished work. You will also learn to balance loads on a 110/220 V supply, arrange earthing and bonding, supervise first and second fix, and take an installation through inspection, connection and hand-over.",
+  "sections": [
+    {
+      "title": "Unit overview",
+      "blocks": [
+        { "p": "At Level 2 you installed and connected wiring to a drawing under supervision. At Level 3 you are the person who makes the drawing work: you check the design figures, choose cables and breakers from the tables, plan the route and the method for the site, supervise others at first fix and second fix, make the terminations in the board, test everything, and hand the installation over so that it passes inspection and JPS can connect it." },
+        { "h": "What you must be able to do" },
+        { "table": { "head": ["Task", "What it looks like on the job"], "rows": [
+          ["Plan the installation", "Confirm the load, the supply, the cable size, the protective device, the route and the method before any material is ordered."],
+          ["Do the calculations", "Work out design current, apply correction factors, check the volt drop and choose the breaker, and record the working."],
+          ["Work dead", "Isolate, lock off, tag and prove dead, including whole boards in occupied buildings, with an agreed shutdown."],
+          ["Balance a 110/220 V supply", "Share 110 V circuits across the two lines, use two-pole breakers for 220 V loads, and wire shared neutrals correctly."],
+          ["Install cables and wiring systems", "Run, support and protect cables in conduit, trunking, on the surface and underground, with fire stopping and separation where required."],
+          ["Terminate", "Make sound terminations at screw terminals, lugs, crimps and glands, including armoured and aluminium cables."],
+          ["Connect boards and accessories", "Dress, identify and connect conductors in boards; wire switches, outlets, two-way lighting and GFCIs with correct polarity."],
+          ["Arrange earthing and bonding", "Install and check the earth electrode, main earthing and bonding conductors and circuit earth conductors."],
+          ["Inspect and test", "Carry out the visual inspection and the dead tests, then live tests, in the right order, and record them."],
+          ["Hand over", "Update the drawings and the circuit chart, go through the government inspection and the JPS connection, and explain the installation to the client."]
+        ] } },
+        { "h": "The supply in Jamaica" },
+        { "ul": [
+          "JPS supplies most homes and small businesses with a **single-phase, three-wire supply at 110/220 V, 50 Hz**: two line conductors and a neutral. Each line is about **110 V to neutral**; the two lines are about **220 V to each other**. Larger premises have three-phase supplies.",
+          "The code used in Jamaica is based on the US **National Electrical Code (NEC)**. Cables are often sized in **AWG**, and you will meet US words (grounding conductor, panelboard, receptacle, GFCI) alongside British ones (earth, distribution board, outlet, RCD). This kit uses both where it helps.",
+          "A new or altered installation is inspected by a **licensed electrical inspector** under the **Government Electrical Regulator (GER)** before JPS connects it. Defects found are put right and the work is inspected again.",
+          "Cable sizes, ratings, correction factors and volt-drop figures in this kit are **examples for teaching**. On the job, use the tables in the code edition, the specification and the cable maker's data that apply, and have your working checked."
+        ] },
+        { "h": "How to use this kit" },
+        { "p": "Read the sections in order: they follow a job from the calculations to the hand-over. Work every sum with a calculator. Then try the practice test and read every explanation." }
+      ]
+    },
+    {
+      "title": "Design: load, cable, protection and volt drop",
+      "blocks": [
+        { "p": "Before anything is ordered, confirm four things: the **load** and the supply it needs, the **cable** that will carry it under the real site conditions, the **protective device** that will protect that cable, and the **route**. They depend on each other, so work through them in order and write the working down." },
+        { "flow": [
+          "Work out the design current Ib from the load",
+          "Choose the breaker rating In: the next standard size at or above Ib",
+          "Find the installation method and the conditions along the route",
+          "Take the cable's table rating It and apply the correction factors to get Iz",
+          "Check Ib ≤ In ≤ Iz; if not, choose a larger cable",
+          "Check the volt drop against the limit; if too high, choose a larger cable",
+          "Record the working and have it checked"
+        ] },
+        { "h": "Design current" },
+        { "p": "For a single-phase load, **I = P ÷ V** (for a resistive load; for motors and electronics divide also by the power factor, as the designer or the maker's plate says). A 1,650 W, 110 V load draws 1,650 ÷ 110 = **15 A**. A 3,300 W, 220 V water heater draws 3,300 ÷ 220 = **15 A**. The same power at 220 V draws half the current it would at 110 V, which is why large loads are fed at 220 V." },
+        { "note": "Under the NEC, a **continuous load**, one that runs at its maximum for 3 hours or more, such as a water heater or shop lighting, may load the breaker to only **80%** of its rating. Put another way, the breaker and cable are sized at 125% of the continuous load. Follow the rules the designer gives for the job.", "label": "Jamaica" },
+        { "h": "The breaker" },
+        { "p": "The breaker protects the **cable**, not the appliance and not the person. Its rating **In** must be at least the design current, so it does not trip in normal use, and no more than the cable's corrected rating, so the cable cannot overheat. Common ratings in NEC-style panels are 15, 20, 30, 40 and 50 A; in IEC-style boards 16, 20, 25, 32 and 40 A. Use the sizes made for the panel on the job, and never fit a larger breaker to stop tripping." },
+        { "h": "Correction factors" },
+        { "p": "A cable table gives each size's rating for one method under standard conditions, usually 30 °C air with the cable on its own. Anything that stops the cable losing heat lowers the current it can safely carry. **Correction factors** from the tables allow for this, and they are **multiplied together**: **Iz = It × Ca × Cg × Ci**." },
+        { "table": { "head": ["Factor", "When it applies", "Typical values (examples)"], "rows": [
+          ["Ambient temperature, Ca", "The air round the cable is hotter than the table assumes: roof spaces under zinc or concrete, plant rooms, outdoor conduit in the sun", "About 0.87 at 40 °C and 0.71 at 50 °C for one common PVC cable type"],
+          ["Grouping, Cg", "Several loaded circuits share one conduit, trunking or bundle, so each warms the others", "About 0.8 for 4 to 6 conductors, 0.7 for 7 to 9, 0.5 for 10 to 20"],
+          ["Thermal insulation, Ci", "The cable is covered by or buried in insulation", "0.5 or lower; avoid it where you can"]
+        ] } },
+        { "p": "**Example.** A cable rated 32 A in the table runs through a roof space at 40 °C (Ca = 0.87) bunched with five other conductors (Cg = 0.8). Iz = 32 × 0.87 × 0.8 = **22.3 A**. A 20 A breaker can protect it; a 25 A or 30 A breaker cannot, so a bigger cable is needed for a larger load." },
+        { "note": "Roof spaces under zinc roofs and concrete slabs in Jamaica often reach 40 to 50 °C in the afternoon. Measure or ask; do not assume 30 °C. Use the worst conditions anywhere along the route.", "label": "Jamaica" },
+        { "h": "Volt drop" },
+        { "p": "Every conductor has resistance, so the load receives less than the supply voltage. Too much drop dims lights, overheats motors and upsets electronics. The specification sets the limit, commonly about **3% for a final circuit** (3.3 V on 110 V, 6.6 V on 220 V) and about 5% from the supply to the farthest load." },
+        { "p": "Many cable tables give the drop in **millivolts per amp per metre (mV/A/m)** of route, already allowing for both conductors: **Vd = mV/A/m × I × L ÷ 1,000**. Percentage = Vd ÷ supply voltage × 100." },
+        { "p": "**Example.** A cable with 11 mV/A/m carries 16 A over a 28 m route: Vd = 11 × 16 × 28 ÷ 1,000 = 4.93 V. On 220 V that is 4.93 ÷ 220 × 100 = **2.2%**, inside a 3% limit. On 110 V the same drop would be 4.5%, which fails." },
+        { "table": { "head": ["If the volt drop is too high", "Why it works"], "rows": [
+          ["Use a larger conductor", "Roughly halves the drop for each doubling of area; the usual fix"],
+          ["Feed the load at 220 V if it is rated for it", "Half the current, and the drop is a smaller share of a bigger voltage"],
+          ["Shorten the route, or add a sub-board nearer the load", "Less length, less drop"],
+          ["Split the load over two circuits", "Each carries part of the current"]
+        ] } },
+        { "h": "Worked design: a 220 V appliance 35 m from the board" },
+        { "ul": [
+          "Load 3,520 W at 220 V: Ib = 3,520 ÷ 220 = **16 A**.",
+          "Breaker: next size up, **20 A two-pole** (within the maker's maximum).",
+          "Route: in conduit through a 40 °C roof space, on its own: Ca = 0.87, Cg = 1.",
+          "Try a cable rated 25 A: Iz = 25 × 0.87 = 21.8 A, which is at least 20 A, so it passes.",
+          "Volt drop at 18 mV/A/m: 18 × 16 × 35 ÷ 1,000 = 10.1 V = 4.6% of 220 V: **fails** a 3% limit.",
+          "Next size, 11 mV/A/m: 11 × 16 × 35 ÷ 1,000 = 6.2 V = 2.8%: **passes**. Use the larger cable, and record why."
+        ] }
+      ]
+    },
+    {
+      "title": "Working dead and the 110/220 V supply",
+      "blocks": [
+        { "h": "Safe isolation on wiring jobs" },
+        { "flow": [
+          "Identify the circuit or board from the schedule, then confirm by testing",
+          "Agree the shutdown with the occupants and tell everyone affected",
+          "Switch off; lock off with your own padlock; tag with name, date and reason",
+          "Prove the two-pole tester on a proving unit",
+          "Test at the point of work between every pair of conductors and each to earth",
+          "Prove the tester again",
+          "Work; only the person who fitted a lock removes it"
+        ] },
+        { "ul": [
+          "To **add a circuit inside a board** in an occupied building, the whole board must be dead: agree the shutdown, isolate the board at its supply and prove dead at the busbars and incoming terminals. The **supply side of the main switch stays live**.",
+          "A **220 V circuit has two line conductors**. Each is still 110 V to earth on its own, so both must be isolated together, through a **two-pole breaker**. Test line 1 to line 2, and each line to neutral (if there is one) and to earth.",
+          "Check for **other sources**: standby generators with automatic transfer switches, solar PV, battery inverters and UPS units."
+        ] },
+        { "h": "Balancing the two lines" },
+        { "p": "In the board, the 110 V circuits are shared between line 1 and line 2 so that each line carries about the same current. A balanced board keeps both lines inside the main breaker's rating, keeps the neutral current low and keeps the voltages steady. List the 110 V circuits with their expected loads and put them on alternate lines, with the big loads spread evenly. 220 V loads use both lines, so they do not upset the balance. After energising, check the balance with a **clamp meter** on each line." },
+        { "h": "The shared neutral" },
+        { "p": "Two 110 V circuits on **opposite** lines can share one neutral (a multi-wire branch circuit in NEC terms). The neutral then carries only the **difference** between the two line currents: with 18 A on line 1 and 11 A on line 2, the neutral carries 18 − 11 = **7 A**. The two circuits must be on a **two-pole or handle-tied breaker**, so that both go dead together when anyone works on them." },
+        { "table": { "head": ["Fault", "What happens"], "rows": [
+          ["Both circuits put on the **same** line", "The neutral carries the **sum** of the two currents, 18 + 11 = 29 A, with no breaker to protect it. It overheats, and no device trips."],
+          ["The shared neutral breaks or comes loose", "The two circuits are left in series across 220 V. The voltage divides unevenly: lightly loaded equipment can see well over 110 V and burn out, and heavily loaded equipment is starved."],
+          ["One circuit isolated but the other left on", "The shared neutral is still carrying current from the live circuit. Disconnecting it, or touching it to earth, gives a shock."]
+        ] } },
+        { "note": "Neutral and earth are joined **only at the service** (the main board), where the system is earthed. In a sub-board the neutral bar must be **insulated from the enclosure** and kept separate from the earth bar. If they are joined, normal neutral current flows on the earth conductors, conduit and metalwork, and a broken neutral can make all of that live.", "label": "Safety" }
+      ]
+    },
+    {
+      "title": "Wiring systems and Jamaican site conditions",
+      "blocks": [
+        { "h": "Choosing the system" },
+        { "table": { "head": ["System", "Where it suits", "Points"], "rows": [
+          ["PVC conduit, built in or on the surface, with single conductors drawn in", "Concrete-block buildings: the usual Jamaican method", "Boxes set in the block as it is laid; conduit outdoors must be sunlight-resistant; limit the fill and the bends between draw-in points"],
+          ["Steel conduit", "Workshops, plant rooms, where mechanical protection is needed", "Threaded or compression fittings; the conduit is part of the earth path, so joints must be tight and clean"],
+          ["Trunking and cable tray", "Many circuits together: offices, shops, corridors", "Grouping factors apply; keep power and control separate or insulated for the higher voltage"],
+          ["Sheathed cable (NM or similar), clipped", "Timber roof spaces, partitions and ceilings, where the code allows", "Support at the required spacing; protect where it could be damaged; sheath must enter the box"],
+          ["Armoured cable (SWA or similar)", "Submains, outdoor runs, underground", "The armour is clamped and earthed in a gland at each end"],
+          ["Mineral or fire-rated cable", "Fire alarm and emergency circuits", "As the specification requires"]
+        ] } },
+        { "h": "Jamaica's conditions and what they change" },
+        { "table": { "head": ["Condition", "Effect", "What to do"], "rows": [
+          ["Heat in roof spaces and sun on outdoor conduit", "Lower cable ratings", "Apply the ambient factor; route cables away from the hottest places; ventilate where you can"],
+          ["Strong sunlight", "Ordinary PVC conduit and cable sheaths go brittle and crack", "Use sunlight-resistant (UV-rated) conduit and cable outdoors, or protect them"],
+          ["Heavy rain, hurricanes, flooding", "Water in enclosures and boards; corrosion; shock", "Weatherproof enclosures and in-use covers outdoors; drip loops; sealed glands; boards mounted above flood level; GFCI protection for outdoor and wet-area outlets"],
+          ["Salt air near the coast", "Rapid corrosion of terminals, steel conduit, boxes and fittings", "Corrosion-resistant or non-metallic fittings and enclosures, sealed; check and re-tighten terminations"],
+          ["Rats and termites", "Chewed sheaths and insulation", "Conduit or trunking rather than exposed cable; seal entries; inspect roof spaces"],
+          ["Lightning", "Surges damage electronics", "Surge protection where specified; good earthing and bonding"]
+        ] } },
+        { "note": "Outdoor outlets and outlets near sinks, in bathrooms, garages and outdoors need **GFCI protection** under the NEC. Fit the GFCI device or breaker the design calls for, and test it after energising.", "label": "Jamaica" },
+        { "h": "Installing cables well" },
+        { "ul": [
+          "**Straight runs.** Hidden cables run straight up, down or across from boxes, where later workers expect them. Never diagonally.",
+          "**Support.** Fix cables and conduit at the spacing the code and the maker require, and within the set distance of each box.",
+          "**Protection.** Where a cable can be hit, crushed or chewed, put it in conduit or a guard. Where a buried cable rises out of the ground, carry it up in conduit or a guard to the height the code requires.",
+          "**Fill and bends.** Keep to the conduit fill limits and the limit on bends between draw-in points, so cables can be drawn in without damage and can lose heat.",
+          "**Pulling.** Use only a lubricant made for cables; never oil, grease or soap. Pull steadily; do not kink.",
+          "**Separation.** Keep 220 V power wiring and low-voltage control or data wiring in separate conduits or compartments, or insulate every conductor for the highest voltage present, so that a fault cannot put mains voltage on control wiring.",
+          "**Fire stopping.** Where a cable or conduit passes through a fire-rated wall or floor, seal the hole round it with an approved fire-stop material, so that fire and smoke cannot pass.",
+          "**Underground.** Bury cable at the required depth, on a bed of sand with sand over it, lay **warning tape** above it, and record the route on the drawing.",
+          "**Accessibility.** Every joint and junction box must stay reachable. A junction box buried behind plaster or above a fixed ceiling is a defect."
+        ] },
+        { "h": "Working with the builder and other trades" },
+        { "p": "On a new building, first fix must be complete and **inspected and recorded** (routes, box positions, cable sizes, labels, photographs) before the plasterers close the walls or the ceiling fixers close the ceilings. Agree the day in advance. After first fix, leave nothing live and nothing exposed; cover the boxes." }
+      ]
+    },
+    {
+      "title": "Terminations",
+      "blocks": [
+        { "p": "Most electrical fires in buildings start at a **bad connection**: loose, dirty, undersized or made with the wrong parts. A termination must carry the current for years without heating. Every termination you make or check should pass the same tests: the right parts, the right preparation, the right tightness, and nothing out of place." },
+        { "h": "At a screw or clamp terminal" },
+        { "ul": [
+          "Strip to the **strip gauge** or the maker's length: insulation up to the terminal, **no bare copper showing** outside it, **no insulation under the clamp**.",
+          "Insert the conductor **fully**. Do not cut strands off to make it fit; choose the right terminal or ferrule.",
+          "Fit **ferrules** on stranded and flexible conductors unless the terminal is made for bare strands. Never tin the end with solder: solder flattens under the screw and the terminal works loose.",
+          "A solid conductor under a screw head is looped **clockwise**.",
+          "One conductor per terminal, unless the terminal is marked for more.",
+          "Tighten with a driver that fits, to the maker's **torque**. Then a gentle pull."
+        ] },
+        { "h": "Order of connection" },
+        { "p": "Connect the **earth (grounding) conductor first** and disconnect it **last**. Then, if something is wrong, the exposed metalwork is earthed for as long as any other conductor is connected." },
+        { "h": "Lugs on busbars and large terminals" },
+        { "ul": [
+          "The lug matches the conductor size and the stud or bolt, and is crimped with the right tool and die; the die mark shows on the barrel.",
+          "Contact faces are clean, flat and free of paint or oxide.",
+          "The bolt has the right washers and is tightened to the torque in the maker's instructions.",
+          "Where the maker advises it, large lug connections are **checked again for tightness after a period in service**, because the conductors settle and the joint can loosen."
+        ] },
+        { "h": "Aluminium conductors" },
+        { "p": "Aluminium submains and service conductors are common because aluminium is cheaper and lighter. Aluminium forms an oxide skin within seconds, it expands and contracts more than copper, and it creeps (flows) under pressure. So: use only terminals and lugs **rated for aluminium** (marked AL or AL/CU); clean the strands and apply the **anti-oxidant compound** the maker specifies; use the full torque; never put an aluminium conductor in a copper-only terminal or against a copper busbar without the right fitting. A copper-to-aluminium joint made wrongly corrodes and overheats." },
+        { "h": "Armoured cable glands" },
+        { "flow": [
+          "Measure and mark the cable; remove the outer sheath",
+          "Cut the armour wires to length without nicking the inner sheath",
+          "Slide on the shroud and the gland parts in the right order",
+          "Spread the armour evenly over the gland's cone",
+          "Tighten the gland so the armour is clamped all round and earthed",
+          "Fit the gland to the enclosure with its locknut and earth tag as required",
+          "Strip the inner sheath, dress and terminate the cores"
+        ] },
+        { "p": "The armour is **mechanical protection and an earth path**. Cut short, taped back or left loose, it earths nothing, and a fault to the armour may not trip the breaker. Where the armour is the only earth conductor, its continuity is tested." },
+        { "h": "Sheathed cable at a box" },
+        { "p": "The outer sheath must **enter the box or gland** and be held by a clamp or grommet, so that the single insulated cores are never exposed outside the enclosure and the terminals carry no strain. A cable whose sheath has been stripped back too far is re-terminated, not taped." },
+        { "h": "Why terminations overheat" },
+        { "table": { "head": ["Fault", "Result"], "rows": [
+          ["Loose screw or bolt", "High resistance; heats, oxidises, gets looser: a runaway"],
+          ["Insulation trapped under the clamp", "Little metal-to-metal contact"],
+          ["Strands cut off, or a nicked conductor", "Smaller area at that point"],
+          ["Wrong size of lug, ferrule or terminal", "Poor contact or a crushed conductor"],
+          ["Copper and aluminium joined without the right fitting", "Corrosion between the metals"],
+          ["Corrosion, damp or salt", "Rising resistance over time"],
+          ["Too much current for the terminal", "A terminal rated below the circuit"]
+        ] } },
+        { "note": "Thermal imaging or simply a careful hand near (not on) covers after an hour's load will find a hot termination. A scorched terminal, a brown mark on a breaker or a smell of hot plastic means isolate and investigate.", "label": "Tip" }
+      ]
+    },
+    {
+      "title": "Connecting the board and the accessories",
+      "blocks": [
+        { "h": "Inside the board" },
+        { "ul": [
+          "Check the **spare capacity** of the board and the supply, and that there is a **spare way** of the right type (single-pole for 110 V, two-pole for 220 V), before you plan a new circuit.",
+          "**Dress** conductors neatly: run them round the sides of the board, in a bundle where they share a route, with gentle bends, so each one can be traced and disconnected without disturbing others. Do not lay conductors across busbars or across other breakers.",
+          "**Neutrals** go to the neutral bar, one per terminal, in the same order as their breakers, so that the neutral of any circuit can be found. **Earth conductors** go to the earth bar, one per terminal.",
+          "**Identify** every conductor at the board end with its circuit number (a sleeve, tag or label), and complete the **circuit chart** on the board door.",
+          "Fill unused openings with **blanks**. Before the cover goes on: tool count, offcut check, every screw tight.",
+          "Fit the breaker so that it **switches the line**, never the neutral."
+        ] },
+        { "h": "Conductor identification" },
+        { "p": "In NEC-style work the **neutral** is white or grey, the **equipment grounding conductor** is green, green-and-yellow or bare, and line conductors are any other colour, usually black and red. British and IEC equipment uses brown and blue with green-and-yellow earth, and you will meet both. Follow the colours the drawing and specification give, and **re-identify** a conductor whose colour does not match its use (for example a white conductor of a sheathed cable used as a line in a switch loop) with coloured tape or sleeving at both ends. Never trust colour alone in existing wiring: test." },
+        { "h": "Polarity" },
+        { "p": "**Polarity** means that line, neutral and earth are connected to the right terminals throughout the circuit, and that every switch, breaker and fuse is in the **line**. A switch in the neutral turns the lamp off, but leaves the lamp holder **live**: the next person to change the lamp can be shocked. On an outlet, the line goes to the brass (narrow-slot) terminal, the neutral to the silver (wide-slot) terminal and the earth to the green screw." },
+        { "h": "Common accessory circuits" },
+        { "table": { "head": ["Circuit", "Connections"], "rows": [
+          ["One-way lighting", "Line to the switch's common; switched line from the switch to the lamp; neutral straight to the lamp; earth to every metal box and fitting"],
+          ["Two-way lighting (one light, two switches)", "Line to the common of switch 1; two **travellers** (strappers) between the two switches' other terminals; switched line from the common of switch 2 to the lamp; neutral to the lamp. In sheathed cable, the three-core cable carries the travellers and the connection between commons; re-identify any white conductor used as a line"],
+          ["Outlet circuit", "Line, neutral and earth to each outlet in turn; use the outlet's terminals or a pigtail so the circuit does not depend on one outlet's internal link where the code requires"],
+          ["GFCI outlet protecting others downstream", "Supply to the LINE terminals; the outlets to be protected from the LOAD terminals. Swap them and the GFCI protects nothing beyond itself, or will not reset"],
+          ["220 V appliance circuit", "Two lines on a two-pole breaker; neutral too if the appliance needs 110 V for its controls; earth always; a lockable isolator within sight of fixed equipment where required"]
+        ] } },
+        { "note": "After energising, press the TEST button on every GFCI, and test outlets with a plug-in tester. A GFCI that trips every time one old appliance is used is doing its job: test the **appliance** for an earth fault before you touch the GFCI.", "label": "Remember" },
+        { "h": "Supervising first fix and second fix" },
+        { "table": { "head": ["Stage", "What to check as the leader"], "rows": [
+          ["Setting out", "Box positions and heights match the drawing; the floor finish has been allowed for"],
+          ["First fix", "Straight runs; the right cable sizes; support and protection; sheaths into boxes; circuits labelled at the board end; nothing crushed or kinked"],
+          ["Before plastering or closing ceilings", "A hold-point inspection with photographs; routes recorded on the drawing"],
+          ["Second fix", "Board isolated and locked; strip lengths, ferrules, torque, polarity and earths on a sample of every person's work; two-way circuits traced and re-identified"],
+          ["Before energising", "Dead tests done and recorded; labels, chart and covers complete; tools and offcuts out"]
+        ] } },
+        { "p": "Correct faults on the spot and explain why. A conductor with bare copper outside the terminal is re-terminated, not taped and not hidden under the cover. A trainee who sees it done once sees it done ten times." }
+      ]
+    },
+    {
+      "title": "Earthing and bonding",
+      "blocks": [
+        { "p": "Earthing (grounding) and bonding give fault current a safe, low-resistance path so that the protective device trips, and keep all the metal a person can touch at the same potential." },
+        { "table": { "head": ["Part", "What it is", "Points"], "rows": [
+          ["Earth electrode (ground rod)", "A rod, usually copper-clad steel about 2.4 m long, driven into the ground at the service", "Connected with a **proper clamp** listed for the purpose, left **accessible** so it can be inspected and tested; under NEC rules a second rod is added unless the first measures 25 Ω or less"],
+          ["Main earthing conductor (grounding electrode conductor)", "Joins the electrode to the main earth terminal or bar in the main board", "Sized from the tables; protected where it can be damaged"],
+          ["Main earth terminal / earth bar", "Where all earth conductors meet", "At the main board; neutral and earth are joined here only"],
+          ["Main bonding conductors", "Join metal water pipes, gas pipes, structural steel and other metal services to the main earth terminal", "So that a fault cannot leave a pipe at a different voltage from the installation"],
+          ["Circuit earth conductors (equipment grounding conductors)", "Run with every circuit to every outlet, light point, switch box and metal enclosure", "Green, green-and-yellow or bare; connected first, disconnected last; steel conduit and armour also form part of the path and must be continuous"],
+          ["Supplementary bonding", "Extra bonding in special places such as bathrooms and pools, where the code requires it", "As the specification says"]
+        ] } },
+        { "h": "Checking earthing and bonding" },
+        { "ul": [
+          "Look at every clamp, terminal and label: the right clamp, tight, clean, no paint between the faces.",
+          "Test the **continuity** of each circuit's earth conductor to every point, and of every bonding conductor.",
+          "Have the **earth electrode resistance** tested by a competent person with the right instrument, and recorded.",
+          "Check that the sub-board neutral bar is **isolated** from the enclosure and that no neutral-to-earth link exists beyond the service."
+        ] },
+        { "note": "A water pipe is **bonded** to the earth terminal; it is **not** used as the earth electrode or as a circuit's earth. Plastic pipe sections, replaced fittings and corroded joints break the path without warning.", "label": "Safety" }
+      ]
+    },
+    {
+      "title": "Inspection, testing, connection and hand-over",
+      "blocks": [
+        { "p": "A circuit is energised only when it has been inspected and the dead tests have passed. The order is fixed because each test assumes the one before it: **a live test on a circuit with a hidden fault energises the fault**." },
+        { "h": "Visual inspection (isolated)" },
+        { "ul": [
+          "Right cable type and size for the circuit; right breaker; breaker in the line.",
+          "Cables supported, protected, straight, not damaged; conduit fill and bends within limits; fire stops in place.",
+          "Sheaths into boxes; glands tight and armour clamped; terminations tight, no bare copper, no insulation under clamps, ferrules on stranded conductors.",
+          "Earth conductor at every point; bonding connected; electrode clamp accessible.",
+          "Separation of power and control wiring; junction boxes accessible; weatherproof enclosures where needed.",
+          "Labels, circuit chart, blanks and covers."
+        ] },
+        { "h": "Dead tests, in order" },
+        { "table": { "head": ["Test", "How", "What it proves"], "rows": [
+          ["Continuity of earth (protective) conductors", "Low-resistance ohmmeter from the earth bar to **every** outlet, fitting and metal enclosure", "Each point is connected to earth with a low resistance, so a fault will trip the breaker. A break anywhere leaves every point beyond it unearthed, which is why every point is tested"],
+          ["Continuity of ring or shared conductors (where used)", "As the code and the test procedure say", "No breaks or crossed conductors"],
+          ["Insulation resistance", "Insulation tester, usually at **500 V DC** for these circuits, between line and neutral, line and earth, neutral and earth, with lamps, dimmers, GFCIs with electronics and all equipment **disconnected**", "No breakdown or leakage between conductors or to earth. A new circuit should read very high, often well above the minimum the Centre's procedure gives; a low reading means damaged insulation, damp, a nail through a cable, or equipment left connected"],
+          ["Polarity", "Continuity tests and inspection from the board to every point, before energising, confirmed with a plug-in tester after", "Line, neutral and earth are on the right terminals and every switch and breaker is in the line"]
+        ] } },
+        { "note": "An insulation tester puts 500 V on the conductors. Warn everyone, make sure nobody is touching the circuit, and **disconnect electronic equipment** first: dimmers, electronic ballasts, timers, GFCI outlets with electronics and anything plugged in can be destroyed by the test voltage.", "label": "Safety" },
+        { "h": "Energising and live tests" },
+        { "flow": [
+          "All dead tests passed and recorded; covers and labels on",
+          "Everyone told; everyone clear of the equipment",
+          "The person in charge removes their lock and energises",
+          "Check voltages: line to neutral, line to line, line to earth",
+          "Test every GFCI with its button and a tester",
+          "Plug-in polarity test at outlets; function test of every switch and fitting",
+          "Clamp meter check of the balance between the lines",
+          "Record all results"
+        ] },
+        { "h": "Records and hand-over" },
+        { "table": { "head": ["Document", "Contents"], "rows": [
+          ["Test certificate or test sheet", "Every circuit, its breaker and cable, every reading, the instruments used, the date and the name of the competent person who signs"],
+          ["Circuit chart", "Fixed in the board: each breaker and what it feeds; spare ways marked"],
+          ["As-built (record) drawings", "The installation as really built: routes, box positions, buried cable runs, changes from the design"],
+          ["Completion report", "Work done, defects found, advice, changes agreed, materials and hours"]
+        ] } },
+        { "flow": [
+          "Final inspection; faults put right",
+          "Dead tests recorded; live tests when the supply is available",
+          "Certificate, circuit chart and as-built drawings completed",
+          "Installation offered for the government electrical inspection",
+          "Defects found by the inspector corrected and re-inspected",
+          "JPS connects the supply and fits the meter; we do not touch their equipment",
+          "Hand-over: the main switch, breakers, GFCIs and their test buttons explained; documents given; job signed off"
+        ] },
+        { "note": "Nobody connects to JPS's lines or meter themselves, and nobody 'temporarily' energises an installation that has not passed inspection. The inspector's defect list is put right, every item, and the work is inspected again.", "label": "Jamaica" }
+      ]
+    },
+    {
+      "title": "Revision",
+      "blocks": [
+        { "h": "Checklist" },
+        { "p": "Tick each statement only when you can do it without looking at the notes." },
+        { "ul": [
+          "I can work out a design current, choose a breaker and explain what the breaker protects.",
+          "I can apply ambient, grouping and insulation correction factors and check Ib ≤ In ≤ Iz.",
+          "I can work out a volt drop from mV/A/m data and compare it with the limit, and say how to reduce it.",
+          "I can isolate a whole board in an occupied building safely and explain why both lines of a 220 V circuit are isolated together.",
+          "I can balance 110 V circuits across the two lines and explain the shared-neutral rules and dangers.",
+          "I can explain why neutral and earth are joined only at the service.",
+          "I can choose a wiring system for a Jamaican site and allow for heat, sun, rain, salt, rodents and termites.",
+          "I can install cables with correct support, protection, fill, separation, fire stopping and accessibility.",
+          "I can make sound terminations at screw terminals, lugs and glands, including aluminium and armoured cable.",
+          "I can dress, identify and connect conductors in a board and complete the circuit chart.",
+          "I can wire one-way, two-way, outlet, GFCI and 220 V circuits with correct polarity.",
+          "I can describe the earthing and bonding of an installation and how to check it.",
+          "I can carry out the visual inspection and the dead tests in order, and say what each proves.",
+          "I can energise safely, carry out the live tests and record the results.",
+          "I can supervise first and second fix and hold an inspection before walls are closed.",
+          "I can take an installation through the government inspection, the JPS connection and the hand-over."
+        ] },
+        { "h": "Numbers and formulas to remember" },
+        { "table": { "head": ["Figure or formula", "What it is"], "rows": [
+          ["I = P ÷ V", "Design current of a resistive single-phase load"],
+          ["Ib ≤ In ≤ Iz", "Design current ≤ breaker ≤ corrected cable rating"],
+          ["Iz = It × Ca × Cg × Ci", "Corrected cable rating"],
+          ["Vd = mV/A/m × I × L ÷ 1,000", "Volt drop from table data"],
+          ["About 3% (3.3 V at 110 V; 6.6 V at 220 V)", "Common volt-drop limit for a final circuit"],
+          ["80%", "Most of a breaker's rating that a continuous load may use"],
+          ["Neutral current = difference of the two line currents", "A shared neutral on opposite lines"],
+          ["500 V DC", "Usual insulation test voltage for these circuits"],
+          ["25 Ω or less", "NEC single-rod figure, or a second rod is driven"]
+        ] } },
+        { "h": "Key terms" },
+        { "terms": [
+          ["Ambient temperature factor", "The correction applied when a cable runs through air hotter than its table assumes."],
+          ["Armour", "The steel wires or tape round an armoured cable, clamped and earthed in a gland."],
+          ["As-built drawing", "A drawing showing the installation as it was really built."],
+          ["Bonding conductor", "A conductor joining metal pipes, steel and other services to the main earth terminal."],
+          ["Circuit chart", "The list in the board of each breaker and what it feeds."],
+          ["Continuous load", "A load expected to run at its maximum for 3 hours or more."],
+          ["Design current (Ib)", "The current a circuit is expected to carry in normal use."],
+          ["Earth electrode", "The rod or other conductor in contact with the ground that earths the installation; also called a ground rod."],
+          ["Equipment grounding conductor", "The NEC name for a circuit's earth conductor."],
+          ["Ferrule", "A crimped metal sleeve on the end of a stranded conductor for a screw terminal."],
+          ["Fire stop", "Material that seals the hole round a cable through a fire-rated wall or floor."],
+          ["GFCI", "Ground-fault circuit interrupter: trips on a small leakage to earth; the US name for an RCD."],
+          ["Gland", "The fitting that clamps and seals a cable where it enters an enclosure."],
+          ["Grouping factor", "The correction applied when several loaded circuits run together."],
+          ["Insulation resistance", "The resistance between conductors, or to earth, measured at a test voltage."],
+          ["Multi-wire branch circuit", "Two 110 V circuits on opposite lines sharing one neutral, on a two-pole or tied breaker."],
+          ["Polarity", "Line, neutral and earth on the right terminals, with switches and breakers in the line."],
+          ["Travellers", "The two conductors between the switches of a two-way lighting circuit; also called strappers."],
+          ["Two-pole breaker", "A breaker that switches both line conductors of a 220 V circuit together."],
+          ["Volt drop", "The voltage lost along a cable, which the load does not receive."],
+          ["Warning tape", "Tape laid above a buried cable to warn anyone digging."]
+        ] }
+      ]
+    }
+  ],
+  "cases": {
+    "c1": { "title": "A kiln circuit at a Walkerswood pottery", "text": "Level 3 trainee Jevaughn Francis is designing a circuit for an electric pottery kiln at a craft workshop in Walkerswood, St Ann. The kiln is rated 5,500 W at 220 V and runs for four hours at a time. The route is 30 m, in conduit through a roof space that reaches 45 °C, bunched with five other loaded conductors. The assessor's table gives a cable rated 40 A at 30 °C with 11 mV/A/m, an ambient factor of 0.79 at 45 °C and a grouping factor of 0.8 for 4 to 6 conductors. The specification limits volt drop to 3%." },
+    "c2": { "title": "A tripping neutral in a Portmore bakery", "text": "At a bakery in Portmore, St Catherine, electrician Mrs Andrea Hinds and Level 3 trainee Rochelle Dunn are called to a hot, discoloured neutral conductor in a sub-board. Two 110 V outlet circuits, one for mixers and one for lights and a fridge, share that neutral. Both circuits are on single-pole breakers side by side, and a clamp meter shows 17 A on one and 14 A on the other. In the same sub-board, the neutral bar has been screwed to the metal case." },
+    "c3": { "title": "A submain to a Runaway Bay dive shop", "text": "Trainee Shaun Palmer leads the installation of an aluminium armoured submain from the main board of a hotel to a new dive shop on the beach at Runaway Bay, St Ann. The cable runs underground across a lawn, rises up the shop's outside wall, and ends at a sub-board in a room that opens onto the beach. The hotel's main board feeds the reception and kitchens, which cannot close during the day. The lugs supplied with the sub-board are marked CU only." },
+    "c4": { "title": "Second fix at a Linstead townhouse", "text": "At a new townhouse in Linstead, St Catherine, Level 3 trainee Tamoy Richards supervises two trainees at second fix. In the hall, a light is switched from both ends with two-way switches wired in three-core sheathed cable. One trainee has wired the kitchen's single-pole switches into the white conductor. Another has connected the supply to the LOAD terminals of the GFCI outlet that is meant to protect the two veranda outlets. The plasterers finished last week, and a junction box for the porch light is now behind the plaster." },
+    "c5": { "title": "Testing before hand-over in Falmouth", "text": "A new office installation in Falmouth, Trelawny, is ready for testing. Level 3 trainee Shantae Blake and her supervisor Mr Lloyd Grant have the test sheet, a continuity tester and an insulation tester. The circuits include dimmers in the boardroom and an outdoor GFCI outlet. One outlet circuit reads 0.08 MΩ line to earth; the rest read above 200 MΩ. The client, Mr Chin, wants the office energised today, and the government inspection has not yet been booked." }
+  },
+  "questions": [
+    { "id": "P-01", "c": "c1", "q": "What is the kiln's design current?", "o": ["25 A", "12.5 A", "50 A", "20 A"], "a": 0, "why": "I = P ÷ V = 5,500 ÷ 220 = 25 A. Dividing by 110 V by mistake gives 50 A, and 12.5 A is the figure for 440 V. At 220 V the load draws half the current it would at 110 V." },
+    { "id": "P-02", "c": "c1", "q": "Which is the smallest standard two-pole breaker that suits the kiln circuit, remembering that the kiln runs for four hours at a time?", "o": ["25 A", "30 A", "40 A", "50 A"], "a": 2, "why": "A load that runs at its maximum for 3 hours or more is continuous, so under NEC rules the breaker must be at least 25 ÷ 0.8 = 31.25 A. A 30 A breaker is just too small, so the smallest standard size is 40 A. The cable must then be rated for that breaker after correction." },
+    { "id": "P-03", "c": "c1", "q": "What is the corrected rating of the 40 A cable on this route?", "o": ["40 A", "31.6 A", "32 A", "25.3 A"], "a": 3, "why": "Iz = It × Ca × Cg = 40 × 0.79 × 0.8 = 25.3 A. Both factors apply because the roof space is hot and the cable is grouped. The 31.6 A and 32 A figures each apply only one of the two factors." },
+    { "id": "P-04", "c": "c1", "q": "What is the volt drop on the 30 m route at the design current, and does it pass?", "o": ["3.3 V, which passes the 3% limit", "8.25 V, which fails the 3% limit", "0.83 V, which passes the 3% limit", "16.5 V, which fails the 3% limit"], "a": 1, "why": "Vd = 11 × 25 × 30 ÷ 1,000 = 8.25 V, and 8.25 ÷ 220 × 100 = 3.75%, which is above the 3% limit. With the corrected rating also too low for the breaker, Jevaughn needs a larger cable on both counts." },
+    { "id": "P-05", "c": "c2", "q": "The clamp meter shows 17 A and 14 A on the two circuits. If the neutral is hot, where are the two circuits most likely connected?", "o": ["On opposite lines, so the neutral carries 3 A", "On opposite lines, so the neutral carries 31 A", "On the same line, so the neutral carries 3 A", "On the same line, so the neutral carries 31 A"], "a": 3, "why": "A shared neutral between opposite lines carries only the difference, 17 − 14 = 3 A, which would not overheat it. Two circuits on the same line add their currents in the neutral: 17 + 14 = 31 A in a conductor that no breaker protects." },
+    { "id": "P-06", "c": "c2", "q": "Once the circuits are correctly placed on opposite lines, what type of breaker must they have?", "o": ["A two-pole or handle-tied breaker", "One 30 A single-pole breaker for both", "A third breaker fitted in the neutral", "Both breakers moved to the main board"], "a": 0, "why": "With a shared neutral, isolating one circuit leaves the neutral carrying the other circuit's current. A two-pole or handle-tied breaker makes both circuits dead together, so nobody works on a neutral that is still live." },
+    { "id": "P-07", "c": "c2", "q": "What is wrong with the sub-board's neutral bar being screwed to its metal case?", "o": ["Neutral current flows on the case and conduit", "Overload breakers stop tripping on their own", "The neutral bar overheats because it is bonded", "JPS's meter records the current twice over"], "a": 0, "why": "Neutral and earth are joined only at the service. A second link in the sub-board lets ordinary neutral current flow on earth conductors, conduit and the case, and if the neutral to the sub-board breaks, all that metalwork can become live." },
+    { "id": "P-08", "c": "c2", "q": "What should happen to the discoloured neutral conductor?", "o": ["Replace it, as the heat has damaged its insulation", "Leave it, as the colour change is only on the surface", "Clean it and reuse it once the circuits are rebalanced", "Wrap it in tape so the discolouring cannot be seen"], "a": 0, "why": "A conductor that has run hot enough to discolour has had its insulation damaged and may be brittle, and its termination may be annealed and loose. The damaged length is replaced and the termination remade and torqued." },
+    { "id": "P-09", "c": "c3", "q": "The lugs supplied with the sub-board are marked CU only. What must Shaun do before terminating the aluminium submain?", "o": ["Fit the aluminium strands into the lugs with extra torque", "Tin the aluminium strands with solder to protect them first", "Get lugs rated for aluminium and use anti-oxidant compound", "Wrap the aluminium strands in copper tape before fitting"], "a": 2, "why": "Aluminium in a copper-only lug oxidises and creeps, the joint corrodes and overheats. Lugs rated AL or AL/CU, cleaned strands, the maker's anti-oxidant compound and the full torque make a sound aluminium termination." },
+    { "id": "P-10", "c": "c3", "q": "How should the submain be arranged where it leaves the trench and rises up the outside wall?", "o": ["Left bare, since the armour is its own protection", "In conduit or a guard up to the required height", "Clipped to the wall, with a drip loop at the bottom", "Buried deeper at that point, under the wall's footing"], "a": 1, "why": "Where a buried cable comes out of the ground it can be hit by mowers, tools and vehicles. The code requires it to be carried up in conduit or a guard to a set height, and the trench itself gets sand bedding and warning tape above the cable." },
+    { "id": "P-11", "c": "c3", "q": "Connecting the submain breaker means the hotel's main board must be dead. What is the right approach?", "o": ["Connect the breaker live, with insulated tools and gloves", "Switch off only the new breaker's way and work beside the others", "Agree an early-morning shutdown and prove the whole board dead", "Ask the hotel to run the generator while the board is worked on live"], "a": 2, "why": "Work inside a board is done with the board dead: isolated at its supply, locked off, tagged and proved dead at the busbars and incoming terminals. The hotel's needs are met by agreeing a time, such as before the kitchens open, not by working live." },
+    { "id": "P-12", "c": "c3", "q": "What extra care does the sub-board in the beach-side room need?", "o": ["A sealed, corrosion-resistant enclosure", "A larger breaker, as sea air raises the load", "An unsealed enclosure so that salt can dry out", "Bare copper terminals so that corrosion can be seen"], "a": 0, "why": "Salt air corrodes terminals, steel enclosures and fittings quickly. A sealed, corrosion-resistant enclosure, non-metallic or coated fittings and regular checks of the terminations are needed; opening the enclosure to the air makes it worse." },
+    { "id": "P-13", "c": "c4", "q": "What is the danger in the kitchen switches being wired into the white conductor?", "o": ["The lamps will glow dimly when switched off", "The breaker will trip each time a switch is used", "The white conductor will carry twice the current", "The lamp holders stay live with the switches off"], "a": 3, "why": "A switch in the neutral breaks the return path, so the lamp goes out, but the lamp holder's terminals remain at line voltage. Anyone changing a lamp can be shocked. Switches go in the line; this is what the polarity test is for." },
+    { "id": "P-14", "c": "c4", "q": "What is the result of connecting the supply to the GFCI's LOAD terminals?", "o": ["The GFCI protects the veranda outlets but not itself", "The GFCI trips at once and cannot be reset until it is wired correctly", "The GFCI gives no protection and may not reset properly", "The GFCI works normally, as LINE and LOAD are interchangeable"], "a": 2, "why": "The supply must go to LINE; the outlets to be protected go from LOAD. Reversed, the device cannot sense the leakage correctly and, depending on the type, may not reset or may stay live without protection. Rewire it and test with the button and a tester." },
+    { "id": "P-15", "c": "c4", "q": "In the three-core cable between the two hall switches, which conductors are the travellers?", "o": ["The two joined to the switches' common terminals", "The earth and the neutral, run between the two switch boxes", "The two joined between the switches' other terminals", "The line and the neutral, run between the two switch boxes"], "a": 2, "why": "In two-way switching the line feeds the common of one switch, the switched line leaves the common of the other, and the two travellers join the remaining terminals of the two switches. A white conductor used as a traveller or line is re-identified with coloured tape." },
+    { "id": "P-16", "c": "c4", "q": "What should Tamoy do about the porch-light junction box now behind the plaster?", "o": ["Mark its position on the as-built drawing and close the job", "Leave it, provided the circuit passes all the dead tests", "Have the wall opened and the box made accessible", "Fit an extra junction box in the roof space in its place"], "a": 2, "why": "Every joint must stay reachable for inspection and repair. A buried box is a defect that the inspector will reject, however well the circuit tests. The hold-point inspection before plastering is meant to prevent exactly this." },
+    { "id": "P-17", "c": "c5", "q": "Before the insulation test, what must be done about the boardroom dimmers?", "o": ["Disconnect them, as the test voltage can destroy them", "Turn them to full brightness so they are tested too", "Leave them connected, as 500 V is below their rating", "Switch them off at the wall, which isolates their electronics"], "a": 0, "why": "An insulation tester applies 500 V DC to the conductors. Dimmers, electronic ballasts, timers and GFCI outlets with electronics can be destroyed by it, and they also give a false low reading. Disconnect them, test, then reconnect." },
+    { "id": "P-18", "c": "c5", "q": "One outlet circuit reads 0.08 MΩ line to earth while the others read above 200 MΩ. What should Shantae do?", "o": ["Record it as a pass, since 0.08 MΩ is above zero", "Energise it and see whether the breaker or GFCI trips", "Repeat the test at 1,000 V to burn through the damp", "Find the cause: damp, damage or equipment connected"], "a": 3, "why": "A new circuit should read very high. A reading this low points to a nail through a cable, water in a box, a crushed conductor or something left connected. Fault finding is done dead; energising a known fault is what the test order is meant to prevent." },
+    { "id": "P-19", "c": null, "q": "A ground rod at a new service measures 40 Ω when tested. Under the NEC rule this kit describes, what is the usual next step?", "o": ["Add a second rod, connected to the first", "Accept it, as any reading below 100 Ω will do", "Replace the rod with a longer water pipe", "Bond the rod to the nearest steel roof sheet"], "a": 0, "why": "A single rod is accepted under the NEC only if it measures 25 Ω or less; otherwise a second electrode is added. The designer or inspector may ask for a different arrangement, so follow the specification. A water pipe is bonded to the earth terminal but is not used as the electrode." },
+    { "id": "P-20", "c": "c5", "q": "Mr Chin wants the office energised today, before the government inspection. What should Mr Grant tell him?", "o": ["The office can be energised today, as long as the test sheet is signed", "The supply cannot be connected until the inspection has passed", "The office can run from a generator until the inspector comes", "The outdoor GFCI outlet can be used today, but nothing else"], "a": 1, "why": "A new installation is inspected by a licensed inspector under the Government Electrical Regulator before JPS connects it, and defects found are corrected and re-inspected. The electrician completes the tests and the paperwork and books the inspection; nobody energises the installation around the process." }
+  ]
+}
