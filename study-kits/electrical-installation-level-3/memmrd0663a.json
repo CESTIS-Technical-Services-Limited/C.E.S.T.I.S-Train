@@ -14,13 +14,13 @@
     "code": "MEMMRD0663A",
     "title": "Perform testing and inspection of electrical installations"
   },
-  "summary": "This unit teaches you to verify that an electrical installation is safe: to plan and lead the inspection and testing of new work (initial verification) and of existing installations (periodic inspection), to carry out and interpret the dead tests, to use the live test results a competent person provides, to classify defects, and to complete the certificate or condition report. You will also learn how new installations are approved in Jamaica and how to supervise trainees doing the testing.",
+  "summary": "This unit teaches you to verify that an electrical installation is safe and follows the Jamaican code, which is based on the NEC (NFPA 70): to plan and lead the inspection and testing of new work (initial verification) and of existing installations, to carry out the dead tests, to check everything before the supply is energised, to interpret the live test results a competent person provides, to test GFCI and AFCI devices, to record defects, and to complete the test record and reports. You will also learn how the Government Electrical Regulator's inspection and approval lead to a JPS connection, and how to supervise trainees doing the testing.",
   "sections": [
     {
       "title": "Unit overview",
       "blocks": [
         {
-          "p": "An installation that looks finished is not safe until it has been **inspected and tested**. Inspection finds what the eye can see: wrong cable sizes, missing covers, unsuitable fittings, missing bonding. Testing finds what the eye cannot: a broken protective conductor, failing insulation, reversed polarity, a loop impedance too high for the breaker to trip. At Level 3 you plan the verification, lead the team, judge the results and sign the paperwork. (This kit builds on EEMINS0022B, the Level 2 unit on basic testing; it goes further into planning, calculations, periodic inspection, classifying defects and reporting.)"
+          "p": "An installation that looks finished is not safe until it has been **inspected and tested**. Inspection finds what the eye can see: wrong conductor sizes, missing covers, unsuitable fittings, missing bonding. Testing finds what the eye cannot: a broken grounding conductor, failing insulation, reversed polarity, a ground-fault path too weak for the breaker to trip fast. At Level 3 you plan the verification, lead the team, judge the results and sign the paperwork. (This kit builds on EEMINS0022B, the Level 2 unit on basic testing; it goes further into planning, calculations, inspection of existing installations, defect reporting and approval.)"
         },
         {
           "h": "What you must be able to do"
@@ -34,39 +34,43 @@
             "rows": [
               [
                 "Plan the verification",
-                "Collect the drawings, schedules and design data; agree access, shutdowns and limitations with the client; choose the team and the instruments."
+                "Collect the approved drawings, panel schedules and design data; agree access, shutdowns and limitations with the client; choose the team and the instruments."
               ],
               [
                 "Work safely",
-                "Isolate, lock off and prove dead; warn others before tests that make conductors live; keep live tests for a competent person."
+                "Isolate, lock off and prove dead; warn others before tests that put voltage on conductors; keep live tests for a competent person."
               ],
               [
-                "Carry out a visual inspection",
-                "Check the installation against the design, the standard and the schedule of inspections, and record what you find."
+                "Inspect against the NEC and the drawings",
+                "Check the installation against the approved drawings, the NEC rules the Centre uses and the inspection checklist, and record what you find."
               ],
               [
                 "Carry out the dead tests",
-                "Continuity of protective and bonding conductors, insulation resistance, polarity and earth electrode resistance, in the right order and with the right instrument."
+                "Continuity of grounding and bonding conductors, insulation resistance, polarity and ground electrode resistance, in the right order and with the right instrument."
               ],
               [
                 "Do the calculations",
-                "R1 + R2 from cable data, expected Zs, prospective fault current, parallel insulation readings, and comparisons with maximum values."
+                "Loop resistance from cable data, expected loop impedance and ground-fault current, voltage drop, and parallel insulation readings."
               ],
               [
-                "Interpret live test results",
-                "Use Ze, Zs, PFC and RCD trip times from a competent person to judge whether each circuit is acceptable."
+                "Verify before energising",
+                "Confirm that the dead tests are complete and recorded, covers are on, loads are off and everyone is clear before a competent person energises."
               ],
               [
-                "Carry out periodic inspection",
-                "Agree extent and limitations, sample, find deterioration and bad alterations, and class each defect."
+                "Test GFCI and AFCI devices",
+                "Use the TEST button and a plug-in tester, and know what the results mean."
               ],
               [
-                "Complete the documents",
-                "Certificates, schedules of inspection and test results, minor works certificates and condition reports, correctly signed."
+                "Inspect existing installations",
+                "Agree extent and limitations, sample, find deterioration and bad alterations, and record each defect by seriousness."
+              ],
+              [
+                "Record and report",
+                "Test records, panel schedules, defect reports and inspection reports, correctly signed."
               ],
               [
                 "Hand over and advise",
-                "Explain the results, show the client the RCD test button, recommend the next inspection, and deal with refusals."
+                "Explain the results, show the client the TEST buttons, support the GER inspection and JPS connection, and deal with refusals."
               ],
               [
                 "Lead and supervise",
@@ -80,14 +84,15 @@
         },
         {
           "ul": [
-            "The supply from JPS to homes and most businesses is **110/220 V, single-phase, 50 Hz**; larger premises have three-phase supplies. The line-to-earth voltage used in fault calculations on these circuits is about **110 V**.",
-            "Jamaica's electrical code is based on the US **National Electrical Code (NEC)**, so the installation is checked against NEC rules, with GFCI (RCD) protection, grounding and bonding as the NEC requires. The test methods and the certificate and report forms the Centre uses follow the British approach to verification (the **IET Wiring Regulations**, BS 7671), because they give a complete, well documented method. Follow the forms and limits the Centre gives you.",
-            "A new or altered installation must be inspected and approved by a **government electrical inspector** before JPS will connect it. The inspection function is under the **Government Electrical Regulator (GER)**, which replaced the Government Electrical Inspectorate. The contractor's own verification must be complete, and the certificate ready, before the inspector is called.",
+            "The supply from JPS to homes and most businesses is **110/220 V, single-phase, three-wire, 50 Hz**: two hot conductors and a neutral. Either hot conductor to neutral is **110 V**; the two hot conductors together give **220 V**. Larger premises have three-phase supplies. Plugs and receptacles are **US-style**.",
+            "Jamaica's electrical code follows the US **National Electrical Code (NEC, NFPA 70)**. You inspect against the NEC and the **approved drawings**, with GFCI and AFCI protection, grounding and bonding as the NEC requires. Your instructor will tell you which edition the Government Electrical Regulator has adopted: the rules for GFCI and AFCI areas change from edition to edition.",
+            "The **Government Electrical Regulator (GER)** replaced the Government Electrical Inspectorate under the Electricity Act 2015. A new or altered installation is inspected, and the inspection is certified by a licensed inspector, before **JPS** will connect it. Your own verification is done first, so the installation is ready when the inspector arrives. Confirm the current procedure and forms with your instructor.",
+            "Conductor sizes are in **AWG** (American wire gauge). This kit gives the metric equivalent in mm² beside each size. The metric figure is approximate: use the data for the cable actually installed.",
             "The climate and buildings matter: salt air, sun, heavy rain, hurricanes, hollow block walls, termites and rats all leave their marks on an installation."
           ]
         },
         {
-          "note": "Even where a job is 'only a small addition', the government inspector's approval and JPS's rules still apply. Never tell a client that an inspection can be skipped.",
+          "note": "Even where a job is 'only a small addition', the GER's rules and JPS's rules still apply. Never tell a client that an inspection can be skipped. If you are not sure whether a job needs inspection, ask the GER or your instructor.",
           "label": "Jamaica"
         },
         {
@@ -98,7 +103,7 @@
             "head": [
               "Point",
               "Initial verification",
-              "Periodic inspection"
+              "Inspection of an existing installation"
             ],
             "rows": [
               [
@@ -108,7 +113,7 @@
               ],
               [
                 "Purpose",
-                "To prove the work meets the design and the standard and is safe to energise",
+                "To prove the work follows the approved drawings and the NEC and is safe to energise",
                 "To find damage, wear, overloading, corrosion and unsafe alterations"
               ],
               [
@@ -118,8 +123,8 @@
               ],
               [
                 "Document",
-                "Certificate with schedules of inspection and test results (or a minor works certificate for a small addition)",
-                "Condition report with classed observations, an overall result and a recommended date for the next inspection"
+                "Signed test record and panel schedule; then the GER inspection and certificate before JPS connects",
+                "Inspection report with defects listed by seriousness, an overall result and a recommended date for the next inspection"
               ]
             ]
           }
@@ -134,11 +139,11 @@
         },
         {
           "ul": [
-            "Drawings and the **circuit schedule**: each circuit's number, what it feeds, cable type and size, length, breaker type and rating, RCD details.",
-            "Design data: the expected **Ze** at the origin, the maximum **Zs** for each protective device, cable resistance data (mΩ per metre), earthing arrangement, main bonding sizes.",
-            "The specification and any maker's instructions for special equipment (surge protective devices, drives, generators, solar PV).",
-            "For periodic inspection: the previous report, records of alterations, and what the client knows about problems.",
-            "Who is on site, what must stay on, when circuits can be switched off."
+            "The **approved drawings** and the **panel schedule**: each circuit's number, what it feeds, conductor type and size (AWG), length, breaker type and rating, GFCI and AFCI details.",
+            "Design data: the load calculation, the expected loop impedance at the service, the trip current of each breaker from the maker's data, cable resistance data (mΩ per metre), the grounding arrangement and the sizes of the bonding jumpers.",
+            "The specification (it may set test voltages, limits and margins) and the maker's instructions for special equipment (surge protective devices, drives, generators, solar PV).",
+            "For an existing installation: any earlier report, records of alterations, and what the client knows about problems.",
+            "Who is on site, what must stay on, and when circuits can be switched off."
           ]
         },
         {
@@ -156,29 +161,34 @@
             ],
             "rows": [
               [
-                "Two-pole voltage tester and proving unit",
+                "Voltage tester and proving unit",
                 "Proving dead",
                 "Prove before and after every use"
               ],
               [
                 "Low-resistance ohmmeter (or the continuity range of a multifunction tester)",
-                "Continuity, R1 + R2, bonding",
+                "Continuity of grounding and bonding conductors",
                 "Leads nulled (zeroed); battery good"
               ],
               [
-                "Insulation resistance tester",
-                "Insulation at 250, 500 or 1 000 V DC",
+                "Insulation resistance tester (megger)",
+                "Insulation at 250 V, 500 V or 1 000 V DC",
                 "Reads OL open and near zero shorted; leads in good order"
               ],
               [
-                "Earth electrode tester",
-                "Resistance of the earth rod",
+                "Ground electrode tester",
+                "Resistance of a ground rod",
                 "Test spikes, leads"
               ],
               [
-                "Multifunction tester (loop, PFC, RCD)",
+                "Plug-in receptacle tester with GFCI button",
+                "Wiring faults and GFCI trip at receptacles",
+                "Known-good receptacle first"
+              ],
+              [
+                "Multifunction or loop tester",
                 "Live tests by a competent person",
-                "Calibration in date; rated CAT III or IV"
+                "Calibration in date; rated for the location (CAT III or IV at a service)"
               ],
               [
                 "All instruments",
@@ -195,26 +205,26 @@
           "flow": [
             "Plan and agree with the client",
             "Safe isolation: switch off, lock off, tag, prove the tester, prove dead, prove the tester",
-            "Visual inspection",
-            "Dead tests: continuity of protective and bonding conductors, insulation resistance, polarity, earth electrode",
-            "Only if the dead tests pass: a competent person energises",
-            "Live tests: polarity check, Ze, Zs, PFC, RCD, phase sequence (three-phase)",
+            "Inspection against the NEC and the approved drawings",
+            "Dead tests: continuity of grounding and bonding conductors, insulation resistance, polarity, ground electrode",
+            "Checks before energising",
+            "A competent person energises, and does the live tests: voltage at the service, loop impedance, GFCI and AFCI tests, phase rotation (three-phase)",
             "Functional tests",
-            "Documents, defects and handover"
+            "Records, defect report, handover and the GER inspection"
           ]
         },
         {
-          "p": "The order matters. Continuity first, so you know the protective conductor is there before you rely on it. Insulation before energising, so a short or earth fault is found before power is applied. Live tests last, and only by a competent person."
+          "p": "The order matters. Continuity first, so you know the grounding conductor is there before you rely on it. Insulation before energising, so a short or ground fault is found before power is applied. Live tests last, and only by a competent person."
         },
         {
-          "note": "An insulation tester puts up to 1 000 V on the conductors. Warn everyone, make sure nobody is touching the circuit at the far end, and let the tester discharge the cables before you touch them. Disconnect electronic equipment, LED drivers, dimmers and surge protective devices first: the test can destroy them and they make the reading false.",
+          "note": "An insulation tester puts up to 1 000 V on the conductors. Warn everyone, make sure nobody is touching the circuit at the far end, and let the cables discharge before you touch them. Disconnect electronic equipment, LED drivers, dimmers, surge protective devices and the electronics of GFCI and AFCI devices first (or follow the maker's test instructions): the test can destroy them and they make the reading false.",
           "label": "Safety"
         },
         {
           "h": "Agreeing shutdowns with the client"
         },
         {
-          "p": "In a working supermarket, clinic, office or hotel, circuits feed freezers, tills, computers, medical equipment and guests. Agree with the manager when each circuit can be switched off, how long for, and what must be done first (save data, move stock, use standby supplies). Write it down. For a periodic inspection, this agreement is part of the **extent and limitations**."
+          "p": "In a working supermarket, clinic, office or hotel, circuits feed freezers, tills, computers, medical equipment and guests. Agree with the manager when each circuit can be switched off, how long for, and what must be done first (save data, move stock, use standby supplies). Write it down. For an existing installation, this agreement is part of the **extent and limitations**."
         },
         {
           "h": "Supervising trainees"
@@ -224,18 +234,18 @@
             "Brief the team on the drawings, the order of work and the safety rules before you start.",
             "Check their instruments, leads and nulling first.",
             "Watch the method on the first circuits and correct mistakes early.",
-            "Compare readings with what you expect: longer circuits give higher R1 + R2; similar circuits give similar readings. Readings that are all the same, or too neat, are a warning sign.",
-            "Retest a sample yourself, and sign the schedule only when you are satisfied.",
+            "Compare readings with what you expect: longer circuits give higher loop resistance; similar circuits give similar readings. Readings that are all the same, or too neat, are a warning sign.",
+            "Retest a sample yourself, and sign the record only when you are satisfied.",
             "Live tests are done only by you or another competent person."
           ]
         }
       ]
     },
     {
-      "title": "Visual inspection",
+      "title": "Inspection against the NEC",
       "blocks": [
         {
-          "p": "The visual inspection is done with the installation isolated, before any test, using your eyes, a torch and a screwdriver, against the **schedule of inspections**. It finds more defects than all the tests together. Some defects can be found only by inspection: a fitting with the wrong IP rating, a missing blank in a board, a cable too close to a hot pipe, a missing label."
+          "p": "The inspection is done with the installation isolated, before any test, using your eyes, a torch and a screwdriver, against the **approved drawings**, the **NEC rules the Centre uses** and the inspection checklist. It finds more defects than all the tests together. Some defects can be found only by inspection: a fitting not listed for a wet location, a missing filler plate in a panel, a cable too close to a hot pipe, a missing label."
         },
         {
           "h": "What to check"
@@ -249,28 +259,28 @@
             ],
             "rows": [
               [
-                "Supply and earthing",
-                "Service entrance, main switch, main earthing terminal, earth electrode and its conductor, label on the earthing conductor",
-                "The whole protection depends on the earth path"
+                "Service and grounding",
+                "Service entrance, main disconnect, grounding electrode (or electrodes) and its conductor, the main bonding jumper in the service equipment, neutral and ground joined at the service only",
+                "The whole fault protection depends on the grounding and bonding"
               ],
               [
-                "Main bonding",
-                "Conductors of the design size to incoming metal water and gas pipes and structural steel, clamped on clean metal **as close as practical to the point of entry**, with a label 'Safety electrical connection – do not remove'",
+                "Bonding",
+                "Bonding of metal water piping, gas piping as the NEC and the gas supplier require, and structural steel; conductors of the size the NEC table gives; listed clamps on clean metal, close to where the pipe enters",
                 "Keeps metal parts at the same voltage in a fault"
               ],
               [
-                "Distribution boards",
-                "Correct type and rating of every device; no empty spaces without blanks; covers on; neat terminations; a circuit chart; warning labels; a dual-supply warning where a generator or PV system is connected",
-                "Fingers and tools must not reach live parts; users must know what each device feeds"
+                "Panels",
+                "Right type and rating of every breaker; no empty spaces without filler plates; covers on; neat, tight terminations; a panel directory; neutral and ground bars separate in sub-panels; no two conductors under one breaker screw unless it is made for it; a dual-supply warning where a generator or PV system is connected",
+                "Fingers and tools must not reach live parts; users must know what each breaker feeds"
               ],
               [
-                "Cable size against protective device",
-                "The device's rating must not exceed the cable's current-carrying capacity for the way it is installed",
-                "A breaker larger than the cable can carry lets the cable overheat"
+                "Conductor size against breaker",
+                "The breaker rating must not exceed what the conductor can carry. For small conductors the NEC limits are 14 AWG (2.1 mm²) to 15 A, 12 AWG (3.3 mm²) to 20 A and 10 AWG (5.3 mm²) to 30 A",
+                "A breaker larger than the conductor can carry lets it overheat"
               ],
               [
                 "Cable routes and support",
-                "Cables supported, protected where they could be damaged, not in contact with hot pipes, kept apart from data cables, not resting on ceiling tiles",
+                "Cables and conduit supported, protected where they could be damaged, not touching hot pipes, kept apart from data cables, not resting on ceiling tiles",
                 "Damage and overheating"
               ],
               [
@@ -280,50 +290,50 @@
               ],
               [
                 "Outdoor and wet locations",
-                "Fittings with an IP rating suited to rain, splashing or immersion; UV-resistant conduit and cables; drain holes; glands sealed",
+                "Fittings listed for wet or damp locations; weather-resistant receptacles with in-use covers outdoors; UV-resistant conduit; sealed connectors and drain holes",
                 "Water entry causes faults and shocks"
               ],
               [
-                "Special locations",
-                "Bathrooms, kitchens, pool areas, outdoors: GFCI/RCD protection, fittings suited to the zone, no outlets within reach of the shower or bath",
-                "Shock risk is highest where people are wet"
+                "GFCI and AFCI protection",
+                "GFCI where the NEC edition in use requires it: bathrooms, kitchen counters, outdoors, garages, laundry areas, near sinks and pool areas. AFCI protection in dwelling areas such as bedrooms and living rooms, as the edition requires",
+                "Shock risk is highest where people are wet; arcing at damaged wiring starts fires"
               ],
               [
-                "Accessories",
-                "Secure, undamaged, correctly polarised, with the protective conductor connected; switches in the line conductor, never in the neutral only",
+                "Receptacles and switches",
+                "Secure, undamaged, correctly polarised, ground terminal connected; switches in the hot conductor, never in the neutral; 15 A and 20 A receptacles matching their circuits; 220 V receptacles of the right shape for the load",
                 "A switch in the neutral leaves the fitting live when 'off'"
               ],
               [
                 "Terminations",
-                "A sample checked for tightness; no bare copper showing; no strands cut off",
-                "Loose terminals overheat and can start a fire"
+                "A sample checked for tightness; no bare copper showing beyond the terminal; no strands cut off",
+                "Loose terminals overheat and arc"
               ],
               [
                 "Equipment",
-                "Isolators within sight of motors, air-conditioning units and water heaters; overload settings matching the nameplate; guards and covers fitted",
+                "Disconnects in sight of motors and air-conditioning units; overload settings from the nameplate (about 115% to 125% of nameplate current for most motors, within what the NEC and maker allow); guards and covers fitted",
                 "Safe maintenance and correct protection"
               ],
               [
                 "Standby supplies",
-                "Changeover or transfer switch that cannot connect generator and mains together; no 'plug on both ends' lead; generator earthed as designed and placed outdoors; labels",
+                "Transfer switch that cannot connect generator and mains together; no 'plug on both ends' lead; generator grounded as designed and placed outdoors; labels",
                 "Back-feed into JPS lines can kill a line worker"
               ],
               [
                 "Labels and notices",
-                "Circuit chart, RCD test notice, periodic inspection notice, warning labels",
+                "Panel directory, GFCI and AFCI test notice, warning labels",
                 "Users and the next inspector need them"
               ]
             ]
           }
         },
         {
-          "h": "IP ratings"
+          "h": "Enclosure ratings"
         },
         {
-          "p": "**IP** (ingress protection) ratings have two digits. The **first digit** (0–6) is protection against solid objects and dust: 2 means fingers, 4 means wires over 1 mm, 5 means dust-protected, 6 means dust-tight. The **second digit** (0–8) is protection against water: 1 dripping, 3 spraying, 4 splashing, 5 jets, 6 powerful jets, 7 temporary immersion, 8 continuous immersion. An **IP65** fitting is dust-tight and resists water jets: suitable for a pool deck in the rain. An IP20 fitting keeps fingers out but has no water protection: indoors only."
+          "p": "The NEC and US-made equipment use **NEMA enclosure types** and the words 'damp location' and 'wet location'. Type 1 is for indoors. **Type 3R** is rainproof and suits most outdoor panels and boxes. **Type 4** is watertight and hose-proof. **Type 4X** adds protection against corrosion, which suits coastal sites. Imported equipment may carry an **IP rating** instead. IP ratings have two digits: the first (0–6) is protection against solids and dust, the second (0–8) against water. An **IP65** fitting is dust-tight and resists water jets; an IP20 fitting keeps fingers out but has no water protection, so it is for indoors only. The two systems do not match exactly: use the maker's data and the location the fitting is listed for."
         },
         {
-          "h": "Signs of deterioration (periodic inspection)"
+          "h": "Signs of deterioration (existing installations)"
         },
         {
           "table": {
@@ -353,18 +363,18 @@
                 "Loose connections; overloading"
               ],
               [
-                "Extra circuits, air-conditioning units and outlets with no change to the supply or board",
+                "Extra circuits, air-conditioning units and receptacles with no change to the supply or panel",
                 "Alterations made without design"
               ],
               [
-                "Brittle insulation, cloth or rubber cables, no RCDs",
+                "Brittle insulation, cloth or rubber cables, no GFCI protection",
                 "Age"
               ]
             ]
           }
         },
         {
-          "note": "Write every observation as you find it: **what** it is, **where** it is, and the **action** needed. 'Loose terminal, neutral of circuit 7, kitchen board, remake' can be acted on; 'wiring poor' cannot.",
+          "note": "Write every observation as you find it: **what** it is, **where** it is, and the **action** needed. 'Loose terminal, neutral of circuit 7, kitchen panel, remake' can be acted on; 'wiring poor' cannot.",
           "label": "Tip"
         }
       ]
@@ -373,148 +383,188 @@
       "title": "Dead tests",
       "blocks": [
         {
-          "h": "1. Continuity of protective and bonding conductors"
+          "p": "The NEC sets the installation rules; it does not give a list of test limits. The limits you use come from the specification, the instrument maker and good practice, and the Centre's instructor tells you which to follow."
+        },
+        {
+          "h": "1. Continuity of grounding and bonding conductors"
         },
         {
           "p": "Null the leads of the low-resistance ohmmeter first. Then test:"
         },
         {
           "ul": [
-            "**Main bonding conductors**: from the main earthing terminal to each bonding clamp. Expect a very low reading, usually below about 0.05 Ω for a short conductor; it must be low and steady.",
-            "**Protective conductors of each circuit**, by the **R1 + R2 method**: link the line conductor and the protective conductor together at the board, then measure between line and earth at every point on the circuit. The reading at the far end is **R1 + R2**: the resistance of the line conductor (R1) plus the protective conductor (R2). Record the highest reading. This method also confirms polarity at each point, because the reading appears only where line and earth are connected correctly.",
-            "**Ring circuits** (where used): test end to end on each conductor and cross-connect to prove the ring is complete, as the Centre's method sheet shows."
+            "**Bonding conductors and the main bonding jumper**: from the ground bar at the service to each bonding clamp. Expect a very low reading, usually well below 0.1 Ω for a short conductor; it must be low and steady.",
+            "**The equipment grounding conductor (EGC) of each circuit**, by the **loop method**: link the hot conductor and the EGC together at the panel, then measure between hot and ground at every point on the circuit. The reading at the far end is the **loop resistance**: the resistance of the hot conductor plus the EGC. Record the highest reading. This method also proves that each outlet has its ground connected.",
+            "**Neutral and ground in a sub-panel**: with the feeder isolated, the neutral bar and the ground bar should read **open**. A reading means the neutral is bonded to ground in the wrong place: current then flows on the grounding conductors, and GFCIs trip for no reason. The neutral is joined to ground at the service only."
           ]
         },
         {
-          "h": "Expected R1 + R2"
+          "h": "Expected loop resistance"
         },
         {
-          "p": "Cable data gives the resistance of line plus protective conductor in **milliohms per metre (mΩ/m)** at 20 °C. **Expected R1 + R2 = length × mΩ/m ÷ 1 000.** Example: a 28 m circuit in cable with 15.2 mΩ/m gives 28 × 15.2 = 425.6 mΩ ≈ **0.43 Ω**. A measured value close to this is right; one much higher points to a loose joint, a damaged conductor or a longer route than the drawing shows; one much lower suggests a parallel path (for example through metal conduit) or a short length."
+          "p": "Cable data gives the resistance of the hot conductor plus the EGC in **milliohms per metre (mΩ/m)** at about 20 °C. **Expected loop resistance = length × mΩ/m ÷ 1 000.** Example: a 28 m circuit of 10 AWG pairs at 6.6 mΩ/m would read 28 × 6.6 = 184.8 mΩ, about **0.18 Ω**. A measured value close to the expected one is right; one much higher points to a loose joint, a damaged conductor or a longer route than the drawing shows; one much lower suggests a parallel path (for example through metal conduit) or a short length. Copper resistance rises about 4% for every 10 °C, so a reading in a hot roof space is higher than the table."
         },
         {
           "table": {
             "head": [
-              "Typical copper cable (line + protective conductor)",
-              "Approximate mΩ/m at 20 °C"
+              "Hot conductor + EGC, same size, copper",
+              "Size in mm² (approx.)",
+              "Typical loop resistance (mΩ per metre at 20 °C)"
             ],
             "rows": [
               [
-                "1.5 mm² line with 1.0 mm² protective conductor",
-                "About 30"
+                "14 AWG + 14 AWG",
+                "2.1",
+                "About 16.6"
               ],
               [
-                "2.5 mm² line with 1.5 mm² protective conductor",
-                "About 19.5"
+                "12 AWG + 12 AWG",
+                "3.3",
+                "About 10.4"
               ],
               [
-                "4 mm² line with 2.5 mm² protective conductor",
-                "About 12"
+                "10 AWG + 10 AWG",
+                "5.3",
+                "About 6.6"
               ],
               [
-                "6 mm² line with 2.5 mm² protective conductor",
-                "About 10.5"
+                "8 AWG + 8 AWG",
+                "8.4",
+                "About 4.1"
               ],
               [
-                "10 mm² line with 4 mm² protective conductor",
-                "About 6.4"
+                "6 AWG + 6 AWG",
+                "13.3",
+                "About 2.6"
               ]
             ]
           }
         },
         {
-          "p": "Use the figures the Centre or the cable maker gives you; these are typical values for metric cable. Jamaican installations often use American wire gauge (AWG) sizes: 14 AWG is close to 2 mm², 12 AWG to 3.3 mm² and 10 AWG to 5.3 mm². Use the data for the cable actually installed."
+          "p": "Use the figures the Centre or the cable maker gives you: these are typical values for copper conductors of the same size. Where the EGC is smaller than the hot conductor, as the NEC allows on larger circuits, add the two resistances separately: the EGC part is higher per metre."
         },
         {
           "h": "2. Insulation resistance"
         },
         {
-          "table": {
-            "head": [
-              "Circuit voltage",
-              "Test voltage (DC)",
-              "Minimum insulation resistance (IET Wiring Regulations)"
-            ],
-            "rows": [
-              [
-                "SELV and PELV (extra-low voltage)",
-                "250 V",
-                "0.5 MΩ"
-              ],
-              [
-                "Up to 500 V, including 110/220 V circuits",
-                "500 V",
-                "1.0 MΩ"
-              ],
-              [
-                "Above 500 V, up to 1 000 V",
-                "1 000 V",
-                "1.0 MΩ"
-              ]
-            ]
-          }
+          "p": "**Typical practice** on 110/220 V circuits is to test at **500 V DC** with a megger, and to look for **1 MΩ or more**. The NEC does not set the figure, and many specifications ask for much more, so follow the specification and the Centre's instructor. Extra-low-voltage circuits and electronics need a lower test voltage or must be disconnected: follow the maker."
         },
         {
           "ul": [
             "Isolate, prove dead, switch all switches on and remove lamps, or disconnect lamps, drivers, electronics and surge protective devices (or follow the maker's test instructions).",
-            "Test **between live conductors** (line to neutral; on three-phase, every line to every other line and each line to neutral) and **between each live conductor and earth** (or all live conductors joined together, to earth).",
+            "On a 110/220 V circuit, test **between every pair of conductors**: each hot to neutral, hot to hot, and each conductor to ground (or all live conductors joined together, to ground).",
             "Hold the test until the reading settles. Record the lowest reading for each circuit.",
-            "A new installation should read far above 1 MΩ, usually hundreds of megohms or OL. A reading between 1 and 2 MΩ passes but should be investigated.",
+            "A new installation should read far above 1 MΩ, usually hundreds of megohms or OL. A reading between 1 and 2 MΩ passes the usual limit but should be investigated.",
             "After the test, let the circuit discharge before touching it."
           ]
         },
         {
-          "p": "**Circuits in parallel.** Insulation resistances add like resistors in parallel, so the reading for a whole board is **lower** than any single circuit. Two circuits of 200 MΩ each read about 100 MΩ together; three circuits of 300 MΩ read about 100 MΩ. If the whole board reads lower than the minimum, test each circuit alone to find the low one. A low reading on the whole board is **not** in itself a fault."
+          "p": "**Circuits in parallel.** Insulation resistances combine like resistors in parallel, so the reading for a whole panel is **lower** than any single circuit. Two circuits of 400 MΩ each read about 200 MΩ together; four circuits of 80 MΩ each read about 20 MΩ. If the whole panel reads lower than the limit, test each circuit alone to find the low one. A low reading on the whole panel is **not** in itself a fault, but one very low circuit pulls the total down towards its own value."
         },
         {
           "h": "3. Polarity"
         },
         {
-          "p": "Confirm with continuity tests, before energising, that: every single-pole switch and protective device is in the **line** conductor; the centre contact of a screw lampholder is connected to the line; outlets are wired with line, neutral and earth on the correct terminals. After energising, the competent person confirms polarity at the origin and at outlets with a tester."
+          "p": "Confirm with continuity tests, before energising, that: every single-pole switch and every breaker is in the **hot** conductor; the centre contact of a screw lampholder is connected to the hot conductor and the screw shell to the neutral; and receptacles are wired with the hot conductor on the **brass** terminal (the narrow slot), the neutral on the **silver** terminal (the wide slot) and the ground on the green screw. After energising, a plug-in tester shows the result with its lamps."
         },
         {
-          "h": "4. Earth electrode resistance"
+          "table": {
+            "head": [
+              "Plug-in tester shows",
+              "What it means",
+              "What to do"
+            ],
+            "rows": [
+              [
+                "Open ground",
+                "No ground connection at the receptacle",
+                "Do not use the outlet; find the break in the EGC or the loose terminal"
+              ],
+              [
+                "Hot and neutral reversed",
+                "Wired the wrong way round",
+                "Remake the connections: appliance parts can stay live when 'off'"
+              ],
+              [
+                "Hot and ground reversed",
+                "A dangerous wiring error: the ground is live",
+                "Isolate at once and correct it"
+              ],
+              [
+                "Open neutral or open hot",
+                "A conductor is not connected",
+                "Isolate and find the loose or broken conductor"
+              ]
+            ]
+          }
         },
         {
-          "p": "Where the installation has its own earth rod, its resistance to the general mass of earth is measured with an earth electrode tester and two temporary spikes (the three-terminal or fall-of-potential method), with the rod disconnected from the installation. A loop tester can also measure it, with the installation isolated, as a simpler method. Compare the result with the design value. To lower a high reading: drive the rod deeper, add rods spaced well apart, or use a different type of electrode; dry sand and gravel give high readings, damp soil low ones."
+          "h": "4. Ground electrode resistance"
         },
         {
-          "note": "The protective conductor and the metal path back to the supply transformer, not the earth rod, carry most of the fault current that trips a breaker. The rod limits the voltage of the installation's earth under lightning and supply faults. Both are needed.",
+          "p": "Where the installation has its own ground rod, its resistance to the general mass of earth is measured with a ground electrode tester and two temporary spikes (the fall-of-potential method), with the rod disconnected from the installation. Clamp-on testers can also be used on some systems: follow the instrument's instructions."
+        },
+        {
+          "ul": [
+            "**A single rod, pipe or plate electrode must be supplemented by another electrode unless it measures 25 Ω or less.** The second electrode is normally another rod, driven at least 1.8 m (6 ft) from the first. A rod is at least 2.4 m (8 ft) long.",
+            "Metal water piping may not be the only electrode.",
+            "To lower a high reading: drive the rod deeper, add rods spaced well apart, or use another type of electrode. Dry sand, gravel and limestone give high readings; damp soil gives low ones."
+          ]
+        },
+        {
+          "note": "The rod does not carry the fault current that trips a breaker. The EGC, the main bonding jumper and the neutral back to the transformer do that. The rod helps to limit voltage on the installation during lightning and surges, and to stabilise the system voltage. Both the fault path and the electrode are needed.",
           "label": "Remember"
         }
       ]
     },
     {
-      "title": "Live tests and the calculations",
+      "title": "Before energising, and the live tests",
       "blocks": [
         {
-          "p": "Live tests are done by a **competent person** after the dead tests pass. As a trainee you record and interpret the results; you do not make these measurements yourself. You must understand them well enough to judge a circuit from the numbers."
-        },
-        {
-          "h": "The earth fault loop"
-        },
-        {
-          "p": "When a line conductor touches earthed metal, the fault current flows round the **earth fault loop**: from the supply transformer along the line conductor, through the fault, back along the protective conductor to the main earthing terminal, and then back to the transformer through the supply's earth path. The total impedance of that loop is **Zs**. The part outside the installation, measured at the origin with the installation's earthing disconnected, is **Ze**."
-        },
-        {
-          "p": "**Zs = Ze + (R1 + R2)** for the circuit. The **prospective earth fault current** is **I = U0 ÷ Zs**, where U0 is the line-to-earth voltage. The higher the loop impedance, the smaller the fault current, and the slower the breaker trips."
-        },
-        {
-          "h": "Worked example"
+          "h": "Verification before energising"
         },
         {
           "ol": [
-            "A circuit is 25 m of cable at 19.5 mΩ/m. R1 + R2 = 25 × 19.5 = 487.5 mΩ ≈ 0.49 Ω.",
-            "Ze measured at the origin is 0.30 Ω. Expected Zs = 0.30 + 0.49 = 0.79 Ω.",
-            "The line-to-earth voltage is 110 V. Earth fault current = 110 ÷ 0.79 ≈ 139 A.",
-            "The breaker's instantaneous (magnetic) trip needs 100 A (a 20 A breaker that trips magnetically at 5 × its rating). 139 A is more than 100 A, so it trips at once.",
-            "Another way to say it: the largest Zs that still gives 100 A is 110 ÷ 100 = 1.1 Ω. The circuit's 0.79 Ω is below that."
+            "All dead tests are complete, the results are recorded and every reading passes. Any failed circuit has been repaired and retested.",
+            "All covers, filler plates and panel doors are fitted; no loose conductors or tools are left in any box.",
+            "Every breaker is off, and every load that can be disconnected is disconnected or switched off.",
+            "Everyone on the site is told, and is clear of the panels and outlets.",
+            "The service disconnect is the only thing switched on first. A competent person then checks the voltage at the service: about 110 V from each hot conductor to neutral, and about 220 V between the two hot conductors.",
+            "Breakers are switched on one at a time, each checked before the next."
           ]
         },
         {
-          "h": "Comparing Zs with the maximum"
+          "p": "Live tests are done by a **competent person** after these checks. As a trainee you record and interpret the results; you do not make these measurements yourself. You must understand them well enough to judge a circuit from the numbers."
         },
         {
-          "p": "Tables give the **maximum Zs** for each type and rating of protective device, worked out for the conductor at its full working temperature. On site you measure the circuit cold, so its resistance is lower than it would be in a fault. A measured Zs is therefore compared with a **lower** figure, commonly about **80% of the tabulated maximum**. Example: maximum 1.1 Ω; measured Zs must not exceed about 0.88 Ω. (Some tables already give the corrected figure: follow the table the Centre uses.)"
+          "h": "The effective ground-fault current path"
+        },
+        {
+          "p": "When a hot conductor touches grounded metal, the fault current flows round a loop: from the transformer along the hot conductor, through the fault, back along the **EGC** to the panel's ground bar, across the **main bonding jumper** to the neutral at the service, and along the neutral back to the transformer. The NEC requires this to be a **permanent, low-impedance path that can carry the fault current**, so that the breaker opens quickly. The earth itself is not the path. The total impedance of the loop is the **loop impedance**: an instrument may call it the earth-fault loop impedance, and may show it as Zs."
+        },
+        {
+          "p": "**Loop impedance at an outlet = impedance measured at the service + loop resistance of the circuit.** The **ground-fault current** is **I = V ÷ Z**, where V is the voltage to ground. On a 110/220 V supply this is **110 V**, even for a 220 V circuit, because each hot conductor is 110 V from the grounded neutral. The higher the loop impedance, the smaller the fault current and the slower the breaker trips."
+        },
+        {
+          "h": "Worked example: will the breaker trip at once?"
+        },
+        {
+          "ol": [
+            "A circuit is 15 m of 12 AWG (3.3 mm²) with a 12 AWG EGC at 10.4 mΩ/m. Loop resistance = 15 × 10.4 = 156 mΩ, about 0.16 Ω.",
+            "The competent person measures 0.30 Ω at the service. Expected loop impedance at the outlet = 0.30 + 0.16 = 0.46 Ω.",
+            "Ground-fault current = 110 ÷ 0.46 ≈ 239 A.",
+            "The maker's curve for the 20 A breaker shows it is certain to trip instantly at 200 A (ten times its rating). 239 A is more than 200 A, so it trips at once.",
+            "Another way to say it: the largest loop impedance that still gives 200 A is 110 ÷ 200 = 0.55 Ω, and the circuit's 0.46 Ω is below that."
+          ]
+        },
+        {
+          "p": "The current needed for an instant trip depends on the breaker. Many thermal-magnetic breakers trip instantly somewhere between about 5 and 10 times their rating. **Use the maker's trip curve** for the breaker fitted."
+        },
+        {
+          "h": "How far below the limit should the reading be?"
+        },
+        {
+          "p": "The NEC gives no fixed percentage. A conductor warms up in a fault, so its resistance rises and the real fault current is lower than a cold test suggests. Many specifications ask for a margin: follow the one you are given. Treat a reading that only just passes with suspicion."
         },
         {
           "table": {
@@ -525,84 +575,104 @@
             ],
             "rows": [
               [
-                "Measured Zs well below the limit",
-                "The device will disconnect a fault in time",
+                "Loop impedance well below the limit",
+                "The breaker will clear a fault in time",
                 "Record it"
               ],
               [
-                "Measured Zs above the limit",
-                "In an earth fault the device may not trip fast enough; metal could stay live",
-                "Look for a poor joint or wrong conductor on the protective path; retest. If it is still high, the designer decides: a larger protective conductor, a different device, or RCD protection. Never fit a breaker with a higher rating to 'solve' it."
+                "Loop impedance above the limit",
+                "In a ground fault the breaker may not trip fast enough; metal could stay live",
+                "Look for a poor joint or a damaged EGC; retest. If it is still high, the designer decides: a larger EGC, a different breaker, or GFCI protection. Never fit a breaker with a higher rating to 'solve' it."
               ],
               [
-                "Measured Zs far below the expected value",
-                "A parallel earth path, such as metal conduit or bonded pipes",
+                "Loop impedance far below the expected value",
+                "A parallel ground path, such as metal conduit or bonded pipes",
                 "Note it; it does not fail the circuit"
               ]
             ]
           }
         },
         {
-          "h": "Prospective fault current (PFC)"
+          "h": "Voltage drop"
         },
         {
-          "p": "At the origin and each distribution board, the competent person measures the prospective fault current between line and neutral and between line and earth, and records the **larger**. Each protective device must have a **breaking capacity** at least as large as the PFC where it is installed, so that it can interrupt the largest fault without bursting. A breaker marked 6 kA on a board with a PFC of 8 kA is a defect. Calculated example: a Ze of 0.20 Ω at 110 V gives an earth fault current of 110 ÷ 0.20 = 550 A at the origin."
+          "p": "Current in a conductor makes a voltage drop along it. Too much drop makes motors and compressors run hot and lights dim. The NEC **recommends** (as an informational note, not a rule) a drop of no more than **3% on a branch circuit** and **5% on the feeder and branch circuit together**. The designer decides, but you should report a circuit that is well outside it."
         },
         {
-          "h": "RCD and GFCI tests"
+          "p": "**Voltage drop = load current × loop resistance of the run**, where the loop resistance covers the outward and return conductors. **Percentage = drop ÷ nominal voltage × 100.** Use 110 V for a 110 V circuit and 220 V for a 220 V circuit."
+        },
+        {
+          "ol": [
+            "A 110 V circuit of 12 AWG carries 14 A over 20 m. Loop resistance of the run = 20 × 10.4 = 208 mΩ = 0.208 Ω.",
+            "Voltage drop = 14 × 0.208 ≈ 2.9 V.",
+            "As a percentage: 2.9 ÷ 110 × 100 ≈ 2.6%. That is within the 3% recommendation.",
+            "3% of 110 V is 3.3 V, so the longest run at 14 A is about 3.3 ÷ (14 × 0.0104) ≈ 22 m."
+          ]
+        },
+        {
+          "p": "You can also measure it: read the voltage at the panel and at the far end with the circuit loaded, and subtract."
+        },
+        {
+          "h": "GFCI and AFCI devices"
         },
         {
           "table": {
             "head": [
               "Test",
-              "Expected result for a 30 mA RCD protecting people"
+              "Expected result"
             ],
             "rows": [
               [
-                "At half the rated current (15 mA)",
-                "Must **not** trip"
+                "GFCI TEST button",
+                "The device trips and power at the outlet goes off; RESET restores it"
               ],
               [
-                "At the rated current (30 mA)",
-                "Trips within 300 ms (a general type)"
+                "Plug-in tester's GFCI button",
+                "The GFCI trips at once and the tester's lamps go out"
               ],
               [
-                "At five times the rated current (150 mA)",
-                "Trips within 40 ms"
+                "Plug-in tester's lamps before the test",
+                "The pattern for correct wiring (no open ground, no reversed polarity)"
               ],
               [
-                "Ramp test",
-                "The current rises slowly until it trips; shows the actual trip current, which should be between about 50% and 100% of the rating"
+                "AFCI breaker TEST button",
+                "The breaker trips; reset it and record the result"
               ],
               [
-                "Test button",
-                "Trips; shown to the user, who should press it at the intervals on the label (often every month or every three months)"
+                "User's monthly check",
+                "Pressing TEST trips the device; the user then presses RESET"
               ]
             ]
           }
         },
         {
-          "p": "US-type **GFCI** devices trip at about 4–6 mA of leakage, far more sensitive than a 30 mA RCD. Test them with a tester made for GFCIs, and with the device's own TEST button. One that does not trip on its button must be replaced."
+          "p": "A **GFCI** compares the current in the hot and neutral conductors. If more than about 4–6 mA leaks to ground, it trips, which is fast enough to protect a person from a serious shock. An **AFCI** detects the pattern of an electrical arc, as from a damaged cable or a loose terminal, and trips before a fire starts. A GFCI that does not trip on its own TEST button must be replaced. Do not megger GFCI or AFCI electronics. Repeated tripping may point to a neutral joined to ground in the wrong place, shared neutrals or wet fittings. You may meet the word RCD on imported equipment: in Jamaica the device is a GFCI."
+        },
+        {
+          "h": "Available fault current and interrupting rating"
+        },
+        {
+          "p": "At the service and at each panel, the competent person finds the **available fault current**: the largest current that could flow in a short circuit at that point. Each breaker has an **interrupting rating** (shown in kA, sometimes as AIC) and it must be at least as large as the available fault current where it is fitted. A breaker marked 10 kA on a panel with 14 kA available is a defect. Example: a loop impedance of 0.20 Ω at 110 V gives 110 ÷ 0.20 = 550 A at that point."
         },
         {
           "h": "Three-phase and functional tests"
         },
         {
           "ul": [
-            "On three-phase supplies the competent person checks the **phase sequence** (rotation) at the origin and at motor circuits, so motors turn the right way.",
-            "**Functional tests** are done with the supply on: every switch, isolator, interlock, emergency stop, RCD, time switch, photocell and control is operated to show it works as designed. This is the last test, not the first."
+            "On three-phase supplies the competent person checks the **phase rotation** at the service and at motor circuits, so motors turn the right way.",
+            "**Functional tests** are done with the supply on: every switch, disconnect, interlock, emergency stop, GFCI, AFCI, time switch, photocell and control is operated to show it works as designed. This is the last test, not the first."
           ]
         }
       ]
     },
     {
-      "title": "Periodic inspection and classifying defects",
+      "title": "Inspecting an existing installation, and recording defects",
       "blocks": [
         {
           "h": "Agreeing the extent and limitations"
         },
         {
-          "p": "Before a periodic inspection you meet the client and write down: what will be inspected and tested; what will not, and why (for example cables buried in walls and floors, circuits that cannot be switched off, areas that cannot be reached); the **sample** of accessories to be opened; and the times when circuits may be isolated. Both sign it. This protects the client and you, and the report states it."
+          "p": "Before you start, meet the client and write down: what will be inspected and tested; what will not, and why (for example cables buried in walls and floors, circuits that cannot be switched off, areas that cannot be reached); the **sample** of accessories to be opened; and the times when circuits may be isolated. Both sign it. This protects the client and you, and the report states it."
         },
         {
           "h": "Sampling"
@@ -623,13 +693,13 @@
             "rows": [
               [
                 "Age",
-                "Old cable types, no RCDs, missing protective conductors to lighting points, worn accessories, old boards",
+                "Old cable types, no GFCI or AFCI protection, missing grounding conductors to lighting points, worn accessories, old panels",
                 "Test insulation carefully; recommend upgrades"
               ],
               [
                 "Alterations",
-                "Added circuits, air-conditioning units, outlets, pumps and generators with no new design",
-                "Check cable sizes, device ratings, overloaded boards and supplies"
+                "Added circuits, air-conditioning units, receptacles, pumps and generators with no new design",
+                "Check conductor sizes, breaker ratings, overloaded panels and supplies"
               ],
               [
                 "Coastal and damp sites",
@@ -643,13 +713,13 @@
               ],
               [
                 "Hurricanes and floods",
-                "Damaged overhead cables, loose fixings, mud and water in boards and low outlets",
+                "Damaged overhead cables, loose fixings, mud and water in panels and low receptacles",
                 "Inspect anything that was wet before it is re-energised"
               ],
               [
                 "Pests",
-                "Gnawed cables, nests in boards",
-                "Look in roof spaces and behind boards"
+                "Gnawed cables, nests in panels",
+                "Look in roof spaces and behind panels"
               ],
               [
                 "Use of the building",
@@ -660,52 +730,55 @@
           }
         },
         {
-          "h": "Classifying observations"
+          "h": "The defect report"
+        },
+        {
+          "p": "Each defect is written down with **what** it is, **where** it is, **which NEC rule or drawing it breaks** (if you know it), its **seriousness** and the **action** needed. The Centre's forms may use other words, but the idea is the same:"
         },
         {
           "table": {
             "head": [
-              "Class",
+              "Seriousness",
               "Meaning",
               "Examples",
               "What the inspector does"
             ],
             "rows": [
               [
-                "**Danger present** (C1)",
+                "**Immediate hazard**",
                 "Someone could be hurt now",
-                "Live parts that can be touched; a broken outlet; bare conductors in reach; a generator plugged in with a two-plug lead",
+                "Live parts that can be touched; a broken receptacle; bare conductors in reach; a generator plugged in with a two-plug lead",
                 "Tell the person in charge at once, make it safe with their agreement (for example isolate the circuit), record it"
               ],
               [
-                "**Potentially dangerous** (C2)",
-                "Not dangerous at this moment, but would be if a fault occurred",
-                "No protective conductor to a metal fitting; no RCD on an outdoor or bathroom outlet; a breaker larger than its cable; Zs too high; missing main bonding; a breaker with too low a breaking capacity",
-                "Record it; urgent action is needed"
+                "**Must correct**",
+                "Not dangerous at this moment, but would be if a fault occurred, or it breaks a safety rule of the NEC",
+                "No grounding conductor to a metal fitting; no GFCI on an outdoor or bathroom receptacle; a breaker larger than its conductors; loop impedance too high; missing bonding; a breaker with too low an interrupting rating",
+                "Record it; urgent action is needed. On new work it must be put right before the GER's approval"
               ],
               [
-                "**Improvement recommended** (C3)",
-                "Does not meet the current standard but is not unsafe",
-                "Old circuit chart; missing labels; an older type of board still in sound condition",
+                "**Advisory**",
+                "Does not meet the current code but is not unsafe",
+                "Old panel directory; missing labels; an older type of panel still in sound condition",
                 "Record it; the client should plan to deal with it"
               ],
               [
-                "**Further investigation required** (FI)",
+                "**Could not verify**",
                 "Something you could not resolve within the agreed extent",
                 "A circuit that could not be traced; an odd reading that could not be followed up",
-                "Record it; the client must have it investigated"
+                "Record it as a limitation; the client must have it investigated"
               ]
             ]
           }
         },
         {
-          "p": "**The overall result** is **unsatisfactory** if there is any danger present, potentially dangerous or further investigation item. One such item makes the whole report unsatisfactory, however good the rest is. Otherwise the result is satisfactory."
+          "p": "**The overall result** is **unsatisfactory** if there is any immediate hazard or must-correct item, or an item that could not be verified and may hide one. One such item makes the whole report unsatisfactory, however good the rest is. Otherwise the result is satisfactory."
         },
         {
           "h": "The next inspection"
         },
         {
-          "p": "The inspector recommends the interval to the next periodic inspection. It depends on the type of building and its use, the condition found and the environment. As a guide: a domestic installation in good condition might be ten years or at change of occupancy; offices, shops and hotels about five years; kitchens, pools, workshops, farms and sites with harsh conditions sooner, often one to three years. The report also lists the circuits not tested and why."
+          "p": "The inspector recommends the interval to the next inspection. There is no single number in the NEC. It depends on the type of building and its use, the condition found, the environment, and any requirement of the owner's insurer or the GER (confirm these with your instructor). As a guide: a quiet, well-kept building can go longer between inspections; hotels, shops and offices need them regularly; kitchens, pools, workshops, farms, coastal sites and anywhere flooded need them sooner. The report also lists the circuits not tested and why."
         },
         {
           "h": "When the client refuses"
@@ -716,7 +789,7 @@
       ]
     },
     {
-      "title": "Certificates, reports and handover",
+      "title": "Records, approval and handover",
       "blocks": [
         {
           "h": "Which document"
@@ -730,37 +803,34 @@
             "rows": [
               [
                 "New installation, or a new circuit added to an existing one",
-                "Full certificate with a schedule of inspections and a schedule of test results"
+                "Signed test record with the panel schedule, then the GER inspection and certificate"
               ],
               [
-                "Small addition or alteration that does not add a new circuit, such as one extra outlet or a replaced fitting",
-                "A short certificate for minor works, with the test results for the circuit worked on"
+                "Small addition or alteration, such as one extra outlet or a replaced fitting",
+                "Test the circuit and record the results; follow the GER's rules on alterations, and ask if you are unsure"
               ],
               [
-                "Periodic inspection of an existing installation",
-                "Condition report with classed observations, an overall result and a recommended next date"
+                "Inspection of an existing installation",
+                "Inspection report with defects by seriousness, an overall result and a recommended next date"
               ]
             ]
           }
         },
         {
-          "h": "Signatures on a certificate"
-        },
-        {
-          "p": "The certificate for a new installation is signed by the people responsible for three stages: the **design**, the **construction**, and the **inspection and testing**. One person may sign for all three on a small job; on a large one they may be three different people or companies. A signature says 'I am responsible for this part and it meets the standard'. Never sign for work you did not do or check."
-        },
-        {
-          "h": "What the schedules record"
+          "h": "The test record"
         },
         {
           "ul": [
-            "**Schedule of inspections**: each item inspected, ticked as satisfactory, not applicable, or with a comment.",
-            "**Schedule of test results**: for each circuit, its description, cable sizes, protective device type and rating, maximum Zs; the measured R1 + R2 (or R2), insulation resistance between lives and to earth, polarity, measured Zs, RCD trip times, and remarks. Plus Ze, PFC and the earthing arrangement at the origin, and the instruments' serial numbers.",
+            "**Inspection checklist**: each item inspected, ticked as satisfactory, not applicable, or with a comment.",
+            "**Test results**: for each circuit, its description, conductor sizes, breaker type and rating, trip current; the measured loop resistance, insulation resistance, polarity, loop impedance, GFCI and AFCI results, voltage drop where measured, and remarks. Plus the loop impedance at the service, the available fault current, the ground electrode resistance and the instruments' serial numbers.",
             "Every reading is recorded as measured, with its unit. If a reading was not taken, say so and why."
           ]
         },
         {
-          "note": "After a repair, the circuit is **retested** and the new results recorded. Never copy results from another circuit, and never record a circuit as tested when it was not. A false certificate is fraud, and it can put a life at risk.",
+          "p": "The licensed electrician signs to say the work was inspected and tested and the results are true. A signature says 'I am responsible for this part and it meets the code'. Never sign for work you did not do or check."
+        },
+        {
+          "note": "After a repair, the circuit is **retested** and the new results recorded. Never copy results from another circuit, and never record a circuit as tested when it was not. A false record is fraud, and it can put a life at risk.",
           "label": "Remember"
         },
         {
@@ -769,18 +839,22 @@
         {
           "flow": [
             "Explain the results to the client in plain words",
-            "Show them the RCD or GFCI test button and the interval for pressing it",
-            "Give them the certificate or report, the schedules and the test results",
-            "Point out the circuit chart and the labels",
-            "Explain each observation and what must be done, with a written quotation where asked",
+            "Show them the GFCI and AFCI TEST buttons and how often to press them",
+            "Give them the signed test record, the panel schedule and any report",
+            "Point out the panel directory and the labels",
+            "Explain each defect and what must be done, with a written quotation where asked",
             "Record the handover with signatures and dates"
           ]
         },
         {
-          "h": "The government inspection and JPS connection"
+          "h": "The GER inspection and JPS connection"
         },
         {
-          "p": "For a new or altered installation in Jamaica, the contractor completes the verification and certificate first. The **government electrical inspector** then inspects the installation and, if it passes, issues the approval that JPS needs before it connects or reconnects the supply. Keep a copy of every certificate and approval for the client and for your own records."
+          "p": "For a new or altered installation in Jamaica, the contractor completes the verification and test record first. The **GER** then arranges the inspection against the NEC and the approved drawings, and a licensed inspector certifies it. If it passes, the approval allows **JPS** to connect or reconnect the supply. Keep a copy of every record and approval for the client and for your own files."
+        },
+        {
+          "note": "Which forms are used, who may certify, and what an alteration needs are set by the GER and may change. Your instructor will confirm the current procedure for the Centre.",
+          "label": "Jamaica"
         }
       ]
     },
@@ -795,27 +869,29 @@
         },
         {
           "ul": [
-            "I can list the information needed before an initial verification and before a periodic inspection.",
-            "I can explain the difference between initial verification and periodic inspection, and the document each produces.",
+            "I can list the information needed before an initial verification and before inspecting an existing installation.",
+            "I can explain the difference between initial verification and inspection of an existing installation, and the document each produces.",
             "I can isolate safely and plan the order of inspection, dead tests and live tests.",
             "I can check instruments for calibration, condition and suitability, and null the leads.",
-            "I can carry out a visual inspection against the schedule and explain why each item matters.",
-            "I can read an IP rating.",
-            "I can test main bonding and measure R1 + R2, and work out the expected value from cable data.",
-            "I can carry out an insulation resistance test at the right voltage, with electronics disconnected, and judge the result.",
+            "I can inspect against the NEC and the approved drawings and explain why each item matters.",
+            "I can read an enclosure rating, NEMA or IP.",
+            "I can test bonding and grounding conductor continuity, and work out the expected loop resistance from cable data in AWG.",
+            "I can carry out an insulation resistance test at 500 V, with electronics disconnected, and judge the result against the specification.",
             "I can explain why circuits in parallel read lower and work out the combined reading.",
-            "I can confirm polarity by dead tests and explain the danger of a switch in the neutral.",
-            "I can explain how an earth rod is tested and how a high reading is lowered.",
-            "I can calculate Zs from Ze and R1 + R2, the earth fault current, and the largest Zs for a given trip current.",
-            "I can explain why a measured Zs is compared with about 80% of the tabulated maximum.",
-            "I can explain prospective fault current and breaking capacity.",
-            "I can state the results expected from RCD tests at half, one and five times the rated current.",
+            "I can confirm polarity by dead tests and read a plug-in tester.",
+            "I can explain the 25 Ω rule for a single ground rod and how a high reading is lowered.",
+            "I can check a sub-panel for a neutral-ground bond.",
+            "I can complete the checks before energising.",
+            "I can calculate loop impedance, ground-fault current and the largest loop impedance for a given trip current.",
+            "I can calculate voltage drop and compare it with the 3% and 5% recommendations.",
+            "I can test a GFCI and an AFCI and explain the results.",
+            "I can explain available fault current and interrupting rating.",
             "I can agree extent and limitations, sample sensibly and enlarge the sample when faults appear.",
-            "I can class an observation as C1, C2, C3 or FI and give the overall result.",
-            "I can choose the right certificate or report and say who signs it.",
-            "I can hand over to a client, show the RCD test button and deal with a refusal.",
+            "I can record a defect by seriousness and give the overall result.",
+            "I can complete the test record and say who signs it.",
+            "I can hand over to a client, show the TEST buttons and deal with a refusal.",
             "I can supervise trainees, spot doubtful results and retest a sample.",
-            "I can explain the role of the government electrical inspector and JPS in Jamaica."
+            "I can explain the role of the GER, the licensed inspector and JPS in Jamaica."
           ]
         },
         {
@@ -829,48 +905,48 @@
             ],
             "rows": [
               [
-                "R1 + R2 = length × mΩ/m ÷ 1 000",
-                "Expected resistance of line plus protective conductor"
+                "Loop resistance = length × mΩ/m ÷ 1 000",
+                "Expected resistance of the hot conductor plus the EGC"
               ],
               [
-                "Zs = Ze + (R1 + R2)",
-                "Earth fault loop impedance at the end of a circuit"
+                "Loop impedance at outlet = impedance at the service + loop resistance",
+                "Ground-fault loop impedance at the end of a circuit"
               ],
               [
-                "I = U0 ÷ Zs",
-                "Earth fault current (U0 about 110 V on a 110/220 V supply)"
+                "I = V ÷ Z",
+                "Ground-fault current (V is 110 V to ground on a 110/220 V supply)"
               ],
               [
-                "About 80%",
-                "Share of the tabulated maximum Zs that a cold measured value is compared with"
+                "Largest loop impedance = 110 ÷ trip current",
+                "The limit for an instant trip"
               ],
               [
-                "500 V DC, 1 MΩ",
-                "Insulation test voltage and minimum for 110/220 V circuits"
+                "Voltage drop = current × loop resistance of the run",
+                "Compare with 3% (branch) and 5% (total), an informational recommendation"
               ],
               [
-                "250 V DC, 0.5 MΩ",
-                "Insulation test for extra-low-voltage circuits"
+                "500 V DC, commonly 1 MΩ or more",
+                "Typical insulation test for 110/220 V circuits; follow the specification"
+              ],
+              [
+                "25 Ω",
+                "A single ground rod at or below this needs no second electrode"
               ],
               [
                 "Half as much",
                 "What two equal circuits read in parallel"
               ],
               [
-                "15 mA no trip; 30 mA within 300 ms; 150 mA within 40 ms",
-                "Tests on a 30 mA RCD"
+                "4–6 mA",
+                "Trip level of a GFCI"
               ],
               [
-                "4–6 mA",
-                "Trip level of a US-type GFCI"
+                "14 AWG 15 A, 12 AWG 20 A, 10 AWG 30 A",
+                "NEC limits for small conductors (the conductor can be limited further by conditions)"
               ],
               [
                 "IP65",
                 "Dust-tight and resists water jets"
-              ],
-              [
-                "About 5 years / 10 years",
-                "A common guide for the next inspection of commercial / domestic premises in good condition; sooner for harsh conditions"
               ]
             ]
           }
@@ -881,28 +957,32 @@
         {
           "terms": [
             [
-              "Breaking capacity",
-              "The largest fault current a protective device can safely interrupt; it must be at least the prospective fault current where the device is fitted."
+              "Advisory",
+              "A defect that does not meet the current code but is not unsafe; the client should plan to deal with it."
             ],
             [
-              "Circuit schedule",
-              "The list of circuits with their cable sizes, lengths, protective devices and what they feed."
+              "AFCI",
+              "Arc-fault circuit interrupter: a device that trips when it detects dangerous arcing."
             ],
             [
-              "Condition report",
-              "The document from a periodic inspection, with classed observations, an overall result and a next-inspection date."
+              "Available fault current",
+              "The largest current that could flow in a short circuit or ground fault at a point."
             ],
             [
-              "Danger present (C1)",
-              "A defect that could hurt someone now; it is made safe at once."
+              "Defect report",
+              "The written list of what is wrong, where, how serious it is and the action needed."
             ],
             [
-              "Earth fault loop impedance (Zs)",
-              "The total impedance of the path a fault current takes from line to earth and back to the source."
+              "Equipment grounding conductor (EGC)",
+              "The conductor run with the circuit that carries ground-fault current back to the panel."
+            ],
+            [
+              "Effective ground-fault current path",
+              "The low-impedance path that lets a ground fault trip the breaker quickly."
             ],
             [
               "Extent and limitations",
-              "The written agreement of what a periodic inspection will and will not cover."
+              "The written agreement of what an inspection will and will not cover."
             ],
             [
               "Fire-stopping",
@@ -910,63 +990,63 @@
             ],
             [
               "Functional test",
-              "Operating switches, controls, RCDs and interlocks with the supply on, to show they work."
+              "Operating switches, controls, GFCIs and interlocks with the supply on, to show they work."
+            ],
+            [
+              "GER",
+              "The Government Electrical Regulator, which replaced the Government Electrical Inspectorate and oversees inspection and approval."
+            ],
+            [
+              "GFCI",
+              "Ground-fault circuit interrupter: trips at about 4–6 mA of leakage to protect people."
+            ],
+            [
+              "Immediate hazard",
+              "A defect that could hurt someone now; it is made safe at once."
             ],
             [
               "Initial verification",
               "Inspection and testing of a new installation or addition before it is used."
             ],
             [
-              "IP rating",
-              "Ingress protection: two digits for solids/dust and for water."
+              "Interrupting rating",
+              "The largest fault current a breaker can safely interrupt."
             ],
             [
-              "Main protective bonding",
-              "Conductors joining incoming metal services and structural steel to the main earthing terminal."
+              "Loop impedance",
+              "The total impedance of the path a ground fault takes from hot conductor to ground and back to the source; some instruments call it earth-fault loop impedance."
             ],
             [
-              "Minor works certificate",
-              "The short certificate for a small addition or alteration that adds no new circuit."
+              "Main bonding jumper",
+              "The connection at the service that joins the neutral, the grounding conductors and the service equipment together."
             ],
             [
-              "Origin",
-              "The point where the supply enters the installation, where Ze and PFC are measured."
+              "Must correct",
+              "A defect that would become dangerous if a fault occurred, or that breaks a safety rule; urgent action."
             ],
             [
-              "Periodic inspection",
-              "Inspection and testing of an existing installation at intervals, to find deterioration and unsafe changes."
+              "NEMA enclosure type",
+              "A US rating of an enclosure's protection, such as 3R or 4X."
+            ],
+            [
+              "Panel schedule",
+              "The list of circuits with their conductor sizes, lengths, breakers and what they feed."
             ],
             [
               "Polarity",
-              "Correct connection of line, neutral and earth, with switches and devices in the line conductor."
-            ],
-            [
-              "Potentially dangerous (C2)",
-              "A defect that would become dangerous if a fault occurred; urgent action."
-            ],
-            [
-              "Prospective fault current (PFC)",
-              "The largest current that would flow in a short circuit or earth fault at a point."
-            ],
-            [
-              "R1 + R2",
-              "The resistance of a circuit's line conductor plus its protective conductor, measured end to end."
-            ],
-            [
-              "Ramp test",
-              "An RCD test in which the current rises slowly until the device trips."
+              "Correct connection of hot, neutral and ground, with switches and breakers in the hot conductor."
             ],
             [
               "Sampling",
               "Opening and checking a part of the accessories to stand for all of them, enlarged if faults are found."
             ],
             [
-              "Schedule of test results",
-              "The record of every measured value for every circuit."
+              "Service",
+              "The point where the supply enters the building and the main disconnect is fitted."
             ],
             [
-              "Ze",
-              "The external earth fault loop impedance, measured at the origin."
+              "Voltage drop",
+              "The voltage lost along a conductor when current flows."
             ]
           ]
         }
@@ -976,142 +1056,142 @@
   "cases": {
     "c1": {
       "title": "A new villa at Duncans",
-      "text": "A Level 3 trainee, Shauna, leads two Level 2 trainees on the initial verification of a new villa at Duncans, Trelawny. The JPS supply is 110/220 V. Ze measured at the origin by the competent person is 0.28 Ω. The outdoor outlet circuit is 36 m of cable with a line-plus-protective-conductor resistance of 19.5 mΩ/m, fed by a 20 A breaker whose instantaneous trip needs 100 A; the table gives a maximum Zs of 1.1 Ω for it. A trainee reports the circuit's R1 + R2 as 1.60 Ω."
+      "text": "Shauna, a Level 3 trainee, leads two Level 2 trainees on the initial verification of a new villa at Duncans, Trelawny. The JPS supply is 110/220 V. The competent person measures the loop impedance at the service as 0.28 Ω. The outdoor receptacle circuit is 24 m of 14 AWG (2.1 mm²) hot conductor with a 14 AWG grounding conductor, which the cable data gives as 16.6 mΩ per metre for the pair. It is fed by a 15 A breaker, and the maker's curve shows it trips instantly at 150 A. A trainee reports the loop resistance of the circuit as 1.45 Ω."
     },
     "c2": {
-      "title": "A periodic inspection at a Santa Cruz pharmacy",
-      "text": "Mr Fenton owns a pharmacy in Santa Cruz, St Elizabeth, in a building wired about twenty-five years ago. He asks for a periodic inspection but says the refrigerators holding medicines cannot be off for more than twenty minutes. The team agrees to open one accessory in five. In the first sample of ten, three have loose terminals. On the staff-room wall there is an outlet whose broken faceplate leaves the terminals exposed, and the rear store has an added air-conditioning circuit of 2.5 mm² cable on a 40 A breaker."
+      "title": "An inspection at a Santa Cruz pharmacy",
+      "text": "Mr Fenton owns a pharmacy in Santa Cruz, St Elizabeth, in a building wired about twenty-five years ago. He asks for an inspection but says that one refrigerator circuit, holding vaccines, cannot be switched off at all. The team agrees to open one accessory in five. On the staff-room wall there is a receptacle whose broken faceplate leaves the terminals exposed, and the rear store has an added air-conditioning circuit of 12 AWG (3.3 mm²) conductors on a 40 A breaker."
     },
     "c3": {
       "title": "Insulation tests at a Mandeville call centre",
-      "text": "A call centre in Mandeville, Manchester, has had a new floor wired with fourteen outlet circuits, each feeding computer workstations with surge protective devices in the floor boxes. Tested together at the board, the circuits read 0.38 MΩ at 500 V DC. Tested one at a time, thirteen circuits read 200 MΩ or more and one reads 0.4 MΩ. On a separate board, a 24 V DC extra-low-voltage circuit for the door-entry system also needs testing."
+      "text": "A call centre in Mandeville, Manchester, has had a new floor wired with fourteen receptacle circuits, each feeding computer workstations with surge protective devices in the floor boxes. Tested together at the panel, the circuits read 0.39 MΩ at 500 V DC. Tested one at a time, thirteen circuits read 200 MΩ or more and one reads 0.4 MΩ. On a separate panel, a 24 V DC circuit for the door-entry system also needs testing."
     },
     "c4": {
       "title": "A generator at a Port Maria guest house",
-      "text": "A guest house in Port Maria, St Mary, has fitted a 12 kVA petrol generator on the back veranda, under the kitchen window. The owner's handyman connected it by a lead with a plug at each end: one end goes into the generator's outlet and the other into a 220 V dryer outlet in the laundry, and the owner switches off the main breaker 'before starting it'. The team is asked to carry out a periodic inspection and to advise."
+      "text": "A guest house in Port Maria, St Mary, has fitted a 12 kVA petrol generator on the back veranda, under the kitchen window. The owner's handyman connected it by a lead with a plug at each end: one end goes into the generator's outlet and the other into a 220 V dryer receptacle in the laundry, and the owner switches off the main breaker 'before starting it'. The team is asked to inspect the installation and to advise."
     },
     "c5": {
-      "title": "A trainee's schedule at a Linstead clinic",
-      "text": "Marlon, a Level 3 trainee, supervises Level 2 trainees testing a new clinic in Linstead, St Catherine. One trainee's schedule shows R1 + R2 of 0.12 Ω on a 9 m lighting circuit, 0.12 Ω on a 41 m outlet circuit and 0.12 Ω on a 23 m water-heater circuit. The clinic's bathroom outlet is protected by a 30 mA RCD. The competent person's RCD test shows: no trip at 15 mA, trip in 28 ms at 30 mA and trip in 15 ms at 150 mA."
+      "title": "Grounding and GFCI checks at a Linstead clinic",
+      "text": "Marlon, a Level 3 trainee, supervises Level 2 trainees testing a new clinic in Linstead, St Catherine. The service has one 2.4 m ground rod, and a competent person measures it at 38 Ω by the fall-of-potential method. In a treatment room, a trainee's plug-in tester shows 'open ground' on one receptacle. In the bathroom, the plug-in tester's GFCI button trips the GFCI receptacle, but the receptacle's own TEST button does nothing."
     }
   },
   "questions": [
     {
       "id": "P-01",
       "c": "c1",
-      "q": "What R1 + R2 should Shauna expect for the outdoor outlet circuit from the cable data?",
+      "q": "What loop resistance should Shauna expect for the outdoor receptacle circuit from the cable data?",
       "o": [
-        "About 7.0 Ω",
-        "About 0.70 Ω",
-        "About 0.070 Ω",
-        "About 1.85 Ω"
+        "About 4.0 Ω",
+        "About 0.40 Ω",
+        "About 0.040 Ω",
+        "About 0.80 Ω"
       ],
       "a": 1,
-      "why": "36 m × 19.5 mΩ/m = 702 mΩ, which is 0.70 Ω. The reading of 1.60 Ω is more than double, so something is wrong on that circuit: a loose joint, a damaged protective conductor or a longer route than drawn."
+      "why": "24 m × 16.6 mΩ/m = 398.4 mΩ, which is about 0.40 Ω. The trainee's 1.45 Ω is more than three times that, so something is wrong: a test error, a loose joint, a damaged grounding conductor or a longer route than drawn."
     },
     {
       "id": "P-02",
       "c": "c1",
-      "q": "Using the expected R1 + R2, what is the expected Zs at the end of the circuit, and does it pass against the 80% rule?",
+      "q": "Using the expected loop resistance, what ground-fault current should flow at the far end, and does it reach the 150 A needed?",
       "o": [
-        "About 1.88 Ω: fails, as it is above the maximum",
-        "About 0.42 Ω: passes, as it is below 80% of 1.1 Ω",
-        "About 0.98 Ω: passes, as it is below 1.1 Ω",
-        "About 0.98 Ω: fails, as it is above 80% of 1.1 Ω"
+        "About 275 A: yes, and with a large margin to spare",
+        "About 102 A: no, it falls short of the 150 A needed",
+        "About 162 A: yes, but with only a small margin",
+        "About 393 A: yes, and with a very large margin to spare"
       ],
-      "a": 3,
-      "why": "Zs = Ze + (R1 + R2) = 0.28 + 0.70 = 0.98 Ω. The cold measured value is compared with about 80% of the maximum: 0.8 × 1.1 = 0.88 Ω. 0.98 Ω is above that, so even the expected value does not pass. The designer must look at the circuit, for example with a larger protective conductor, a different device or RCD protection."
+      "a": 2,
+      "why": "Loop impedance = 0.28 + 0.40 = 0.68 Ω, so I = 110 ÷ 0.68 ≈ 162 A, above 150 A. The margin is small, and conductors warm up in a fault and their resistance rises, so the designer should be told. Forgetting the 0.28 Ω gives 275 A; doubling the circuit's 0.40 Ω gives 102 A."
     },
     {
       "id": "P-03",
       "c": "c1",
-      "q": "If Zs at the end of the circuit really were 1.60 Ω plus Ze, about what earth fault current would flow, and would the breaker trip instantly?",
+      "q": "If the circuit's loop resistance really were 1.45 Ω, about what ground-fault current would flow, and would the breaker trip instantly?",
       "o": [
-        "About 69 A: no, because it needs 100 A to trip instantly",
-        "About 188 A: yes, because that is above 100 A",
-        "About 58 A: no, because it needs 100 A to trip instantly",
-        "About 110 A: yes, just above the 100 A needed"
+        "About 76 A: no, it needs 150 A to trip instantly",
+        "About 64 A: no, it needs 150 A to trip instantly",
+        "About 64 A: yes, because that is above its 15 A rating",
+        "About 275 A: yes, it is well above 150 A"
       ],
-      "a": 2,
-      "why": "Zs = 0.28 + 1.60 = 1.88 Ω, and I = 110 ÷ 1.88 ≈ 58 A, well below the 100 A needed for an instant trip. The breaker would trip only on its slow thermal element, if at all, and the metalwork could stay live. The circuit must not be energised until the fault is found."
+      "a": 1,
+      "why": "Loop impedance = 0.28 + 1.45 = 1.73 Ω, and I = 110 ÷ 1.73 ≈ 64 A, well below the 150 A needed. The breaker would trip only on its slow thermal element, if at all, and metalwork could stay live. The circuit must not be energised until the fault is found."
     },
     {
       "id": "P-04",
       "c": "c1",
-      "q": "The trainee's reading of 1.60 Ω is far above the expected value. What should Shauna do first?",
+      "q": "The trainee's reading of 1.45 Ω is far above the expected value. What should Shauna do first?",
       "o": [
-        "Record 1.60 Ω and pass the circuit, as it is still below 2 Ω",
-        "Record the expected 0.70 Ω instead, since the cable data is reliable",
-        "Have the breaker changed to 15 A so that less fault current is needed",
+        "Record 1.45 Ω and pass the circuit, as it is still under 2 Ω",
+        "Record the expected 0.40 Ω instead, since the cable data is reliable",
+        "Change the breaker to 10 A so that less fault current is needed",
         "Check the leads were nulled and the method, then retest it herself"
       ],
       "a": 3,
-      "why": "A reading far above expectation is either a test error (leads not nulled, poor probe contact, wrong points) or a real defect. Check the method and retest. If it is still high, inspect the circuit for a loose joint or damaged conductor. Never record a value that was not measured."
+      "why": "A reading far above expectation is either a test error (leads not nulled, poor probe contact, wrong points) or a real defect. Check the method and retest. If it is still high, look for a loose joint or damaged conductor. Never record a value that was not measured."
     },
     {
       "id": "P-05",
       "c": "c2",
-      "q": "How should the refrigerator limit be handled?",
+      "q": "How should the vaccine refrigerator circuit be handled in the inspection?",
       "o": [
-        "Leave the refrigerator circuits out of the report without comment",
-        "Test them anyway, as safety matters more than the stock",
-        "Do the whole inspection live so that nothing needs switching off",
-        "Write it into the extent and limitations; plan timed shutdowns"
+        "Switch it off briefly, since vaccines keep for an hour",
+        "Test it live, as safety matters more than the vaccines",
+        "Move the vaccines to the staff room and test it quietly",
+        "Record it as not tested, and say why in the report"
       ],
       "a": 3,
-      "why": "The client's needs are agreed before the work and written into the extent and limitations, and the shutdowns are planned to stay within twenty minutes. Anything that could not be tested is stated in the report with the reason. Working live is not an option."
+      "why": "What cannot be tested is agreed with the client and written into the extent and limitations, and the report says it was not verified and why. Switching off or moving the vaccines without agreement could spoil them, and working live is not an option."
     },
     {
       "id": "P-06",
       "c": "c2",
-      "q": "Three of the first ten accessories have loose terminals. What should the team do about the sample?",
+      "q": "What should the team recommend for the air-conditioning circuit?",
       "o": [
-        "Stop at ten, since the agreed sample has been completed",
-        "Tighten the three and record the sample as satisfactory",
-        "Open more accessories, as more faults are likely",
-        "Reduce the sample, because the rest will be the same"
+        "Fit a 60 A breaker so that it never trips in use",
+        "Leave it alone, since the unit has worked for years",
+        "Have the circuit sized to the unit's nameplate",
+        "Add a GFCI breaker and keep the same conductors"
       ],
       "a": 2,
-      "why": "A high rate of faults in the sample means the rest of the installation is likely to have the same problem. Enlarge the sample, record every loose terminal, and tell the client why the job is taking longer. Loose terminals overheat and can start a fire."
+      "why": "The breaker and conductors must be matched to the unit's nameplate and the NEC, and 12 AWG cannot be protected at 40 A. A bigger breaker makes it worse, and a GFCI does not protect conductors from overload. The designer or the licensed electrician must size it, and it must meet the GER's rules for alterations."
     },
     {
       "id": "P-07",
       "c": "c2",
-      "q": "How should the staff-room outlet with exposed terminals and the air-conditioning circuit each be classed?",
+      "q": "How should the receptacle with exposed terminals and the air-conditioning circuit each be recorded?",
       "o": [
-        "Both potentially dangerous (C2)",
-        "Both danger present (C1)",
-        "Outlet C1; air-conditioning circuit C2",
-        "Outlet C2; air-conditioning circuit C3"
+        "Receptacle: immediate hazard; air conditioner: immediate hazard",
+        "Receptacle: immediate hazard; air conditioner: must correct",
+        "Receptacle: must correct; air conditioner: must correct",
+        "Receptacle: must correct; air conditioner: advisory"
       ],
-      "a": 2,
-      "why": "Exposed live terminals can hurt someone now: danger present (C1), to be made safe at once with the client's agreement. A 2.5 mm² cable on a 40 A breaker is not dangerous this minute but would overheat under a fault or overload: potentially dangerous (C2). Either makes the overall result unsatisfactory."
+      "a": 1,
+      "why": "Exposed live terminals can hurt someone now: immediate hazard, made safe at once with the client's agreement. A 12 AWG circuit on a 40 A breaker is not dangerous this minute but would overheat in an overload: must correct. Either item makes the overall result unsatisfactory."
     },
     {
       "id": "P-08",
       "c": "c2",
-      "q": "Mr Fenton asks how soon the next periodic inspection should be. Which answer is best?",
+      "q": "Mr Fenton asks how soon the next inspection should be. Which answer is best?",
       "o": [
-        "Ten years, the same as a house, since it is a small shop",
-        "Five years at most, and sooner if the defects are not put right",
-        "Never, as the pharmacy will be re-inspected only if it changes hands",
-        "One month, because loose terminals were found in the sample"
+        "Ten years, the same as for any ordinary house",
+        "A date based on its age, use and condition found",
+        "Never, because the GER approved it when it was built",
+        "One month, because the exposed receptacle was found"
       ],
       "a": 1,
-      "why": "Shops and offices are commonly inspected about every five years, and the condition found, the age of the installation and its use can shorten that. The interval is the inspector's recommendation on the report, based on type of use, condition and setting."
+      "why": "The NEC gives no single interval. The inspector recommends one on the report from the type of use, the age, the condition found and the environment, and any rule of the owner's insurer or the GER. Unfixed defects, a damp or coastal site and heavy use all make it sooner."
     },
     {
       "id": "P-09",
       "c": "c3",
-      "q": "Why is the board reading of 12 MΩ so much lower than most of the single circuits?",
+      "q": "Why is the whole-panel reading of 0.39 MΩ so much lower than thirteen of the single circuits?",
       "o": [
-        "Circuits in parallel read lower, and one circuit is very low",
-        "The tester's battery was low during the combined test",
         "The surge devices raise the reading of each circuit on its own",
-        "The board's main switch must have been left closed"
+        "The tester's battery was low during the combined test",
+        "The panel's main breaker must have been left closed",
+        "Circuits in parallel read lower, and one circuit is very low"
       ],
-      "a": 0,
-      "why": "Insulation resistances combine like parallel resistors, so a board always reads lower than any single circuit, and one very low circuit pulls the whole total down towards its own value. Here thirteen circuits at 200 MΩ or more and one at 0.4 MΩ give about 0.38 MΩ. A low whole-board reading is a prompt to test each circuit alone."
+      "a": 3,
+      "why": "Insulation resistances combine like parallel resistors, so a panel reads lower than any single circuit, and one very low circuit pulls the total down towards its own value. Thirteen circuits at 200 MΩ or more and one at 0.4 MΩ give about 0.39 MΩ. A low whole-panel reading is a prompt to test each circuit alone."
     },
     {
       "id": "P-10",
@@ -1119,25 +1199,25 @@
       "q": "What should be done about the circuit reading 0.4 MΩ?",
       "o": [
         "Record it as a pass, since the other thirteen circuits read well",
-        "Disconnect its surge device and any equipment, then retest it",
-        "Energise it and see whether the breaker or RCD trips",
-        "Fit an RCD to it, since RCDs cover low insulation readings"
+        "Energise it and see whether the breaker trips",
+        "Disconnect its surge device and equipment, then retest it",
+        "Fit a GFCI to it, since a GFCI covers low insulation readings"
       ],
-      "a": 1,
-      "why": "Surge protective devices and electronic equipment make insulation readings false and can be damaged by the test. Disconnect them and retest. If the circuit still reads below 1 MΩ, find the fault by splitting the circuit. 0.4 MΩ is below the minimum, so it cannot be passed or energised."
+      "a": 2,
+      "why": "Surge protective devices and electronic equipment make insulation readings false and can be damaged by the test. Disconnect them and retest. If the circuit still reads below the limit the specification gives (typically 1 MΩ), find the fault by splitting the circuit. It cannot be passed or energised until it is found."
     },
     {
       "id": "P-11",
       "c": "c3",
-      "q": "At what voltage should the 24 V DC door-entry circuit be insulation-tested, and what is the minimum reading?",
+      "q": "What should the team do before testing the 24 V DC door-entry circuit with the insulation tester?",
       "o": [
-        "500 V DC; at least 1 MΩ",
-        "250 V DC; at least 0.5 MΩ",
-        "1 000 V DC; at least 1 MΩ",
-        "50 V DC; at least 0.1 MΩ"
+        "Test it at 1 000 V to prove the cable is really sound",
+        "Leave its electronics connected so they are tested as well",
+        "Disconnect its electronics and use the maker's test voltage",
+        "Skip the test, as low-voltage circuits cannot have any faults"
       ],
-      "a": 1,
-      "why": "Extra-low-voltage (SELV and PELV) circuits are tested at 250 V DC with a minimum of 0.5 MΩ. Testing at 500 V could damage the equipment on the circuit. Disconnect the door-entry electronics first."
+      "a": 2,
+      "why": "A 500 V test can destroy door-entry electronics and gives a false reading through them. Disconnect the electronics and follow the maker's instructions for the test voltage. Low-voltage cable can still be damaged, so the circuit is still tested."
     },
     {
       "id": "P-12",
@@ -1146,11 +1226,11 @@
       "o": [
         "With the main on, the generator would back-feed JPS lines",
         "The generator will run short of fuel on long outages",
-        "The dryer outlet's breaker will trip when the generator runs",
+        "The dryer receptacle's breaker will trip when the generator runs",
         "The generator's engine will run too fast with no load"
       ],
       "a": 0,
-      "why": "Nothing stops the generator and the mains being connected together except the owner remembering to switch off. If the main breaker is on, the generator feeds the JPS lines through the service transformer, at high voltage, and can kill a line worker; and the spare plug's pins are live when the lead is plugged into the generator."
+      "why": "Nothing stops the generator and the mains being connected together except the owner remembering to switch off. If the main breaker is on, the generator feeds the JPS lines through the service transformer, at high voltage, and can kill a line worker. The prongs of the lead are also live when it is plugged into the generator."
     },
     {
       "id": "P-13",
@@ -1159,102 +1239,102 @@
       "o": [
         "A sign on the main breaker reminding the owner to switch it off first",
         "A heavier lead with plugs on both ends, to carry the full current",
-        "An interlocked changeover (transfer) switch with a proper inlet",
+        "An interlocked transfer switch, with a proper generator inlet",
         "A second main breaker beside the first, so that both can be switched"
       ],
       "a": 2,
-      "why": "A changeover (transfer) switch, interlocked so the generator and mains can never be connected at the same time, with a proper generator inlet and cable, is the only safe arrangement. The generator must also be moved away from the kitchen window, because of carbon monoxide, and be earthed as designed, with a dual-supply warning label at the board."
+      "why": "A transfer switch, interlocked so that the generator and mains can never be connected together, with a proper generator inlet and cable, is the safe arrangement. The generator must also be moved away from the kitchen window because of carbon monoxide, be grounded as designed, and a dual-supply warning label put at the panel."
     },
     {
       "id": "P-14",
       "c": "c4",
-      "q": "How should the present generator connection appear on the condition report?",
+      "q": "How should the present generator connection be recorded in the inspection report?",
       "o": [
-        "Danger present: remove the lead with the owner's agreement",
-        "Improvement recommended, as generators are common in Jamaica",
+        "Advisory, as generators are common in Jamaica",
+        "Immediate hazard: remove the lead with the owner's agreement",
         "Not recorded, as the generator is not part of the fixed wiring",
-        "Potentially dangerous, to be put right at the next inspection"
+        "Must correct, to be put right at the next inspection"
       ],
-      "a": 0,
-      "why": "A back-feed and live plug pins could hurt someone now, so it is danger present (C1). The inspector tells the owner at once, makes it safe with their agreement by removing the lead, records it and gives the overall result as unsatisfactory."
+      "a": 1,
+      "why": "A back-feed and live prongs could hurt someone now, so it is an immediate hazard. The inspector tells the owner at once, makes it safe with their agreement by removing the lead, records it, and gives the overall result as unsatisfactory."
     },
     {
       "id": "P-15",
       "c": "c5",
-      "q": "Why should Marlon doubt the three readings of 0.12 Ω?",
+      "q": "The single ground rod measures 38 Ω. What should happen next?",
       "o": [
-        "Readings below 0.5 Ω are not possible on a continuity test",
-        "A lighting circuit must read higher than an outlet circuit",
-        "The water-heater circuit cannot be tested by the R1 + R2 method",
-        "R1 + R2 should rise with length, so equal readings are unlikely"
+        "Nothing: a single rod is accepted at any reading",
+        "A second electrode, at least 1.8 m from the first, is added",
+        "The grounding electrode conductor is replaced with a thinner one",
+        "The rod is painted to cut its resistance"
       ],
-      "a": 3,
-      "why": "Resistance is proportional to length, so a 41 m circuit should read about four and a half times a 9 m one in the same cable. Identical readings suggest a wrong method, such as testing at the board instead of the far end, or guessed figures. Marlon should check the trainee's method and retest a sample himself."
+      "a": 1,
+      "why": "A single rod, pipe or plate electrode must be supplemented by another unless it measures 25 Ω or less. 38 Ω is above that, so a second electrode (usually another rod, at least 1.8 m from the first) is added. The system is then accepted without a further measurement, although a retest is good practice."
     },
     {
       "id": "P-16",
       "c": "c5",
-      "q": "What does the RCD test result tell Marlon?",
+      "q": "The plug-in tester shows 'open ground' on a treatment-room receptacle. What does this mean?",
       "o": [
-        "It passes all three tests",
-        "It fails: it should have tripped at 15 mA",
-        "It fails: 28 ms at 30 mA is too fast to be correct",
-        "It fails: it must trip within 300 ms at 150 mA"
+        "The hot and neutral are reversed at the receptacle terminals",
+        "The receptacle has no connection to the ground conductor",
+        "The GFCI upstream of the receptacle has tripped open",
+        "The voltage at the receptacle is too low for the load"
       ],
-      "a": 0,
-      "why": "A 30 mA RCD must not trip at half its rating (15 mA), must trip within 300 ms at its rating (30 mA) and within 40 ms at five times its rating (150 mA). No trip, 28 ms and 15 ms meet all three. A fast trip at the rated current is good, not a fault."
+      "a": 1,
+      "why": "'Open ground' means there is no ground connection at the receptacle: the EGC is broken, missing or not connected at the terminal. It must be found and repaired before the outlet is used, and the circuit's continuity retested."
     },
     {
       "id": "P-17",
       "c": "c5",
-      "q": "After the clinic's circuits all pass, what must happen before JPS will connect the supply?",
+      "q": "The tester's button trips the bathroom GFCI, but its own TEST button does nothing. What should Marlon do?",
       "o": [
-        "The clinic manager signs to say the work looks finished",
-        "The contractor's certificate is posted to JPS, who then connect",
-        "The government electrical inspector inspects and approves it",
-        "The competent person measures Ze again with the supply on"
+        "Accept it, because the tester trips it",
+        "Replace it, as the TEST button must also work",
+        "Paint over the TEST button so users do not press it",
+        "Fit an AFCI beside it and leave it in place"
       ],
-      "a": 2,
-      "why": "In Jamaica a new or altered installation is approved by the government electrical inspector (under the Government Electrical Regulator) before JPS connects it. The contractor's own verification and certificate must be complete before the inspector is called."
+      "a": 1,
+      "why": "A GFCI must trip on its own TEST button, because the user will rely on that button. A device that fails either check is replaced and the new one tested. A working tester result does not excuse a dead button."
     },
     {
       "id": "P-18",
       "c": null,
-      "q": "At a board the competent person measures a prospective fault current of 9 kA. The breakers fitted are marked 6 kA. How should this be recorded?",
+      "q": "At a panel the competent person finds an available fault current of 14 kA. The breakers fitted are marked 10 kA interrupting rating. How should this be recorded?",
       "o": [
-        "Satisfactory, since 6 kA is the standard rating for breakers",
-        "Satisfactory, as the PFC falls to zero once the breaker trips",
-        "A defect: the breakers cannot safely break this fault current",
-        "A note to fit larger cables, which will lower the fault current"
+        "Satisfactory, since 10 kA is the usual rating for breakers",
+        "Satisfactory, as the fault current falls to zero once the breaker trips",
+        "A defect: the breakers cannot safely interrupt this fault current",
+        "A note to fit larger conductors, which will lower the fault current"
       ],
       "a": 2,
-      "why": "Each device's breaking capacity must be at least the prospective fault current where it is installed; otherwise a large fault could burst the breaker. 6 kA devices on a 9 kA board are a defect, usually potentially dangerous. Larger cables would raise the PFC, not lower it."
+      "why": "A breaker's interrupting rating must be at least the available fault current where it is fitted; otherwise a big fault could burst it. 10 kA breakers on a 14 kA panel are a defect, usually must correct. Larger conductors would raise the fault current, not lower it."
     },
     {
       "id": "P-19",
       "c": null,
-      "q": "During a periodic inspection of a church hall, a hall light is found switched in its neutral conductor. Why does this matter?",
+      "q": "A 220 V pump circuit uses 10 AWG (5.3 mm²) conductors, 45 m long, at 6.6 mΩ per metre for the pair of hot conductors. It carries 20 A. What is the voltage drop, and how does it compare with the 3% recommendation?",
       "o": [
-        "The fitting stays live when the switch is off",
-        "The lamp will burn out faster than it should on this supply",
-        "The circuit's insulation reading will always be too low",
-        "The light will flicker whenever another load is switched on"
+        "About 5.9 V, or 2.7%: within the recommendation",
+        "About 5.9 V, or 5.4%: over the recommendation",
+        "About 11.9 V, or 5.4%: over the recommendation",
+        "About 3.0 V, or 1.4%: well within the recommendation"
       ],
       "a": 0,
-      "why": "A single-pole switch must break the line conductor. With it in the neutral, the lampholder and fitting remain connected to line voltage when the light is 'off', so someone changing a lamp can be shocked. It is found by inspection and by polarity tests, and recorded as potentially dangerous (C2)."
+      "why": "Voltage drop = 20 A × (45 m × 6.6 mΩ/m) = 20 × 0.297 Ω ≈ 5.9 V. On a 220 V circuit, 5.9 ÷ 220 × 100 ≈ 2.7%, which is within 3%. Using 110 V as the base wrongly gives 5.4%."
     },
     {
       "id": "P-20",
       "c": null,
-      "q": "During a periodic inspection of a hotel, cables pass through the fire-rated wall between the kitchen and the corridor, and the hole around them is open. What is the correct observation?",
+      "q": "At a receptacle in a store, the plug-in tester shows hot and neutral reversed. Why does this matter?",
       "o": [
-        "Potentially dangerous: fire and smoke can spread; seal the hole",
-        "No observation, as cables need a gap around them for cooling",
-        "Improvement recommended: seal with fire-stopping when convenient",
-        "Danger present: isolate the kitchen circuits until it is sealed"
+        "Appliance parts stay live when they are switched off",
+        "The appliance will run at half its rated voltage",
+        "The breaker will trip the moment anything is plugged in",
+        "The insulation resistance of the circuit will read too low"
       ],
       "a": 0,
-      "why": "A fire-rated wall is there to hold back fire and smoke so people can escape. An unsealed opening defeats it, so it is recorded as needing urgent action and sealing with an approved fire-stopping system. It is not an immediate electrical shock danger, so the circuits need not be isolated."
+      "why": "With reversed polarity, an appliance's switch or fuse breaks the neutral instead of the hot conductor, so its internal parts and a lamp's screw shell stay live when it is 'off'. Someone repairing it could be shocked. Remake the connections and retest."
     }
   ]
 }
