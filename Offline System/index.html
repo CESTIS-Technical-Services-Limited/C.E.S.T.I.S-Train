@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <script src="cestis-config.js?v=284ebb2a"></script>
-<script src="cestis-core.js?v=09be8752"></script>
+<script src="cestis-core.js?v=bc7740cf"></script>
 <script src="cestis-form-modal.js?v=74020c38" defer></script>
 <!-- Inert until a page registers: the CMC Board registers as a READ-ONLY reader
      so the operating pages' books reach its dashboards without anyone syncing. -->
@@ -1594,6 +1594,37 @@ textarea.form-control { resize:vertical; min-height:80px; }
 }
 .material-item:hover { background:var(--w-03); border-color:var(--border-light); }
 .material-icon { width:38px; height:38px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
+/* Study kits (one per unit: notes and a practice test) and learner guides, on
+   every Resources page. The kit and the guide open in .cestis-viewer. */
+.kit-card { margin-bottom:14px; border-left:3px solid var(--blue); }
+.kit-card .card-header h3 { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.kit-count { font-size:12px; font-weight:400; color:var(--blue); background:var(--blue-dim); padding:2px 10px; border-radius:10px; }
+.kit-intro { font-size:13px; color:var(--text-secondary); margin:-4px 0 12px; }
+.kit-find { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
+.kit-find label { font-size:13px; font-weight:600; color:var(--text-secondary); }
+.kit-find input { max-width:320px; }
+.kit-prog { margin-bottom:10px; }
+.kit-prog > summary { cursor:pointer; font-weight:600; font-size:14px; padding:8px 4px; list-style-position:inside; }
+.kit-prog-h { font-size:13px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:.04em; margin:6px 0 8px; }
+.kit-row { cursor:default; }
+.kit-row[hidden] { display:none; }
+.kit-row .material-icon { background:var(--blue-dim); color:var(--blue); }
+.kit-unit { font-size:13.5px; line-height:1.35; }
+.kit-code { display:inline-block; font-family:monospace; font-size:12px; font-weight:700; color:var(--blue); background:var(--blue-dim); padding:1px 6px; border-radius:8px; margin-right:6px; }
+.kit-meta { font-size:12px; color:var(--text-muted); margin-top:2px; }
+.kit-best { color:var(--green); font-weight:600; }
+.kit-check { color:var(--orange); font-weight:600; }
+.kit-acts { display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
+.kit-more { margin-top:4px; }
+@media (max-width:600px) { .kit-row { flex-wrap:wrap; } .kit-acts { width:100%; justify-content:flex-start; padding-left:52px; } }
+.cestis-viewer { position:fixed; inset:0; z-index:4000; display:none; flex-direction:column; background:var(--bg-primary); }
+.cestis-viewer.open { display:flex; }
+.cestis-viewer .cv-bar { display:flex; align-items:center; gap:10px; padding:8px max(12px, env(safe-area-inset-left, 0px)); padding-top:max(8px, env(safe-area-inset-top, 0px)); background:var(--bg-card); border-bottom:1px solid var(--border); }
+.cestis-viewer .cv-title { flex:1; min-width:0; font-weight:600; font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cestis-viewer .cv-wrap { flex:1; min-height:0; position:relative; }
+.cestis-viewer iframe { position:absolute; inset:0; width:100%; height:100%; border:0; background:#fff; }
+.cestis-viewer .cv-msg { padding:40px 20px; text-align:center; color:var(--text-secondary); }
+@media (max-width:560px) { .cestis-viewer .cv-tab { display:none; } }
 #driveFileDropZone.drag-over { border-color:var(--accent) !important; background:var(--accent-dim) !important; }
 .btn-danger { background:var(--red-dim); color:var(--red); border:1px solid rgba(231,76,60,0.3); }
 .btn-danger:hover { background:var(--red); color:#fff; }
@@ -6006,6 +6037,7 @@ details.tidy-more > summary { cursor:pointer; font-weight:600; color:var(--text-
                   <button type="button" class="cloud-dropdown-item" onclick="closeSyncChipPanel(); restoreFromMasterBackup()"><span aria-hidden="true">🛟</span><span>Restore from Master Backup</span></button>
                   <button type="button" class="cloud-dropdown-item" id="weeklyRestoreItem" hidden onclick="closeSyncChipPanel(); restoreFromWeeklyBackup()"><span aria-hidden="true">🗓️</span><span>Restore from a Weekly Backup</span></button>
                   <button type="button" class="cloud-dropdown-item" onclick="closeSyncChipPanel(); syncAllUserLoginFoldersToDrive()"><span aria-hidden="true">👤</span><span>Build User Login Folders</span></button>
+                  <button type="button" class="cloud-dropdown-item" onclick="closeSyncChipPanel(); driveBuildContentFolders({ toast: true })"><span aria-hidden="true">📘</span><span>Build Tests &amp; Study Kit Folders</span></button>
                   <div class="cloud-dropdown-divider"></div>
                   <div class="last-sync-info" id="lastSyncInfo">Last sync: Never</div>
                   <div class="last-sync-info" id="lastSavedByInfo">Last saved by: --</div>
@@ -6792,17 +6824,22 @@ details.tidy-more > summary { cursor:pointer; font-weight:600; color:var(--text-
     <div class="form-group"><label>Resource Name *</label><input type="text" class="form-control" id="driveResName" placeholder="e.g. Safety Procedures & PPE Training"></div>
     <div class="grid-2col" style="gap:12px;">
       <div class="form-group"><label>Programme / Class *</label>
-        <select class="form-control" id="driveResCourse">
+        <select class="form-control" id="driveResCourse" onchange="driveUploadTypeChanged()">
           <option value="">— Select Programme —</option>
         </select>
       </div>
       <div class="form-group"><label>Resource Type *</label>
-        <select class="form-control" id="driveResCategory">
+        <select class="form-control" id="driveResCategory" onchange="driveUploadTypeChanged()">
           <option value="video">Video</option>
           <option value="document">Document</option>
           <option value="worksheet">Worksheet</option>
+          <option value="learner-guide">Learner Guide</option>
         </select>
       </div>
+    </div>
+    <div class="form-group" id="driveResUnitWrap" style="display:none;"><label for="driveResUnit">Unit (optional)</label>
+      <select class="form-control" id="driveResUnit"><option value="">— The whole programme —</option></select>
+      <small style="color:var(--text-muted);font-size:11px;">A guide for one unit is shown beside that unit's study kit. A learner guide can be a PDF, a Word or PowerPoint file, or a web page (HTML) up to 5 MB.</small>
     </div>
     <div class="grid-2col" style="gap:12px;">
       <div class="form-group"><label>File Format</label>
@@ -6814,6 +6851,7 @@ details.tidy-more > summary { cursor:pointer; font-weight:600; color:var(--text-
           <option value="PPT">PPT / Presentation</option>
           <option value="Link">External Link</option>
           <option value="Image">Image</option>
+          <option value="HTML">Web page (HTML)</option>
         </select>
       </div>
       <div class="form-group"><label>Resource ID</label>
@@ -6824,10 +6862,10 @@ details.tidy-more > summary { cursor:pointer; font-weight:600; color:var(--text-
       <div id="driveFileDropZone" style="border:2px dashed var(--border-light);border-radius:var(--radius-sm);padding:28px;text-align:center;cursor:pointer;transition:all 0.25s ease;background:var(--bg-input);" onclick="document.getElementById('driveFileInput').click()">
         <div style="font-size:32px;margin-bottom:8px;opacity:0.5;">📤</div>
         <div style="font-size:13px;color:var(--text-secondary);">Click to select a file or drag & drop here</div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Supports PDF, DOC, MP4, XLSX, PPT, Images up to 100MB</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Supports PDF, DOC, MP4, XLSX, PPT, Images up to 100MB, and learner guides made as web pages (HTML)</div>
         <div id="driveFileSelected" style="margin-top:10px;font-size:13px;color:var(--accent);font-weight:600;display:none;"></div>
       </div>
-      <input type="file" id="driveFileInput" style="display:none" onchange="handleDriveFileSelect(event)" accept=".pdf,.doc,.docx,.mp4,.avi,.mov,.xlsx,.xls,.ppt,.pptx,.png,.jpg,.jpeg,.gif,.webp">
+      <input type="file" id="driveFileInput" style="display:none" onchange="handleDriveFileSelect(event)" accept=".pdf,.doc,.docx,.mp4,.avi,.mov,.xlsx,.xls,.ppt,.pptx,.png,.jpg,.jpeg,.gif,.webp,.html,.htm">
     </div>
     <div class="form-group"><label>External Link (if no file upload)</label><input type="text" class="form-control" id="driveResUrl" placeholder="https://..."></div>
     <div class="form-group"><label>Description</label><textarea class="form-control" id="driveResDesc" rows="2" placeholder="Brief description of this resource..."></textarea></div>
@@ -16131,6 +16169,7 @@ function buildAdminPages() {
   resolveExamStatuses();
   setTimeout(renderVerifyUsersPage, 200);
   setTimeout(function() { try { renderOfficeToday(); } catch(e) {} }, 250);
+  try { ctrStartQueueReader(); } catch(e) {}
   // Every figure below counts the trainees of the year chosen on the
   // dashboard's year bar (dashScope — CESTISCore.yearView): each block is
   // drawn by its own function, so a change of year redraws them all.
@@ -16750,6 +16789,12 @@ function renderStudentResourcesPage(){
           '<div><h2 style="font-size:20px;">'+escapeHtml(skill.name)+' Resources</h2><p style="margin:0;">Your programme-specific learning materials</p></div>' +
         '</div>' +
       '</div>';
+  }
+  // Her programme's study kits; the list of kits arrives once, then the page is drawn again.
+  var kitsEl = document.getElementById('sResStudyKits');
+  if(kitsEl && s && typeof renderStudyKitsInto === 'function'){
+    renderStudyKitsInto(kitsEl, s.course, { filterId: 'sKits', after: function(){ try{ renderStudentDriveResources(); }catch(e){} } });
+    kitsEl.style.display = (_sResFilter === 'all' || _sResFilter === 'kits') ? '' : 'none';
   }
   if(typeof renderStudentDriveResources === 'function'){ try{ renderStudentDriveResources(); }catch(e){} }
 }
@@ -24119,6 +24164,12 @@ function renderInstructorCustomResources() {
   const container = document.getElementById('iCustomResourcesList');
   if(!container) return;
   const ins = currentInstructor;
+  // The study kits for her programme(s).
+  var iKits = document.getElementById('iStudyKits');
+  if (iKits && typeof renderStudyKitsInto === 'function') {
+    var iCourses = (typeof importExamInstructorCourses === 'function' ? importExamInstructorCourses() : null) || (ins && ins.course ? [ins.course] : []);
+    renderStudyKitsInto(iKits, iCourses.length ? iCourses : '', { staff: true, filterId: 'iKits' });
+  }
   const myResources = instructorResources.filter(function(r) {
     if(r.createdBy === ins?.name) return true;
     if(!r.course || !ins?.course) return false;
@@ -24145,8 +24196,8 @@ function renderInstructorCustomResources() {
 
   // Render admin-uploaded drive resources first
   if (adminResources.length > 0) {
-    var adminCatIcons = { video:'📹', document:'📄', worksheet:'📝' };
-    var adminCatLabels = { video:'Video Lectures', document:'Documents', worksheet:'Worksheets' };
+    var adminCatIcons = { video:'📹', document:'📄', worksheet:'📝', 'learner-guide':'📗' };
+    var adminCatLabels = { video:'Video Lectures', document:'Documents', worksheet:'Worksheets', 'learner-guide':'Learner Guides' };
     var adminGrouped = {};
     adminResources.forEach(function(r) {
       var key = r.category || 'document';
@@ -24167,11 +24218,13 @@ function renderInstructorCustomResources() {
             '<div style="font-size:13.5px;">' + escapeHtml(r.name) + '</div>' +
             '<div style="font-size:11px;color:var(--text-muted);">' +
               '<span style="background:var(--accent-dim);color:var(--accent);padding:1px 6px;border-radius:8px;font-size:10px;font-weight:700;font-family:monospace;margin-right:4px;">' + escapeHtml(r.resourceId) + '</span>' +
-              escapeHtml(adminCatLabels[r.category]||r.category) + ' &bull; ' + escapeHtml(r.format) + ' &bull; Added ' + escapeHtml(dateStr) + (r.uploadedBy && r.uploadedBy !== 'Admin' ? ' by ' + escapeHtml(r.uploadedBy) : '') +
+              escapeHtml(adminCatLabels[r.category]||r.category) + (r.unitCode ? ' for ' + escapeHtml(r.unitCode) : '') + ' &bull; ' + escapeHtml(r.format) + ' &bull; Added ' + escapeHtml(dateStr) + (r.uploadedBy && r.uploadedBy !== 'Admin' ? ' by ' + escapeHtml(r.uploadedBy) : '') +
               (r.description ? ' &bull; ' + escapeHtml(r.description) : '') +
             '</div>' +
           '</div>';
-        if (safeUrl(r.url)) {
+        if (r.category === 'learner-guide') {
+          html += learnerGuideButton(r, 'Open');
+        } else if (safeUrl(r.url)) {
           html += '<button class="btn btn-sm btn-secondary" onclick="window.open(' + jsArg(safeUrl(r.url)) + ',\'_blank\')">' + (r.category==='video'?'▶ Play':'Open') + '</button>';
         }
         html += '</li>';
@@ -24287,6 +24340,8 @@ function generateResourceId() {
         if (typeof driveUploadLimitCourses === 'function') driveUploadLimitCourses();
       }
       document.getElementById('driveResId').value = generateResourceId();
+      if (typeof studyKitLoadIndex === 'function') studyKitLoadIndex().then(function() { driveUploadTypeChanged(); });
+      driveUploadTypeChanged();
       _driveSelectedFile = null;
       var selEl = document.getElementById('driveFileSelected');
       if (selEl) { selEl.style.display = 'none'; selEl.textContent = ''; }
@@ -24316,8 +24371,31 @@ function handleDriveFileSelect(e) {
   // Auto-detect format
   const ext = file.name.split('.').pop().toLowerCase();
   const formatMap = { pdf:'PDF', doc:'DOC', docx:'DOC', mp4:'Video', avi:'Video', mov:'Video', webm:'Video',
-    xlsx:'XLSX', xls:'XLSX', ppt:'PPT', pptx:'PPT', png:'Image', jpg:'Image', jpeg:'Image', gif:'Image', webp:'Image' };
+    xlsx:'XLSX', xls:'XLSX', ppt:'PPT', pptx:'PPT', png:'Image', jpg:'Image', jpeg:'Image', gif:'Image', webp:'Image', html:'HTML', htm:'HTML' };
   if (formatMap[ext]) document.getElementById('driveResFormat').value = formatMap[ext];
+  // A web page is only ever a learner guide (it opens in a sealed frame).
+  if (formatMap[ext] === 'HTML') { document.getElementById('driveResCategory').value = 'learner-guide'; driveUploadTypeChanged(); }
+}
+
+/* Upload Resource: a Learner Guide may name one unit of the chosen
+   programme (the Qualification Plan's units, as the study kits list them). */
+function driveUploadTypeChanged() {
+  var cat = (document.getElementById('driveResCategory') || {}).value;
+  var wrap = document.getElementById('driveResUnitWrap'), sel = document.getElementById('driveResUnit');
+  if (!wrap || !sel) return;
+  wrap.style.display = cat === 'learner-guide' ? '' : 'none';
+  if (cat !== 'learner-guide') return;
+  var course = (document.getElementById('driveResCourse') || {}).value || '';
+  var was = sel.value;
+  var progs = course ? CESTISCore.studyKits.forCourse(studyKitIndex(), studyKitCatalogs(), course, instructorCourseMatch) : [];
+  var opts = '<option value="">— The whole programme —</option>';
+  progs.forEach(function(p) {
+    opts += '<optgroup label="' + escapeAttr(p.qual.title || p.qual.skillArea) + '">' + p.units.map(function(u) {
+      return '<option value="' + escapeAttr(u.code) + '" data-title="' + escapeAttr(u.title) + '">' + escapeHtml((u.code ? u.code + ' ' : '') + u.title) + '</option>';
+    }).join('') + '</optgroup>';
+  });
+  sel.innerHTML = opts;
+  if (was) sel.value = was;
 }
 
 // Setup drag & drop
@@ -24517,6 +24595,7 @@ function recategorizeDriveResources() {
   var fixed = 0;
   driveResources.forEach(function(r) {
     if (!r.driveFileName && !r.name) return;
+    if (r.category === 'learner-guide') return;   // chosen by whoever uploaded it, with its unit
     var fname = (r.driveFileName || r.name || '').toLowerCase();
 
     // Strip VT prefix to get content name
@@ -24707,6 +24786,13 @@ async function uploadResourceToDrive() {
     return;
   }
   if (!_driveSelectedFile && !url) { showToast('Please select a file or enter a link'); return; }
+  // A web page (HTML) is a learner guide, at most 5 MB (it opens in a sealed frame, through the gate at home too).
+  var _isPage = !!_driveSelectedFile && /\.html?$/i.test(_driveSelectedFile.name || '');
+  if (_isPage && category !== 'learner-guide') { showToast('A web page (HTML) can be uploaded as a Learner Guide: choose that type.', 'warning'); return; }
+  if (_isPage && _driveSelectedFile.size > 5 * 1024 * 1024) { showToast('A learner guide made as a web page can be at most 5 MB.', 'warning'); return; }
+  var _unitSel = document.getElementById('driveResUnit');
+  var _unitCode = category === 'learner-guide' && _unitSel ? _unitSel.value : '';
+  var _unitOpt = _unitCode && _unitSel.selectedOptions ? _unitSel.selectedOptions[0] : null;
   // Only a web link: a javascript: "link" ran in whoever clicked Open.
   if (url && !/^https?:\/\//i.test(url)) { showToast('The link must start with http:// or https://'); return; }
 
@@ -24759,6 +24845,9 @@ async function uploadResourceToDrive() {
       driveFileName: driveFileName || '',
       classFolderId: folderId,
       description: desc || '',
+      unitCode: _unitCode || '',
+      unitTitle: _unitOpt ? (_unitOpt.getAttribute('data-title') || '') : '',
+      mime: _driveSelectedFile ? (_driveSelectedFile.type || (_isPage ? 'text/html' : '')) : '',
       uploadedBy: currentRole === 'instructor' && currentInstructor ? currentInstructor.name : 'Admin',
       uploadedByRole: currentRole || 'admin',
       uploadedAt: new Date().toISOString()
@@ -24782,6 +24871,7 @@ async function uploadResourceToDrive() {
       document.getElementById('driveResUrl').value = '';
       document.getElementById('driveResDesc').value = '';
       document.getElementById('driveFileInput').value = '';
+      if (_unitSel) _unitSel.value = '';
       _driveSelectedFile = null;
       var selEl = document.getElementById('driveFileSelected');
       if (selEl) { selEl.style.display = 'none'; selEl.textContent = ''; }
@@ -24822,6 +24912,15 @@ function renderAdminResources() {
   const filterType = document.getElementById('arFilterType')?.value || 'all';
   const searchTerm = (document.getElementById('arSearch')?.value || '').toLowerCase().trim();
 
+  // The study kits of the chosen programme (every programme's, folded, for All).
+  var arKits = document.getElementById('arStudyKits');
+  if (arKits && typeof renderStudyKitsInto === 'function') {
+    if (filterType === 'all' || filterType === 'kits') renderStudyKitsInto(arKits, filterCourse === 'all' ? '' : filterCourse, { staff: true, filterId: 'aKits', open: filterCourse !== 'all',
+      empty: filterType === 'kits' ? 'No study kits for this programme yet.' : '' });
+    else arKits.innerHTML = '';
+  }
+  if (filterType === 'kits') { container.innerHTML = ''; return; }
+
   var _arFiled = (filterCourse !== 'all' && typeof programmeFilterFiler === 'function') ? programmeFilterFiler() : null;
   let filtered = driveResources.filter(function(r) {
     if (filterCourse !== 'all') {
@@ -24856,8 +24955,8 @@ function renderAdminResources() {
     grouped[r.course].push(r);
   });
 
-  const catIcons = { video:'📹', document:'📄', worksheet:'📝' };
-  const catLabels = { video:'Video', document:'Document', worksheet:'Worksheet' };
+  const catIcons = { video:'📹', document:'📄', worksheet:'📝', 'learner-guide':'📗' };
+  const catLabels = { video:'Video', document:'Document', worksheet:'Worksheet', 'learner-guide':'Learner guide' };
   const courseSkill = function(courseName) {
     return findSkillAreaForCourse(courseName);
   };
@@ -24877,11 +24976,13 @@ function renderAdminResources() {
           '<div style="font-size:13.5px;font-weight:600;">' + escapeHtml(r.name) + '</div>' +
           '<div style="font-size:11px;color:var(--text-muted);">' +
             '<span style="background:var(--accent-dim);color:var(--accent);padding:1px 8px;border-radius:10px;font-size:10px;font-weight:700;font-family:monospace;margin-right:6px;">' + escapeHtml(r.resourceId) + '</span>' +
-            escapeHtml(catLabels[r.category]||r.category) + ' &bull; ' + escapeHtml(r.format) + ' &bull; Added ' + escapeHtml(dateStr) +
+            escapeHtml(catLabels[r.category]||r.category) + (r.unitCode ? ' for ' + escapeHtml(r.unitCode) : '') + ' &bull; ' + escapeHtml(r.format) + ' &bull; Added ' + escapeHtml(dateStr) +
             (r.description ? ' &bull; ' + escapeHtml(r.description) : '') +
           '</div>' +
         '</div>';
-      if (safeUrl(r.url)) {
+      if (r.category === 'learner-guide') {
+        html += learnerGuideButton(r, 'Open');
+      } else if (safeUrl(r.url)) {
         html += '<button class="btn btn-sm btn-secondary" onclick="window.open(' + jsArg(safeUrl(r.url)) + ',\'_blank\')" title="Open resource">' + (r.category==='video'?'▶ Play':'Open') + '</button>';
       }
       html += '<button class="btn btn-sm btn-primary" style="margin-left:4px;font-size:10px;" onclick="assignResourceAsAssignment('+jsArg(r.resourceId || r.id)+')" title="Assign as student assignment">📋 Assign</button>';
@@ -24965,6 +25066,8 @@ function getResourceById(resourceId) {
 var _sResFilter = 'all';
 function filterStudentResources(type, tabEl) {
   _sResFilter = type;
+  var kitsEl = document.getElementById('sResStudyKits');
+  if (kitsEl) kitsEl.style.display = (type === 'all' || type === 'kits') ? '' : 'none';
   // Update tab active states
   document.querySelectorAll('#sResourceTabs .tab').forEach(t => t.classList.remove('active'));
   if (tabEl) tabEl.classList.add('active');
@@ -24997,6 +25100,7 @@ function renderStudentDriveResources() {
   var myDriveResources = driveResources.filter(function(r) {
     if (!courseMatches(r.course, s.course)) return false;
     if (_sResFilter !== 'all' && r.category !== _sResFilter) return false;
+    if (searchTerm && r.category === 'learner-guide' && (r.unitCode||'').toLowerCase().indexOf(searchTerm) !== -1) return true;
     if (searchTerm && (r.name||'').toLowerCase().indexOf(searchTerm) === -1 && (r.resourceId||'').toLowerCase().indexOf(searchTerm) === -1) return false;
     return true;
   });
@@ -25010,16 +25114,19 @@ function renderStudentDriveResources() {
   });
 
   var noResMsg = document.getElementById('studentNoResourcesMsg');
+  // The Study Kits tab shows the kits only; with kits listed, "nothing yet" is not said.
+  var hasKits = typeof studyKitProgrammes === 'function' && studyKitProgrammes(s.course).length > 0;
+  if (_sResFilter === 'kits') { container.innerHTML = ''; if (noResMsg) noResMsg.style.display = hasKits ? 'none' : ''; return; }
   if (myDriveResources.length === 0 && myInstructorResources.length === 0) {
     container.innerHTML = '';
-    if (noResMsg) noResMsg.style.display = '';
+    if (noResMsg) noResMsg.style.display = hasKits && _sResFilter === 'all' ? 'none' : '';
     return;
   }
   if (noResMsg) noResMsg.style.display = 'none';
 
   var sk = findSkillAreaForCourse(s.course);
-  var catIcons = { video:'📹', document:'📄', worksheet:'📝', guide:'📄', rubric:'📊' };
-  var catLabels = { video:'Video Lectures', document:'Documents', worksheet:'Worksheets', guide:'Study Guides', rubric:'Assessments' };
+  var catIcons = { video:'📹', document:'📄', worksheet:'📝', guide:'📄', rubric:'📊', 'learner-guide':'📗' };
+  var catLabels = { video:'Video Lectures', document:'Documents', worksheet:'Worksheets', guide:'Study Guides', rubric:'Assessments', 'learner-guide':'Learner Guides' };
 
   var html = '';
 
@@ -25043,10 +25150,12 @@ function renderStudentDriveResources() {
             '<div style="font-size:13.5px;">' + escapeHtml(r.name) + '</div>' +
             '<div style="font-size:11px;color:var(--text-muted);">' +
               '<span style="background:var(--accent-dim);color:var(--accent);padding:1px 6px;border-radius:8px;font-size:10px;font-weight:700;font-family:monospace;margin-right:4px;">' + escapeHtml(r.resourceId) + '</span>' +
-              'Course material &bull; ' + escapeHtml(r.format) +
+              (r.category === 'learner-guide' ? 'Learner guide' + (r.unitCode ? ' for ' + escapeHtml(r.unitCode) : '') : 'Course material') + ' &bull; ' + escapeHtml(r.format) +
             '</div>' +
           '</div>';
-        if (safeUrl(r.url)) {
+        if (r.category === 'learner-guide') {
+          html += learnerGuideButton(r, 'Open');
+        } else if (safeUrl(r.url)) {
           html += '<button class="btn btn-sm btn-secondary" onclick="window.open(' + jsArg(safeUrl(r.url)) + ',\'_blank\')">' + (r.category==='video'?'▶ Play':'Download') + '</button>';
         }
         html += '</li>';
@@ -25089,6 +25198,289 @@ function renderStudentDriveResources() {
   }
 
   container.innerHTML = html;
+}
+
+// ============================== STUDY KITS & LEARNER GUIDES ==============================
+/* A STUDY KIT is one unit's notes and practice test (CESTISCore.studyKits;
+   the files in study-kits/, listed in study-kits/index.json). Every
+   Resources page lists the kits for the person's programme — the trainee
+   and the instructor their own, the office every programme — and a kit
+   opens in the viewer below (study-kits/kit.html). The best practice grade
+   is kept on the device and shown here.
+
+   A LEARNER GUIDE is a file the Administrator or the programme's instructor
+   uploads (Upload Resource, type "Learner Guide", with its unit if it has
+   one): a PDF, Word or PowerPoint file opens like any other resource; a web
+   page (HTML) is fetched — through the trainee gate at home, with the
+   Centre's sign-in on an office PC — and shown in a sealed frame, where its
+   own scripts run but can never reach this page or what the device keeps.
+   A guide opened once opens again without a connection on that device. */
+var _studyKitIndex = null, _studyKitIndexAt = 0, _studyKitIndexLoading = null;
+var STUDY_KIT_PREVIEW_ROWS = 6;
+var GUIDE_CACHE = 'cestis-guides-v1';
+function studyKitIndex() { return _studyKitIndex || { kits: [] }; }
+function studyKitLoadIndex(force) {
+  if (_studyKitIndexLoading) return _studyKitIndexLoading;
+  if (_studyKitIndex && !force && Date.now() - _studyKitIndexAt < 10 * 60 * 1000) return Promise.resolve(_studyKitIndex);
+  _studyKitIndexLoading = fetch('study-kits/index.json', { cache: 'no-cache' })
+    .then(function(r) { if (!r.ok) throw new Error('index ' + r.status); return r.json(); })
+    .then(function(j) { _studyKitIndex = j && Array.isArray(j.kits) ? j : { kits: [] }; _studyKitIndexAt = Date.now(); return _studyKitIndex; })
+    .catch(function() { return _studyKitIndex || { kits: [], failed: true }; })
+    .then(function(v) { _studyKitIndexLoading = null; return v; });
+  return _studyKitIndexLoading;
+}
+function studyKitCatalogs() {
+  var raw = null;
+  try { raw = JSON.parse(CESTISStore.getItem('voctrain_unitCatalogs') || 'null'); } catch (e) { raw = null; }
+  try { return CESTISCore.Transcript.ensureSeeded(Array.isArray(raw) ? raw : []); } catch (e) { return Array.isArray(raw) ? raw : []; }
+}
+/* The programmes for a programme name ('' = every programme), each with the
+   units that have a kit. */
+function studyKitProgrammes(course) {
+  var courses = Array.isArray(course) ? course.filter(Boolean) : [course || ''];
+  if (!courses.length) courses = [''];
+  var seen = {}, out = [];
+  courses.forEach(function(c) {
+    CESTISCore.studyKits.forCourse(studyKitIndex(), studyKitCatalogs(), c, instructorCourseMatch).forEach(function(p) {
+      var k = p.qual.id || p.qual.title;
+      if (seen[k]) return;
+      seen[k] = 1;
+      var units = p.units.filter(function(u) { return !!u.kit; });
+      if (units.length) out.push({ qual: p.qual, units: units });
+    });
+  });
+  return out;
+}
+function learnerGuidesFor(course) {
+  var courses = Array.isArray(course) ? course.filter(Boolean) : (course ? [course] : []);
+  return (driveResources || []).filter(function(r) {
+    if (!r || r.category !== 'learner-guide') return false;
+    if (!courses.length) return true;
+    return courses.some(function(c) { return CESTISCore.coursework.resourceVisible(r.course, c, instructorCourseMatch); });
+  });
+}
+function learnerGuideIsPage(r) {
+  var f = String((r && (r.driveFileName || r.name)) || '').toLowerCase();
+  return !!r && (r.format === 'HTML' || /\.html?$/.test(f) || /^text\/html/.test(String(r.mime || '')));
+}
+function learnerGuideButton(r, label) {
+  if (!r) return '';
+  return '<button class="btn btn-sm btn-secondary" onclick="openLearnerGuide(' + jsArg(r.id) + ')" title="Open the learner guide">' + (label || 'Open') + '</button>';
+}
+/* opts: { staff, guides, filterId, open: true (programmes open), empty: text } */
+function studyKitsCardHtml(progs, opts) {
+  opts = opts || {};
+  var K = CESTISCore.studyKits;
+  var guides = opts.guides || [];
+  var total = 0;
+  progs.forEach(function(p) { total += p.units.length; });
+  if (!total) return opts.empty ? '<div class="card kit-card"><div class="card-header"><h3>📘 Study Kits</h3></div><p class="kit-intro">' + escapeHtml(opts.empty) + '</p></div>' : '';
+  var many = progs.length > 1;
+  var html = '<div class="card kit-card" id="' + escapeAttr(opts.filterId || 'kits') + 'Card">' +
+    '<div class="card-header"><h3>📘 Study Kits <span class="kit-count">' + total + ' unit' + (total === 1 ? '' : 's') + '</span></h3></div>' +
+    '<p class="kit-intro">Notes for each unit, and a practice test with the answers explained. ' + (opts.staff ? 'Open one to teach from it or to see what your trainees see.' : 'Read the notes, then try the test as often as you like.') + '</p>';
+  if (total > STUDY_KIT_PREVIEW_ROWS) {
+    html += '<div class="kit-find"><label for="' + escapeAttr(opts.filterId) + 'Find">Find a unit</label><input type="search" class="form-control" id="' + escapeAttr(opts.filterId) + 'Find" placeholder="Unit code or title" oninput="studyKitFilter(' + jsArg(opts.filterId) + ')"></div>';
+  }
+  progs.forEach(function(p, pi) {
+    var rows = p.units.map(function(u, ui) {
+      var e = u.kit, best = K.bestOf(window.localStorage, e.file);
+      var mine = guides.filter(function(g) { return g.unitCode && CESTISCore.assessments.normCode(g.unitCode) === CESTISCore.assessments.normCode(u.code); });
+      var meta = ['Notes', (e.questions || 0) + '-question practice test'];
+      if (best) meta.push('<span class="kit-best">Best ' + Math.round(best.grade) + '%' + (best.grade >= K.PASS ? ' ✓' : '') + '</span>');
+      if (opts.staff && e.status !== 'ready') meta.push('<span class="kit-check">Not yet checked</span>');
+      var hidden = !opts.showAll && ui >= STUDY_KIT_PREVIEW_ROWS && !many ? ' data-kit-extra="1" hidden' : '';
+      return '<li class="material-item kit-row" data-kit-q="' + escapeAttr((u.code + ' ' + u.title).toLowerCase()) + '"' + hidden + '>' +
+        '<div class="material-icon">📘</div>' +
+        '<div style="flex:1;min-width:0;"><div class="kit-unit">' + (u.code ? '<span class="kit-code">' + escapeHtml(u.code) + '</span>' : '') + escapeHtml(u.title) + '</div>' +
+        '<div class="kit-meta">' + meta.join(' &bull; ') + '</div></div>' +
+        '<div class="kit-acts">' + mine.map(function(g) { return learnerGuideButton(g, '📗 Learner guide'); }).join('') +
+        '<button class="btn btn-sm btn-secondary" onclick="openStudyKit(' + jsArg(e.file) + ',\'test\')">Practice test</button>' +
+        '<button class="btn btn-sm btn-primary" onclick="openStudyKit(' + jsArg(e.file) + ')">Open</button></div></li>';
+    }).join('');
+    var list = '<ul class="material-list">' + rows + '</ul>';
+    if (many) {
+      html += '<details class="kit-prog"' + (opts.open || pi === 0 && progs.length <= 2 ? ' open' : '') + '><summary>' + escapeHtml(p.qual.title || p.qual.skillArea) + ' <span class="kit-count">' + p.units.length + '</span></summary>' + list + '</details>';
+    } else {
+      html += (opts.staff ? '<div class="kit-prog-h">' + escapeHtml(p.qual.title || p.qual.skillArea) + '</div>' : '') + list;
+      if (p.units.length > STUDY_KIT_PREVIEW_ROWS && !opts.showAll) html += '<button type="button" class="btn btn-sm btn-secondary kit-more" onclick="studyKitShowAll(this)">Show all ' + p.units.length + ' units</button>';
+    }
+  });
+  return html + '</div>';
+}
+function studyKitShowAll(btn) {
+  var card = btn && btn.closest('.kit-card');
+  if (!card) return;
+  card.querySelectorAll('[data-kit-extra]').forEach(function(li) { li.hidden = false; li.removeAttribute('data-kit-extra'); });
+  btn.remove();
+}
+function studyKitFilter(filterId) {
+  var input = document.getElementById(filterId + 'Find'), card = document.getElementById(filterId + 'Card');
+  if (!input || !card) return;
+  var q = input.value.toLowerCase().trim();
+  var more = card.querySelector('.kit-more');
+  if (q && more) studyKitShowAll(more);
+  card.querySelectorAll('.kit-row').forEach(function(li) { li.hidden = !!q && li.getAttribute('data-kit-q').indexOf(q) === -1; });
+  if (q) card.querySelectorAll('details.kit-prog').forEach(function(d) { d.open = !!d.querySelector('.kit-row:not([hidden])'); });
+}
+/* A trainee's own kits (and their learner guides) are fetched quietly once
+   the list shows, one at a time and only on a good connection, so they open
+   with no connection later. The page's worker keeps what is fetched; guides
+   go to their own store. Never blocks the page; a failure is ignored. */
+var _studyKitWarmed = {}, _studyKitWarmBusy = false;
+function studyKitWarm(progs, guides) {
+  try {
+    var c = navigator.connection || {};
+    if (navigator.onLine === false || c.saveData) return;
+    var K = CESTISCore.studyKits, todo = [];
+    (progs || []).forEach(function(p) { p.units.forEach(function(u) {
+      var url = u.kit && K.safeFile(u.kit.file) ? 'study-kits/' + u.kit.file : '';
+      if (url && !_studyKitWarmed[url]) todo.push({ url: url });
+    }); });
+    (guides || []).forEach(function(g) {
+      var k = 'guide:' + (g && g.id);
+      if (g && g.driveFileId && learnerGuideIsPage(g) && !_studyKitWarmed[k]) todo.push({ guide: g, key: k });
+    });
+    if (!todo.length) return;
+    if (!_studyKitWarmed['study-kits/kit.html']) { _studyKitWarmed['study-kits/kit.html'] = 1; todo.unshift({ url: 'study-kits/kit.html' }); }
+    if (_studyKitWarmBusy) return;
+    _studyKitWarmBusy = true;
+    var step = function() {
+      var t = todo.shift();
+      if (!t) { _studyKitWarmBusy = false; return; }
+      var done = function() { setTimeout(step, 150); };
+      if (t.guide) { _studyKitWarmed[t.key] = 1; learnerGuideText(t.guide).then(done, done); }
+      else { _studyKitWarmed[t.url] = 1; fetch(t.url).then(function(r) { return r.text(); }).then(done, done); }
+    };
+    (window.requestIdleCallback || function(f) { setTimeout(f, 1500); })(step);
+  } catch (e) { _studyKitWarmBusy = false; }
+}
+/* Fill one Resources page's kit list. el: the element; course: the
+   programme ('' = all); opts as studyKitsCardHtml. The list of kits is
+   fetched once; the page is filled again when it arrives. */
+function renderStudyKitsInto(el, course, opts) {
+  if (!el) return;
+  var draw = function() {
+    var progs = studyKitProgrammes(course);
+    opts = Object.assign({ guides: learnerGuidesFor(course) }, opts || {});
+    el.innerHTML = studyKitsCardHtml(progs, opts);
+    if (!opts.staff && typeof studyKitWarm === 'function') studyKitWarm(progs, opts.guides);
+  };
+  draw();
+  if (!_studyKitIndex) studyKitLoadIndex().then(function() {
+    if (!document.body.contains(el)) return;
+    draw();
+    if (opts && typeof opts.after === 'function') { try { opts.after(); } catch (e) {} }
+  });
+}
+
+function cestisViewerClose() {
+  var ov = document.getElementById('cestisViewer');
+  if (!ov) return;
+  ov.classList.remove('open');
+  var wrap = ov.querySelector('.cv-wrap');
+  if (wrap) wrap.innerHTML = '';
+  document.body.style.overflow = '';
+  // The best grade may have changed: the lists show it.
+  try { if (currentRole === 'student') renderStudentResourcesPage(); else if (currentRole === 'instructor') renderInstructorCustomResources(); } catch (e) {}
+}
+/* o: { title, src } (one of this site's pages) or { title, html } (a learner
+   guide: sealed — its scripts run, but in a frame of its own that can never
+   reach this page or the device's storage) or { title, message }. */
+function cestisViewerOpen(o) {
+  var ov = document.getElementById('cestisViewer');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'cestisViewer'; ov.className = 'cestis-viewer';
+    ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true');
+    ov.innerHTML = '<div class="cv-bar"><button type="button" class="btn btn-secondary btn-sm cv-back" onclick="cestisViewerClose()">← Back to Resources</button><div class="cv-title"></div><a class="btn btn-secondary btn-sm cv-tab" target="_blank" rel="noopener">Open in a new tab</a></div><div class="cv-wrap"></div>';
+    document.body.appendChild(ov);
+    document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && ov.classList.contains('open')) cestisViewerClose(); });
+  }
+  ov.querySelector('.cv-title').textContent = o.title || '';
+  ov.setAttribute('aria-label', o.title || 'Viewer');
+  var tab = ov.querySelector('.cv-tab');
+  tab.hidden = !o.src;
+  if (o.src) tab.href = o.src; else tab.removeAttribute('href');
+  var wrap = ov.querySelector('.cv-wrap');
+  wrap.innerHTML = '';
+  if (o.message != null) {
+    wrap.innerHTML = '<div class="cv-msg">' + escapeHtml(o.message) + '</div>';
+  } else {
+    var f = document.createElement('iframe');
+    f.title = o.title || 'Viewer';
+    if (o.html != null) {
+      f.setAttribute('sandbox', 'allow-scripts allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads');
+      f.setAttribute('referrerpolicy', 'no-referrer');
+      f.srcdoc = String(o.html);
+    } else {
+      f.src = o.src;
+    }
+    wrap.appendChild(f);
+  }
+  ov.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  try { ov.querySelector('.cv-back').focus(); } catch (e) {}
+  return ov;
+}
+function openStudyKit(file, view) {
+  var K = CESTISCore.studyKits;
+  var url = K.pageUrl(file, { view: view });
+  if (!url) return false;
+  if (currentRole && currentRole !== 'student') url = url.replace('kit.html?', 'kit.html?staff=1&');
+  var e = (studyKitIndex().kits || []).filter(function(k) { return k.file === file; })[0];
+  cestisViewerOpen({ title: e ? (e.unitCode ? e.unitCode + ' · ' : '') + e.unitTitle : 'Study kit', src: url });
+  return true;
+}
+
+/* A learner guide's page (HTML), as text: kept on this device after the
+   first time (Cache Storage, never sent anywhere), else through the trainee
+   gate, else with the Centre's sign-in. */
+async function learnerGuideText(r) {
+  var id = r && r.driveFileId;
+  if (!id) throw new Error('no-file');
+  var key = 'study-kits/guide-cache/' + encodeURIComponent(id);
+  var cache = null;
+  try { if (window.caches) { cache = await caches.open(GUIDE_CACHE); var hit = await cache.match(key); if (hit) return await hit.text(); } } catch (e) { cache = null; }
+  var text = null;
+  if (typeof cestisGateSession === 'function' && cestisGateSession() && window.CESTISGate) {
+    var res = await CESTISGate.fileGet(id);
+    if (!res || res.ok !== true || !res.base64) throw new Error((res && res.error) || 'not-available');
+    var bin = atob(res.base64), bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    text = new TextDecoder('utf-8').decode(bytes);
+  } else if (isCloudConnected && googleAccessToken) {
+    var resp = await fetch('https://www.googleapis.com/drive/v3/files/' + encodeURIComponent(id) + '?alt=media', { headers: { 'Authorization': 'Bearer ' + googleAccessToken } });
+    if (!resp.ok) throw new Error('drive ' + resp.status);
+    text = await resp.text();
+  } else {
+    throw new Error('offline');
+  }
+  try { if (cache) await cache.put(key, new Response(text, { headers: { 'Content-Type': 'text/html; charset=utf-8' } })); } catch (e) {}
+  return text;
+}
+async function openLearnerGuide(resId) {
+  var r = (driveResources || []).filter(function(x) { return x && x.id === resId; })[0];
+  if (!r) { showToast('This learner guide is no longer listed.', 'warning'); return false; }
+  var title = (r.unitCode ? r.unitCode + ' · ' : '') + (r.name || 'Learner guide');
+  if (!learnerGuideIsPage(r)) {
+    var u = safeUrl(r.url);
+    if (u) { window.open(u, '_blank', 'noopener'); return true; }
+    showToast('This learner guide has no file to open.', 'warning');
+    return false;
+  }
+  cestisViewerOpen({ title: title, message: 'Opening the learner guide…' });
+  try {
+    var html = await learnerGuideText(r);
+    cestisViewerOpen({ title: title, html: html });
+    return true;
+  } catch (e) {
+    var why = String(e && e.message || '');
+    cestisViewerOpen({ title: title, message: why === 'too-large' ? 'This guide is too big to open here. Ask your instructor for a copy.'
+      : why === 'offline' ? 'This guide opens with a connection the first time. After that it opens on this device without one.'
+      : 'This guide cannot be opened right now. Try again later.' });
+    return false;
+  }
 }
 
 // ============================== SHARED PROFILE PIC HELPERS ==============================
@@ -26411,9 +26803,10 @@ window.addEventListener('message', function(e) {
   }
   // The requests page (OF-9): a request moved on, or "Open transcript" /
   // "Certify" pressed on its row.
-  if(e.data && (e.data.type === 'cestis-ctr-status' || e.data.type === 'cestis-ctr-open')) {
+  if(e.data && (e.data.type === 'cestis-ctr-status' || e.data.type === 'cestis-ctr-open' || e.data.type === 'cestis-ctr-deleted')) {
     if (!cestisMessageFromFrames(e, CTR_REQUEST_FRAMES)) return;
     if (e.data.type === 'cestis-ctr-status') ctrRequestMovedOn(String(e.data.requestId || ''), String(e.data.status || ''), String(e.data.was || ''));
+    else if (e.data.type === 'cestis-ctr-deleted') ctrRequestDeleted(String(e.data.requestId || ''));
     else ctrOpenFor(String(e.data.what || ''), String(e.data.studentId || ''));
   }
 });
@@ -26424,17 +26817,99 @@ window.addEventListener('message', function(e) {
    either side; and the trainee is told in her own bell (hers alone —
    forUsers) each time her request moves on. */
 var CTR_REQUEST_FRAMES = ['ctrRequestsFrame', 'asCtrRequestsFrame'];
+/* The request queue on EVERY office computer, whether or not its requests
+   page has been opened. The queue lives in the requests page's own file
+   (CESTIS_Transcript_Requests.json); only that page, while open, used to read
+   and write it. So a request reached an office computer only when somebody
+   opened the page there; a request collected from the Certificates page, or
+   one a trainee sent from home, stayed on the one computer that took it in;
+   and the computers that hand trainees at home their records sent them
+   whatever queue they last happened to hold — a status changed elsewhere
+   never reached her. Now each office computer reads the queue every minute
+   (record by record, CESTISCore.Transcript.mergeRequestLists) and sends its
+   own changes to it at once (ctrPushQueue). */
+function ctrStartQueueReader() {
+  if (window.__ctrQueueReader || !window.CESTISPageCloud) return;
+  if (currentRole !== 'admin' && currentRole !== 'adminstaff') return;
+  try {
+    // The queue's own file, kept exactly as the requests page keeps it: merged
+    // request by request (records), so two computers' copies both stand.
+    window.__ctrQueueReader = window.CESTISPageCloud.init({
+      page: 'Certificate / Transcript Requests',
+      file: 'CESTIS_Transcript_Requests.json',
+      keys: ['voctrain_certTranscriptRequests'],
+      records: true,
+      onRestore: function() {
+        try { updateCtrRequestsBadge(); renderOfficeToday(); } catch(e) {}
+        CTR_REQUEST_FRAMES.forEach(function(id) { var f = document.getElementById(id); try { if(f && f.contentWindow) f.contentWindow.postMessage({ type: 'transcript-refresh' }, '*'); } catch(e) {} });
+      }
+    }) || null;
+  } catch(e) { console.warn('[Requests] the office queue reader did not start: ' + e.message); }
+  // Once, after its first read: whatever of the queue only this computer
+  // holds (a request taken in or collected here before every computer kept
+  // the queue) is sent too — merged request by request, so an older copy
+  // never undoes a newer change.
+  var pg = window.__ctrQueueReader;
+  if (pg && typeof pg.touch === 'function' && ctrReadRequests().length) {
+    setTimeout(function() { try { pg.touch(['voctrain_certTranscriptRequests']); ctrPushQueue(); } catch(e) {} }, 20000);
+  }
+}
+// This computer changed the queue outside the requests page: send it now.
+function ctrPushQueue() {
+  try {
+    var pg = window.__ctrQueueReader;
+    if (pg && typeof pg.push === 'function') {
+      clearTimeout(pg._timer);
+      pg.push().catch(function(e) { console.warn('[Requests] queue not sent yet: ' + (e && e.message)); });
+    }
+  } catch(e) {}
+}
 function ctrReadRequests() {
   try { var v = JSON.parse(CESTISStore.getItem('voctrain_certTranscriptRequests') || '[]'); return Array.isArray(v) ? v : []; } catch(e) { return []; }
 }
-// Tell the trainee, once per request and status (the same notice raised on two
-// office computers is one: its id is fixed).
+/* The trainee's account for a request: the account that points at her
+   record, else the account whose own record this is (as sign-in finds it —
+   an older account, a record re-numbered since), else the one with her
+   email. A notice used to go nowhere when the account did not name the
+   record's id exactly. */
+function ctrTraineeUserId(studentId) {
+  var id = typeof examTraineeUserId === 'function' ? examTraineeUserId(studentId) : null;
+  if (id) return id;
+  var acct = (userAccounts || []).find(function(a) {
+    if (!a || a.role !== 'student' || a.status === 'disabled' || a.status === 'rejected') return false;
+    try { var rec = typeof findStudentRecordForAccount === 'function' ? findStudentRecordForAccount(a) : null; return !!rec && String(rec.id) === String(studentId); } catch (e) { return false; }
+  });
+  if (acct) return acct.id;
+  return typeof traineeChatUserId === 'function' ? traineeChatUserId(studentId) : null;
+}
+/* Her notices about one request: only the latest stays. The ones before it
+   (Processing, then Ready…) are taken down everywhere — the deletion is
+   recorded, so another PC or her own device does not bring them back.
+   keepId: the notice just raised. Returns how many went. */
+function ctrRetireNotices(requestId, keepId) {
+  if (!requestId) return 0;
+  var prefix = 'CTR-' + requestId + '-';
+  var before = (notifications || []).slice();
+  notifications = before.filter(function(n) { return !(n && String(n.id || '').indexOf(prefix) === 0 && n.id !== keepId); });
+  var gone = before.length - notifications.length;
+  if (gone) {
+    try { syncTombstoneRemoved('notifications', before, notifications); } catch (e) {}
+    try { saveNotifications(); updateNotificationDot(); } catch (e) {}
+  }
+  return gone;
+}
+// Tell the trainee, once per request and change (the same change seen on two
+// office computers is one notice: its id is the request, the status and the
+// time of the change), and take down what she was told before about it.
 function ctrNotifyTrainee(r, status) {
   if(!r) return null;
   var text = CESTISCore.Transcript.requestNotice(r, status);
-  var uid = typeof examTraineeUserId === 'function' ? examTraineeUserId(r.studentId) : null;
+  var uid = ctrTraineeUserId(r.studentId);
+  var when = String(r.updatedAt || r.handledAt || '').replace(/[^0-9]/g, '').slice(0, 14);
+  var nid = 'CTR-' + r.id + '-' + status + (when ? '-' + when : '');
+  ctrRetireNotices(r.id, nid);
   if(!text || !uid) return null;
-  return addNotificationForUser(text, status === 'declined' ? 'warning' : 'success', '\uD83C\uDF93', uid, 'student', 'CTR-' + r.id + '-' + status);
+  return addNotificationForUser(text, status === 'declined' ? 'warning' : 'success', '\uD83C\uDF93', uid, 'student', nid);
 }
 // A certificate handed over: the trainee's record says so (as Certificates →
 // Mark Collected does), without asking again.
@@ -26448,6 +26923,17 @@ function ctrCertificateCollected(studentId) {
   try { filterCerts(); updatePipelineCounts(); renderCertStats(); } catch(e) {}
   try { refreshStudentDependentViews(); } catch(e) {}
   return true;
+}
+/* A request the Administrator deleted (Certificate / Transcript Requests →
+   Delete): the request itself stays on file, marked deleted
+   (CESTISCore.Transcript.deleteRequest); here her notices about it go. */
+function ctrRequestDeleted(requestId) {
+  if(currentRole !== 'admin') return;
+  var r = ctrReadRequests().find(function(x) { return x && x.id === requestId; });
+  if(!r || r.deleted !== true) return;
+  ctrRetireNotices(requestId, null);
+  try { updateCtrRequestsBadge(); renderOfficeToday(); } catch(e) {}
+  saveState();
 }
 function ctrRequestMovedOn(requestId, status, was) {
   if(currentRole !== 'admin' && currentRole !== 'adminstaff') return;
@@ -35613,6 +36099,7 @@ function ctrCollectRequestsFor(studentId) {
   var merged = CESTISCore.Transcript.mergeRequestLists(ctrReadRequests(), res.list);
   CESTISStore.setItem('voctrain_certTranscriptRequests', JSON.stringify(merged));
   res.changed.forEach(function(r) { ctrNotifyTrainee(r, 'collected'); });
+  if (typeof ctrPushQueue === 'function') ctrPushQueue();
   try { updateCtrRequestsBadge(); renderOfficeToday(); } catch(e) {}
   // The requests page, if it is open, shows it at once.
   CTR_REQUEST_FRAMES.forEach(function(id) { var f = document.getElementById(id); try { if(f && f.contentWindow) f.contentWindow.postMessage({ type: 'transcript-refresh' }, '*'); } catch(e) {} });
@@ -41785,6 +42272,83 @@ function profileRefreshOwnViews() {
   } catch (e) {}
 }
 
+/* ===================== TESTS & STUDY KITS FOLDERS =====================
+   On the Administrator's first sync (and again whenever a unit has no copy
+   yet) the Centre's Drive gets a "Tests" folder and a "Study Kits" folder in
+   the Main folder, each with one folder per programme holding one file per
+   unit. Copies are private (they hold the answers): never shared by link.
+   Only files not already there are added; nothing is ever overwritten or
+   removed, and a failure just leaves the rest for the next sync. */
+var DRIVE_CONTENT_SETS = [
+  { folder: 'Tests', index: 'assessments/index.json', list: 'banks', base: 'assessments/' },
+  { folder: 'Study Kits', index: 'study-kits/index.json', list: 'kits', base: 'study-kits/' }
+];
+var _driveContentBusy = false, _driveContentTimer = null;
+function driveContentFoldersSoon() {
+  if (currentRole !== 'admin' || _driveContentBusy || _driveContentTimer) return;
+  var last = 0;
+  try { last = parseInt(window.localStorage.getItem('cestis_drive_content_at') || '0', 10) || 0; } catch (e) {}
+  if (Date.now() - last < 12 * 3600 * 1000) return;
+  _driveContentTimer = setTimeout(function() { _driveContentTimer = null; driveBuildContentFolders(); }, 25000);
+}
+async function driveBuildContentFolders(opts) {
+  if (_driveContentBusy || !isCloudConnected || !googleAccessToken) return { added: 0, failed: 0 };
+  _driveContentBusy = true;
+  var added = 0, failed = 0, tok = googleAccessToken, root = GOOGLE_DRIVE_CONFIG.FOLDER_ID;
+  var auth = { 'Authorization': 'Bearer ' + tok };
+  try {
+    for (var si = 0; si < DRIVE_CONTENT_SETS.length; si++) {
+      var set = DRIVE_CONTENT_SETS[si];
+      var idx = null;
+      try { var ir = await fetch(set.index, { cache: 'no-cache' }); if (ir.ok) idx = await ir.json(); } catch (e) {}
+      var items = idx && Array.isArray(idx[set.list]) ? idx[set.list] : [];
+      if (!items.length) continue;
+      var top = await driveFindOrCreateFolder(set.folder, root, tok);
+      if (!top) { failed += items.length; continue; }
+      var byProg = {};
+      items.forEach(function(it) {
+        var m = /^([a-z0-9-]+)\/([a-z0-9]+\.json)$/.exec(String(it.file || ''));
+        if (m) (byProg[m[1]] = byProg[m[1]] || []).push({ name: m[2], file: it.file });
+      });
+      var progs = Object.keys(byProg);
+      for (var pi = 0; pi < progs.length; pi++) {
+        if (!googleAccessToken) break;
+        var pf = await driveFindOrCreateFolder(progs[pi], top, tok);
+        if (!pf) { failed += byProg[progs[pi]].length; continue; }
+        var have = {}, pageTok = '';
+        do {
+          var lq = encodeURIComponent("'" + pf + "' in parents and trashed=false");
+          var lr = await fetch('https://www.googleapis.com/drive/v3/files?q=' + lq + '&fields=nextPageToken,files(name)&pageSize=1000' + (pageTok ? '&pageToken=' + encodeURIComponent(pageTok) : ''), { headers: auth });
+          if (!lr.ok) { have = null; break; }
+          var ld = await lr.json();
+          (ld.files || []).forEach(function(f) { have[f.name] = 1; });
+          pageTok = ld.nextPageToken || '';
+        } while (pageTok);
+        if (!have) { failed += byProg[progs[pi]].length; continue; }
+        for (var ui = 0; ui < byProg[progs[pi]].length; ui++) {
+          var u = byProg[progs[pi]][ui];
+          if (have[u.name]) continue;
+          try {
+            var fr = await fetch(set.base + u.file);
+            if (!fr.ok) throw new Error('read ' + fr.status);
+            var blob = new Blob([await fr.text()], { type: 'application/json' });
+            var form = new FormData();
+            form.append('metadata', new Blob([JSON.stringify({ name: u.name, parents: [pf], mimeType: 'application/json' })], { type: 'application/json' }));
+            form.append('file', blob);
+            var cr = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', { method: 'POST', headers: auth, body: form });
+            if (cr.ok) added++; else throw new Error('upload ' + cr.status);
+          } catch (e) { failed++; if (/ 40[13]$| 429$/.test(String(e && e.message))) { si = DRIVE_CONTENT_SETS.length; pi = progs.length; break; } }
+        }
+      }
+    }
+  } catch (e) { console.warn('[DriveContent]', e); }
+  _driveContentBusy = false;
+  if (!failed) { try { window.localStorage.setItem('cestis_drive_content_at', String(Date.now())); } catch (e) {} }
+  console.log('[DriveContent] added ' + added + ', failed ' + failed);
+  if (opts && opts.toast && typeof showToast === 'function') showToast('Tests and study kits: ' + added + ' added' + (failed ? ', ' + failed + ' left for the next sync.' : '.'));
+  return { added: added, failed: failed };
+}
+
 // Backfill a named sub-folder for EVERY account (admin action). Sequential to
 // stay well under Drive rate limits.
 async function syncAllUserLoginFoldersToDrive() {
@@ -42730,6 +43294,7 @@ async function autoSyncOnLogin() {
 
   console.log('[AutoSync] Starting auto-sync from all Google Drive folders...');
   setCloudSyncing(true);
+  try { if (typeof driveContentFoldersSoon === 'function') driveContentFoldersSoon(); } catch (e) {}
 
   try {
     let anyChanged = false;
@@ -44597,6 +45162,7 @@ function gateMergeRequests(incoming) {
   if (JSON.stringify(merged) === JSON.stringify(cur)) return false;
   CESTISStore.setItem(key, JSON.stringify(merged));
   try { if (typeof updateCtrRequestsBadge === 'function') updateCtrRequestsBadge(); } catch (e) {}
+  try { if (typeof ctrPushQueue === 'function') ctrPushQueue(); } catch (e) {}
   return true;
 }
 // Read marks, cleared notices, chat follows and spent backup codes, each the
@@ -52382,6 +52948,9 @@ function buildAdminStaffSidebar() {
 // ============================== BUILD ADMIN STAFF PAGES ==============================
 // ---- Admin-Staff feature page renderers (fill data rows after fragment mount) ----
 function renderAsResources(){
+  // Every programme's study kits, folded by programme.
+  var asKits=document.getElementById('asStudyKits');
+  if(asKits && typeof renderStudyKitsInto === 'function') renderStudyKitsInto(asKits, '', { staff: true, filterId: 'asKits' });
   var tb=document.getElementById('asResBody'); if(!tb) return;
   var html=(driveResources.length > 0 ? driveResources.map(function(r){ return '<tr><td>'+escapeHtml(r.name)+'</td><td>'+escapeHtml(r.type||'File')+'</td><td>'+escapeHtml(r.course||'General')+'</td><td>'+escapeHtml(r.date||'N/A')+'</td></tr>'; }).join('') : '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);">No resources available</td></tr>')
     + (instructorResources.length > 0 ? instructorResources.map(function(r){ return '<tr><td>'+escapeHtml(r.title||r.name||'Untitled')+'</td><td>'+escapeHtml(r.type||'File')+'</td><td>'+escapeHtml(r.course||'General')+'</td><td>'+escapeHtml(r.date||'N/A')+'</td></tr>'; }).join('') : '');
@@ -52721,6 +53290,7 @@ function buildAdminStaffPages() {
   loadSupportMessages();
   updateSupportBadge();
   setTimeout(function() { try { renderOfficeToday(); } catch(e) {} }, 250);
+  try { ctrStartQueueReader(); } catch(e) {}
 }
 
 // ---- Admin Staff Student Filter ----

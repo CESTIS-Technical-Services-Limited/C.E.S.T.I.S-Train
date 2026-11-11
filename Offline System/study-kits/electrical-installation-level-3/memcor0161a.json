@@ -1,0 +1,474 @@
+{
+  "format": "cestis-study-kit",
+  "version": 1,
+  "status": "to-check",
+  "written": "2026-11-07",
+  "programme": "Electrical Installation",
+  "qualification": { "id": "QUAL-EIM-L3", "title": "ELECTRICAL INSTALLATION AND MAINTENANCE LEVEL 3", "code": "MEM32507" },
+  "level": 3,
+  "unit": { "code": "MEMCOR0161A", "title": "Plan to undertake a routine task" },
+  "summary": "This unit teaches you to plan a routine electrical job before anyone picks up a tool, the way a Level 3 electrician or team leader does. You will learn to read the work order, find and check the information, survey the site, choose the method and sequence, plan safety and safe isolation, and work out materials, time and cost. You will also learn to agree and communicate the plan, check progress and quality, handle problems and changes, and finish with a report and a review that makes the next plan better.",
+  "sections": [
+    {
+      "title": "Unit overview",
+      "blocks": [
+        { "p": "A **routine task** is work the trade does often: adding an outlet or a light, putting in a circuit for an air-conditioner or water heater, replacing fittings or a damaged accessory, or a planned maintenance visit. Routine does not mean careless. Most accidents, call-backs and wasted days on routine jobs come from skipped planning: the wrong circuit isolated, the wrong cable bought, a shutdown nobody was told about, a ladder where a tower was needed." },
+        { "p": "This unit is for Level 3 trainees. At this level you do more than follow a plan: you write it, explain why you chose each method, lead a small team through it and answer for the result. The notes follow a job from the work order to the review." },
+        { "h": "What you must be able to do" },
+        { "table": { "head": ["Task", "What it looks like on the job"], "rows": [
+          ["Understand the task", "Read the work order or job card, find out exactly what is wanted, where, by when and to what standard, and get anything unclear or conflicting settled in writing before you plan."],
+          ["Find and use information", "Use drawings, the specification, the board schedule, makers' instructions, the code and earlier records, and check them against what is really on site."],
+          ["Survey the site", "Visit before you finish the plan to see the board, its spare ways and load, the cable routes, access, the hazards and the people who use the building."],
+          ["Plan the method and the sequence", "Break the job into steps in a safe, logical order, choose the best method for this job, and write a method statement."],
+          ["Plan for safety and safe isolation", "Write a risk assessment, choose controls, plan who isolates and locks off what, and choose the right access equipment and PPE."],
+          ["Work out the resources", "List materials with size, type and quantity, book the tools and test instruments, and estimate the time and cost."],
+          ["Agree and communicate the plan", "Get the plan approved, agree shutdowns and access with the client, brief the team and tell the people affected."],
+          ["Lead and monitor the work", "Give each person tasks they can do safely, check progress against the schedule and check quality at hold points."],
+          ["Handle problems and changes", "Stop, make safe and report when something unexpected turns up; get every change priced, agreed and recorded before you do it."],
+          ["Finish, report and review", "Inspect and test, update the records, hand over with a completion report, and review the job so the next plan is better."]
+        ] } },
+        { "h": "The planning documents" },
+        { "table": { "head": ["Document", "What it holds", "Who mainly uses it"], "rows": [
+          ["Work order or job card", "What is to be done, where, who asked for it, the priority, the date wanted, and a space for sign-off when it is finished", "Everyone: it starts and closes the job"],
+          ["Method statement", "The steps in order, how each is done, the tools and materials, and how isolation and testing will be done", "The team doing the work"],
+          ["Risk assessment", "The hazards of each step, who could be harmed, and the controls", "The team and the supervisor"],
+          ["Isolation plan or permit to work", "Which device is isolated, who locks it off, how it is proved dead, and who may give it back", "The person in control of the work"],
+          ["Materials list and estimate", "Each item with its size, type, quantity and price; labour hours", "Stores, purchasing and the client"],
+          ["Schedule", "The steps against time, which steps depend on others, and the agreed shutdown times", "The team and the client"],
+          ["Test sheet and completion report", "Readings, defects, advice, materials used and hours worked", "The client, the supervisor and the inspector"]
+        ] } },
+        { "h": "Electrical work in Jamaica" },
+        { "ul": [
+          "JPS supplies most homes and businesses at **110 V and 220 V, single-phase, 50 Hz**. Larger buildings may have a three-phase supply. Every item you plan to buy must match the supply it will be connected to.",
+          "The electrical code used in Jamaica is based on the US **National Electrical Code (NEC)**. Drawings and equipment use both US and British words: ground and earth, panel and board, GFCI and RCD. Plan to the code edition and the specification that the job uses.",
+          "A new or altered installation is inspected by a **licensed electrical inspector**, under the **Government Electrical Regulator (GER)**, before JPS will connect or reconnect it. When a job needs that inspection, the plan must allow time for it.",
+          "Heat in roof spaces, the rainy seasons, the hurricane season and power cuts all affect timing and safety. Many buildings also have standby generators, solar PV or UPS units that can keep a circuit live after you switch it off."
+        ] },
+        { "note": "This unit is part of the NCTVET Level 3 qualification in Electrical Installation and Maintenance. Your assessor will expect to see your plan in writing, and will ask you to explain why you chose each step. A plan that only exists in your head cannot be checked, shared or improved.", "label": "Remember" },
+        { "h": "How to use this kit" },
+        { "p": "Read the sections in order: they follow a real job. Work through the examples with a calculator. Then try the practice test and read every explanation, even when you got the answer right. Your instructor will show you the Centre's own forms." }
+      ]
+    },
+    {
+      "title": "Understanding the task and its priority",
+      "blocks": [
+        { "p": "Every plan starts with a clear task. Before you plan anything, you should be able to answer six questions: **what** exactly is wanted, **where**, **why**, **by when**, **to what standard**, and **who** approves it. If you cannot answer one of them, ask before you go further. A plan built on a guess is still a guess." },
+        { "h": "Reading a work order or job card" },
+        { "table": { "head": ["Look for", "Why it matters", "A gap to watch for"], "rows": [
+          ["The exact place: building, floor, room and wall", "You survey, measure and price the right place", "'Block C' with no room named"],
+          ["What is to be done, and the fault if it is a repair", "Sets the method, the materials and the time", "'Fix lights in the hall' does not say which lights or what is wrong with them"],
+          ["Equipment details: rating, voltage, model", "Sets the cable, the breaker, the fixings and the isolator", "'New A/C for the office' with no size or model"],
+          ["Which circuit will feed it", "You must check the spare capacity and what the circuit already feeds", "No circuit named, and a faded board schedule"],
+          ["Date wanted, priority and working hours allowed", "Sets the schedule and any shutdown", "'Urgent' with no date, or a date that clashes with exams or events"],
+          ["Who asked for it, who approves it, and how to reach them", "You know who can answer questions and agree changes", "A name with no phone number"],
+          ["The standard: specification, drawing number, code", "You build what was designed, and it can pass inspection", "No drawing, or a drawing that does not match the site"]
+        ] } },
+        { "h": "Checking the load before you add to a circuit" },
+        { "p": "Never add outlets or equipment to a circuit without finding out what it already feeds. Power, voltage and current are linked: **power (W) = voltage (V) × current (A)**, so **current = power ÷ voltage (I = P ÷ V)**." },
+        { "p": "**Example.** A 20 A, 110 V circuit already feeds a 1,200 W microwave and a 150 W refrigerator: 1,350 ÷ 110 = **12.3 A**. A photocopier of 1,100 W would add 1,100 ÷ 110 = 10.0 A, making 22.3 A. That is more than the breaker allows, so the plan needs a new circuit, not two more outlets on the old one." },
+        { "p": "**Example at 220 V.** A water heater rated 3,300 W at 220 V draws 3,300 ÷ 220 = **15 A**. A 220 V load is fed through a **two-pole breaker**, which switches both line conductors together." },
+        { "note": "The NEC, on which Jamaica's code is based, treats a load that runs at its maximum for 3 hours or more, such as a water heater, shop lighting or a room of computers, as a **continuous load**. A breaker may carry only **80%** of its rating in continuous load: no more than 16 A on a 20 A breaker. Use the rules the designer or your instructor gives you for the job.", "label": "Jamaica" },
+        { "h": "Reading the maker's words" },
+        { "table": { "head": ["The maker says", "What it means for your plan"], "rows": [
+          ["'Connect to a dedicated circuit'", "The item needs its own circuit and breaker, with nothing else connected to it."],
+          ["'Maximum fuse or breaker 25 A'", "The protective device must not be larger than 25 A."],
+          ["'Minimum circuit ampacity 16 A' (often on air-conditioners)", "The cable must be rated to carry at least 16 A."],
+          ["'220 V, 50 Hz' or '115 V, 60 Hz'", "Check it matches the Jamaican supply before it is bought or connected."],
+          ["'Install a disconnect within sight of the unit'", "Plan a lockable isolator beside the equipment, as well as the breaker."]
+        ] } },
+        { "h": "When the documents disagree" },
+        { "p": "Sometimes the specification says one thing and the drawing another, or the client asks for something the specification does not allow. Do not choose for yourself. Write down the conflict, send it to the person who can decide (the designer, your supervisor or the client), and get the answer **in writing** before you buy materials or start work. On bigger jobs this is called a **request for information (RFI)**. Record who decided and when." },
+        { "note": "On a large contract, the contract itself says which document wins when two disagree. On small jobs, nobody may have thought about it. Either way, the person who planned the job is the one who asks; a trainee on the tools should not have to guess.", "label": "Tip" },
+        { "h": "Deciding what comes first" },
+        { "p": "Jobs compete for the same people and time. Put danger first, then loss of an important service, then improvements." },
+        { "table": { "head": ["Priority", "Examples", "What the plan does"], "rows": [
+          ["Urgent: danger to people or property", "A sparking or scorched outlet, a burning smell from a board, exposed live parts, a GFCI that will not trip in a kitchen", "Make it safe at once (isolate, lock off, barrier), then plan the repair"],
+          ["High: loss of an important service", "No power to a clinic's vaccine fridge, failed security lighting, a dead water pump", "Plan the repair the same day"],
+          ["Routine", "A new outlet for a printer, extra lights, a planned circuit addition", "Schedule with the client"],
+          ["Low", "A scratched cover, a better-looking fitting", "Fit it in when convenient"]
+        ] } },
+        { "note": "A faded or wrong board schedule looks like a low-priority job, but it is a safety matter: the next person may isolate the wrong circuit. Plan to correct it soon.", "label": "Safety" }
+      ]
+    },
+    {
+      "title": "Finding information and surveying the site",
+      "blocks": [
+        { "h": "Where the information comes from" },
+        { "table": { "head": ["Source", "What it tells you", "Watch out"], "rows": [
+          ["Layout drawings and single-line diagrams", "Positions of outlets, lights and boards; circuits; cable routes; the scale", "Check the revision letter and date: you need the latest issue"],
+          ["As-built (record) drawings", "What was really installed on an earlier job", "They are only as good as the last person who updated them"],
+          ["Specification", "Materials, wiring method, finishes, standards and the tests required", "It may disagree with the drawing; ask"],
+          ["Board (panel) schedule", "What each breaker feeds and which ways are spare", "Often faded, wrong or out of date: prove circuits by testing"],
+          ["Makers' instructions and data sheets", "Rating, current, breaker size, mounting height, fixing method, clearances, terminal torque", "Read them before you buy: they can change the cable or breaker"],
+          ["The code and the Centre's or company's procedures", "The rules the work must meet, and how safe isolation, permits and testing are done", "Use the edition the job uses"],
+          ["Earlier test records and maintenance logs", "Insulation readings, known faults, earlier changes", "Low readings last time warn you of trouble now"],
+          ["The client and the building's users", "When power can be off, what must never lose power, access, keys and security", "Ask about fridges, servers, alarms, medical equipment and events"]
+        ] } },
+        { "h": "The site survey" },
+        { "p": "A **site survey** (site visit) is a visit made before the plan is finished, to see and measure the real conditions. It is looking, measuring and asking, not working: you do not open a board, remove a cover or switch anything off unless you are authorised to and the precautions are in place." },
+        { "table": { "head": ["Look at", "What to record"], "rows": [
+          ["The board", ["Where it is, its type and make, and the size of its main breaker", "Spare ways, and whether there is room for a two-pole breaker", "Signs of overheating, damage or missing blanks", "Whether the labels look right"]],
+          ["The load", ["What the circuit you plan to use already feeds", "When the building uses most power", "Whether a load measurement with a clamp meter is needed later, under supervision"]],
+          ["The cable route", ["The real route: up walls, across ceilings, down to each box", "Measurements of each part", "Wall and ceiling types: block, concrete, timber, drywall", "Obstacles such as beams, ducts and pipes, and spare conduit you could use"]],
+          ["Access", ["Ceiling heights and the access equipment needed", "Parking, keys, security, working hours and where materials can be stored"]],
+          ["Hazards", ["Other services such as water and gas", "Heat in roof spaces, fragile ceilings and roofs", "Occupants, children, the public and animals", "Rats, termites and damp"]],
+          ["Other work going on", ["Painters, ceiling fixers, tilers, plumbers, air-conditioning installers", "Events, exams or busy periods"]]
+        ] } },
+        { "p": "Record the survey with a sketch, measurements and photos. A good sketch shows the board, every new point, the route and the length of each part, so anyone can price and plan from it." },
+        { "note": "Measure the route the cable will really take, not the straight line across the floor plan. A cable from a board to an outlet 6 m away across a room may need 12 m once it goes up the wall, across the ceiling and down again.", "label": "Tip" },
+        { "h": "When the site does not match the drawing" },
+        { "p": "Buildings change after drawings are made. When you find a difference, plan from what is really there, report the difference to your supervisor or the designer, agree what to do, and mark it on the drawing so the record can be corrected. Never plan from a drawing you know is wrong, and never quietly ignore it either: the next person will trust it." }
+      ]
+    },
+    {
+      "title": "Planning the method and the sequence",
+      "blocks": [
+        { "p": "The **method statement** breaks the job into steps, puts them in a safe order and says how each one is done, by whom and with what. At Level 3 you should be able to say why you chose each method, and write the reason down." },
+        { "h": "A typical sequence: a new 220 V air-conditioning circuit" },
+        { "flow": [
+          "Read the work order and the unit's data plate and installation guide",
+          "Survey: board space, spare capacity, route, position of the outdoor unit and its isolator",
+          "Choose the cable, breaker and isolator; list materials; estimate time and cost",
+          "Agree the date and the shutdown with the client; get the plan approved",
+          "Isolate, lock off, tag and prove dead",
+          "First fix: fix the isolator and boxes, run conduit, draw in the cable",
+          "Second fix: terminate at the isolator and in the board",
+          "Inspect and carry out the dead tests",
+          "Energise, carry out live checks and commission the unit with the installer",
+          "Update the board schedule, clean up, report and hand over"
+        ] },
+        { "h": "Steps that depend on each other" },
+        { "p": "Some steps must follow one another: boxes are fixed before cables are pulled, cables are pulled before they are terminated, terminations are finished before testing, and dead tests are passed before anything is switched on. Other steps can happen at the same time: one trainee can fix boxes in one room while another pulls cable in the next. Knowing which steps depend on which lets you plan the shortest safe order and keep everyone busy." },
+        { "h": "Words used in planning" },
+        { "table": { "head": ["Term", "Meaning"], "rows": [
+          ["First fix (rough-in)", "Installing boxes, conduit and cables before walls and ceilings are finished."],
+          ["Second fix (trim-out, final fix)", "Connecting switches, outlets, fittings and the board after the finishes are done."],
+          ["Make good", "Repair the surfaces you disturbed, such as chases and holes, so they are neat again and ready for paint."],
+          ["Hold point", "A step where work stops until someone inspects or approves it, for example before a ceiling is closed over new cables."],
+          ["Commissioning", "Setting up equipment and proving it works as intended, often with the maker's or installer's checklist."],
+          ["Contingency", "Spare time (or money) in the plan for problems that usually turn up."]
+        ] } },
+        { "h": "Keeping the building working" },
+        { "p": "Schools, clinics, offices and shops cannot stop for your job. Plan the work in **stages** so that only one room or circuit is dead at a time and the rest of the building keeps working. Do noisy and dusty work, such as drilling and chasing, when rooms are empty. Leave each stage safe at the end of the day: no exposed live parts, no loose cables in walkways, every box closed or covered." },
+        { "h": "Choosing the best method" },
+        { "table": { "head": ["Choice", "Things to weigh"], "rows": [
+          ["Surface conduit or trunking, or cables chased into the wall", "Appearance, the client's wishes, the specification, wall type, dust and noise, time and cost"],
+          ["An existing spare conduit, or a new route", "Its condition and fill, the length, how easy it is to draw in"],
+          ["Normal hours, or out of hours", "Disruption to the client, overtime cost, security, the risk of working alone"],
+          ["Repair, or replace", "Age and condition, spare parts, cost, safety, and whether the old item meets today's code"]
+        ] } },
+        { "h": "What a method statement contains" },
+        { "ul": [
+          "The job, the place, the drawing and specification references, and who is in charge.",
+          "The steps in order, with who does each one.",
+          "The isolation points, how they will be locked off and proved dead, and who gives the supply back.",
+          "The tools, access equipment, materials and test instruments.",
+          "The inspections and tests, and the hold points.",
+          "How waste will be removed and the area left safe and clean.",
+          "What to do if something unexpected is found."
+        ] }
+      ]
+    },
+    {
+      "title": "Planning for safety and safe isolation",
+      "blocks": [
+        { "p": "The **risk assessment** lists the hazards of each step, who could be harmed and how, and the controls you will use. Choose controls from the top of the hierarchy down: **eliminate** (work dead), **substitute** (battery tools instead of mains tools outdoors), **engineering controls** (barriers, guards, dust extraction), **administrative controls** (procedures, permits, signs, timing) and, last, **PPE**." },
+        { "h": "Hazards on routine electrical jobs" },
+        { "table": { "head": ["Hazard", "Controls to plan"], "rows": [
+          ["Electric shock and arc flash", "Work dead with a written isolation plan; check for other sources of supply; insulated tools; no live work as routine"],
+          ["Work at height", "The right access equipment for the height and the length of the task; trained users; never improvised platforms"],
+          ["Heat in roof spaces and under zinc roofs", "Work early in the morning; short spells with breaks; drinking water; fans or ventilation; a partner who can see you"],
+          ["Hidden cables and pipes when drilling or chasing", "Drawings, a cable and pipe detector, and avoiding the zones in line with existing accessories"],
+          ["Dust and noise from chasing and drilling", "Dust extraction; eye, ear and dust protection and gloves; doing it when rooms are empty"],
+          ["Manual handling", "Drum stands for cable, two people for long ladders and heavy fittings"],
+          ["Occupants and the public", "Barriers and signs; tools and cables out of walkways; ladders never left standing alone"],
+          ["Working alone or out of hours", "Someone nearby or a check-in by phone; access, keys and first aid arranged in advance"]
+        ] } },
+        { "note": "Heat exhaustion is a real risk in Jamaican roof spaces, which can pass 45 °C in the afternoon. Warning signs: heavy sweating, dizziness, headache, cramps and confusion. Get the person out into a cool place, give water and get help. Plan roof-space work for the cooler hours.", "label": "Jamaica" },
+        { "h": "Choosing access equipment" },
+        { "table": { "head": ["Equipment", "Suits", "Plan for"], "rows": [
+          ["Fibreglass stepladder", "Short tasks at low heights, such as a light on a 2.7 m ceiling", "Firm level floor; three points of contact; never the top steps"],
+          ["Fibreglass extension ladder", "Getting up to a roof or a short task on an outside wall", "The 1-in-4 angle; tied or footed; clear of overhead lines"],
+          ["Mobile tower scaffold", "Longer work at about 3 to 8 m on a firm, level floor", "Put up by a trained person; brakes on; guardrails and toe boards fitted"],
+          ["Mobile elevating work platform (scissor or boom lift)", "High ceilings in warehouses, halls and churches", "A trained operator; a harness in a boom lift; the floor strong enough"],
+          ["Never", "Chairs on tables, pallets, shelf racking, upturned buckets", "These have caused many falls"]
+        ] } },
+        { "h": "PPE by task" },
+        { "table": { "head": ["Task", "PPE to list in the plan"], "rows": [
+          ["All site work", "Safety boots with insulating soles, cotton or flame-resistant long sleeves"],
+          ["Drilling and chasing block or concrete", "Safety glasses or goggles, ear protection, a dust mask, gloves"],
+          ["Cutting and stripping cables", "Safety glasses"],
+          ["Work above head height or near overhead work", "A hard hat suitable for electrical work"],
+          ["Authorised work near live parts (not routine)", "As the Centre's or company's live-work rules say, by authorised people only"]
+        ] } },
+        { "h": "The safe isolation plan" },
+        { "p": "The isolation plan answers: **which circuit** (found on the schedule and confirmed by testing), **where** it is isolated, **who** locks it off and with whose locks, **how** it is proved dead and with which tester, and **who** may remove the locks. Writing it down stops the most common fatal mistake in routine work: someone working on a circuit they believe is dead." },
+        { "flow": [
+          "Identify the circuit from the schedule, then confirm it by testing",
+          "Agree the shutdown time and tell everyone affected",
+          "Switch off at the planned isolation point",
+          "Fit a lock-off device and your own padlock; keep the key",
+          "Fix a danger tag: name, date, reason, how to reach you",
+          "Prove the tester on a proving unit",
+          "Test at the point of work between all conductors, and each to earth",
+          "Prove the tester again",
+          "Work; remove only your own lock, when your work is finished and everyone is clear"
+        ] },
+        { "ul": [
+          "When several people work on the same isolated circuit, each fits **their own lock** to a **multi-lock hasp**. The supply cannot come back until the last lock is off.",
+          "A **whole-building shutdown** needs an agreed time, notice to everyone affected, and a plan for loads that must not lose power, such as fridges, servers, alarms and medical equipment. A UPS will only carry its load for a limited time, often minutes, not hours.",
+          "The **supply side of a main switch stays live** when the switch is off. Only JPS can make the service conductors dead.",
+          "Check for **other sources of supply**: a generator with an automatic transfer switch, solar PV, battery inverters and UPS units.",
+          "Bring lock-off devices that fit the breakers on that board. Plan for it: a breaker that cannot be locked is a problem to solve before the day, not on it.",
+          "Some workplaces control work on main switchboards and other high-risk systems with a **permit to work**: a signed form that says what may be done, by whom, when, and how the system has been made safe."
+        ] },
+        { "note": "A tag warns; only a lock prevents. A plan that relies on a sign, a piece of tape or 'telling the office not to touch it' is not a safe isolation plan.", "label": "Safety" }
+      ]
+    },
+    {
+      "title": "Materials, tools, instruments and cost",
+      "blocks": [
+        { "h": "Taking off quantities" },
+        { "p": "Count the items from the drawing and your survey: boxes, accessories, plates, fittings, breakers, isolators, fixings. Then measure the cable and conduit routes and add allowances." },
+        { "flow": ["Measure each part of the route (board to first point, between points)", "Add the drops down walls to each box", "Add a length for each termination", "Add an allowance for waste, usually 10 to 20%", "Round up to the lengths or packs the supplier sells"] },
+        { "p": "**Worked example.** The route from the board is 14 m along the ceiling. There are three drops of 2.5 m (7.5 m), and you allow 0.3 m at each of 8 terminations (2.4 m). Total: 14 + 7.5 + 2.4 = 23.9 m. Add 15% for waste: 23.9 × 1.15 = **27.5 m** of each conductor. If the cable is sold in 30 m rolls, one roll of each colour is enough." },
+        { "p": "**Packs.** Always round **up**. If the job needs 26 saddles and they come in packs of 10, order 3 packs: 2 packs would leave you 6 short and stop the job." },
+        { "h": "A materials list that works" },
+        { "table": { "head": ["Item", "Size or rating", "Type", "Qty"], "rows": [
+          ["Conductor, black (line)", "12 AWG (or 2.5 mm² where the job uses metric)", "THHN/THWN copper, in conduit", "28 m"],
+          ["PVC conduit", "20 mm (3/4 in)", "Rigid, sunlight-resistant for outdoor runs", "5 lengths"],
+          ["Breaker", "20 A, two-pole", "The make and type that fits this board", "1"],
+          ["Outlet", "20 A, 110 V, grounding type", "With weatherproof in-use cover for outdoor use", "2"]
+        ] } },
+        { "p": "Give the size, type and quantity of every item. 'Cable' or 'a breaker' on a list means someone will guess, and the wrong thing will arrive: the wrong size for the load, the wrong insulation for a wet place, or a breaker that does not fit the board." },
+        { "h": "Check the equipment suits Jamaica" },
+        { "p": "Check the **voltage and frequency** on the rating plate before anything is bought. Most Jamaican circuits are 110 V or 220 V at **50 Hz**. Much equipment sold in the region is made for 60 Hz. Some works on both, but some 60 Hz motors run slower and hotter on 50 Hz, and clocks and timers keep the wrong time. If the plate does not say 50 Hz, check with the maker or supplier." },
+        { "h": "Stock, delivery times and substitutes" },
+        { "ul": [
+          "Check what is already in the stores before you order.",
+          "Ask how long delivery takes. An item on back order can hold up the whole job.",
+          "If an item is not available, tell your supervisor and agree a substitute **in writing**: it must be equal to or better than the specification. Never force cables into a smaller conduit, or use a lower-rated part, because the right one has not arrived."
+        ] },
+        { "h": "Tools and test instruments to book" },
+        { "table": { "head": ["Instrument", "Used for"], "rows": [
+          ["Two-pole voltage tester and its proving unit", "Proving dead before work, and proving the tester before and after"],
+          ["Insulation resistance tester", "Checking the insulation of a new circuit before it is energised"],
+          ["Low-resistance ohmmeter (continuity tester)", "Checking that earth (grounding) conductors and other conductors are continuous"],
+          ["GFCI tester or outlet tester", "Live checks of GFCI trip and outlet wiring after the dead tests have passed"],
+          ["Clamp meter", "Measuring the load on an existing circuit, under supervision"],
+          ["Cable and pipe detector", "Checking walls and ceilings before drilling or chasing"],
+          ["Lock-off kit, padlocks, hasp and tags", "Safe isolation"]
+        ] } },
+        { "p": "Check that each instrument is in date for calibration and that the leads and probes are in good condition when you book it, not on the morning of the job." },
+        { "h": "Estimating the cost" },
+        { "p": "Cost = materials + labour + any other costs (equipment hire, transport), plus GCT at the current rate where it applies. **Worked example** (prices for teaching only): materials J$38,500; labour 6 hours at J$3,500 an hour = J$21,000; total before tax J$38,500 + J$21,000 = **J$59,500**." },
+        { "note": "Prices change often. Use the current price list or quotes from the supplier, and write the date of the prices on your estimate.", "label": "Tip" }
+      ]
+    },
+    {
+      "title": "Time, people and communication",
+      "blocks": [
+        { "h": "Estimating time" },
+        { "p": "Break the job into steps and estimate each one from past jobs, time sheets or your supervisor's experience. Add them up, then add **contingency**: spare time for the small problems that nearly always turn up, such as hard concrete, a seized screw or a delivery that is late. 10 to 20% is common for routine work." },
+        { "table": { "head": ["Step (replacing 6 ceiling fittings)", "Time"], "rows": [
+          ["Isolate, lock off and prove dead", "20 min"],
+          ["Remove old fittings: 6 × 10 min", "60 min"],
+          ["Fit and connect new fittings: 6 × 20 min", "120 min"],
+          ["Inspect and test", "30 min"],
+          ["Clean up and hand over", "15 min"],
+          ["Total", "245 min = 4 h 5 min"],
+          ["Plus 15% contingency (about 37 min)", "About 4 h 45 min"]
+        ] } },
+        { "h": "Fitting the work into the time allowed" },
+        { "p": "When the client can only allow the power off for a short time, split the dead work into **stages** that each fit the window, and do all the work that does not need the circuit dead (fixing boxes, running empty conduit, preparing cables) outside the window. If the job needs 5 hours dead and the power can be off for only 2½ hours each evening, plan two evenings, and make sure the installation is safe and working at the end of the first one." },
+        { "h": "A simple bar chart" },
+        { "table": { "head": ["Step", "Day 1 a.m.", "Day 1 p.m.", "Day 2 a.m.", "Day 2 p.m."], "rows": [
+          ["Fix boxes and conduit", "■■■", "■■", "–", "–"],
+          ["Draw in cables", "–", "■■", "■", "–"],
+          ["Hold point: inspect before ceiling closes", "–", "–", "▲", "–"],
+          ["Terminate accessories and board (circuit dead)", "–", "–", "■■", "■"],
+          ["Dead tests, energise, live checks", "–", "–", "–", "■■"],
+          ["Report and hand over", "–", "–", "–", "■"]
+        ] } },
+        { "p": "A bar (Gantt) chart shows each step against time, so everyone can see what should be finished by when, which steps overlap and where the hold points are. It is also the yardstick you measure progress against." },
+        { "h": "Working with other trades" },
+        { "table": { "head": ["Trade", "Agree"], "rows": [
+          ["Builders and plasterers", "First fix is finished, inspected and recorded before walls are plastered."],
+          ["Ceiling fixers", "Cables and boxes are in, inspected and labelled before the ceiling boards go up; access panels where junction boxes must stay reachable."],
+          ["Painters", "Chases are made good before painting; plates and fittings go on after painting, so they are not painted over."],
+          ["Air-conditioning installers and plumbers", "Who fits the isolator, who connects the unit, who does the commissioning, and on which day."]
+        ] } },
+        { "h": "Leading your team" },
+        { "ul": [
+          "Share tasks by what each person can do **safely**, not by who is fastest or who complains least. Pair a new trainee with an experienced one.",
+          "Brief the team before work starts: the steps, who does what, the circuit that is isolated, the hazards and the controls. Ask questions to check they understood.",
+          "Stay close for the risky steps: isolation, work at height and connections. Correct unsafe acts at once and explain why.",
+          "Check work at the hold points, and give feedback at the end of the day."
+        ] },
+        { "h": "Telling the client and the building's users" },
+        { "p": "A shutdown notice should say: the date and time the power will go off and come back, which areas or circuits are affected, what people should do before it (save work, switch off computers, move food from fridges if needed), and who to contact. Give it in good time, and remind people on the day." },
+        { "p": "For work at weekends or out of hours, plan **access** (keys, gate, alarm codes, the security guard told), **help nearby** (no one works alone on electrical work), a phone, first aid, and who to call if something goes wrong." },
+        { "note": "In Jamaica, check the dates for school exams, church services, market days and holidays before you fix a shutdown. In the hurricane season, have a plan for leaving the site safe at short notice if a storm warning is given.", "label": "Jamaica" }
+      ]
+    },
+    {
+      "title": "Monitoring, quality checks and dealing with change",
+      "blocks": [
+        { "h": "Checking progress" },
+        { "p": "Compare the work done with the schedule at **set times**: at the start of the day, at lunch and at the end of the day. Count something you can measure: boxes fixed, metres of conduit run, fittings connected. If the job is slipping, tell your supervisor early, while there is still time to bring in help or agree a new date. Bad news gets worse with age." },
+        { "h": "Planning the quality checks" },
+        { "p": "Plan the inspections and tests at the start, not at the end. Hidden work, such as cables above a ceiling or in a wall, must be inspected at a **hold point** while it can still be seen." },
+        { "table": { "head": ["Check", "What it proves", "When"], "rows": [
+          ["Visual inspection (circuit isolated)", "Right cable and breaker, cables supported and protected, sheaths into boxes, tight terminations, no bare copper, labels in place", "At hold points and at the end"],
+          ["Continuity of earth (grounding) conductors", "Every outlet, fitting and metal box is connected to earth, so a fault will trip the breaker", "Dead, before energising"],
+          ["Insulation resistance", "No breakdown between conductors or to earth that could cause shock or fire", "Dead, with sensitive equipment disconnected"],
+          ["Polarity", "Line, neutral and earth are on the right terminals; switches and breakers are in the line", "Dead, before energising"],
+          ["Live checks", "Correct voltage; GFCIs trip; everything works", "Only after every dead test has passed"]
+        ] } },
+        { "p": "All readings go on a **test sheet** with the circuit, the instrument used, the date and the tester's name, so they can be checked later." },
+        { "h": "When something unexpected turns up" },
+        { "flow": [
+          "Stop work on that part",
+          "Make it safe: isolate, lock off, tag, barrier if needed",
+          "Record what you found, with photos",
+          "Report to your supervisor, then the client, in plain words",
+          "Work out the extra work, materials, time and cost",
+          "Get the change agreed in writing",
+          "Update the plan and the schedule, and brief the team",
+          "Include it in the completion report"
+        ] },
+        { "table": { "head": ["What you find", "Why it matters", "Usual action"], "rows": [
+          ["An old circuit with no earth conductor", "A fault can leave metal cases live without tripping the breaker", "Report it and plan a proper remedy, such as a new earth conductor or rewiring. Never join earth to neutral, or to a water pipe."],
+          ["A cable chewed by rats", "Bare conductors can give a shock or start a fire", "Keep it isolated, replace the damaged length or cable, and protect the new route"],
+          ["A scorched terminal or breaker in the board", "A loose or overloaded connection that can start a fire", "Isolate, report and plan the repair; find out why it overheated"],
+          ["The planned route blocked by a new beam or tank stand", "Structural steel and concrete must not be drilled without the engineer's approval", "Find another safe route and get it agreed"],
+          ["A breaker larger than the cable allows", "The cable is not protected and can overheat", "Report it; plan to correct it"]
+        ] } },
+        { "h": "Changes asked for by the client" },
+        { "p": "Clients often ask for something different once work starts: a cheaper fitting, an extra light, a different position. Treat every change the same way: say what it involves, price the time and materials, and get it **agreed and recorded** (a written variation or change order, signed or confirmed by message) before you do it. If a request would break the code or the specification, say so politely, explain the danger, and offer a safe option." },
+        { "note": "Changes agreed by word of mouth are the most common cause of arguments over the bill at the end of a job. Write them down, even on a small job.", "label": "Tip" }
+      ]
+    },
+    {
+      "title": "Finishing, reporting and reviewing",
+      "blocks": [
+        { "h": "Finishing the job" },
+        { "flow": [
+          "Final inspection of all the work",
+          "Dead tests completed and recorded",
+          "Tools counted; nothing left inside boards or boxes",
+          "Covers, blanks and plates fitted",
+          "Area cleaned and surfaces made good",
+          "Each person removes their own lock when everyone is clear",
+          "Energise with everyone told; carry out live checks",
+          "Update the board schedule and labels",
+          "Hand over and get the job card signed"
+        ] },
+        { "p": "The **board schedule** must show the new circuit and what it feeds, with any spare ways marked as spare. A board with a wrong schedule is a trap for the next electrician." },
+        { "h": "The completion report" },
+        { "table": { "head": ["Include", "Why"], "rows": [
+          ["What was done, where, on which circuits, and on which dates", "A clear record of the work"],
+          ["Test results, or the test sheet attached", "Proof the work is safe, for the client and the inspector"],
+          ["Defects found but not fixed, and why", "The client knows what still needs attention"],
+          ["Advice, such as a circuit near its limit or an old board", "Helps the client plan and stay safe"],
+          ["Changes agreed during the job", "Matches the bill to what was agreed"],
+          ["Materials used and hours worked", "For costing, and for planning the next job"]
+        ] } },
+        { "h": "Handing over" },
+        { "p": "Show the client what was done. Explain any new breakers, isolators and GFCIs, and how to test a GFCI with its button. Give them the updated board schedule, the test sheet and any makers' instructions and warranties. Answer their questions, then get the job card signed." },
+        { "h": "Reviewing the job" },
+        { "p": "After the job, compare what happened with what was planned: time, materials, cost and quality. Ask what went well, what took longer than planned and **why**, and what was missing from the plan. The aim is a better next plan, not blame." },
+        { "p": "**Example.** A job planned for 6 hours took 8 hours: (8 − 6) ÷ 6 × 100 = **33%** over. The reason was harder concrete than expected, and only a light drill on site. Lesson for next time: on concrete slabs, book a rotary hammer drill and allow more time per fixing." },
+        { "note": "Keep your own record of how long common tasks really take: fixing a box in block, terminating a board, testing a circuit. Over a year it becomes your most accurate estimating tool.", "label": "Tip" }
+      ]
+    },
+    {
+      "title": "Revision",
+      "blocks": [
+        { "h": "Checklist" },
+        { "p": "Tick each statement only when you can do it without looking at the notes." },
+        { "ul": [
+          "I can read a work order and say what is missing from it.",
+          "I can work out the current of a load with I = P ÷ V and decide whether a circuit can take more.",
+          "I can explain what a maker means by 'dedicated circuit', 'maximum breaker' and 'minimum circuit ampacity'.",
+          "I can deal with documents that disagree by getting a written ruling.",
+          "I can put competing jobs in order of priority.",
+          "I can carry out a site survey and record it with a sketch, measurements and photos.",
+          "I can write a method statement with the steps in a safe, logical order.",
+          "I can explain first fix, second fix, make good, hold point and contingency.",
+          "I can write a risk assessment and choose access equipment and PPE for a task.",
+          "I can write a safe isolation plan, including shutdowns, other sources of supply and multiple locks.",
+          "I can take off quantities, add allowances and round up to packs.",
+          "I can check that equipment suits a 110 V or 220 V, 50 Hz supply.",
+          "I can estimate time with contingency and draw a simple bar chart.",
+          "I can plan the work around the client and other trades, and write a shutdown notice.",
+          "I can share tasks in a team by what each person can do safely.",
+          "I can check progress against the schedule and plan the inspections and tests.",
+          "I can handle an unexpected problem or a client's change in the right order.",
+          "I can write a completion report, hand over, and review a job."
+        ] },
+        { "h": "Numbers and formulas to remember" },
+        { "table": { "head": ["Figure or formula", "What it is for"], "rows": [
+          ["I = P ÷ V; P = V × I", "Current from power, and power from current"],
+          ["80% of the breaker rating", "Most continuous load a breaker should carry under NEC rules (16 A on a 20 A breaker)"],
+          ["10 to 20%", "Usual waste allowance on cable, and usual contingency on time"],
+          ["Round up", "Packs and rolls of materials"],
+          ["(actual − planned) ÷ planned × 100", "Percentage overrun on time or cost"],
+          ["110 V / 220 V, 50 Hz", "The JPS supply that equipment must match"]
+        ] } },
+        { "h": "Key terms" },
+        { "terms": [
+          ["As-built (record) drawing", "A drawing that shows the installation as it was really built."],
+          ["Board (panel) schedule", "The chart, usually inside the board door, listing each circuit and what it feeds."],
+          ["Commissioning", "Setting up equipment and proving it works as intended."],
+          ["Contingency", "Spare time or money in a plan for problems that usually turn up."],
+          ["Continuous load", "A load expected to run at its maximum for 3 hours or more."],
+          ["Dedicated circuit", "A circuit that feeds one item of equipment and nothing else."],
+          ["First fix", "Installing boxes, conduit and cables before the finishes; also called rough-in."],
+          ["Hold point", "A stage where work stops until it is inspected or approved."],
+          ["Job card / work order", "The instruction that starts a job and is signed off when it is finished."],
+          ["Lock-off device", "A device fitted to a breaker or isolator so a padlock can hold it off."],
+          ["Make good", "Repair disturbed surfaces so they are neat again."],
+          ["Method statement", "A written plan of the steps of a job, in order, and how each is done safely."],
+          ["Multi-lock hasp", "A clasp that takes several padlocks, so each worker can lock the same isolator."],
+          ["Permit to work", "A signed form that controls who may work on a high-risk system, when, and how it has been made safe."],
+          ["Proving unit", "A device that gives a known voltage, to show a tester works before and after proving dead."],
+          ["Request for information (RFI)", "A written question to the designer or client when documents are unclear or disagree."],
+          ["Risk assessment", "A written list of a job's hazards, who could be harmed and the controls."],
+          ["Second fix", "Connecting accessories, fittings and the board after the finishes; also called trim-out."],
+          ["Site survey", "A visit before planning to see and measure the real conditions."],
+          ["Variation (change order)", "A written, agreed change to the work, its price or its time."]
+        ] }
+      ]
+    }
+  ],
+  "cases": {
+    "c1": { "title": "Outlets for a computer lab in Lucea", "text": "Tajay Morrison, a Level 3 trainee, is planning a job at a high school in Lucea, Hanover. The work order reads: 'Install 8 double 110 V outlets in the computer lab for 8 desktop computers and one laser printer. Finish before end-of-term exams in three weeks.' The lab's board has two spare ways. Each computer takes about 150 W. The printer's data sheet gives 900 W when printing and says 'connect to a dedicated circuit'. The school will allow work only on Saturdays and after 3:30 p.m. on weekdays." },
+    "c2": { "title": "An air-conditioning circuit at a Highgate credit union", "text": "Electrician Mrs Claudette Rowe asks Level 3 trainee Andre Gordon to plan a new circuit for a split air-conditioner in the manager's office of a credit union in Highgate, St Mary. The unit's data plate reads: 220 V, 50 Hz; minimum circuit ampacity 16 A; maximum breaker 25 A. Connecting the new breaker means the whole main board must be dead for about two hours. The board also feeds the server cabinet, which runs through a UPS. The outdoor unit will sit on a bracket 3.5 m up the back wall, above the path to the staff car park." },
+    "c3": { "title": "Staged rewiring at a Lacovia basic school", "text": "Mr Desmond Bryan leads three trainees replacing the old wiring in a basic school in Lacovia, St Elizabeth: four classrooms and an office, each with its own circuits. Each classroom needs about 6 working hours with its circuits dead. Classes run from 8:00 a.m. to 2:00 p.m., Monday to Friday, and the principal wants the work finished within two weeks without closing the school. The new cables go in chases cut in the block walls. Painters are booked to paint every room in the second week. One trainee, Kemar, joined the Centre last week." },
+    "c4": { "title": "Surprises at a Discovery Bay guest house", "text": "Trainee team leader Shanique Barrett and two trainees are replacing six ceiling lights and adding two outlets in a guest house at Discovery Bay, St Ann. The plan allowed one day. When they open the ceiling, they find a lighting cable chewed through by rats in two places, and an old outlet circuit with no earth (grounding) conductor. Later the owner asks them to add a light on the veranda that was not in the work order." },
+    "c5": { "title": "Closing out a pump circuit in Grange Hill", "text": "Trainee Rohan Clarke has finished a new 220 V circuit and isolator for a water pump at a farm shop in Grange Hill, Westmoreland. The plan allowed 6 hours of work and J$42,000 of materials. The job took 9 hours and J$47,500, because a water tank stand had been built across the planned cable route since the survey, and the cable had to take a longer way. All his tests passed. The owner, Mrs Henry, will run the pump herself." }
+  },
+  "questions": [
+    { "id": "P-01", "c": "c1", "q": "What does 'connect to a dedicated circuit' on the printer's data sheet mean for Tajay's plan?", "o": ["The printer must be fed from a 220 V outlet in the lab", "The printer needs a circuit that feeds nothing else", "The printer outlet must have a GFCI of its own fitted", "The printer must share a breaker with the lab lights"], "a": 1, "why": "A dedicated circuit has its own breaker and feeds one item only. Makers ask for it when a load is large or starts with a surge, so that other loads cannot overload the circuit or upset the equipment." },
+    { "id": "P-02", "c": "c1", "q": "About how much current will the 8 computers draw together?", "o": ["About 1.4 A", "About 13.6 A", "About 19.1 A", "About 10.9 A"], "a": 3, "why": "8 × 150 W = 1,200 W, and I = P ÷ V = 1,200 ÷ 110 = 10.9 A. The 19.1 A figure wrongly adds the 900 W printer, which must have its own circuit anyway." },
+    { "id": "P-03", "c": "c1", "q": "The board has two spare ways. Which plan for the new circuits is best?", "o": ["One new circuit for all 8 outlets and the printer", "Use one spare way and feed the printer from the lights", "One new circuit for the printer, one for the computers", "Add the printer to the corridor outlet circuit"], "a": 2, "why": "The printer needs a dedicated circuit, and the computers' 10.9 A sits well inside a 20 A circuit with room to spare. All the loads together, about 19.1 A, would be above the 16 A the NEC allows for a continuous load on a 20 A breaker." },
+    { "id": "P-04", "c": "c1", "q": "Tajay estimates 16 hours of work, of which 5 need the lab's board dead. How should he plan it around the school's hours?", "o": ["First fix on weekday afternoons; connections and tests on a Saturday", "All 16 hours over the last weekend before the exams, working both days", "Work through two school days while the classes carry on round the team", "Fit everything in the afternoons, then test after the exams are over"], "a": 0, "why": "Work that does not need the board dead can be done in the weekday windows; the dead work fits a Saturday. That leaves time to put right any problem before the exams. Leaving the job to the last weekend, or the tests until after the exams, puts the deadline and safety at risk." },
+    { "id": "P-05", "c": "c2", "q": "Which breaker suits the air-conditioner's data plate?", "o": ["A 30 A two-pole breaker", "A 20 A two-pole breaker", "A 20 A single-pole breaker", "A 15 A two-pole breaker"], "a": 1, "why": "A 220 V load needs a two-pole breaker so both lines are switched together. It must not exceed the 25 A maximum on the plate, and it must not be below the 16 A minimum circuit ampacity, or it may trip in normal use. 20 A two-pole meets both." },
+    { "id": "P-06", "c": "c2", "q": "The main board must be dead for about two hours. What must Andre's plan include for the server cabinet?", "o": ["Nothing, as the UPS will carry the server for the whole two hours", "Leave the server breaker on and work around it with insulated tools", "An agreed time with the manager, and a check of the UPS run time", "Unplug the UPS first so its battery is not run down by the outage"], "a": 2, "why": "A UPS usually carries its load for minutes, not hours. The plan must agree the shutdown time with the manager and check the UPS run time, so the server can be shut down properly or kept running some other way. Working around a live breaker is not safe isolation." },
+    { "id": "P-07", "c": "c2", "q": "Why should Andre plan a lockable isolator (disconnect) beside the outdoor unit as well as the breaker in the board?", "o": ["So the unit can be switched off at night to save power", "So a technician can isolate it where he can see it", "So the breaker in the board can be smaller than the plate says", "So the outdoor unit runs on 110 V while the isolator is off"], "a": 1, "why": "Someone servicing the outdoor unit needs to isolate it within sight and lock it off, so nobody in the building can switch it on while they work. The NEC asks for a disconnect within sight of air-conditioning equipment." },
+    { "id": "P-08", "c": "c2", "q": "The outdoor unit is fixed 3.5 m up, above the path to the car park. Which control is most important in Andre's risk assessment?", "o": ["Work fast at lunch time, when fewer staff walk along the path", "Ask a staff member to shout a warning when people pass below", "Stand the ladder on the sloping car-park ramp for extra height", "Close the path with barriers and use a tower or tied ladder"], "a": 3, "why": "The hazards are a fall from height and tools or parts dropping on people below. Barriers keep people out of the drop zone, and a tower scaffold or a properly tied ladder gives a safe place to work. Relying on timing or a shouted warning does not control either hazard." },
+    { "id": "P-09", "c": "c3", "q": "Which sequence lets Mr Bryan rewire the school without closing it?", "o": ["Switch off the main for two weeks and rewire every room at once", "Do one classroom at a time, after classes, with only it dead", "Do a little in all four classrooms each afternoon until all are done", "Rewire the classrooms live while classes carry on in the other rooms"], "a": 1, "why": "Staging the work one room at a time keeps the rest of the school working, and doing it after classes keeps children away from the work. Working a little in every room leaves all four rooms half-finished and unsafe at once." },
+    { "id": "P-10", "c": "c3", "q": "Which job must the electricians finish in each room before the painters arrive?", "o": ["Fit all the outlet plates and switch plates to the boxes", "Switch on the new circuits and test each of them live", "Fill and smooth the chases, ready for the paint", "Take out the boxes so the painters have flat walls"], "a": 2, "why": "Making good the chases is the electricians' job and must be done before painting. Plates and fittings go on after painting, so they are not painted over, and circuits are energised only after the dead tests have passed." },
+    { "id": "P-11", "c": "c3", "q": "Mr Bryan estimates 30 working hours for the whole job and adds 15% contingency. About how many hours should the schedule allow?", "o": ["31.5 hours", "45 hours", "30.15 hours", "34.5 hours"], "a": 3, "why": "15% of 30 is 0.15 × 30 = 4.5 hours, so the schedule allows 30 + 4.5 = 34.5 hours. Contingency covers the small problems that usually turn up, such as hard block or a late delivery." },
+    { "id": "P-12", "c": "c3", "q": "Which task suits Kemar best on his first day with the team?", "o": ["Locking off and proving the classroom circuits dead", "Fixing boxes beside an experienced trainee", "Terminating the new office board on his own", "Testing the finished circuits for the test sheet"], "a": 1, "why": "A team leader shares tasks by what each person can do safely. Kemar can learn by fixing boxes under close watch. Isolation, termination and testing need skills he has not yet shown, and errors there can kill or leave hidden faults." },
+    { "id": "P-13", "c": "c4", "q": "What should Shanique do first about the cable the rats have chewed?", "o": ["Keep that circuit locked off and photograph the damage", "Wrap the bare places in tape so the day's plan stays on time", "Finish the new lights first and mention it at hand-over", "Switch the circuit on to see whether the lights still work"], "a": 0, "why": "Damaged cable with bare conductors can give a shock or start a fire. Keep it isolated, record it, then report it so a repair can be agreed. Taping over the damage hides it, and switching on could start a fire or shock someone." },
+    { "id": "P-14", "c": "c4", "q": "A trainee suggests joining the earth terminals of the old outlets to the neutral, as there is no earth conductor. Why is this dangerous?", "o": ["It doubles the voltage at each of the old outlets in the room", "It makes the breaker trip each time an appliance is started", "If the neutral breaks, connected metal cases can go live", "It makes each outlet draw current even when nothing is on"], "a": 2, "why": "Joined to the neutral, every metal case carries the neutral's voltage. If the neutral breaks or comes loose, the cases rise to full line voltage with nothing to trip. The fault must be reported and a proper remedy, such as a new earth conductor, agreed." },
+    { "id": "P-15", "c": "c4", "q": "What is the right way to handle the owner's request for an extra veranda light?", "o": ["Fit it today without paperwork, since the owner is paying for the job", "Refuse to do it, because it is not on the original work order", "Fit it now, then add the cost to the bill at the end of the job", "Price it and get it agreed in writing before fitting it"], "a": 3, "why": "Every change is priced and agreed in writing before the work is done, so there is no argument later about cost or time. Refusing outright loses a reasonable request; fitting first and billing later invites a dispute." },
+    { "id": "P-16", "c": "c4", "q": "With the rat damage and the missing earth, the one-day plan cannot be met. What should Shanique do?", "o": ["Tell her supervisor now and agree a new plan", "Keep quiet and work late until everything is finished", "Leave the extra problems for another team to find later", "Send the two trainees home and carry on by herself"], "a": 0, "why": "When a job is slipping, the leader reports early so the supervisor and client can agree extra time, materials or help. Working late without telling anyone leads to tired mistakes, and working alone on electrical work is unsafe." },
+    { "id": "P-17", "c": "c5", "q": "By what percentage did Rohan's job overrun its planned time?", "o": ["33%", "150%", "3%", "50%"], "a": 3, "why": "Overrun = (actual − planned) ÷ planned × 100 = (9 − 6) ÷ 6 × 100 = 50%. Dividing by the actual 9 hours instead of the planned 6 gives the wrong figure of 33%." },
+    { "id": "P-18", "c": "c5", "q": "In the job review, which lesson would most improve Rohan's next plan?", "o": ["Allow 50% extra time on every job from now on", "Order twice as much cable as each job needs", "Check the route again shortly before ordering", "Skip the survey on small jobs to save a day"], "a": 2, "why": "The overrun came from a site change after the survey. Re-checking the route just before ordering and starting would have caught it. Padding every job, or every order, by a fixed amount wastes money and does not deal with the cause." },
+    { "id": "P-19", "c": "c5", "q": "At hand-over, what should Rohan make sure Mrs Henry understands?", "o": ["How the cable was sized from the code tables", "How to switch off and lock the pump isolator", "Which wire colours he used inside the board", "How many metres of conduit the job used"], "a": 1, "why": "Mrs Henry will run the pump, so she must know how to isolate it safely, for example before a plumber works on it, and which breaker feeds it. Design details and colours belong in the records, not in her daily use." },
+    { "id": "P-20", "c": null, "q": "Which planning document sets out the work steps in order, with the tools and the isolation and testing method?", "o": ["The method statement", "The risk assessment form", "The job card", "The materials list"], "a": 0, "why": "The method statement says how the job will be done, step by step. The risk assessment lists hazards and controls, the job card says what is wanted and where, and the materials list says what to buy; a routine task needs all of them." }
+  ]
+}

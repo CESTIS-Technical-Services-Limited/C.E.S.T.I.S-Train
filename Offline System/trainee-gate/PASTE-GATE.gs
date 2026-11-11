@@ -5723,6 +5723,8 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
           // Checked again from an inbox: the gatekeeper held the slice then.
           if (rec.status !== 'pending' && rec.status !== 'cancelled') return verdict(item, false, { reason: 'not-pending' });
         } else if (known) {
+          // A request the office deleted stays deleted, whatever her device still holds.
+          if (known.deleted === true) return verdict(item, true, { key: key, known: true });
           // The trainee may only withdraw a request still waiting.
           if (known.status !== 'pending') return verdict(item, false, { reason: 'not-pending' });
           if (rec.status !== 'cancelled' && rec.status !== 'pending') return verdict(item, false, { reason: 'not-pending' });

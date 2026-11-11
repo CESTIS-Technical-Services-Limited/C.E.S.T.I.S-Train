@@ -1,0 +1,433 @@
+{
+  "format": "cestis-study-kit",
+  "version": 1,
+  "status": "to-check",
+  "written": "2026-11-07",
+  "programme": "Electrical Installation",
+  "qualification": { "id": "QUAL-EIM-L2", "title": "ELECTRICAL INSTALLATION AND MAINTENANCE LEVEL 2", "code": "EEM20723" },
+  "level": 2,
+  "unit": { "code": "EEMEDR0012B", "title": "Use electrical software to draw simple circuits" },
+  "summary": "This unit teaches you to draw simple electrical circuits on a computer with electrical drawing software. You will learn to work safely at the computer, plan a drawing, set up the page and title block, place standard symbols from the library, join and label them correctly, and draw lighting circuits and a motor start/stop circuit. You will also learn to check, save, print and share your drawings so that others can use them.",
+  "sections": [
+    {
+      "title": "Unit overview",
+      "blocks": [
+        { "p": "Most electrical drawings are now produced on a computer. Electrical drawing software has ready-made symbols, keeps wires joined when you move parts, and makes changes, copies and printing quick. This unit is for Level 2 trainees. It builds on the drawing unit EEMEDR0011B: you must already know what the symbols mean and how a circuit works. Here you learn to produce those drawings with software, neatly, correctly and in a form others can trust." },
+        { "h": "What you must be able to do" },
+        { "table": { "head": ["Task", "What it looks like on the job"], "rows": [
+          ["Work safely at the computer", "Set up the chair, screen, keyboard and mouse; take breaks; keep food, drink and damaged equipment away from the computer."],
+          ["Plan the drawing", "Read the brief and sketch, list the parts and their ratings, choose the kind of drawing and plan where each part goes."],
+          ["Set up the drawing", "Start from the Centre's template or set the page size, units, border and title block; turn on the grid and snap; use layers."],
+          ["Use the software's tools", "Zoom, pan, select, copy, move, rotate, mirror, delete, undo and cancel; place text."],
+          ["Place standard symbols", "Pick the correct symbol for each part from the symbol library, all from one standard."],
+          ["Join and label the circuit", "Draw straight wires with square corners that end exactly on connection points, add junction dots only at joins, and give each part a label, a rating and wire numbers."],
+          ["Draw simple circuits", "Draw one-way, two-way and intermediate lighting circuits, an outlet circuit, and the power and control circuits of a direct-on-line motor starter."],
+          ["Save and manage files", "Save often with clear names and revisions, in the right folder, with a backup."],
+          ["Check, print and share", "Check the drawing against the brief, have it checked, print it to fit the page and export a print-ready copy (PDF)."]
+        ] } },
+        { "h": "About the software" },
+        { "p": "Centres and companies use different programs: general CAD programs with electrical symbol libraries, programs made only for electrical schematics, and some that can simulate a circuit. They look different but work in much the same way, and the skills in this kit carry over from one to another. Your instructor will show you the program the Centre uses. Do not install other software on the Centre's computers." },
+        { "note": "The program draws what you tell it to. It will happily draw a switch in the neutral or a wire that is not really joined. **You** are responsible for the drawing being right.", "label": "Remember" }
+      ]
+    },
+    {
+      "title": "Working safely and healthily at the computer",
+      "blocks": [
+        { "p": "Drawing on a computer means long hours sitting still, looking at a screen and using a mouse. Set up your workstation properly every time, or you risk a stiff neck, back pain, sore wrists and tired eyes." },
+        { "h": "Setting up the workstation" },
+        { "table": { "head": ["Item", "Good set-up", "Why"], "rows": [
+          ["Chair", "Adjust the height so your feet are flat on the floor (or on a footrest) and your knees are at about a right angle. Sit back so the backrest supports your lower back.", "Stops back and leg strain"],
+          ["Screen height", "The top of the screen at, or slightly below, eye level", "You look slightly down without bending your neck"],
+          ["Screen distance", "About an arm's length away (roughly 50 to 70 cm)", "Your eyes do not strain to focus"],
+          ["Glare", "Screen side-on to windows, not facing them or with them behind it; adjust brightness to suit the room", "Reflections and glare tire the eyes"],
+          ["Keyboard and mouse", "Close to you, at elbow height, so your elbows stay by your sides and your wrists stay straight", "Prevents wrist, arm and shoulder pain"],
+          ["Text size", "Zoom in, or increase text size, rather than leaning towards the screen", "Leaning forward strains the neck and back"]
+        ] } },
+        { "h": "Breaks and eye rest" },
+        { "ul": [
+          "Take a **short break of a few minutes about every hour**: stand up, stretch and walk about. Changing to a different task, such as checking a printout, also helps.",
+          "Every so often look away from the screen at something far away, such as through a window, to rest your eyes. Remember to blink.",
+          "Do not wait until your eyes or back hurt before you take a break."
+        ] },
+        { "h": "Electrical and general safety" },
+        { "table": { "head": ["Hazard", "What to do"], "rows": [
+          ["Food and drink near the computer", "Keep them away from the desk. A spilled drink can damage the keyboard or computer and, if it reaches a power strip or plug, cause a shock or a fire."],
+          ["Damaged plug, lead or power strip", "Do not use it. Switch off at the wall outlet if it is safe to do so, and report it to the instructor. Never tape it up."],
+          ["Power strips plugged into each other ('daisy-chained') or overloaded", "Do not add to them. Report them so they can be replaced with proper outlets or a single suitable strip."],
+          ["Cables across the floor", "Keep cables tidy and off walkways so nobody trips or pulls a computer off the desk."],
+          ["Overheating equipment", "Keep vents clear; report a computer, charger or strip that is hot or smells of burning."],
+          ["Viruses and lost work", "Use only the Centre's storage and approved USB drives; do not open unknown files or install software."]
+        ] } },
+        { "note": "Power cuts, dips and lightning surges are common in Jamaica, especially in thunderstorm season. **Save your work every few minutes** so a sudden cut costs you little. Many computer rooms use surge protectors or UPS units (battery back-up) that give time to save and shut down. During a severe lightning storm follow the Centre's rules, which may be to save, shut down and unplug.", "label": "Jamaica" }
+      ]
+    },
+    {
+      "title": "Planning before you draw",
+      "blocks": [
+        { "p": "Five minutes of planning saves an hour of moving symbols and redrawing wires. Do not start placing symbols until you know what the drawing must show." },
+        { "flow": [
+          "Read the job brief and study the hand sketch or notes",
+          "List every part: supply, protective devices, switches, lamps, outlets, contactors, motors, earth",
+          "Write down each part's rating: breaker size, lamp type, voltage, motor power",
+          "Decide what kind of drawing is needed",
+          "Choose the page size and direction (usually A3 or A4, landscape)",
+          "Sketch roughly where each part will go so wires cross as little as possible",
+          "Decide the labels and the file name"
+        ] },
+        { "h": "Which kind of drawing?" },
+        { "table": { "head": ["Drawing", "Shows", "Use it when"], "rows": [
+          ["Circuit diagram (schematic)", "How the parts are connected and how the circuit works, with symbols and straight lines; not where the parts are", "Designing, explaining or fault-finding a circuit"],
+          ["Ladder diagram", "A control circuit drawn between two upright supply lines, with each path drawn as a rung across them", "Motor control, relays and alarms"],
+          ["Wiring (connection) diagram", "Each terminal and the wire connected to it, often with wire numbers, laid out as the equipment is", "Wiring and checking a panel, a machine or an accessory"],
+          ["Layout plan", "Where lights, switches, outlets and boards go in a building, usually to scale", "Marking out on site and listing materials"],
+          ["Block diagram", "The main parts of a system as boxes with arrows", "Explaining a whole system simply"]
+        ] } },
+        { "h": "Laying out the parts" },
+        { "ul": [
+          "Put the supply on the left (or at the top), and let the circuit read left to right (or top to bottom).",
+          "Place parts in the order the current passes through them: supply, protective device, switch, load, return.",
+          "Line up similar parts, such as a row of lamps, so their wires can run straight and parallel.",
+          "Leave space around each symbol for its label, rating and wire numbers.",
+          "Keep a clear area for the title block and any notes."
+        ] }
+      ]
+    },
+    {
+      "title": "The software and its basic tools",
+      "blocks": [
+        { "h": "Parts of the screen" },
+        { "table": { "head": ["Part", "What it is for"], "rows": [
+          ["Menu bar or ribbon", "All the commands, grouped under headings such as File, Edit, View, Insert"],
+          ["Toolbars", "Buttons for the commands you use most, such as wire, text, zoom and undo"],
+          ["Drawing area", "The page you draw on, often with a grid of dots or lines"],
+          ["Symbol library (palette)", "The collection of ready-made symbols, sorted into groups such as switches, lamps, protection and motors"],
+          ["Properties panel", "Shows and lets you change the details of what you have selected: label, rating, layer, line type"],
+          ["Status bar or command line", "Shows the cursor position, the command you are in, and settings such as grid and snap"],
+          ["Layers panel", "Lists the layers and lets you show, hide or lock each one"]
+        ] } },
+        { "h": "Basic commands" },
+        { "table": { "head": ["Command", "What it does", "Tip"], "rows": [
+          ["Zoom in / out", "Makes the **view** on the screen bigger or smaller", "Changes only what you see, never the size of the drawing or the print. The mouse wheel usually zooms."],
+          ["Pan", "Slides the view across the page without changing it", "Often done by holding down the mouse wheel and dragging"],
+          ["Zoom to page (zoom extents)", "Shows the whole drawing on screen", "Use it to check the overall layout"],
+          ["Select", "Picks items so a command can act on them", "Click one item, or drag a box round several"],
+          ["Move", "Moves selected items", "Wires attached to a symbol should follow it; check that they do"],
+          ["Copy and paste", "Makes another copy of selected items", "Quick for repeated symbols; give each copy its own label"],
+          ["Rotate", "Turns an item, usually in steps of 90°", "For a symbol facing the wrong way"],
+          ["Mirror (flip)", "Makes a mirror image of an item", "Check that terminal labels still read correctly"],
+          ["Delete", "Removes selected items", "Make sure only what you meant is selected"],
+          ["Undo / redo", "Takes back the last action / puts it back", "Undo can usually be pressed many times"],
+          ["Cancel", "Stops a command you started by mistake", "Press Esc"],
+          ["Text", "Adds labels and notes", "Use the drawing's text style and size"]
+        ] } },
+        { "h": "Keyboard shortcuts found in most programs" },
+        { "table": { "head": ["Keys", "Action"], "rows": [
+          ["Ctrl + S", "Save"],
+          ["Ctrl + Z", "Undo the last action"],
+          ["Ctrl + Y (or Ctrl + Shift + Z)", "Redo"],
+          ["Ctrl + C / Ctrl + X / Ctrl + V", "Copy / cut / paste"],
+          ["Ctrl + A", "Select all"],
+          ["Ctrl + P", "Print"],
+          ["Esc", "Cancel the current command"],
+          ["Delete", "Delete what is selected"]
+        ] } },
+        { "p": "Other keys, such as the function keys that turn the grid and snap on and off, differ between programs. Your instructor will give you the list for the Centre's software." },
+        { "h": "Grid and snap" },
+        { "p": "The **grid** is a pattern of dots or lines on the drawing area at a fixed spacing, such as 2.5 mm or 5 mm. With **snap** turned on, the cursor jumps to the nearest grid point. Symbols and their connection points are made to sit on the grid, so wire ends land exactly on them and the software treats them as joined. Snap also keeps wires straight and evenly spaced. Many programs also have an **ortho** setting that keeps lines horizontal or vertical." },
+        { "h": "Layers" },
+        { "p": "A **layer** is like a sheet of clear film laid over the drawing. Each item is put on a layer, and a whole layer can be shown, hidden, locked or printed in its own colour or line weight. For example: 'Border and title', 'Lighting', 'Power', 'Text', 'Notes'. You can then hide the power circuits when printing a lighting sheet, or lock the title block so it cannot be moved by mistake." },
+        { "h": "Templates" },
+        { "p": "A **template** is a ready-made starting file with the page size, units, border, title block, layers and text styles already set. Starting from the Centre's template saves time and makes every drawing look the same. Open the template, then **save it straight away under your own file name**, so that you do not change the template itself." },
+        { "note": "Set the page size and units (millimetres) at the start, or let the template do it. If you change them after drawing, symbols and text can end up the wrong size, and the drawing may not fit or print to size.", "label": "Tip" }
+      ]
+    },
+    {
+      "title": "Symbols and the symbol library",
+      "blocks": [
+        { "p": "Use the standard symbols from the software's **symbol library**. Do not draw your own from lines and circles: home-made symbols vary in size, have no proper connection points, and may not be understood. Use one standard (usually IEC in the Centre's drawings) for the whole drawing, and add a legend if any symbol could be misread." },
+        { "h": "Common symbols" },
+        { "table": { "head": ["Part", "IEC symbol", "American symbol, where different"], "rows": [
+          ["Earth (ground)", "Short upright line with three horizontal lines below, each shorter than the one above", "Same"],
+          ["Cell / battery", "Long thin line (+) and short thick line (−); a battery has more than one cell", "Same"],
+          ["Fuse", "Rectangle with a line through its length", "S-shaped curve, often inside a rectangle"],
+          ["Circuit breaker", "Switch symbol with a small cross at the contact", "Switch with a curved arc over it"],
+          ["Switch, open", "Break in the line with a short arm drawn at an angle across the gap", "Same idea"],
+          ["Lamp", "Circle with a cross (X) inside", "Circle with rays, or the same as IEC"],
+          ["Resistor", "Rectangle", "Zigzag line"],
+          ["Capacitor", "Two equal parallel lines with a small gap", "Same (a curved plate for polarised)"],
+          ["Diode", "Triangle pointing at a short bar: current flows only in the direction the triangle points", "Same; an LED adds two small arrows pointing out"],
+          ["Motor", "Circle with M (and 1~ or 3~ for the supply)", "Circle with MOT or M"],
+          ["Transformer", "Two coils side by side, or two overlapping circles", "Two coils with core lines"]
+        ] } },
+        { "h": "Control circuit symbols" },
+        { "table": { "head": ["Part", "IEC symbol", "American (ladder) symbol"], "rows": [
+          ["Normally open (NO) contact", "Moving arm drawn clear of the fixed contact: open until operated", "Two short parallel upright lines: | |"],
+          ["Normally closed (NC) contact", "Moving arm drawn touching the fixed contact, with a short bar at right angles: closed until operated", "Two parallel lines with a slash across: |/|"],
+          ["Push button, NO (start)", "NO contact with a push actuator drawn on it", "A bridge drawn above two contacts"],
+          ["Push button, NC (stop)", "NC contact with a push actuator", "A bridge drawn below, touching two contacts"],
+          ["Contactor or relay coil", "A rectangle with two connections, labelled K1 and so on", "A circle labelled M, CR and so on"],
+          ["Overload relay", "A heater element in the power circuit; an NC contact (95-96) in the control circuit", "OL heaters and an OL contact"],
+          ["Indicator lamp", "A circle with a cross, labelled H1 and so on, often with its colour", "A circle with rays, or a circle marked R or G"]
+        ] } },
+        { "p": "**Normal** means the state of a contact when nothing is operating it: the button is not pressed and the coil is not energised. Contacts are always drawn in that normal state." },
+        { "h": "Labels (reference letters)" },
+        { "table": { "head": ["Letter", "Usual parts", "Examples"], "rows": [
+          ["F", "Fuses and protective devices, including overload relays", "F1 fuse, F2 overload relay"],
+          ["Q", "Circuit breakers, isolators and main switching devices", "Q1 isolator"],
+          ["K", "Contactors and relays: the coil **and all its contacts** share one label", "K1 coil, K1 13-14 contact"],
+          ["S", "Switches and push buttons", "S0 stop, S1 start"],
+          ["H (or E for lighting lamps)", "Indicator and signal lamps; lamps for lighting", "H1 running lamp, E1 to E3 battens"],
+          ["M", "Motors", "M1 pump motor"],
+          ["T", "Transformers", "T1 control transformer"],
+          ["X", "Terminals and terminal strips", "X1"]
+        ] } },
+        { "note": "These letters follow common IEC practice, but offices differ, and American drawings use other codes (M for a starter coil, OL for overloads, PB for push buttons, CR for control relays). Use the codes in the Centre's drawing standard, and the same codes throughout a drawing.", "label": "Remember" },
+        { "h": "Terminal numbers on contactors" },
+        { "table": { "head": ["Marking", "Meaning"], "rows": [
+          ["A1 and A2", "The two ends of a contactor or relay coil"],
+          ["1-2, 3-4, 5-6 (or L1-T1, L2-T2, L3-T3)", "Main (power) contacts"],
+          ["13-14, 23-24 ...", "Auxiliary contacts ending in 3-4 are normally open"],
+          ["11-12, 21-22 ...", "Auxiliary contacts ending in 1-2 are normally closed"],
+          ["95-96 / 97-98", "Overload relay contact: normally closed / normally open"]
+        ] } }
+      ]
+    },
+    {
+      "title": "Placing, joining and labelling",
+      "blocks": [
+        { "h": "Placing symbols" },
+        { "flow": [
+          "Turn on the grid and snap",
+          "Pick the symbol from the library",
+          "Place it on the grid in the planned position",
+          "Rotate or mirror it if it faces the wrong way",
+          "Fill in its label and rating in the properties box",
+          "Copy it for repeated parts, then change each copy's label"
+        ] },
+        { "h": "Drawing wires" },
+        { "ul": [
+          "Use the software's **wire** tool, not a plain line tool: wires carry connection information, plain lines do not.",
+          "Start and finish each wire **exactly on a connection point** (the small marks at the ends of a symbol). Zoom in to check. A wire that stops a fraction short looks joined on screen but is not joined, and the software's checks will show it as unconnected.",
+          "Draw wires straight, horizontal or vertical, with square corners. They show connections, not cable routes.",
+          "Add a **junction dot** only where three or more wires really join. Where wires cross without joining, there is no dot. Many programs add dots automatically; check each one.",
+          "Arrange parts so wires cross as little as possible. Re-place a symbol rather than snake a wire around the page.",
+          "When you move a symbol, check its wires moved with it and did not come away."
+        ] },
+        { "h": "Labels, ratings and wire numbers" },
+        { "ul": [
+          "Every part has its own label, such as F1, S1, E1, K1. No two **parts** share a label; but the contacts of one contactor all carry the contactor's label (K1), because they are parts of the same device.",
+          "Place each label close to its symbol, where it is easy to read and does not sit on a wire.",
+          "Write ratings beside protective devices and loads, such as '15 A', '20 A 2P', '1.1 kW'. The installer fits what the drawing says.",
+          "Give each wire (each electrical point) a **number**. The same numbers go on wire markers on the job, so a drawing can be matched to the real wiring when wiring, testing and finding faults.",
+          "Use the drawing's text style: plain capitals of a set height (often 2.5 to 3.5 mm on the printed sheet)."
+        ] },
+        { "note": "Labels let a drawing be matched to the **parts list**, the panel schedule and the labels on site. A drawing with missing or repeated labels causes wrong parts to be ordered and wrong wires to be connected.", "label": "Tip" }
+      ]
+    },
+    {
+      "title": "Drawing the circuits",
+      "blocks": [
+        { "h": "Lighting and outlet circuits" },
+        { "table": { "head": ["Circuit", "What to place", "Points to watch"], "rows": [
+          ["One-way, one lamp", "Supply (L, N, E), breaker, one-way switch, lamp", "Breaker and switch in the line; neutral straight to the lamp; earth to the lamp point"],
+          ["One-way, several lamps", "As above, with the lamps in parallel", "Switch wire to each lamp; neutral from each lamp; junction dots at the joins"],
+          ["Two-way", "Breaker, two two-way switches, lamp", "Line to the common (COM) of switch 1; two strappers between the switches; switch wire from COM of switch 2 to the lamp"],
+          ["Intermediate", "As two-way, with an intermediate switch in the strappers for each extra point", "The intermediate has four terminals, two for each strapper"],
+          ["Radial outlet circuit", "Breaker, outlets one after another", "L, N and E to every outlet; rating of breaker and cable written beside the circuit"]
+        ] } },
+        { "h": "Ladder diagrams" },
+        { "ul": [
+          "Draw two **upright supply lines** (rails): the line or control supply on the left, the neutral or return on the right.",
+          "Draw each path of the control circuit as a horizontal **rung** across them, and number the rungs down the left side.",
+          "Put contacts and buttons on the left of each rung and the **load** (a coil or lamp) on the right, next to the return rail. Only one load goes on each rung path.",
+          "Read the diagram from top to bottom and left to right, the way the circuit works."
+        ] },
+        { "h": "Direct-on-line (DOL) starter: the power circuit" },
+        { "flow": ["Three-phase supply L1, L2, L3 (and protective earth)", "Isolator Q1", "Fuses or motor circuit breaker", "Contactor main contacts K1", "Overload relay F2", "Motor M1 (3~), earthed"] },
+        { "h": "The start/stop control circuit" },
+        { "flow": ["Control fuse F3", "Overload contact F2 95-96 (NC)", "Stop button S0 (NC)", "Start button S1 (NO), with hold-in contact K1 13-14 (NO) in parallel", "Contactor coil K1 (A1-A2)", "Return (neutral)"] },
+        { "p": "A running lamp H1 is drawn **in parallel with the coil** (or on its own rung through another K1 normally open contact), so it lights only while K1 is energised." },
+        { "h": "How it works" },
+        { "table": { "head": ["Action", "What happens"], "rows": [
+          ["Press start S1", "Current flows through F3, F2, S0 and S1 to the coil. K1 closes its main contacts (the motor runs) and its hold-in contact 13-14."],
+          ["Release start", "S1 opens, but current now flows through the closed hold-in contact, so the coil stays energised. The motor keeps running."],
+          ["Press stop S0", "The NC stop contact opens, the coil loses its supply, K1 drops out and the hold-in contact opens. The motor stops and stays stopped when S0 is released."],
+          ["Overload trips", "F2's NC contact 95-96 opens, with the same effect as pressing stop."],
+          ["Supply fails", "K1 drops out. When the supply returns the motor does **not** restart until start is pressed, which protects people and machines."]
+        ] } },
+        { "note": "Without the hold-in contact the motor runs only while someone holds the start button. The stop button and the overload contact are in **series** with the coil, so either one can break the circuit. They are normally closed, so a broken wire to a stop button also stops the motor rather than leaving it unable to stop.", "label": "Remember" },
+        { "h": "Simulation and checks in the software" },
+        { "p": "Some programs can **simulate** a circuit: you click the start button on screen and watch the coil energise and the lamp light. Many can also run a **connection check** (electrical rule check) that lists unconnected wire ends, repeated labels and symbols with nothing joined to them. Both are useful, but they only test the drawing as drawn: they cannot tell you that a breaker rating is wrong for the cable, or that the drawing does not match the job." }
+      ]
+    },
+    {
+      "title": "Title block, saving and files",
+      "blocks": [
+        { "h": "Border and title block" },
+        { "p": "The **border** is the line round the sheet inside which the whole drawing must fit. The **title block**, usually in the bottom right corner, gives the key facts about the drawing." },
+        { "table": { "head": ["Item", "Why it is needed"], "rows": [
+          ["Title, such as 'Storeroom lighting circuit'", "Says what the drawing shows"],
+          ["Drawing number", "Identifies the drawing so it can be filed and found"],
+          ["Revision letter or number, with its date", "Shows which version this is, so nobody uses an old one"],
+          ["Drawn by / checked by (names or initials)", "Shows who made it and that a second person has checked it"],
+          ["Date", "When it was made"],
+          ["Scale, or NTS", "Circuit diagrams are not to scale; layouts are"],
+          ["Client or job, and the Centre or company", "Who the drawing belongs to"],
+          ["Sheet number, such as 1 of 2", "Shows whether a sheet is missing"]
+        ] } },
+        { "p": "When an issued drawing is changed, give it the **next revision** letter or number, change the date, and add a line to the revision table saying what changed." },
+        { "h": "Saving" },
+        { "ul": [
+          "**Save every few minutes**, and after every big change (Ctrl + S). Autosave is a help, not a replacement.",
+          "**Save** writes over the file you have open. **Save As** lets you give the file a new name or put it in a new place, leaving the old one unchanged.",
+          "To make a new revision of an issued drawing, use **Save As** with the new revision in the name, so the old revision is kept for the record.",
+          "Close files properly before you shut down the computer."
+        ] },
+        { "h": "File names and folders" },
+        { "p": "A good file name tells anyone what the file is without opening it: job, area or content, revision and date." },
+        { "table": { "head": ["Poor file name", "Good file name"], "rows": [
+          ["drawing1", "BogWalk-Store-Lighting_RevA_2026-11-07"],
+          ["final final 2", "LionelTown-Pump-DOL-Control_RevB_2026-11-14"],
+          ["new one from today", "StAnnsBay-GuestHouse-Power_Sheet2_RevA"]
+        ] } },
+        { "ul": [
+          "Writing the date as year-month-day keeps files in date order when they are sorted.",
+          "Avoid spaces and the characters / \\ : * ? \" < > | which many systems do not allow.",
+          "Keep files in the right job folder on the Centre's drive, not loose on the desktop.",
+          "Keep a **backup** copy on a second drive or on the Centre's network or online storage, so work survives a computer failure, theft or virus.",
+          "Never delete an old revision without permission."
+        ] },
+        { "h": "File types" },
+        { "table": { "head": ["File type", "Use"], "rows": [
+          ["The program's own file", "For editing. Only people with the same software can open it."],
+          ["PDF", "A fixed, print-ready copy that anyone can open and print without the drawing software, and that cannot easily be changed. Use it to send drawings to clients and sites."],
+          ["Image (PNG, JPG)", "A picture for a quick look or a report; detail is lost when you zoom in"],
+          ["Exchange formats (such as DXF)", "To pass a drawing between different CAD programs"]
+        ] } }
+      ]
+    },
+    {
+      "title": "Checking, printing and sharing",
+      "blocks": [
+        { "h": "Checking the drawing" },
+        { "flow": [
+          "Compare the drawing with the brief and the sketch, part by part: nothing missing, nothing extra",
+          "Trace every wire from the supply through each part and back",
+          "Zoom in on each join: wire ends on connection points, dots only at real joins",
+          "Check every symbol is the right standard symbol",
+          "Check every part has its own label and the ratings are written",
+          "Check the title block, revision and spelling",
+          "Run the connection check or simulation if the software has one",
+          "Look at the print preview",
+          "Ask another person to check it and fill in the 'checked by' box"
+        ] },
+        { "p": "A second checker sees mistakes you have stopped noticing. Never fill in the 'checked by' box yourself for your own drawing." },
+        { "h": "Printing" },
+        { "flow": [
+          "Save the drawing",
+          "Open page setup: choose the printer, the paper size and the direction (landscape for most circuit drawings)",
+          "Choose what to print: the whole sheet, inside the border",
+          "Choose the print scale: 1:1 (actual size) if the paper is the drawing's size, or 'fit to page' (scale to fit) for smaller paper",
+          "Choose black or colour, and line weights that will show",
+          "Open print preview: border, title block and every part on the page, nothing cut off",
+          "Print, then check the printout against the screen"
+        ] },
+        { "note": "'Fit to page' shrinks an A3 drawing to fit A4, so text gets smaller. Check that the smallest labels can still be read. A layout drawing printed this way is no longer at the scale in its title block; a circuit diagram is not to scale anyway.", "label": "Tip" },
+        { "h": "Sending a drawing" },
+        { "ul": [
+          "Export or 'print to PDF' from the drawing, with the same page settings as a paper print.",
+          "Give the PDF the same clear name as the drawing, including the revision.",
+          "**Open the PDF and check it** before sending: all sheets present, nothing cut off, text readable.",
+          "Send the PDF, not the editable drawing file, unless your supervisor says otherwise.",
+          "Keep a copy of what was sent, and note who it went to and when."
+        ] }
+      ]
+    },
+    {
+      "title": "Revision",
+      "blocks": [
+        { "h": "Checklist" },
+        { "p": "Tick each statement only when you can do it without looking at the notes." },
+        { "ul": [
+          "I can set up my chair, screen, keyboard and mouse correctly and say why breaks matter.",
+          "I can name the electrical and trip hazards in a computer room and say what to do about each.",
+          "I can plan a drawing from a brief and sketch, listing the parts and their ratings.",
+          "I can choose between a circuit diagram, ladder diagram, wiring diagram, layout plan and block diagram.",
+          "I can start from a template, set the page and units, and use the grid, snap and layers.",
+          "I can zoom, pan, select, copy, move, rotate, mirror, delete, undo and cancel.",
+          "I can pick the right standard symbols from the library, including NO and NC contacts and coils.",
+          "I can draw wires that are really joined, with junction dots only at joins.",
+          "I can label every part, add ratings and number the wires.",
+          "I can draw one-way, two-way and intermediate lighting circuits and an outlet circuit.",
+          "I can draw a DOL starter's power circuit and its start/stop control circuit, and explain how the hold-in contact works.",
+          "I can fill in a title block and manage revisions.",
+          "I can save often, name files clearly, use Save As for a new revision and keep a backup.",
+          "I can check a drawing, have it checked, print it to fit the page and export a PDF."
+        ] },
+        { "h": "Quick reference" },
+        { "table": { "head": ["Item", "Remember"], "rows": [
+          ["Ctrl + Z / Esc / Ctrl + S", "Undo / cancel / save"],
+          ["Screen", "Top at about eye level, about an arm's length away"],
+          ["Breaks", "A few minutes about every hour"],
+          ["Junction dot", "Only where wires really join"],
+          ["NO / NC", "Normally open (start, hold-in) / normally closed (stop, overload)"],
+          ["A1-A2, 13-14, 95-96", "Coil, NO auxiliary contact, overload NC contact"],
+          ["PDF", "Print-ready copy anyone can open"],
+          ["A4 / A3", "210 × 297 mm / 297 × 420 mm"]
+        ] } },
+        { "h": "Key terms" },
+        { "terms": [
+          ["Backup", "A second copy of a file kept in another place, in case the first is lost."],
+          ["Connection point", "The exact point on a symbol where a wire must end to be joined to it."],
+          ["Contactor", "An electrically operated switch for a motor or heavy load, worked by its coil."],
+          ["Grid", "A pattern of dots or lines on the drawing area at a fixed spacing."],
+          ["Hold-in contact", "A normally open contact of the contactor, in parallel with the start button, that keeps the coil energised after start is released."],
+          ["Junction dot", "A dot showing that wires are joined at that point."],
+          ["Ladder diagram", "A control circuit drawn as rungs between two upright supply lines."],
+          ["Landscape", "A page that is wider than it is tall."],
+          ["Layer", "A level that groups items so they can be shown, hidden or locked together."],
+          ["Normally closed (NC)", "A contact that is closed when it is not being operated."],
+          ["Normally open (NO)", "A contact that is open when it is not being operated."],
+          ["Overload relay", "A device that stops a motor if it draws too much current for too long."],
+          ["PDF", "A fixed, print-ready file format that anyone can open and print without the drawing software."],
+          ["Print preview", "A view of exactly what will be printed, before printing."],
+          ["Revision", "A numbered or lettered version of a drawing after a change."],
+          ["Simulation", "Testing how a drawn circuit behaves, on screen, before it is built."],
+          ["Snap", "A setting that makes the cursor jump to the nearest grid point or connection point."],
+          ["Symbol library", "The software's collection of ready-made standard symbols."],
+          ["Template", "A ready-made starting file with the page, border, title block and layers set up."],
+          ["Zoom", "Making the view on the screen bigger or smaller, without changing the drawing."]
+        ] }
+      ]
+    }
+  ],
+  "cases": {
+    "c1": { "title": "A storeroom drawing in Bog Walk", "text": "Trainee Tamara Gordon is drawing the circuits for a new storeroom at a hardware store in Bog Walk, St Catherine, from her supervisor's hand sketch. The sketch shows three LED battens worked by one one-way switch on a 15 A breaker, and a 20 A outlet circuit with four outlets. The Centre's computers have electrical drawing software and a start file with the border, title block and layers already set up." },
+    "c2": { "title": "A pump starter for a Lionel Town farm", "text": "Electrician Mr Clive Bryan has asked trainee Jodian Morgan to draw the control circuit for the direct-on-line starter of an irrigation pump at a farm near Lionel Town, Clarendon. The parts are: control fuse F3, overload relay F2 (contact 95-96), stop button S0, start button S1, contactor K1 (coil A1-A2, auxiliary contact 13-14) and a green running lamp H1. Jodian is drawing it as a ladder diagram." },
+    "c3": { "title": "Sending drawings from a St Ann's Bay office", "text": "Trainee Rushane Clarke works in the office of a small electrical contractor in St Ann's Bay, St Ann. He has finished a two-sheet drawing of a guest house's lighting and outlet circuits, set up on A3 landscape sheets. The client, who does not have the drawing software, wants a copy by email, and the site foreman wants a printed copy, but the office printer takes only A4 paper. Last week's issued drawing was Rev A; today's changes make it Rev B." },
+    "c4": { "title": "An afternoon in a Highgate computer room", "text": "Trainee Danielle Wright is spending the afternoon drawing circuits in the computer room at a training centre in Highgate, St Mary. Her chair is set so low that the top of the screen is well above her eyes and she looks up at it. Under the next desk, a warm power strip has two more power strips plugged into it. Storm clouds are building outside, and the lights have flickered twice." },
+    "c5": { "title": "Checking a gate-light drawing in Yallahs", "text": "Trainee Omari Campbell has drawn the circuit for two gate lights at a house in Yallahs, St Thomas: a 15 A breaker F1, a one-way switch S1 and two lamps, with an earth to each lamp. His supervisor, Miss Natalie Shaw, checks it before it is issued. She finds a junction dot where two wires only cross, and the software's connection check says one wire end at the second lamp is 'not connected', although it looks joined on screen." }
+  },
+  "questions": [
+    { "id": "P-01", "c": "c1", "q": "How should Tamara begin her drawing?", "o": ["Open last week's drawing and draw over its old circuit", "Open the start file and save it at once under her own name", "Start a blank file and add the title block when she has time", "Start a blank file and choose the page size when printing"], "a": 1, "why": "The start file (template) already has the page, border, title block and layers set up. Saving it straight away under her own file name means she does not change the template, and her work is saved from the start." },
+    { "id": "P-02", "c": "c1", "q": "Tamara cannot find a symbol for an LED batten in the library. What should she do?", "o": ["Draw her own batten shape with lines and leave it unlabelled", "Paste in a picture of a batten copied from a supplier's website", "Ask her supervisor which library symbol the Centre uses for it", "Leave the battens off and write a note to fit them on site"], "a": 2, "why": "Drawings must use standard symbols so everyone reads them the same way. Home-made shapes have no proper connection points and may be misread. The supervisor will say which standard symbol to use, and it can be explained in the legend if needed." },
+    { "id": "P-03", "c": "c1", "q": "How should the three battens be connected in Tamara's circuit diagram?", "o": ["In series: one after another, from the switch wire to the neutral", "In parallel: each one between the line and the switch wire", "In series with the switch, which sits between two of the battens", "In parallel: each one between the switch wire and the neutral"], "a": 3, "why": "Lamps on one switch are in parallel, each connected between the switch wire and the neutral, so each gets the full supply voltage and the others stay lit if one fails. In series they would share the voltage and all go out if one failed." },
+    { "id": "P-04", "c": "c1", "q": "Her supervisor wants to print the lighting circuit on its own, without the outlet circuit. What is the best way to set up the drawing for this?", "o": ["Delete the outlet circuit, print, then draw it again afterwards", "Put the outlet circuit on its own layer and hide that layer", "Change the outlet wires to white so they do not show on paper", "Shrink the outlet circuit until it is too small to be seen"], "a": 1, "why": "A layer groups items so they can be shown, hidden or locked together. Putting each circuit on its own layer lets one be hidden for printing without deleting or spoiling any work." },
+    { "id": "P-05", "c": "c2", "q": "In Jodian's first draft, the K1 13-14 contact is drawn in series with the start button instead of in parallel. What would happen if it were wired like that?", "o": ["The pump would run only while S1 is held in", "The pump would start but S0 would not stop it", "The pump would not start when S1 is pressed", "The pump would start by itself at switch-on"], "a": 2, "why": "In series, S1 and the K1 contact would both have to be closed for the coil to get power, but the K1 contact closes only after the coil is energised. So pressing start does nothing. In parallel, the contact gives the coil a second path that holds it in after start is released." },
+    { "id": "P-06", "c": "c2", "q": "Why is the stop button S0 drawn as a normally closed contact?", "o": ["Pressing S0 completes the coil circuit to stop the motor", "The motor can only be started while S0 is held down", "The pump stops by itself if S1 is held in for too long", "The coil circuit stays complete until S0 is pressed"], "a": 3, "why": "A normally closed contact lets current through until it is operated. Pressing stop opens it, which breaks the series path to the coil, so K1 drops out. A broken wire to the stop button also stops the motor, which is the safe way for it to fail." },
+    { "id": "P-07", "c": "c2", "q": "What label should Jodian give the hold-in contact 13-14?", "o": ["K1, the same label as the coil it belongs to", "K2, as every symbol must have a new label", "S2, since it acts like a second start button", "H1, as it is the contact that lights the lamp"], "a": 0, "why": "A contactor's coil and all its contacts are parts of one device, so they share its label (K1). The terminal numbers 13-14 tell you which contact it is. Different devices get different labels." },
+    { "id": "P-08", "c": "c2", "q": "Where should Jodian draw the running lamp H1 so that it lights only while the contactor is energised?", "o": ["In series with the K1 coil, on the coil's rung", "In parallel with the K1 coil, across the same points", "In parallel with the stop button S0, on the first rung", "In series with the start button, before the coil"], "a": 1, "why": "In parallel with the coil, the lamp gets the supply exactly when the coil does. In series it would share the voltage with the coil, so neither would work properly. Another way is a separate rung through a spare K1 normally open contact." },
+    { "id": "P-09", "c": "c2", "q": "While the pump is running, the overload relay F2 trips. What does its 95-96 contact do?", "o": ["It closes, so the start button can be pressed again", "It opens, but the hold-in contact keeps the coil on", "It opens, the coil drops out and the pump stops", "It closes, so the running lamp flashes as a warning"], "a": 2, "why": "95-96 is the overload relay's normally closed contact, in series with the coil. When the relay trips the contact opens, the coil loses its supply, K1 drops out and the hold-in contact opens too, so the pump stays off until the overload is reset and start is pressed." },
+    { "id": "P-10", "c": "c3", "q": "Rushane's first A4 print is missing the right-hand side and the title block. What should he change?", "o": ["Set landscape and 'fit to page', then check the preview", "Make every symbol smaller in the drawing and print again", "Print it twice, once for each half, and tape them together", "Change the sheet size written in the title block to A4"], "a": 0, "why": "The drawing is A3 and the paper is A4, so it must be scaled down to fit, in the same landscape direction. The print preview shows whether the whole sheet, border and title block are on the page before paper is wasted." },
+    { "id": "P-11", "c": "c3", "q": "After fitting the A3 sheets onto A4, what must Rushane check on the printout?", "o": ["That the colours match the screen exactly", "That the drawing still prints at full scale", "That the smallest labels can still be read", "That the file has become smaller in size"], "a": 2, "why": "Scaling A3 down to A4 makes everything about 70% of its size, so small labels and ratings may become hard to read. If they cannot be read, the printout is not fit for site use." },
+    { "id": "P-12", "c": "c3", "q": "Rushane has exported the drawing as a PDF for the client. What should he do before he attaches it to the email?", "o": ["Rename it 'final drawing' so the client knows it is the latest", "Open it and check both sheets are complete and readable", "Delete the drawing file, as the PDF now holds everything", "Add the editable drawing file so the client can make changes"], "a": 1, "why": "A PDF can come out with a sheet missing, cut off or unreadable, so open it and check it first. It should keep its clear name with the revision; 'final' tells nobody anything. Keep the drawing file for editing, and send the PDF, which anyone can open and print." },
+    { "id": "P-13", "c": "c3", "q": "Which is the best way for Rushane to save today's changes?", "o": ["Press Save, so Rev A is replaced by the changed drawing", "Use Save As, then delete the Rev A file so nobody uses it", "Press Save and add the word 'changed' after the title", "Use Save As for a Rev B file, and keep the Rev A file"], "a": 3, "why": "Rev A was issued, so it must be kept as a record of what was sent. Save As makes a new file for Rev B; the revision letter, date and revision table in the title block are updated too." },
+    { "id": "P-14", "c": "c4", "q": "How should Danielle change her set-up?", "o": ["Raise the chair so the top of the screen is about level with her eyes", "Tilt the screen further back so she can see it more easily from below", "Move the screen much closer so she can read the small labels easily", "Keep the chair low but lean forward with her elbows on the desk top"], "a": 0, "why": "Looking up at a screen strains the neck. Raise the chair until the top of the screen is at or slightly below eye level, with feet flat or on a footrest. Zoom in to read small text instead of moving closer or leaning forward." },
+    { "id": "P-15", "c": "c4", "q": "What should Danielle do about the warm power strip with two more strips plugged into it?", "o": ["Move it into the open so it can cool down, and carry on", "Tell the instructor, so the chained strips can be removed", "Plug her own computer into the last strip, which has free space", "Tape the strips together so the plugs cannot fall out"], "a": 1, "why": "Power strips plugged into each other can overload the first strip and the outlet, which is why it is warm: a fire risk. Do not add to it or fix it yourself; report it so it can be replaced with a safe arrangement." },
+    { "id": "P-16", "c": "c4", "q": "The lights have flickered twice as the storm builds. Which habit best protects Danielle's drawing?", "o": ["Keep working, as the software keeps everything in memory", "Switch off the screen, which is the part a power dip damages", "Unplug the mouse so the computer draws less power in the storm", "Save now, and keep saving every few minutes until she finishes"], "a": 3, "why": "Anything not saved is lost if the power cuts. Saving every few minutes means a cut costs only a few minutes of work. Flickering lights in a storm are a warning; follow the Centre's rules if they say to shut down and unplug during lightning." },
+    { "id": "P-17", "c": "c5", "q": "What should Omari do about the junction dot where two wires only cross?", "o": ["Keep it, so readers can see where the two wires cross", "Make it bigger, so it shows clearly on an A4 print", "Delete it, as a dot would show the wires as joined", "Change it to a small circle to mark a test point"], "a": 2, "why": "A junction dot means the wires are joined. Where wires cross without joining there must be no dot, or the drawing shows a connection that should not exist." },
+    { "id": "P-18", "c": "c5", "q": "The connection check reports one wire end at the second lamp as 'not connected'. What is the most likely cause?", "o": ["The wire end stops just short of the lamp's connection point", "The lamp symbol is the wrong colour for a light used outdoors", "The wire is too long and needs to be drawn a little shorter", "The check cannot follow wires drawn with square corners"], "a": 0, "why": "A wire that ends a fraction short of a connection point looks joined but is not. Zoom in, turn on snap and redraw the end onto the connection point, then run the check again." },
+    { "id": "P-19", "c": "c5", "q": "Omari has fixed both faults. What should happen before the drawing is issued?", "o": ["Omari fills in the 'checked by' box himself to save time", "It is issued at once, since both faults are now fixed", "The faulty version is issued with it for comparison", "Miss Shaw checks it again and fills in 'checked by'"], "a": 3, "why": "Corrections can bring new mistakes, so the checker looks again. The 'checked by' box shows that a second person has checked the drawing; filling it in for your own work defeats its purpose." },
+    { "id": "P-20", "c": "c5", "q": "Omari runs the software's simulation, and both gate lights come on when S1 is closed. What does this show?", "o": ["The connections work, but ratings still need checking", "The drawing is complete and needs no other checking", "The real installation will pass its inspection and tests", "The cables on site will be the right size for the load"], "a": 0, "why": "A simulation tests only the drawing as drawn: that the parts are connected so the circuit works. It cannot show that the breaker and cable ratings suit the job, that the drawing matches the brief, or that the real wiring will be done correctly." }
+  ]
+}

@@ -1,0 +1,533 @@
+{
+  "format": "cestis-study-kit",
+  "version": 1,
+  "status": "to-check",
+  "written": "2026-11-07",
+  "programme": "Electrical Installation",
+  "qualification": { "id": "QUAL-EIM-L3", "title": "ELECTRICAL INSTALLATION AND MAINTENANCE LEVEL 3", "code": "MEM32507" },
+  "level": 3,
+  "unit": { "code": "MEMMRD0693A", "title": "Coordinate the installation of electrical equipment, ancillary apparatus and secondary wiring" },
+  "summary": "This unit teaches you to coordinate the installation of electrical equipment such as switchboards, control panels, drives and UPS units, the ancillary apparatus that goes with them (control transformers, current transformers, relays, timers, sensors, surge protection and capacitors) and the secondary (control) wiring inside panels. You will learn to check equipment against the specification, receive, store, move and fix it, read panel drawings, set and check wiring standards, plan the checks before power-up, lead a crew and keep the records the client needs.",
+  "sections": [
+    {
+      "title": "Unit overview",
+      "blocks": [
+        { "p": "At Level 3 you do more than fit equipment: you **coordinate** its installation. You are the link between the specification, the supplier, the other trades and your own crew. Most installation problems start before anyone picks up a tool: a board with the wrong fault rating, a panel that will not go through the door, a plinth with its bolts in the wrong place, a drawing nobody updated. Your job is to see these problems coming, and to prove with records that the finished work is right." },
+        { "h": "What you must be able to do" },
+        { "table": { "head": ["Task", "What it looks like on the job"], "rows": [
+          ["Check equipment against the specification", "Compare ratings, fault rating, IP rating, size, weight, cable entry and control voltage with the specification and the approved submittals, before ordering and again on delivery."],
+          ["Plan the installation with other trades", "Agree plinths, fixings, trenches, access routes, ventilation and signal lists with the builder and the mechanical and controls contractors, and fit the work into the programme."],
+          ["Receive, store and move equipment", "Inspect deliveries, record and report problems, store items as the maker says, and plan safe lifts and moves."],
+          ["Position and fix equipment", "Set equipment level and secure, with the working space, ventilation and protection from the environment that the code and the maker require."],
+          ["Read and control panel drawings", "Work from single-line diagrams, panel layouts, schematics, terminal diagrams and I/O lists, and keep the drawings up to date."],
+          ["Set and check secondary wiring standards", "Make sure control wiring is laid out, numbered, terminated, segregated and earthed to the specification."],
+          ["Install ancillary apparatus correctly", "Fit and connect control transformers, CTs, relays, timers, sensors, surge protection and capacitors, and explain their hazards to the crew."],
+          ["Check work before it is energised", "Plan and lead the inspection, the point-to-point checks and the dead tests, and support a staged first energising by a competent person."],
+          ["Lead the team and keep records", "Organise and check the crew's work, control drawing changes, and hand complete records to the client."]
+        ] } },
+        { "h": "Words used in this unit" },
+        { "table": { "head": ["Term", "Meaning"], "rows": [
+          ["Electrical equipment", "The main items: switchboards, distribution boards, motor control centres, control panels, drives, UPS units, transformers, generators."],
+          ["Ancillary apparatus", "The supporting devices that make the equipment work and keep it safe: control transformers, current and voltage transformers, meters, relays, timers, sensors, surge protection, capacitors, heaters and fans."],
+          ["Primary (power) wiring", "The conductors that carry the load current, such as the cables to a motor."],
+          ["Secondary wiring", "The control, metering, protection and signal wiring. It carries small currents, but if it is wrong it can start a motor without warning, defeat an interlock or hide an alarm."]
+        ] } },
+        { "h": "Equipment in Jamaica: what to keep in mind" },
+        { "ul": [
+          "JPS supplies at **50 Hz**. Homes and small businesses have 110/220 V single-phase. Larger buildings usually have a three-phase supply, for example 120/208 V or 277/480 V. The drawings and the agreement with JPS give the voltage for the job.",
+          "Much equipment sold in the region is made for the US market at **60 Hz**. Check every nameplate for 50 Hz or 50/60 Hz. Motors, transformers, timers and clocks made only for 60 Hz may run slow, overheat or keep the wrong time on 50 Hz.",
+          "The electrical code used in Jamaica is based on the US National Electrical Code (NEC), but a great deal of equipment follows British and IEC standards. You will meet IP ratings beside NEMA types, 'earth' beside 'ground', and DIN-rail parts beside US-style ones. This kit gives both.",
+          "A new or altered installation must be inspected and certified by a licensed electrical inspector, under the Government Electrical Regulator (GER), before JPS will connect it.",
+          "Heat, humidity, salt air, dust, insects, lightning and hurricanes all affect how equipment is chosen, mounted and sealed."
+        ] },
+        { "note": "As a trainee you mount, wire and check equipment that is **not connected to any supply**. First energising, live testing and work on existing live boards are for competent, authorised persons. When your crew connects to an existing board, it is isolated, locked off with a group hasp carrying each person's own padlock, tagged, and proved dead with a tester that is checked before and after.", "label": "Safety" }
+      ]
+    },
+    {
+      "title": "Planning, specifications and other trades",
+      "blocks": [
+        { "p": "The **specification** says what must be supplied and to what standard. The **drawings** show where and how. The **approved submittals** are the maker's data sheets and drawings that the designer has accepted: they show exactly what the supplier will deliver. Before anything is ordered, check each of these against the others." },
+        { "h": "What to check before ordering" },
+        { "table": { "head": ["Item", "What to check", "Why it matters"], "rows": [
+          ["Voltage, phases and frequency", "They match the site supply (for example 480 V three-phase, 50 Hz) and the control voltage in the design (such as 24 V).", "Wrong-voltage or 60 Hz-only equipment may not work, may overheat or may be unsafe."],
+          ["Current rating", "Busbars, main switch and outgoing ways suit the design load.", "An under-rated board overheats."],
+          ["Fault rating (short-circuit rating, in kA)", "It is at least the prospective fault current at that point, which the designer gives.", "Equipment that cannot withstand or break the fault current can burst apart in a fault."],
+          ["IP rating or NEMA type", "It suits the place: indoors, outdoors, dust, hose-down, salt air.", "Water and dust cause tracking, corrosion and failure."],
+          ["Size, weight and access", "It fits through doors, corridors and lifts; the floor or wall can carry it; its doors can open fully.", "A board that cannot reach its room delays the whole job."],
+          ["Cable entry", "Top or bottom entry, gland plate size and material, and room to bend large cables.", "The wrong entry means cutting the enclosure on site, which can spoil its rating."],
+          ["Heat and ventilation", "The heat it gives off (watts) and the cooling the maker needs.", "Drives, UPS units and electronics fail early when hot."],
+          ["Spare capacity", "Spare ways, terminals and space, as the specification asks (often 10 to 20%).", "Later changes can be made without a new panel."],
+          ["Documents", "Drawings, manuals, test certificates and a spares list are to come with it.", "They are needed for installing, commissioning and handover."]
+        ] } },
+        { "note": "**Fault rating is not negotiable.** If the designer's figure at the main board is 25 kA, a board rated 10 kA is not acceptable, even if everything else matches and it is in stock. Raise it with the designer in writing; never accept a lower rating on your own decision.", "label": "Remember" },
+        { "h": "IP ratings and NEMA types" },
+        { "p": "The **IP code** has two digits. The first shows protection against solid objects and dust; the second shows protection against water. The higher the digit, the better the protection." },
+        { "table": { "head": ["Digit", "First digit: solid objects and dust", "Second digit: water"], "rows": [
+          ["0", "No protection", "No protection"],
+          ["1", "Objects over 50 mm, such as a hand", "Water dripping straight down"],
+          ["2", "Objects over 12.5 mm, such as a finger", "Dripping water with the enclosure tilted up to 15°"],
+          ["3", "Objects over 2.5 mm, such as tools and thick wires", "Spraying water, such as rain at up to 60° from vertical"],
+          ["4", "Objects over 1 mm, such as fine wires", "Splashing water from any direction"],
+          ["5", "Dust-protected: some dust may enter, but not enough to do harm", "Water jets from any direction"],
+          ["6", "Dust-tight", "Powerful water jets"],
+          ["7", "(not used)", "Temporary immersion, up to 1 m deep"],
+          ["8", "(not used)", "Continuous immersion, as the maker states"]
+        ] } },
+        { "p": "**Examples.** IP54 is dust-protected and splash-proof: suitable for a dusty plant room or a sheltered spot outdoors. IP65 or IP66 is dust-tight and stands up to water jets: suitable where wind drives the rain or the area is hosed down. Equipment made for the US market carries a **NEMA type** instead: Type 1 is for general indoor use, Type 3R for outdoor rain, Type 4 is watertight for hose-down, Type 4X is watertight and corrosion-resistant (stainless steel or plastic), and Type 12 is for indoor dust and drips. NEMA types and IP ratings are not exact equals, so check what the specification asks for." },
+        { "h": "Working with other trades" },
+        { "table": { "head": ["Party", "What you agree with them"], "rows": [
+          ["Civil or building contractor", "Plinths, holding-down bolts and their positions, floor levels, cable trenches, ducts and sleeves, wall strength, doorways, and when each room will be dry, finished and lockable."],
+          ["Mechanical contractor", "Which pumps, fans, chillers and air-handling units come with their own control panels, where the electrical work stops and theirs starts, and the ventilation or cooling of electrical rooms."],
+          ["Controls or BMS specialist", "The list of signals between the panels and the building management system (BMS): each signal's type (volt-free contact, 24 V, 4–20 mA), its terminals, and who wires each end."],
+          ["Fire alarm contractor", "Fire shut-down signals to fans and dampers, and the monitoring of fire pumps."],
+          ["Supplier and maker", "Delivery dates, packing, lifting points, documents, and any maker's engineer needed at commissioning."],
+          ["Client", "Access, working hours, shutdowns of existing supplies, storage space and security."]
+        ] } },
+        { "p": "Most disputes happen at an **interface**: the point where one contractor's work meets another's. For every interface, write down who supplies, who installs, who connects and who tests. A simple responsibility table, agreed at a coordination meeting and recorded in the minutes, prevents 'I thought you were doing that'." },
+        { "h": "Access routes and timing" },
+        { "ul": [
+          "Walk the route from the delivery point to the final position. Measure doorways, corridors, ramps and lifts, and check the floor loading and anything overhead.",
+          "If the equipment is too large, order it in sections (shipping splits) that are joined on site, or have it brought in before the wall or door frame is finished, and then protected.",
+          "Put the delivery, the lift and the room's 'ready' date in the programme, and agree them with the main contractor.",
+          "Order long-delivery items early. Switchboards, transformers and drives can take months."
+        ] },
+        { "note": "Many plant rooms in Jamaican hotels and commercial buildings are at ground or basement level, sometimes close to the sea or a gully. Ask how high flood water has reached before, and agree with the designer whether the equipment should stand on a raised plinth.", "label": "Jamaica" }
+      ]
+    },
+    {
+      "title": "Receiving, storing and moving equipment",
+      "blocks": [
+        { "h": "The receiving inspection" },
+        { "flow": [
+          "Before delivery: confirm the date, the unloading area, the lifting equipment and the storage space",
+          "Check the delivery note against the purchase order: item, quantity and part numbers",
+          "Inspect the packing and the item for damage, water and missing parts",
+          "Check the shock and tilt indicators on large items",
+          "Read the nameplate and compare it with the order and the specification",
+          "Check that documents, keys, spares and accessories are included",
+          "Write any problem on the delivery note before signing; photograph it and report it",
+          "Label faulty items 'Do not use' and keep them apart",
+          "Store good items as the maker says and update the materials record"
+        ] },
+        { "table": { "head": ["On the nameplate", "It must match"], "rows": [
+          ["Voltage and number of phases", "The site supply"],
+          ["Frequency", "50 Hz, or 50/60 Hz; not 60 Hz only"],
+          ["Current, kW or kVA rating", "The order and the design"],
+          ["Short-circuit (fault) rating", "The designer's figure for that point"],
+          ["IP rating or NEMA type", "The location"],
+          ["Control voltage", "The control design, such as 24 V AC or DC, or 110 to 120 V AC"],
+          ["Type and serial number", "The order and the test certificate"]
+        ] } },
+        { "note": "**Shock and tilt indicators** are stickers or small recorders fixed to large items for the journey. One that has 'tripped' shows that the item was dropped, jolted or tipped beyond the maker's limit, even when nothing looks wrong outside. Do not accept or reject the item on your own judgement. Record the indicator on the delivery note before you sign, photograph it, keep the item apart and ask the supplier and maker what inspection is needed before it can be accepted.", "label": "Remember" },
+        { "h": "When something is wrong" },
+        { "p": "An item that does not meet the order or the specification is a **non-conformance**. Raise a non-conformance report (NCR): what was found, photographs, who was told, and what was decided: return it, have it repaired with the maker's approval, or accept it with the designer's written agreement. Never put it right quietly yourself. An item altered on site can lose its rating, its approval mark and its warranty." },
+        { "h": "Storing equipment" },
+        { "table": { "head": ["Equipment", "How to store it"], "rows": [
+          ["Switchboards and control panels", "Upright, in their packing, indoors, dry, off the floor on pallets, covered against dust, doors closed, and secure. If the maker asks, the anti-condensation heaters are connected to a temporary supply by a competent person."],
+          ["Drives, UPS units, PLCs and other electronics", "In their packing in a cool, dry room. Not for weeks in a hot van or a closed container."],
+          ["Batteries", "Cool, dry and upright. They lose charge in storage, so follow the maker's recharge interval and use the oldest stock first."],
+          ["Cable drums", "On firm ground, chocked, with the cable ends sealed against water. Roll a drum only in the direction of its arrow."],
+          ["Glands, terminals and small parts", "In labelled bins, so the right part goes in the right place."]
+        ] } },
+        { "note": "A closed shipping container standing in the sun gets far hotter than the air outside, and water condenses inside it at night. It is a poor store for electronics and batteries unless it is shaded and ventilated.", "label": "Jamaica" },
+        { "h": "Moving and lifting" },
+        { "p": "Start with the maker's data: the **weight**, the **lifting points** and the **centre of gravity**. A tall panel is top-heavy and tips easily. A board with a transformer in one section has its centre of gravity off to one side. If the crane hook is not directly above the centre of gravity, the load tilts or swings as it leaves the ground." },
+        { "table": { "head": ["Method", "Use it for", "Points to watch"], "rows": [
+          ["Team lift or lifting aid", "Small panels and boxes that people can handle safely", "Plan it; clear the route; use a lifting aid when in doubt."],
+          ["Panel lifter or stacker", "Wall-mounted panels, up to the lifter's rated load", "Centre the load, strap the panel on, and fix it to the wall before releasing it."],
+          ["Pallet truck, skates and rollers", "Moving floor-standing boards across level floors", "Move slowly, with a person at each corner; watch for slopes, trenches and floor joints."],
+          ["Forklift", "Unloading and moving on firm ground", "Trained driver; forks under the lifting base, never under the enclosure itself; load secured."],
+          ["Crane or hoist", "Heavy items onto plinths, roofs or into basements", "Written lift plan, rated slings on the lifting points, a trained signaller and an exclusion zone."]
+        ] } },
+        { "h": "What a lift plan covers" },
+        { "ul": [
+          "The load: weight, size, lifting points and centre of gravity, from the maker's data.",
+          "The route and the set-down point: ground and floor strength, doorways, slopes and overhead obstructions such as cables.",
+          "The lifting equipment: crane, hoist or forklift, with enough capacity at the reach needed.",
+          "The lifting gear: fabric slings (which do not damage paint), shackles and any spreader beam, each marked with its working load limit and carrying a current inspection tag.",
+          "The people: one person in charge, a trained operator, a trained slinger and one signaller (banksman). Only the signaller gives signals to the operator.",
+          "The controls: barriers and an exclusion zone, nobody under the load, tag lines to steady it, and weather limits. Strong wind stops a crane lift.",
+          "The method: a short test lift to check balance, slow movement, a gentle set-down, then levelling and anchoring."
+        ] },
+        { "note": "Use only the lifting eyes or lifting base the maker provides. Never lift by cable boxes, door handles, bushings or terminals. Lifting eyes on a panel are made for a near-vertical pull: slings at a wide angle can bend the roof of the enclosure or tear the eyes out, so follow the maker's sling instructions or use a spreader beam.", "label": "Safety" }
+      ]
+    },
+    {
+      "title": "Positioning and fixing equipment",
+      "blocks": [
+        { "h": "Floor-standing boards" },
+        { "flow": [
+          "Check the plinth or floor against the maker's drawing: level, size, bolt positions and cable openings",
+          "Move the board in on its base with doors and covers closed",
+          "Set it in place and level it with shims, checking front to back and side to side",
+          "Bolt the sections together and make the busbar and earth bar joints between them to the maker's torque",
+          "Fix the holding-down bolts",
+          "Check that doors open freely and withdrawable parts slide in and out",
+          "Seal cable openings, with fire-stopping where walls or floors are fire-rated"
+        ] },
+        { "p": "**Why level and anchor it?** A board that is twisted or out of level strains its frame: doors bind, withdrawable breakers jam, interlocks fail to line up and busbar joints between sections are stressed. Anchoring stops the board toppling while heavy cables are pulled in, in an earthquake (Jamaica is in an earthquake zone) or in a flood. Both are done before the cables are connected, so the cables are not strained later." },
+        { "h": "Working space" },
+        { "p": "The code requires a clear **working space** in front of boards and panels, so that a person can work on them, and get away from them, safely. Under the NEC, for ordinary low-voltage equipment it is commonly at least **0.9 m (3 ft) deep**, at least **762 mm (30 in) wide** or the width of the equipment if that is more, and about **2 m high**. Doors must be able to open at least 90°. Take the exact figures from the code edition and the drawings used on the job." },
+        { "ul": [
+          "The working space is never a storage space. Shelving, cartons, water coolers and cleaning equipment must be kept out of it.",
+          "The space directly above and below a board is kept for electrical use only: no water pipes, drains or air ducts over it.",
+          "Mark the space on the floor plan, tell the other trades, and check again after they have finished.",
+          "Mount switches and breakers where they can be reached: the NEC limits the highest operating handle to about 2 m above the floor."
+        ] },
+        { "h": "Wall-mounted panels" },
+        { "ul": [
+          "Find out what the wall is made of: solid concrete, filled block, hollow block or drywall. Choose fixings rated for the load **in that material**.",
+          "Hollow block needs anchors made for hollow material, or through-bolts with back plates. Strut channel fixed at several points spreads the load.",
+          "Allow for the weight of the panel, its cables and a safety margin.",
+          "Check the wall with a cable and pipe detector before drilling.",
+          "Mounting a panel on strut channel also leaves an air gap behind it, which keeps it off a damp wall."
+        ] },
+        { "h": "Heat and ventilation" },
+        { "p": "Every electrical device turns part of its power into heat. A variable speed drive typically loses about 2 to 3% of the power it handles: a 22 kW drive gives off roughly 450 to 650 W inside its panel, like a small heater left on all day. Most electronic equipment is rated for air at about 40 to 50 °C around it. Above that it must be cooled, or derated as the maker's data says." },
+        { "table": { "head": ["Equipment", "What it needs"], "rows": [
+          ["Variable speed drives and soft starters", "The maker's clear space above and below, and panel cooling (filter fans, a heat exchanger or a panel air-conditioner) sized for the heat loss."],
+          ["UPS units", "A room kept within the maker's temperature range, with clearances for air and for service."],
+          ["Vented (flooded) lead-acid batteries", "A ventilated room, because charging gives off **hydrogen**, which can explode. No sparks or flames; an eyewash nearby."],
+          ["Sealed (valve-regulated) batteries", "Much less gas in normal use, but still ventilated as the maker says, because they vent if overcharged."],
+          ["Control transformers and power supplies", "Space around them; not jammed against the wiring duct or mounted under heat-sensitive parts."]
+        ] } },
+        { "h": "Jamaican conditions" },
+        { "table": { "head": ["Condition", "Effect", "What to specify or do"], "rows": [
+          ["Salt air near the coast", "Fast corrosion of mild steel, copper and fixings", "Stainless steel or suitable plastic enclosures (NEMA 4X or the IP rating specified), stainless fixings, sealed glands, sound door gaskets, doors kept shut."],
+          ["Heat and direct sun", "Shorter life for drives, UPS units and electronics; plastics crack", "Shade or a sun shield, the shaded side of a building, ventilation or cooling as the maker says."],
+          ["Humidity and cool nights", "Condensation inside enclosures, causing tracking and corrosion", "Anti-condensation heaters with a thermostat, breather or drain plugs, sealed cable entries."],
+          ["Dust from roads, quarries, factories and building work", "Blocked filters; dust and damp together track across terminals", "The right IP rating, filters that can be cleaned, and a cleaning schedule."],
+          ["Insects, lizards and rodents", "Nests, chewed insulation and short circuits", "Blanking plugs in unused holes, glands on every cable, no gaps, doors kept shut."],
+          ["Lightning and switching surges", "Damaged electronics", "Surge protection as specified, with short, straight leads and sound earthing."],
+          ["Hurricanes and floods", "Wind damage and water in equipment", "Mounting above known flood level, firm anchoring, and inspection and drying before re-energising."]
+        ] } },
+        { "note": "Bring cables into outdoor enclosures from **below** wherever you can. Water runs down a cable, sits on top of the enclosure and finds its way through a top gland. If top entry cannot be avoided, use the correct sealing gland and form a drip loop in the cable.", "label": "Tip" }
+      ]
+    },
+    {
+      "title": "Reading and controlling drawings",
+      "blocks": [
+        { "table": { "head": ["Drawing", "What it shows", "What you use it for"], "rows": [
+          ["Single-line (one-line) diagram", "The whole system from the supply to the main boards, with one line for each circuit however many conductors it has, and the ratings of devices and cables.", "Checking ratings, seeing where each board is fed from, planning isolation."],
+          ["Panel layout (general arrangement) drawing", "Where each part is mounted inside and on the panel, with sizes, door cut-outs, gland plate and weight.", "Mounting rail, duct and parts; checking fit and access."],
+          ["Schematic (circuit, ladder or elementary diagram)", "How the circuit works. The control circuit is drawn as lines ('rungs') read from top to bottom, each from left to right.", "Wiring, checking and fault finding; understanding the sequence."],
+          ["Terminal (connection) diagram", "Each terminal with the wire number and the device or field cable landed on each side.", "Landing field cables and checking terminations."],
+          ["I/O list (I/O schedule)", "Every PLC input and output with its address, tag, device, signal type and terminals.", "Wiring and checking field devices to the PLC."],
+          ["Cable schedule", "Each cable's number, type, size, cores, route, ends and gland.", "Pulling, glanding and labelling cables."]
+        ] } },
+        { "h": "Reading a schematic" },
+        { "ul": [
+          "Every device has a **tag** that matches the label on the device in the panel, for example K1 for a contactor or relay, F2 for an overload relay or fuse, S1 for a push-button and T1 for a transformer. US-style drawings use tags such as M, CR, OL and PB. The legend on the drawing lists them.",
+          "Contacts are drawn in their **normal state**: no power on and nothing operated. A normally open (NO) contact is drawn open; a normally closed (NC) contact is drawn closed.",
+          "A coil and its contacts can be far apart on the drawing. **Cross-references** beside the coil give the line numbers where its contacts appear.",
+          "Every wire has a **wire number**. The number stays the same along a wire and changes at each device it passes through.",
+          "Read the power circuit first (supply, isolator, protection, contactor, overload, motor), then the control circuit rung by rung."
+        ] },
+        { "h": "Keeping drawings under control" },
+        { "ul": [
+          "Work only from the **latest revision**. Keep a drawing register, and remove or mark 'superseded' on old copies so that nobody builds from them.",
+          "If the drawings disagree with each other or with the site, raise a written query to the designer (often called a request for information, RFI) and wait for a written answer.",
+          "Any change made on site is marked on a **mark-up (red-line) set** and approved by the designer. Nobody changes the wiring first and tells the office later.",
+          "At the end, the mark-ups are used to produce the **as-built drawings**: the record of what was really installed.",
+          "Leave a copy of the final drawings in the panel's document pocket."
+        ] },
+        { "note": "A wire-by-wire check needs a **check print**: a spare copy of the schematic on which each wire is highlighted as it is checked. When every line on the print is coloured, every wire has been checked, and the print itself becomes a record.", "label": "Tip" }
+      ]
+    },
+    {
+      "title": "Secondary wiring inside panels",
+      "blocks": [
+        { "h": "Layout" },
+        { "ul": [
+          "Parts are mounted to the layout drawing. Contactors, relays, breakers and terminals clip onto **DIN rail** (the 35 mm 'top hat' rail is the most common).",
+          "**Slotted wiring duct** with a clip-on cover runs between the rows and carries the wires.",
+          "Heavy parts such as transformers go low on the back plate. Parts that make heat are placed so that the heat does not rise into electronics.",
+          "**Terminal blocks**, clipped side by side on a rail near the gland plate, are where field cables meet the panel wiring. Group them: power, control, signals.",
+          "Every device carries a label with its tag from the schematic.",
+          "Deburr the cut ends of rail and duct so that they cannot cut wires or hands."
+        ] },
+        { "h": "Wire colours and numbers" },
+        { "p": "Wire size and colour come from the specification. Two schemes are common in control panels:" },
+        { "table": { "head": ["Conductor", "US practice (NFPA 79 style)", "IEC practice (IEC 60204-1 style)"], "rows": [
+          ["AC and DC power circuits", "Black", "Black"],
+          ["AC control circuits", "Red", "Red"],
+          ["DC control circuits", "Blue", "Blue"],
+          ["Neutral", "White or grey", "Light blue"],
+          ["Protective earth (ground)", "Green, or green with a yellow stripe", "Green-and-yellow"],
+          ["Circuits fed from outside the panel that stay live when its isolator is off", "Orange (yellow on older panels)", "Orange"]
+        ] } },
+        { "note": "**Orange wiring is a warning.** It may still be live when the panel's own isolator is off, because it is fed from another panel. The door carries a label saying so, and the other source is isolated too before anyone works on it.", "label": "Safety" },
+        { "ul": [
+          "Each wire carries a **number marker at both ends**, showing its wire number from the schematic, so that it can be traced on the drawings during checking and fault finding.",
+          "Use proper clip-on or heat-shrink markers, all reading the same way. Handwritten tape falls off.",
+          "Cut each wire to length and run it in the duct, not across the front of devices."
+        ] },
+        { "h": "Terminations" },
+        { "table": { "head": ["Practice", "Why"], "rows": [
+          ["Strip to the length the terminal or ferrule needs", "Too long leaves bare copper showing; too short clamps the screw on insulation."],
+          ["Crimp a ferrule (bootlace ferrule) on fine stranded wire, with the proper crimping tool", "It holds every strand firmly in the terminal, so that none spreads out, breaks or is missed by the screw."],
+          ["Only as many wires in a terminal as the maker allows", "Two wires of different sizes under one screw do not clamp evenly: the thinner one works loose. Use a twin ferrule for two equal wires where the maker allows it, or a second terminal and a jumper bar."],
+          ["Tighten to the maker's torque, in newton metres (N·m), with a torque screwdriver", "A loose terminal overheats and arcs; an over-tight one crushes the conductor or cracks the terminal."],
+          ["Mark each torqued screw with a paint line, where the specification asks", "It shows that the screw was torqued, and a broken line shows later movement."],
+          ["Give each wire a gentle tug", "It finds wires clamped on their insulation and terminals that were missed."],
+          ["Land field cables on terminal blocks, not on the devices", "A device can be changed without disturbing the field wiring, and field circuits can be tested at one place."]
+        ] } },
+        { "h": "Segregation" },
+        { "ul": [
+          "Keep **power wiring** (motor leads, drive outputs), **control wiring** and **signal wiring** (4–20 mA, sensors, data) apart: separate ducts, or a clear gap or barrier. Where they must cross, cross at right angles.",
+          "Signal cables are screened, and the screen is earthed as the design says. For an analogue signal that is usually at **one end only**, the panel end.",
+          "Never take a signal cable through the same gland as a power cable, or lay it across busbars to save length.",
+          "Electrical noise from power wiring shows up as readings that jump about, false alarms and controllers that reset for no clear reason."
+        ] },
+        { "h": "Doors, earthing and duct fill" },
+        { "ul": [
+          "Wires to a door are flexible, bundled into a loop on the hinge side and protected with spiral wrap, so that they bend without breaking each time the door opens.",
+          "A metal door that carries push-buttons or lamps is earthed with a **flexible earth strap** to the enclosure. Hinges are not a reliable earth path.",
+          "The back plate, gland plate and DIN rails are bonded to the earth bar.",
+          "Do not pack the duct full. Many panel builders aim for no more than about two-thirds, so that heat can escape, the cover closes and wires can be added later."
+        ] },
+        { "note": "Before the crew starts, wire one section yourself, or approve the first section they wire, and make it the **sample** that everyone copies: wire lengths, markers, ferrules, duct fill and labels.", "label": "Tip" }
+      ]
+    },
+    {
+      "title": "Ancillary apparatus",
+      "blocks": [
+        { "h": "Control transformers and control supplies" },
+        { "p": "A large machine's control circuit is often fed at a lower voltage, such as 24 V, or 110 to 120 V, from a control transformer or a 24 V DC power supply. The lower voltage reduces the shock risk at push-buttons, door switches and sensors, where people's hands are." },
+        { "ul": [
+          "A transformer is rated in **volt-amperes (VA)**. Add up the VA of everything that can be on at the same time: coils, lamps, timers and power supplies.",
+          "The current it can supply is **I = VA ÷ V**.",
+          "A contactor coil needs several times its holding VA for an instant as it pulls in (its inrush). Makers' selection tables allow for this, so choose the size from the tables, not from the holding VA alone.",
+          "The secondary is protected by a fuse or small breaker.",
+          "In an earthed control circuit, one side of the secondary is earthed and the coils are connected straight to that side; all switches and contacts are in the other side. An earth fault then blows the control fuse, instead of by-passing a stop button and starting a machine."
+        ] },
+        { "p": "**Example.** Three contactor coils that hold in on 8 VA each (24 VA), one timer of 3 VA and eight pilot lamps of 1.5 VA each (12 VA) make 39 VA. At 24 V the current is 39 ÷ 24 = about 1.6 A. A standard size above this, such as 63 VA or 100 VA, is chosen from the maker's tables after allowing for inrush and spare capacity. A transformer loaded beyond its VA rating runs hot and its voltage sags, so contactors chatter." },
+        { "h": "Contactors, overloads and interlocks" },
+        { "ul": [
+          "A **contactor** is chosen for its load: motor duty and resistive duty have different ratings for the same contactor.",
+          "An **overload relay** is set to the motor's full-load current from its nameplate, unless the maker says otherwise.",
+          "An **interlock** stops two things happening together. In a forward–reverse starter the two contactors must never close at once, or they short-circuit the supply. So each contactor's normally closed contact is wired in the other's coil circuit (electrical interlock), and a mechanical interlock links the two as well.",
+          "A door-interlocked isolator stops the door being opened while the panel is on."
+        ] },
+        { "h": "Stop circuits are fail-safe" },
+        { "p": "Stop buttons, emergency stops and safety switches use **normally closed** contacts wired in series. The machine runs only while the whole chain is complete. A broken wire, a loose terminal or a failed supply then stops the machine. If stop buttons used normally open contacts, a broken wire would mean the button did nothing, and nobody would know until it was needed. The same thinking applies to alarms: a contact that opens on a fault also reports a broken wire." },
+        { "h": "Relays, timers and controllers" },
+        { "table": { "head": ["Device", "What it does", "Example"], "rows": [
+          ["Control relay", "Lets a small signal switch other circuits, and adds contacts", "A 24 V signal from the BMS starts a 480 V fan through a relay and a contactor."],
+          ["On-delay timer", "Its contacts change over a set time after it is energised", "The change from star to delta in a star-delta starter; starting a second compressor 30 seconds after the first; holding off a pump's restart until a set time after it stopped."],
+          ["Off-delay timer", "Its contacts change at once when it is energised, and go back a set time after it is de-energised", "A fan keeps running for five minutes after a heater is switched off."],
+          ["Phase-failure and phase-sequence relay", "Trips if a phase is lost or the phases are in the wrong order", "Stops a compressor running backwards or on two phases."],
+          ["PLC (programmable logic controller)", "Reads its inputs, runs a program and switches its outputs", "Pump stations, conveyors, alarm handling."]
+        ] } },
+        { "h": "Field devices and 4–20 mA signals" },
+        { "ul": [
+          "**Switch devices** such as float switches, pressure switches and limit switches give an open or closed contact.",
+          "A **transmitter** sends a current between 4 and 20 mA that stands for the measured value: 4 mA at the bottom of its range and 20 mA at the top. It is usually powered by 24 V DC through the same two wires, so polarity matters.",
+          "The zero is 4 mA, not 0 mA (a 'live zero'). A broken wire, a failed transmitter or a lost supply gives 0 mA, which the controller can recognise as a fault, not as a real reading of 'empty'. Many systems treat anything below about 3.6 mA as a failure.",
+          "Use screened twisted-pair cable, away from power cables."
+        ] },
+        { "p": "**Example.** A level transmitter is set for 0 to 5 m. The signal spans 16 mA (from 4 to 20), so each milliamp above 4 stands for 5 ÷ 16 = 0.3125 m. A reading of 12 mA means (12 − 4) × 0.3125 = 2.5 m: half the range." },
+        { "h": "Current transformers (CTs)" },
+        { "p": "A CT lets a meter or relay measure a large current. The load cable or busbar passes through it (the primary), and its secondary gives a small current in proportion, usually 5 A or 1 A at full rating. A **400/5** CT gives 5 A when 400 A flows, a ratio of 80. If the meter input shows 3.5 A, the load is 3.5 × 80 = 280 A." },
+        { "ul": [
+          "A CT has **polarity**. The side marked P1 faces the supply, and S1 and S2 go to the matching meter terminals. A CT fitted the wrong way round, or with S1 and S2 swapped, makes the meter read power flowing backwards.",
+          "The meter and its leads are the CT's **burden**. Long, thin leads add burden and spoil accuracy, so use the wire size in the design.",
+          "One side of the secondary circuit is earthed, as the design shows.",
+          "CT circuits are wired through a **test terminal block with shorting links**, so that a meter can be taken out without opening the CT circuit."
+        ] },
+        { "note": "**Never leave a CT secondary open while current flows in its primary.** With no path for its current, the CT's secondary voltage can rise to thousands of volts: a deadly shock, arcing and a destroyed CT. The secondary is always either connected to its meter or relay, or shorted with the shorting link. If the meter has not arrived, the link stays closed. The link is opened only when the meter circuit is complete. A CT secondary is **never fused**: a blown fuse would open it.", "label": "Safety" },
+        { "h": "Surge protection" },
+        { "p": "Lightning and switching on the supply network send short, high-voltage surges into a building. A **surge protective device (SPD)** diverts the surge to earth. The specification may ask for one at the main board, especially for exposed buildings such as those on hilltops, and more near sensitive equipment. An SPD works well only with short, straight leads and a sound earth. It is disconnected, as its maker says, before insulation resistance tests." },
+        { "h": "Capacitors" },
+        { "p": "Power factor correction banks, motor capacitors and the capacitors inside drives and UPS units can hold a dangerous charge after the supply is isolated. They have discharge resistors, but these take time: often about a minute for a correction bank and 5 to 15 minutes for a drive. The time is on the maker's label." },
+        { "flow": ["Isolate, lock off and tag", "Prove dead at the supply terminals with a proved tester", "Wait the full discharge time on the label", "Test across the capacitor terminals to confirm the voltage has gone", "Only then touch"] },
+        { "note": "Never discharge a capacitor by shorting it with a screwdriver. The flash can burn you and damage the capacitor. Warn the crew, and check that the discharge warning label is on the equipment.", "label": "Safety" }
+      ]
+    },
+    {
+      "title": "Checks before power-up, commissioning and handover",
+      "blocks": [
+        { "h": "The inspection and test plan" },
+        { "p": "The **inspection and test plan (ITP)** lists each inspection and test, when it is done, who does it, the result that is accepted and who signs for it. Some steps are marked for the client's representative to witness. Working through the ITP is how you prove that nothing was missed." },
+        { "h": "Pre-commissioning checks: everything dead" },
+        { "flow": [
+          "Isolate, lock off, tag and prove dead, with the tester checked before and after",
+          "Inspect against the layout drawing and parts list: correct parts, ratings and settings (overloads, timers, breakers)",
+          "Mechanical check: fixings tight, torque marks present, nothing loose, no tools or offcuts inside, glands, blanking plugs and covers fitted",
+          "Point-to-point check of every wire against the schematic and terminal diagram, with a continuity tester and a check print",
+          "Continuity of protective conductors, including the door strap, gland plate and back plate",
+          "Insulation resistance of the power circuits, with electronic devices disconnected as their makers say",
+          "CT circuits complete or shorted; transformer tappings on the right voltage",
+          "Record every result and sign the check sheet"
+        ] },
+        { "table": { "head": ["Check", "How", "What to expect"], "rows": [
+          ["Point-to-point wiring", "Continuity tester from end to end of each wire, operating switches and contacts by hand where possible, highlighting each wire on the check print. Best done by someone who did not wire that section.", "Every wire is where the drawing says, with the right number; no extra wires."],
+          ["PLC inputs and field loops", "With the I/O list: continuity from the terminal to the device and back while the device is operated by hand.", "The contact is seen to open and close on the meter; the result is written against that I/O point."],
+          ["Protective conductor continuity", "Low-resistance ohmmeter between each exposed metal part and the earth bar.", "A low, steady reading, as the specification requires."],
+          ["Insulation resistance", "Insulation tester (500 V DC for ordinary low-voltage circuits) between conductors, and from conductors to earth. PLCs, drives, SPDs and electronic timers are disconnected first, or tested as the maker says, because the test voltage can destroy them.", "The specification's minimum, commonly 1 MΩ; sound new wiring reads far higher."]
+        ] } },
+        { "note": "Switching a new panel on 'to see if anything trips' is not a test. A wiring error can start a motor, short-circuit a supply or destroy a PLC card in the first second. The dead checks find the same errors without the damage.", "label": "Remember" },
+        { "h": "First energising: staged, by a competent person" },
+        { "flow": [
+          "Records complete and signed; people briefed and standing clear",
+          "Motor and heater supplies kept isolated: breakers off or fuses out",
+          "Control circuit energised alone; control voltage checked",
+          "Each stop, emergency stop, interlock, door switch, alarm and start sequence proved, with contactors pulling in but no power reaching the motors",
+          "Timer and overload settings confirmed",
+          "Motor supplies restored; phase sequence checked; a brief start of each motor to check its direction",
+          "Motors run; currents, settings and results recorded on the commissioning sheet"
+        ] },
+        { "p": "Energising the control circuit alone first proves the controls and interlocks before any motor can move. A fault found at this stage costs nothing; the same fault found with the motors live could wreck a machine or injure someone." },
+        { "p": "**Direction of rotation.** The order in which the three phases reach their peaks is the **phase sequence**, and it sets the direction of a three-phase motor. If one motor turns the wrong way, the competent person isolates it and swaps two of its three leads. If every motor turns the wrong way, the fault is in the phase sequence of the supply to the panel, and it is corrected there, not at each motor." },
+        { "h": "Commissioning sheets, witnessing and the punch list" },
+        { "ul": [
+          "A **commissioning sheet** records the settings (overloads, timers, drive parameters), the test results, the function tests, the instruments used, the date, and who did and who witnessed each test.",
+          "The **client's representative** is invited to witness the tests, so that they see the equipment work as designed and can accept it.",
+          "Small defects found on the way go on a **punch list** (snag list). Each one is cleared, checked and signed off before handover, or by a date agreed with the client."
+        ] },
+        { "h": "Handover documents" },
+        { "table": { "head": ["Document", "Why the client needs it"], "rows": [
+          ["Receiving records and NCRs", "They show what arrived and in what condition, and support any claim on the supplier."],
+          ["Completed ITP", "It shows that every planned check was done and signed."],
+          ["As-built drawings", "Future electricians can trace wiring and find faults."],
+          ["Test results", "Proof that the work was safe before it was energised, and a baseline for later tests."],
+          ["Commissioning sheets", "Proof that the equipment works as designed; the settings can be restored when a part is replaced."],
+          ["Cleared punch list", "It shows each defect and when it was put right."],
+          ["Makers' manuals, warranties and spares lists", "For operation and maintenance, and for claims if something fails early."]
+        ] } }
+      ]
+    },
+    {
+      "title": "Leading the crew and keeping records",
+      "blocks": [
+        { "h": "Planning the crew's work" },
+        { "ul": [
+          "Give everyone the same, latest drawings, and take the old ones away.",
+          "Explain the standard: wire sizes and colours, numbering, ferrules, torque and duct work. Show the sample.",
+          "Split the work into sections that do not overlap, for example one pair per panel with the more experienced person leading, and give each pair its part of the schematic.",
+          "Make sure the right tools are there: ratchet crimpers for the ferrules in use, a torque screwdriver in calibration, strippers and a continuity tester.",
+          "Check the first few terminations of each person and put problems right straight away, before a habit is copied a hundred times."
+        ] },
+        { "h": "Estimating the time" },
+        { "p": "**Example.** A panel has 180 wires. One person terminates about 12 wires an hour, including markers and ferrules: 180 ÷ 12 = 15 person-hours. Two people working together need about 7.5 hours. Then add time for the point-to-point check and for corrections. If the check runs at 30 wires an hour, that is another 180 ÷ 30 = 6 hours. Compare progress with this plan at the end of each day." },
+        { "h": "Checking quality and controlling changes" },
+        { "ul": [
+          "Each pair ticks off each wire on a check print as it is finished.",
+          "A difference between the drawing and what is needed is reported to you. It is not changed on the spot.",
+          "You get changes approved, mark them on the red-line set, and make sure every copy in use shows them.",
+          "When a panel is finished, someone who did not wire it does the point-to-point check. People tend to read their own mistakes as correct.",
+          "You sign the panel off only when the check print, the test record and the punch list are complete."
+        ] },
+        { "h": "Safety on the job" },
+        { "ul": [
+          "When several people work on one isolated board, use a **group hasp**: each person fits their own padlock and keeps the key. The board cannot be switched on until the last lock is removed.",
+          "Wear safety glasses when drilling and when cutting rail and duct. Cover the parts below before drilling inside a panel, and vacuum out the swarf: metal filings cause short circuits.",
+          "Warn others before every insulation test, and discharge the circuit afterwards.",
+          "Brief the crew on the special hazards of the job: CT circuits, capacitors, orange wiring and batteries."
+        ] },
+        { "h": "Labels" },
+        { "table": { "head": ["Label", "What it shows"], "rows": [
+          ["Equipment label", "The equipment's name or number, **what it controls** and **where it is fed from**, so that anyone can isolate the right supply."],
+          ["Device labels inside the panel", "The tag from the schematic."],
+          ["Cable labels, at both ends", "The cable number from the cable schedule."],
+          ["Warning labels", "More than one supply; orange wiring that stays live; capacitor discharge time; CT circuits; battery hazards."]
+        ] } },
+        { "note": "Write records on the day, with real readings, not just 'OK'. A record that says 'insulation 350 MΩ, tester no. 4, 12 March' can be compared with next year's reading. 'OK' cannot.", "label": "Tip" }
+      ]
+    },
+    {
+      "title": "Revision",
+      "blocks": [
+        { "h": "Checklist" },
+        { "p": "Tick each statement only when you can do it without looking at the notes." },
+        { "ul": [
+          "I can list what to check on a switchboard or panel against the specification before it is ordered.",
+          "I can read an IP rating and choose a suitable enclosure for a dusty, wet or coastal site.",
+          "I can say what must be agreed with the civil, mechanical, controls and fire alarm contractors.",
+          "I can carry out a receiving inspection, read a nameplate, and deal with damage, a tripped shock indicator or a wrong item.",
+          "I can say how boards, electronics, batteries and cable drums are stored.",
+          "I can list what a lift plan covers and explain why the centre of gravity matters.",
+          "I can explain why a board is levelled and anchored, and what working space must be kept clear.",
+          "I can state what drives, UPS units and batteries need in the way of ventilation.",
+          "I can name the main drawings and say what each one is used for.",
+          "I can control drawing revisions and site changes with mark-ups and approvals.",
+          "I can describe good secondary wiring: layout, numbering, ferrules, torque, segregation and door earthing.",
+          "I can size a control transformer load in VA and work out its current.",
+          "I can explain interlocks and why stop circuits use normally closed contacts.",
+          "I can convert a 4–20 mA signal to a reading, and a CT secondary current to a load current.",
+          "I can explain the dangers of an open CT secondary and of charged capacitors, and how to make each safe.",
+          "I can plan the dead checks on a new panel and explain a staged first energising.",
+          "I can organise a crew, estimate the time, check their work and control changes.",
+          "I can list the handover documents and say why the client needs each one."
+        ] },
+        { "h": "Numbers and formulas to remember" },
+        { "table": { "head": ["Figure or formula", "What it is"], "rows": [
+          ["50 Hz", "The supply frequency in Jamaica: check every nameplate"],
+          ["I = VA ÷ V", "Current from a control transformer"],
+          ["4 mA to 20 mA", "The bottom and top of a transmitter's range; 0 mA means a fault"],
+          ["Value = (mA − 4) ÷ 16 × range", "Converting a 4–20 mA signal to a reading"],
+          ["Load current = meter current × CT ratio", "For example 3.5 A × (400 ÷ 5) = 280 A"],
+          ["N·m (newton metres)", "The unit of tightening torque"],
+          ["About 0.9 m deep, 762 mm wide, 2 m high", "Common NEC working space in front of low-voltage boards: check the code and drawings"],
+          ["Hours = number of wires ÷ wires per hour", "Estimating wiring time"]
+        ] } },
+        { "h": "Key terms" },
+        { "terms": [
+          ["Ancillary apparatus", "Supporting devices such as control transformers, CTs, relays, timers, sensors, surge protection and capacitors."],
+          ["As-built drawings", "Drawings updated to show what was really installed, including every change."],
+          ["Banksman (signaller)", "The trained person who gives signals to the crane operator during a lift."],
+          ["Check print", "A copy of the schematic on which each wire is marked off as it is checked."],
+          ["Commissioning sheet", "The record of settings, test results and witnesses for an item of equipment."],
+          ["Current transformer (CT)", "A device that gives a small current in proportion to a large one, for meters and relays. Its secondary must never be left open."],
+          ["DIN rail", "A standard metal rail on which contactors, relays, breakers and terminals are clipped."],
+          ["Fault rating", "The largest fault current that equipment can safely withstand or interrupt, in kA."],
+          ["Ferrule", "A small metal sleeve crimped onto fine stranded wire so that all the strands are held in the terminal."],
+          ["I/O list", "The list of every PLC input and output with its address and the device on it."],
+          ["Inspection and test plan (ITP)", "The plan listing each inspection and test, when it is done, who does it and who signs."],
+          ["Interlock", "An arrangement that stops two things happening together, such as forward and reverse contactors both closing."],
+          ["IP rating", "Two digits showing an enclosure's protection against solid objects and dust, and against water."],
+          ["Non-conformance report (NCR)", "A record of an item or piece of work that does not meet the order or specification, and what was done about it."],
+          ["Phase sequence", "The order in which the three phases reach their peaks; it sets the direction of a three-phase motor."],
+          ["PLC", "Programmable logic controller."],
+          ["Punch list (snag list)", "The list of small defects to be put right before handover."],
+          ["Schematic", "The drawing that shows how a circuit works, read from top to bottom."],
+          ["Secondary wiring", "Control, metering, protection and signal wiring, as distinct from the power wiring."],
+          ["Shorting link", "A link at CT test terminals that short-circuits the CT secondary so that it is safe without its meter."],
+          ["Single-line diagram", "A drawing of the whole electrical system with one line for each circuit."],
+          ["Sling", "A fabric or wire lifting accessory; fabric slings lift equipment without damaging its paint."],
+          ["Terminal block", "A connector clipped on a rail where field cables meet the panel wiring."],
+          ["Wiring duct", "The slotted plastic channel with a clip-on cover that carries wiring inside a panel."]
+        ] }
+      ]
+    }
+  ],
+  "cases": {
+    "c1": { "title": "A switchboard for a Savanna-la-Mar cold store", "text": "Marlon, a Level 3 electrician, coordinates the electrical installation at a new cold store in Savanna-la-Mar, Westmoreland. The main switchboard (three sections, 850 kg) arrives by truck. The tilt indicator on one section has turned red, though its crate looks sound. The board's nameplate reads 480 V, three-phase, 50 Hz, but the control transformer built into it is marked '60 Hz' only. The plant room is still being plastered and has no door yet. The plumber's drawing shows a water pipe crossing the room directly above the board's position." },
+    "c2": { "title": "A conveyor panel at an Old Harbour packaging plant", "text": "Tanisha, a Level 3 electrician, leads three trainees wiring a conveyor control panel at a packaging plant in Old Harbour, St Catherine. The panel has a 480 V supply, a 24 V AC control transformer, three contactors, a PLC, and a level transmitter on the feed hopper (4–20 mA, set for 0 to 4 m). Each contactor coil holds in on 9 VA, there are six pilot lamps of 2 VA each, and the PLC's power supply takes 25 VA. The specification calls for IEC wire colours. One interlock circuit is fed from the palletiser's panel next door." },
+    "c3": { "title": "Metering and capacitors at a Negril hotel", "text": "Ricardo, a Level 3 electrician, coordinates the fitting of a new energy meter and a power factor correction capacitor bank at a hotel in Negril. The meter is fed from three 800/5 current transformers on the incoming supply, through a test terminal block with shorting links. When the meter is first put in service it shows the hotel exporting power, although the hotel has no generator running and no solar system. The capacitor bank that was delivered is marked 415 V, 50 Hz; the hotel's supply is 480 V." },
+    "c4": { "title": "Outdoor panels at a Lucea fish plant", "text": "Kerry-Ann, a Level 3 electrician, plans four outdoor control panels for pumps and fans at a fish processing plant on the waterfront in Lucea, Hanover. The panels will be on the west wall, in full afternoon sun, and the area is hosed down every day. The supplier offers IP54 enclosures with cable entry through the top. Two of the panels contain variable speed drives. Each morning the staff find drops of water inside the doors of the old panels." },
+    "c5": { "title": "A chilled-water panel at a Falmouth shopping centre", "text": "Andre, a Level 3 electrician, supervises the control panel for two chilled-water pumps at a shopping centre in Falmouth, Trelawny. The panel takes a 'start' signal from the building management system (BMS) and a 'fault' signal from the chiller's own panel. The panel has 210 wires, and a point-to-point check runs at about 20 wires an hour. When the competent person briefly starts each pump, pump 1 turns the right way and pump 2 turns backwards." }
+  },
+  "questions": [
+    { "id": "P-01", "c": "c1", "q": "One section's tilt indicator is red, but nothing looks damaged. What should Marlon do?", "o": ["Accept it, because the crate is sound and these indicators often trip by themselves", "Record it before signing, photograph it and ask the maker how it must be inspected", "Refuse all three sections and send the truck straight back to the supplier's yard", "Sign for it, then open that section and judge its condition himself on the day"], "a": 1, "why": "A tripped indicator shows the section was tipped beyond the maker's limit, and damage such as cracked insulators or strained busbar joints may be hidden. Recording it before signing protects the claim, and the maker decides what inspection is needed before it can be accepted." },
+    { "id": "P-02", "c": "c1", "q": "Why should the control transformer marked '60 Hz' be queried before the board is ever energised?", "o": ["Its output would be at 60 Hz, which would upset the timers", "Its fuses operate only at 60 Hz, leaving it unprotected", "On 50 Hz it would give a higher voltage to the coils", "On 50 Hz its core can saturate, so it may overheat"], "a": 3, "why": "At the same voltage, a lower frequency means more magnetic flux in the core. A transformer designed only for 60 Hz can saturate on 50 Hz, draw a heavy magnetising current and overheat. Hold it, raise a non-conformance and ask the designer and maker to confirm or replace it." },
+    { "id": "P-03", "c": "c1", "q": "Where should the switchboard be kept until the plant room is ready?", "o": ["In a dry, lockable store, upright in its packing and off the floor", "In the plant room under a tarpaulin, so that it is moved only once", "On the truck in the yard, ready to be lifted straight onto the plinth", "In the open yard with the crate opened, so that any damp can dry out"], "a": 0, "why": "Plaster dust and damp get into busbars and breakers, and a room with no door is not secure. The board is stored as the maker says: upright, packed, dry, off the floor and locked away until the room is finished." },
+    { "id": "P-04", "c": "c1", "q": "What should Marlon do about the water pipe drawn directly above the board?", "o": ["Allow it, provided the pipe is lagged to stop it sweating", "Allow it, and fit a drip tray over the top of the board", "Have it rerouted, so the space above the board stays clear", "Lower the pipe so that it runs through the working space"], "a": 2, "why": "The space above a board is kept for electrical use only. A pipe there can leak or sweat onto live equipment and blocks the cable routes. It is far cheaper to agree a new route with the plumber and the designer now than after both are installed." },
+    { "id": "P-05", "c": "c2", "q": "With every coil and lamp on and the PLC supply connected, about how much current flows in the 24 V winding?", "o": ["About 1.1 A", "About 1.6 A", "About 2.7 A", "About 3.8 A"], "a": 2, "why": "Add the VA of everything on together: 3 × 9 + 6 × 2 + 25 = 64 VA. Current = VA ÷ V = 64 ÷ 24 = about 2.7 A. The transformer size is then chosen from the maker's tables, which also allow for the inrush as the coils pull in." },
+    { "id": "P-06", "c": "c2", "q": "The PLC reads 9.6 mA from the hopper's level transmitter. What is the level?", "o": ["1.4 m", "1.9 m", "2.4 m", "1.1 m"], "a": 0, "why": "The signal spans 16 mA for 0 to 4 m, so each milliamp above the 4 mA zero stands for 0.25 m. (9.6 − 4) × 0.25 = 1.4 m. Forgetting to take off the 4 mA zero gives a reading that is too high." },
+    { "id": "P-07", "c": "c2", "q": "The level reading jumps about each time a conveyor motor starts. What is the most likely cause?", "o": ["The 24 V control transformer is too small for the coils", "The transmitter's range has been set too wide for the hopper", "The PLC input has been wired with too thick a wire", "The signal cable shares a duct with the motor leads"], "a": 3, "why": "Motor currents switching on and off induce noise in nearby wires. Analogue signal cables must be screened and kept in a separate route from power wiring, crossing it only at right angles, with the screen earthed as the design says." },
+    { "id": "P-08", "c": "c2", "q": "A trainee has put a 0.75 mm² wire and a 1.5 mm² wire under the same terminal screw. What should Tanisha tell him?", "o": ["It is acceptable, as long as the screw is tightened to the torque figure", "Use a second terminal and a jumper bar, so each wire is clamped properly", "Twist the two bare ends tightly together first, so they act as one wire", "Solder the two ends into one solid tip before putting them in the terminal"], "a": 1, "why": "A screw clamps evenly only on what the maker allows. With two different sizes the thinner wire is hardly gripped and works loose with heat and vibration. Solder under a screw slowly gives way, so that is no cure." },
+    { "id": "P-09", "c": "c2", "q": "Which colour should be used for the interlock wiring that is fed from the palletiser's panel?", "o": ["Red, as for the other AC control circuits", "Blue, to show that it is a low-voltage circuit", "Black, since it comes from a 480 V panel", "Orange, as it stays live when this panel is off"], "a": 3, "why": "Wiring fed from another source stays live when this panel's isolator is opened, so it is orange and the door carries a warning label. Anyone working in the panel then knows that a second supply must be isolated as well." },
+    { "id": "P-10", "c": "c3", "q": "What is the most likely reason the new meter shows the hotel exporting power?", "o": ["A CT is fitted backwards, or its S1 and S2 wires are swapped", "The capacitor bank is pushing real power back towards JPS", "The shorting links on the test block have been left closed", "The meter has been set for 800/1 CTs and not 800/5"], "a": 0, "why": "A CT has polarity: P1 faces the supply, and S1 and S2 go to the matching meter terminals. Reversed, the current appears to flow the other way. Closed shorting links would make the meter read nothing, a wrong ratio would change the size of the reading but not its direction, and capacitors do not supply real power." },
+    { "id": "P-11", "c": "c3", "q": "The meter's input from one CT is 2.6 A. What current is flowing in that phase of the supply?", "o": ["160 A", "416 A", "2,080 A", "307 A"], "a": 1, "why": "An 800/5 CT has a ratio of 160, so each amp in the secondary stands for 160 A in the primary: 2.6 × 160 = 416 A." },
+    { "id": "P-12", "c": "c3", "q": "The meter must go back to the supplier while the hotel stays on load. What must the authorised person do first at the test block?", "o": ["Open the links, so that no current can reach the meter", "Pull the CT wires off the meter and tape up their ends", "Close the shorting links across each CT's secondary", "Take out the fuses in the CT secondary circuit"], "a": 2, "why": "With load current flowing, an open CT secondary can produce thousands of volts. The links short each secondary before the meter is disconnected, and they stay closed until a meter is connected again. CT secondaries are never fused, for the same reason." },
+    { "id": "P-13", "c": "c3", "q": "What should Ricardo do about the capacitor bank marked 415 V?", "o": ["Fit it, because capacitors work safely at any voltage up to 600 V", "Fit it, but allow the controller to switch in only half of its steps", "Fit it, since the higher voltage will simply give extra correction", "Hold it: capacitors run above their rated voltage overheat and fail"], "a": 3, "why": "The stress on a capacitor rises steeply with voltage; its output rises with the square of the voltage, so on 480 V a 415 V unit would work about a third harder than designed and could swell or burst. It does not match the supply, so it is held and reported as a non-conformance." },
+    { "id": "P-14", "c": "c4", "q": "Why is an IP54 enclosure not good enough for these panels, whatever it is made of?", "o": ["The first digit, 5, means it is for indoor use only", "The second digit, 4, covers splashes but not hose jets", "An IP rating covers solid objects, and says nothing of water", "IP54 enclosures cannot be fitted with cable glands"], "a": 1, "why": "The second digit shows water protection: 4 is splashing water, 5 is water jets and 6 is powerful jets. An area hosed down daily needs at least 5, and more usually 6, together with a material that resists salt, such as stainless steel or a suitable plastic." },
+    { "id": "P-15", "c": "c4", "q": "Which change matters most for the two panels that contain drives?", "o": ["Shade them, and size the cooling for the drives' heat loss", "Seal the panels completely and fit no cooling of any kind", "Paint them a dark colour, so that salt stains show less", "Mount each drive at the very top of its panel, under the roof"], "a": 0, "why": "A drive loses about 2 to 3% of its power as heat, and afternoon sun on a west wall adds more. Most drives are rated for about 40 to 50 °C, so the panels need a sun shield or a shaded position, the maker's clearances, and cooling sized for the heat." },
+    { "id": "P-16", "c": "c4", "q": "What should be specified to stop the water drops forming inside the doors each morning?", "o": ["A larger drain hole drilled through the roof of each panel", "A bag of drying crystals in each panel, changed once a year", "A thermostat-controlled anti-condensation heater in each panel", "A second blanking plug in each of the unused cable entries"], "a": 2, "why": "The drops are condensation: damp air inside the panel cools at night and gives up its water. A small heater controlled by a thermostat keeps the inside slightly warmer than the dew point. Drying crystals are soon saturated in Jamaica's humidity." },
+    { "id": "P-17", "c": "c5", "q": "Pump 2 turns backwards, but pump 1 is correct. What is the right correction?", "o": ["Swap two phases at the panel's incoming supply terminals", "Reverse the two wires of the BMS start signal for pump 2", "Change the setting of pump 2's overload relay", "Isolate pump 2 and swap two of its three motor leads"], "a": 3, "why": "Swapping any two leads of a three-phase motor reverses it. Because pump 1 is correct, the supply's phase sequence is right, and swapping phases at the incoming terminals would reverse both pumps. The work is done by the competent person with the circuit isolated and proved dead." },
+    { "id": "P-18", "c": "c5", "q": "The chiller's fault signal uses a contact that is closed when healthy and opens on a fault. Why is this the better arrangement?", "o": ["A closed contact carries a stronger signal over a long cable", "A broken wire then shows as a fault and is not hidden", "It lets the chiller keep running when the signal cable is cut", "It needs one core fewer in the cable between the two panels"], "a": 1, "why": "This is fail-safe wiring. If the cable breaks or a terminal works loose, the circuit opens, and the panel sees a fault that someone will investigate. With a contact that closes on a fault, a broken wire would silence the alarm without anyone knowing." },
+    { "id": "P-19", "c": "c5", "q": "To save time, the BMS installer asks to connect the BMS start signal straight to the pump contactor coils. What should Andre say?", "o": ["No: the start must pass through the stop, overload and interlock circuit", "Yes, provided the BMS signal is at the same voltage as the contactor coils", "Yes, as long as the change is written on the door in marker pen", "No: a BMS may only read signals from a panel, never send them"], "a": 0, "why": "A start signal wired straight to a coil by-passes the stop button, the overload contact and the interlocks, so the pump could run with nothing to stop or protect it. The BMS signal operates a relay within the control circuit, as the approved schematic shows, and any change needs the designer's approval." },
+    { "id": "P-20", "c": "c5", "q": "Andre expects about 1 wire in 30 to need a correction that takes 15 minutes. About how long should he allow for the point-to-point check and the corrections together?", "o": ["About 7 hours", "About 10.5 hours", "About 12 hours", "About 17.5 hours"], "a": 2, "why": "Checking: 210 ÷ 20 = 10.5 hours. Corrections: 210 ÷ 30 = 7 wires, at 15 minutes each = 1.75 hours. Together that is 12.25 hours, about 12. A plan that allows time only for the check assumes that nothing will be found." }
+  ]
+}

@@ -1,0 +1,1336 @@
+{
+  "format": "cestis-study-kit",
+  "version": 1,
+  "status": "to-check",
+  "written": "2026-11-07",
+  "programme": "Electrical Installation",
+  "qualification": {
+    "id": "QUAL-EIM-L3",
+    "title": "ELECTRICAL INSTALLATION AND MAINTENANCE LEVEL 3",
+    "code": "MEM32507"
+  },
+  "level": 3,
+  "unit": {
+    "code": "MEMMRD0892A",
+    "title": "Install and maintain electronic electrical equipment and distribution circuits"
+  },
+  "summary": "This unit teaches you to install and maintain the electronic equipment found in modern buildings and plants and the distribution circuits that feed it: variable speed drives, soft starters, control power supplies and controller cards, surge protection, UPS units, solar inverters and LED drivers. You will learn how electronic loads behave on a circuit, how to plan, route and protect the wiring, how to do the calculations, which tests are done dead and which are left to the authorised person, and how to keep records, supervise others and hand over.",
+  "sections": [
+    {
+      "title": "Unit overview",
+      "blocks": [
+        {
+          "p": "Twenty years ago most electrical loads were motors, heaters and lamps. Today a typical Jamaican office, hotel or factory is full of **electronic loads**: computers, LED lighting, variable speed drives, UPS units and solar inverters. They save energy and do things old equipment could not, but they behave differently. They are sensitive to heat, static, surges and electrical noise, and they push noise and distorted current back into the wiring. At Level 3 you plan the installation so that these problems are designed out, lead the team, check the work and keep the records."
+        },
+        {
+          "h": "What you must be able to do"
+        },
+        {
+          "table": {
+            "head": [
+              "Task",
+              "What it looks like on the job"
+            ],
+            "rows": [
+              [
+                "Plan from the maker's data",
+                "Read the maker's manual and the nameplate; check ratings, supply, clearances, cooling, cable types and environment before work starts."
+              ],
+              [
+                "Install drives and soft starters",
+                "Mount, cable, earth and terminate them to good EMC practice, then test with the drive disconnected and leave first running to the authorised person."
+              ],
+              [
+                "Install control supplies and electronic cards",
+                "Size a 24 V DC supply, mount it and a controller, and handle cards with ESD precautions."
+              ],
+              [
+                "Install surge protection and earthing",
+                "Fit SPDs in stages with short leads, bond everything to one main earthing terminal, and inspect after storms."
+              ],
+              [
+                "Plan and extend distribution circuits",
+                "Check spare ways, sub-main capacity, voltage drop and load balance; separate electronic loads; plan protection."
+              ],
+              [
+                "Deal with electronic loads",
+                "Explain harmonics, hot neutrals, leakage currents and nuisance GFCI/RCD trips, and say what to do about each."
+              ],
+              [
+                "Install and maintain solar inverters",
+                "Understand DC hazards, anti-islanding and the power company's rules; maintain safely."
+              ],
+              [
+                "Test and inspect",
+                "Carry out the dead tests with electronics disconnected; know which live tests are the authorised person's."
+              ],
+              [
+                "Maintain electronic equipment",
+                "Clean, check, replace ageing parts, back up settings and record everything."
+              ],
+              [
+                "Supervise, record and hand over",
+                "Check others' work, update schedules and drawings, and show the operator how to run the equipment."
+              ]
+            ]
+          }
+        },
+        {
+          "h": "Words used in this unit"
+        },
+        {
+          "table": {
+            "head": [
+              "Term",
+              "Meaning"
+            ],
+            "rows": [
+              [
+                "VSD (variable speed drive)",
+                "Also called a variable frequency drive (VFD), inverter or AC drive: it changes the frequency and voltage fed to a motor to control its speed."
+              ],
+              [
+                "EMC (electromagnetic compatibility)",
+                "The ability of equipment to work properly beside other equipment without causing or suffering electrical interference."
+              ],
+              [
+                "SPD (surge protective device)",
+                "A device that diverts a voltage surge to earth."
+              ],
+              [
+                "UPS (uninterruptible power supply)",
+                "Equipment with batteries that keeps loads running when the mains fails."
+              ],
+              [
+                "Authorised person",
+                "The competent person appointed to do live tests, set drive parameters, and energise and run equipment."
+              ]
+            ]
+          }
+        },
+        {
+          "note": "**Never take measurements inside a VSD, UPS or inverter while it is energised.** The DC voltages inside are high enough to kill, and they stay for minutes after the supply is off. Trainees work on equipment that is isolated, locked off, tagged and proved dead, **and whose capacitors have had the time on the maker's label to discharge**. Live checks and the first run belong to the authorised person.",
+          "label": "Safety"
+        },
+        {
+          "note": "Supply in Jamaica is **50 Hz**. Many drives, UPS units and inverters on sale here are made for 60 Hz markets: most drives accept 50 or 60 Hz input, but check the label. Heat, humidity, salt air, dust, insects, lightning and hurricanes all shorten the life of electronics here, so maintenance intervals in manuals written for milder climates are usually too long.",
+          "label": "Jamaica"
+        }
+      ]
+    },
+    {
+      "title": "Planning the installation of electronic equipment",
+      "blocks": [
+        {
+          "h": "Read before you plan"
+        },
+        {
+          "p": "Electronic equipment is far less forgiving than a motor or a heater. The **maker's installation manual** and the **nameplate** are the first documents you read, before the drawings, the price list or what you remember from the last job. They give the rating, the supply, the protective devices, the cable types, the clearances, the temperature limits, the earthing, the torque figures and the order of testing."
+        },
+        {
+          "table": {
+            "head": [
+              "Check",
+              "Why"
+            ],
+            "rows": [
+              [
+                "Rating against the load: a 3.7 kW fan motor needs a drive rated for at least that motor's current",
+                "Drives are chosen from the motor's full-load current, not its kW alone."
+              ],
+              [
+                "Supply voltage, phases and frequency",
+                "A single-phase supply may need a drive made for single-phase input, which is often de-rated."
+              ],
+              [
+                "Protective devices and isolator",
+                "The manual gives fuse or breaker types and sizes. Some drives need fast-acting semiconductor fuses."
+              ],
+              [
+                "Cable types",
+                "Screened motor cable, screened control cable, and the sizes the manual gives."
+              ],
+              [
+                "Ambient temperature and altitude",
+                "Most equipment is rated to about 40 °C. Above the maker's limit it must be de-rated or cooled."
+              ],
+              [
+                "Enclosure and ingress protection",
+                "IP rating or NEMA type to suit dust, water and salt."
+              ],
+              [
+                "Approval marks and a manual",
+                "Cheap equipment bought online with no maker's details may have no approvals, no manual, no support and no spares. Check ratings, approval marks and the manual first; if they are missing, advise the client not to fit it."
+              ]
+            ]
+          }
+        },
+        {
+          "h": "Heat: the main killer"
+        },
+        {
+          "p": "Every electronic device turns part of its power into heat, and **heat shortens the life of electronic parts**: a common rule of thumb is that the life of electrolytic capacitors halves for each 10 °C rise. A drive typically loses 2 to 4% of the power it handles, so a 15 kW drive may give off 300 to 600 W inside its panel."
+        },
+        {
+          "ul": [
+            "Keep the **minimum clearances above and below** that the maker gives, so that air can flow through the heatsink. Do not mount heat producers directly above each other, and do not stack drives on top of one another.",
+            "Do not mount drives or power supplies directly below contactors, braking resistors or transformers that heat the air rising into them.",
+            "In a **hot plant room** (for example 45 °C), check the maker's de-rating curve: the drive may have to be run below its rated current, or the panel must be cooled with filtered fans, a heat exchanger or air-conditioning.",
+            "A **server rack in a small room with no air-conditioning** will overheat: the heat shortens equipment life and causes shutdowns. Size the cooling from the rack's total watts.",
+            "Keep filters clean. Blocked airflow is the commonest cause of drives and inverters overheating and tripping."
+          ]
+        },
+        {
+          "h": "Static (ESD)"
+        },
+        {
+          "p": "**Electrostatic discharge (ESD)** from your body can destroy a circuit card without any visible sign, or damage it so that it fails months later. Cards arrive in a sealed silver-grey anti-static bag, and they stay in it until they are about to be fitted."
+        },
+        {
+          "flow": [
+            "Carry the card to the panel in its bag",
+            "Put on an earthed wrist strap, or touch the earthed panel frame first",
+            "Take the card out and hold it by its edges, never by the pins or components",
+            "Fit it at once",
+            "Put any card you take out straight into an anti-static bag"
+          ]
+        },
+        {
+          "h": "A 24 V DC control supply"
+        },
+        {
+          "p": "Controllers, input and output cards, relays, sensors and lamps often run from a 24 V DC power supply. Size it from the **total** of the loads that can be on together, then add a margin."
+        },
+        {
+          "p": "**Example.** Eight relays at 0.05 A each = 0.4 A. A controller and cards at 0.7 A. Sensors and lamps 0.5 A. Total = 1.6 A. With a 25% margin for later additions, 1.6 × 1.25 = 2.0 A. The next standard size up, such as 2.5 A, is chosen. A 24 V, 1.6 A supply 'exactly' would be at its limit from the first day; a 12 V supply cannot feed 24 V loads at all, whatever its current."
+        },
+        {
+          "ul": [
+            "The supply's **earth terminal is connected**: its input filter and case need the earth for safety and for noise.",
+            "Split the 24 V output into **protected groups**, each with its own fuse or electronic protector, so that one fault does not stop the whole control system.",
+            "Keep 24 V DC wiring in separate trunking from power wiring, with numbered ferrules and tidy terminations.",
+            "Mount the supply and the controller on DIN rail with the clearances the maker gives, away from contactors and drives."
+          ]
+        },
+        {
+          "h": "LED fittings and their drivers"
+        },
+        {
+          "ul": [
+            "An LED fitting runs from a **driver** (power supply), which may be built in or separate. In a hot ceiling space, the driver's **maximum working temperature** and **output current** must be checked in its data sheet: a driver that runs hot fails early, and the fitting goes dark.",
+            "The driver's output current must match the LED module's rating.",
+            "LED lamps flicker or buzz on an old dimmer made for incandescent lamps. Fit a dimmer made for LED loads, and check the lamp and dimmer lists.",
+            "Many drivers have a large **inrush current** at switch-on. Several on one small breaker can trip it, so follow the maker's limit on the number per circuit."
+          ]
+        },
+        {
+          "note": "Do not spend the client's money, or your own time, on equipment you cannot get the manual for. If you cannot read what the maker says, you cannot install or maintain it correctly. Say so in writing and give the client a better choice.",
+          "label": "Tip"
+        }
+      ]
+    },
+    {
+      "title": "Variable speed drives",
+      "blocks": [
+        {
+          "h": "How a VSD works"
+        },
+        {
+          "flow": [
+            "The rectifier changes the incoming AC into DC",
+            "The DC bus capacitors smooth and store the DC",
+            "The inverter switches that DC very quickly to make a new AC output",
+            "The output frequency and voltage are set by the controller, and the motor follows"
+          ]
+        },
+        {
+          "p": "The DC bus is at roughly 1.4 times the supply voltage, about 310 V DC on a 220 V supply and about 680 V DC on a 480 V supply. The capacitors hold that charge after the supply is isolated: this is why a drive is **never opened until the time on its label has passed and the bus has been proved dead**."
+        },
+        {
+          "h": "Speed and frequency"
+        },
+        {
+          "p": "An induction motor's **synchronous speed** is set by the frequency and the number of poles: **n = 120 × f ÷ p** (n in rpm, f in hertz, p the number of poles). The real running speed is a little lower, by the slip."
+        },
+        {
+          "table": {
+            "head": [
+              "Poles",
+              "At 50 Hz",
+              "At 40 Hz",
+              "At 25 Hz"
+            ],
+            "rows": [
+              [
+                "2",
+                "3,000 rpm",
+                "2,400 rpm",
+                "1,500 rpm"
+              ],
+              [
+                "4",
+                "1,500 rpm",
+                "1,200 rpm",
+                "750 rpm"
+              ],
+              [
+                "6",
+                "1,000 rpm",
+                "800 rpm",
+                "500 rpm"
+              ]
+            ]
+          }
+        },
+        {
+          "p": "**Example.** A 4-pole motor at 35 Hz: n = 120 × 35 ÷ 4 = 1,050 rpm, which is 70% of 1,500 rpm. Slower than about 20 Hz, a motor's own fan cools it poorly, so a motor run slowly at full load needs a separate cooling fan or an inverter-rated motor."
+        },
+        {
+          "h": "Energy saving on fans and pumps"
+        },
+        {
+          "p": "For a fan or centrifugal pump the power needed varies roughly with the **cube of the speed**. At 80% speed the power is 0.8 × 0.8 × 0.8 = 0.51, about half. At 70% it is 0.7³ = 0.34, about a third. If flow is controlled by a damper or valve instead, the motor still runs at full speed and the energy is wasted as a pressure drop. This is why a VSD on a variable-load fan or pump often pays for itself. For a conveyor or a compressor the saving is much smaller, because the load does not follow the cube law."
+        },
+        {
+          "h": "Settings (parameters)"
+        },
+        {
+          "ul": [
+            "The **parameters** are the drive's stored settings: the motor's nameplate data (voltage, current, frequency, speed, power), the acceleration and deceleration times (ramp times), minimum and maximum frequency, current limit, control source (keypad, terminals, network) and protection settings.",
+            "They are set by the **authorised person**, from the nameplate and the manual. Nobody tries values until the motor runs.",
+            "**Acceleration time** is the time the drive takes to bring the motor from standstill to its set speed. Too short a time gives over-current trips; too long wastes time or stalls a heavy load.",
+            "A **copy of the parameters** is kept with the maintenance records, so that a replacement drive can be set up quickly and correctly."
+          ]
+        },
+        {
+          "h": "Good EMC practice"
+        },
+        {
+          "p": "A drive switches thousands of times a second. That makes electrical noise, which flows along the cables and radiates from them, and which can upset sensors, signals, radio, computers and other drives. **EMC practice** keeps the noise in the motor circuit and keeps the control circuits quiet."
+        },
+        {
+          "table": {
+            "head": [
+              "Practice",
+              "Why"
+            ],
+            "rows": [
+              [
+                "Use **screened (shielded) motor cable**, with a protective earth conductor, of the type the maker gives",
+                "The screen carries the noise current back to the drive and stops it spreading."
+              ],
+              [
+                "Clamp the screen **all round (360°)** in an EMC gland or clamp, at **both ends**: the drive and the motor",
+                "At high frequency, a long pigtail is a poor path: it acts like an aerial. A full-circle clamp is a low-impedance path."
+              ],
+              [
+                "Keep the motor cable **as short as practical**",
+                "Long cables carry more noise and leakage, and stress the motor's insulation. Where a long cable is needed, the manual may call for an output filter or reactor."
+              ],
+              [
+                "Run motor cables **apart** from control and data cables, in separate trunking or at a distance the manual gives",
+                "Fast switching can disturb nearby cables."
+              ],
+              [
+                "Where they must cross, cross at **right angles**",
+                "A short crossing couples much less noise than running side by side."
+              ],
+              [
+                "Use **screened** control cable, with the screen connected as the maker says (often at the drive end only for analogue signals)",
+                "Keeps noise out of start/stop and speed signals."
+              ],
+              [
+                "Earth the drive, the motor, the panel and the screens to the main earthing system, with short, flat or wide connections",
+                "A good high-frequency earth is part of EMC."
+              ],
+              [
+                "Mount the drive on a bare metal back plate, with the paint scraped away under its mounting points",
+                "The drive's filter needs a good contact with the panel."
+              ]
+            ]
+          }
+        },
+        {
+          "note": "On a VSD, the screen is **not** a replacement for the protective earth conductor. The cable has both: the screen for noise and the earth conductor for safety.",
+          "label": "Remember"
+        },
+        {
+          "h": "Installing and testing a drive"
+        },
+        {
+          "flow": [
+            "Read the manual and check the drive against the motor and supply",
+            "Mount the drive with its clearances; plan the cable routes",
+            "With the supply isolated, locked off and proved dead: fit the isolator and protection, and wire the supply",
+            "Fit the screened motor cable and clamp the screen at both ends",
+            "Wire the control circuit with screened cable and numbered ferrules, apart from the motor cable",
+            "Earth all metal parts",
+            "**Disconnect the motor cable from the drive's output terminals**, then test the insulation resistance of the motor and cable (500 V DC for a low-voltage motor)",
+            "Reconnect and do continuity and polarity checks",
+            "The authorised person energises, enters the parameters, and runs the motor",
+            "Record the parameters and the test results"
+          ]
+        },
+        {
+          "note": "**Never insulation-test through a drive.** The tester's voltage can destroy the drive's output and input stages. Disconnect the output cable first, as the maker says, and remember to disconnect or short the drive's own terminals as the manual instructs when testing the supply side.",
+          "label": "Safety"
+        },
+        {
+          "h": "Maintenance of drives"
+        },
+        {
+          "table": {
+            "head": [
+              "Task",
+              "Why"
+            ],
+            "rows": [
+              [
+                "Read the fault log and running hours (the authorised person, on a running drive)",
+                "The history shows problems early."
+              ],
+              [
+                "Clean filters and heatsinks; check that the cooling fans turn freely",
+                "Blocked airflow makes drives overheat and trip."
+              ],
+              [
+                "Wait the label time for the DC bus to discharge, prove dead, then check terminals to the maker's torque",
+                "Vibration and heat loosen terminals."
+              ],
+              [
+                "Replace **cooling fans and DC bus capacitors** at the maker's interval, sooner in hot rooms",
+                "They age first, from heat. A drive that has run for years in a hot room is the likeliest to fail."
+              ],
+              [
+                "Check screens, glands and earth connections for corrosion and looseness",
+                "EMC depends on them."
+              ],
+              [
+                "Use ESD precautions before touching any card",
+                "Static damages cards."
+              ],
+              [
+                "Back up the parameters; keep a copy in the records",
+                "A replacement drive does not copy the old one by itself."
+              ]
+            ]
+          }
+        },
+        {
+          "h": "A failed drive with a burnt smell"
+        },
+        {
+          "flow": [
+            "Isolate at the supply, lock off and tag",
+            "Wait at least the time on the drive's label, then prove dead at the input terminals and check the DC bus terminals with an approved tester",
+            "Read the fault log if the authorised person can; inspect the drive for burnt parts, dust, blocked fans, water or insects",
+            "Look for the cause **outside** the drive: disconnect the motor cable and test the motor and cable insulation; check the cooling and room temperature; look for signs of a surge, such as a failed SPD",
+            "Correct the cause, then fit the same model or an approved equal, wired to EMC practice",
+            "The authorised person loads the saved parameters and runs the pump",
+            "Record the failure, the cause and what will prevent it happening again"
+          ]
+        },
+        {
+          "p": "Replacing the drive without finding the cause usually means replacing it again: a failed motor, a water leak or a surge that damaged one drive will damage the next."
+        },
+        {
+          "h": "Handover"
+        },
+        {
+          "p": "Show the operator how to **start, stop and isolate** the equipment, and what the alarms mean. They are not shown how to change the parameters freely, bypass the drive's trips or open the cover while it is running."
+        }
+      ]
+    },
+    {
+      "title": "Soft starters and comparing ways to start a motor",
+      "blocks": [
+        {
+          "p": "A **soft starter** ramps up the voltage fed to a motor, so that it starts gently. This cuts the starting current and the mechanical shock on belts, couplings and pipes. It does **not** control the motor's running speed: once the ramp is finished the motor runs at full speed. It does not take the place of overload protection, which is still needed."
+        },
+        {
+          "table": {
+            "head": [
+              "Method",
+              "Starting current (typical)",
+              "Speed control",
+              "Good for"
+            ],
+            "rows": [
+              [
+                "Direct-on-line (DOL)",
+                "About 6 to 8 times full-load current",
+                "None",
+                "Small motors; where the supply can stand the start."
+              ],
+              [
+                "Star-delta",
+                "About one-third of DOL",
+                "None",
+                "Medium motors that start on a light load; there is a break in supply at changeover."
+              ],
+              [
+                "Soft starter",
+                "Adjustable, often limited to 2 to 4 times full-load current",
+                "None while running",
+                "Pumps, fans and conveyors needing a gentle start or stop."
+              ],
+              [
+                "Variable speed drive",
+                "Can start with no more than rated current",
+                "Full control while running",
+                "Loads where speed must vary, and where energy saving matters."
+              ]
+            ]
+          }
+        },
+        {
+          "ul": [
+            "Many soft starters have a **bypass contactor** that closes once the motor is up to speed. It takes the starter's thyristors out of the circuit, which cuts heat losses while the motor runs. A starter with a bypass needs a smaller cabinet and less cooling.",
+            "A soft starter on a **pump** also ramps down, which prevents the pressure shock (water hammer) when a pump stops suddenly.",
+            "Soft starters and drives are mounted with the clearances the maker gives, and their ventilation is checked as part of maintenance.",
+            "Do not test the insulation of the motor circuit through a soft starter without disconnecting it as its manual says: its thyristors are electronic parts."
+          ]
+        },
+        {
+          "note": "A soft starter or drive does not make a worn motor, a jammed pump or a slipping belt safe. If a machine trips repeatedly, find out why. Do not widen the current limit or lengthen the ramp until it stops tripping.",
+          "label": "Tip"
+        }
+      ]
+    },
+    {
+      "title": "Surge protection, earthing and bonding",
+      "blocks": [
+        {
+          "p": "Lightning strikes, and switching on the JPS network and on large loads, send brief, very high voltage surges along the supply, telephone and data lines. A surge too short to trip a breaker can destroy electronic equipment. Jamaica has frequent thunderstorms, and many electronic failures after storms are surge damage."
+        },
+        {
+          "h": "How an SPD works"
+        },
+        {
+          "p": "A **surge protective device** is connected between the supply conductors and earth. Normally it does nothing. When a surge arrives, it conducts and sends the surge current to earth, limiting the voltage that reaches the equipment. It must be able to take the surge and then recover."
+        },
+        {
+          "h": "Staged protection"
+        },
+        {
+          "table": {
+            "head": [
+              "Stage",
+              "Where",
+              "Job"
+            ],
+            "rows": [
+              [
+                "1",
+                "At the **main board** (service entrance)",
+                "Takes the largest share of the surge energy. Often called a type 1 or type 1+2 device."
+              ],
+              [
+                "2",
+                "At **sub-boards** and distribution boards",
+                "Reduces what is left. Often called type 2."
+              ],
+              [
+                "3",
+                "Close to **sensitive equipment**, such as a computer rack or alarm panel",
+                "Takes off the final, small surge. Often called type 3."
+              ],
+              [
+                "Data and telephone lines",
+                "Where they enter the building and at the equipment",
+                "Surges also come in on data, telephone and antenna lines."
+              ]
+            ]
+          }
+        },
+        {
+          "p": "Each stage lowers the surge a little further. A single SPD at the main board gives good protection for the building's wiring, but equipment far from it, or very sensitive equipment, still needs protection nearby."
+        },
+        {
+          "h": "Installing an SPD"
+        },
+        {
+          "ul": [
+            "Mount it as close as possible to the point where the supply enters the board.",
+            "Keep its leads **short and straight**: ideally under half a metre in total. Every extra length of lead adds voltage on top of what the SPD lets through, because a surge changes extremely fast. Do not coil the leads.",
+            "Protect it with the fuse or breaker the maker gives.",
+            "Connect it to a sound earth: the **main earthing terminal**.",
+            "Use the SPD's status window or remote contact: **green** means working; **red** (or a lost light) means it has reached the end of its life and must be replaced.",
+            "Disconnect it, as its maker says, before insulation resistance tests: the SPD would read a false low value and the test voltage can damage it."
+          ]
+        },
+        {
+          "h": "One main earthing terminal"
+        },
+        {
+          "p": "All the earthing in a building, including the earths of the SPDs, the data equipment, the metal pipes and the structure, goes to **one main earthing terminal** and one earthing system. Some people add a separate 'clean' earth rod for computers, thinking it will give a quieter earth. It does the opposite: in a fault or a surge, the ground between two rods rises by different amounts, and a dangerous voltage appears between the two earthed systems, and across any cable that joins equipment on one to equipment on the other. Equipment fails, and people can get a shock."
+        },
+        {
+          "note": "After a lightning storm, if several electronic devices have failed, inspect the **SPDs and the earthing and bonding** first. A red SPD that nobody noticed, a loose earth connection, or an SPD with a long coiled lead may be why the surge got through.",
+          "label": "Remember"
+        },
+        {
+          "h": "What to check in maintenance"
+        },
+        {
+          "ul": [
+            "Every SPD's status indicator: replace any that show end of life, with the same type.",
+            "Lead lengths and connections: tight, short and straight.",
+            "Continuity of the earthing and bonding conductors, with the system isolated.",
+            "The state of the main earthing terminal and connections: corrosion near the coast is common.",
+            "Inspect again after a storm, and record the check."
+          ]
+        },
+        {
+          "note": "No SPD or earth makes a building safe from a direct lightning strike. A lightning protection system on the roof is a separate system, designed and installed to its own standard; the electrical earth is bonded to it as that design shows.",
+          "label": "Jamaica"
+        }
+      ]
+    },
+    {
+      "title": "Distribution circuits and electronic loads",
+      "blocks": [
+        {
+          "h": "Adding circuits to an existing board"
+        },
+        {
+          "p": "Before you add circuits to an existing board, find out whether it can take them."
+        },
+        {
+          "table": {
+            "head": [
+              "Check",
+              "How"
+            ],
+            "rows": [
+              [
+                "**Spare ways**",
+                "Are there enough free breaker spaces? If not, plan a larger board or a new sub-board."
+              ],
+              [
+                "**Maximum demand** against the supply",
+                "The authorised person's clamp readings, or a calculation, against the main breaker and the feeding cable's rating."
+              ],
+              [
+                "**Sub-main capacity**",
+                "The cable and its protection must carry the new demand."
+              ],
+              [
+                "**Voltage drop**",
+                "Calculated for the sub-main and, if long, the final circuits. Compare it with the limit in the specification."
+              ],
+              [
+                "**Load balance**",
+                "On a 110/220 V board, the 110 V circuits are shared between the two lines, L1 and L2."
+              ],
+              [
+                "**Earth fault protection and GFCI/RCD requirements**",
+                "As the code requires for the places and loads."
+              ],
+              [
+                "**Records**",
+                "The circuit schedule, test results and drawings are updated after the work."
+              ]
+            ]
+          }
+        },
+        {
+          "h": "Voltage drop"
+        },
+        {
+          "p": "Cable makers give voltage drop as **millivolts per amp per metre (mV/A/m)**. Voltage drop = mV/A/m × current × length ÷ 1,000."
+        },
+        {
+          "p": "**Example.** A sub-main is 30 m long and carries 40 A. The cable data gives 2.8 mV/A/m. Drop = 2.8 × 40 × 30 ÷ 1,000 = 3.36 V. As a share of a 220 V supply: 3.36 ÷ 220 = 1.5%. The specification's limit is often about 3 to 5%, depending on the code and the circuit. Too much voltage drop makes motors run hot and fail to start, lamps dim, and electronics reset. A drop that is too high is cured by a larger cable, not by a bigger breaker."
+        },
+        {
+          "h": "Phase balance"
+        },
+        {
+          "p": "Unbalanced loads overload one line and waste capacity on the others. On a 110/220 V board, the authorised person's clamp readings might be L1 at 62 A and L2 at 30 A. The average is 46 A, so about **16 A** of 110 V load should move from L1 to L2: 62 − 16 = 46 and 30 + 16 = 46. This is done at an outage, with a record of what was moved. Moving the 220 V circuits does not help, since they load both lines equally. Fitting a larger main breaker only hides the problem."
+        },
+        {
+          "p": "On three phases, a rough measure of unbalance is the largest difference between a line current and the average, as a percentage of the average."
+        },
+        {
+          "h": "Separate circuits for electronic loads"
+        },
+        {
+          "ul": [
+            "Give **computers and electronic equipment their own final circuits**, apart from kettles, heaters, photocopiers and motors. A big load that switches on and off causes voltage dips and noise on a shared circuit, and nuisance trips.",
+            "Do not put too many computers on one circuit or on one GFCI/RCD (see below).",
+            "Keep neutral and earth separate in sub-boards, as the system requires, with an earth bar and a neutral bar.",
+            "Do not share a neutral between circuits where electronic loads are fed from separate lines: the neutral can then carry the sum of their currents."
+          ]
+        },
+        {
+          "h": "Harmonics and hot neutrals"
+        },
+        {
+          "p": "A computer, an LED driver or a drive does not draw current in a smooth wave. Its rectifier draws it in short pulses. These distorted currents contain **harmonics**: currents at multiples of the supply frequency (150 Hz, 250 Hz and so on on a 50 Hz supply)."
+        },
+        {
+          "ul": [
+            "In a three-phase, four-wire system, the **third harmonic** and its odd multiples (triplen harmonics) do not cancel in the neutral, as the ordinary fundamental currents do when the loads are balanced. They **add up**. The neutral can carry a current as large as, or even larger than, each line current, even when the lines are balanced. The neutral runs hot, and so can the transformer.",
+            "Harmonics also heat transformers and capacitors, and can make breakers and drives trip.",
+            "A **neutral sized for the electronic load**, as the specification says (often a full-size or larger neutral where there are many electronic loads), is the first defence. A reduced neutral, correct for old loads, is wrong here.",
+            "Spread electronic loads over all three phases; use filters or drives with built-in reactors where the maker advises; and check neutral terminations for heat during maintenance.",
+            "The authorised person can measure neutral current and harmonic levels."
+          ]
+        },
+        {
+          "h": "Leakage currents and nuisance trips"
+        },
+        {
+          "p": "Most electronic equipment has a **filter** with small capacitors connected to earth. A small current, a few milliamps, always leaks to earth through it, even when everything is working. On a circuit with many computers, these leakage currents **add up**. A 30 mA RCD can trip when the total reaches about 15 to 30 mA, with no fault anywhere. A US-style GFCI that trips at about 5 mA reaches that point with only a few items."
+        },
+        {
+          "table": {
+            "head": [
+              "Example",
+              "Working"
+            ],
+            "rows": [
+              [
+                "12 workstations, each leaking about 2.0 mA",
+                "12 × 2.0 = 24 mA, close enough to a 30 mA RCD's limit to trip it at times"
+              ],
+              [
+                "The same 12 workstations over 3 RCDs",
+                "4 × 2.0 = 8 mA on each: well below the trip level"
+              ]
+            ]
+          }
+        },
+        {
+          "p": "The cure is to **spread the load over several protected circuits**, so that one trip does not stop the whole office, and to follow the equipment makers' leakage limits. Some three-phase drives and inverters produce DC leakage that a standard RCD cannot handle; their manuals say what **type** of RCD is needed."
+        },
+        {
+          "h": "UPS units"
+        },
+        {
+          "ul": [
+            "A UPS has two ratings: **VA** (the apparent power) and **watts** (the real power). The load, in watts, must not exceed the watt rating, whatever the VA rating shows. A UPS of **3,000 VA with a power factor of 0.8 supplies 2,400 W**.",
+            "Loads that add up to more than that overload it: a load of 2,600 W is too much.",
+            "It is usual to keep the load to about 70 to 80% of the rating, for growth and for battery life.",
+            "Label the UPS outlets, so that staff know what is protected, and keep heaters, kettles and laser printers off it.",
+            "The batteries are the part that wears: check them as in the maintenance section."
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Solar PV inverters",
+      "blocks": [
+        {
+          "p": "Rooftop solar systems are now common on Jamaican homes, guest houses, schools and factories. A **grid-tied inverter** changes the DC from the panels into AC at the right voltage and frequency, in step with the JPS supply, and feeds the building and, when there is a surplus, the grid. Connecting a system to the grid needs the power company's approval and inspection, and the installation must meet the rules of the power company and the regulator. Your instructor will tell you the Centre's requirements."
+        },
+        {
+          "h": "The hazards"
+        },
+        {
+          "table": {
+            "head": [
+              "Hazard",
+              "Why"
+            ],
+            "rows": [
+              [
+                "**Panels cannot be switched off**",
+                "Whenever light falls on them they make DC voltage. The cables from the panels to the DC isolator stay live in daylight."
+              ],
+              [
+                "**High DC voltage**",
+                "A string of panels in series adds their voltages. Ten panels at 36 V each give 360 V DC, as dangerous as a mains supply, even though the AC side is only 220 V."
+              ],
+              [
+                "**DC arcs**",
+                "A DC arc does not go out by itself as an AC arc does at each zero crossing. A connector pulled apart under load can start a lasting arc and a fire."
+              ],
+              [
+                "**Stored charge in the inverter**",
+                "Capacitors hold a charge after it is isolated."
+              ],
+              [
+                "**Working at height**",
+                "Falls from the roof, fragile roof sheets, heat and wind."
+              ],
+              [
+                "**Back-feed**",
+                "An inverter that kept feeding the lines during a power cut could kill a line worker."
+              ]
+            ]
+          }
+        },
+        {
+          "h": "Anti-islanding"
+        },
+        {
+          "p": "When the JPS supply fails, a grid-tied inverter must **switch itself off** within a very short time. This is called **anti-islanding** (loss-of-mains) protection. Without it, the inverter would keep feeding power into the dead grid, and line workers who believe the lines are dead could be killed. It also means that a plain grid-tied system does **not** keep the building lit during a power cut, however sunny it is."
+        },
+        {
+          "p": "To keep some circuits on during an outage, a different arrangement is needed: a hybrid inverter with a battery, or a system with a proper transfer switch that isolates the building from the grid before the inverter supplies it. This is designed and approved by the competent designer, not improvised."
+        },
+        {
+          "h": "Maintaining a rooftop system"
+        },
+        {
+          "flow": [
+            "Plan the job; arrange safe access with fall protection and a second person",
+            "Follow the maker's isolation order: switch off the AC supply to the inverter, then open and lock the DC isolator",
+            "Wait the stated time for the inverter to discharge",
+            "Prove dead on the AC side; check for DC with a tester suitable for the DC voltage",
+            "**Never disconnect DC connectors under load**; panels still make voltage",
+            "Inspect panels, mountings, cables and connectors for damage, water, heat and corrosion",
+            "Clean the panels as the maker says, in the cool of the day, with water that will not leave deposits and without abrasives",
+            "Record readings and the inverter's fault log"
+          ]
+        },
+        {
+          "note": "After heavy rain, an inverter may show an **isolation (insulation) fault**. The usual cause is water in a DC connector or a damaged cable letting DC leak to earth. Do not keep resetting it. Isolate, and inspect the DC cables and connectors.",
+          "label": "Tip"
+        },
+        {
+          "note": "Never step on or lean on panels or fragile roof sheets, and never work on panels in the rain or in a lightning storm. Solar panels cannot be switched off: cover them only as the maker's instructions say, and treat the DC cables as live.",
+          "label": "Safety"
+        }
+      ]
+    },
+    {
+      "title": "Testing, inspecting, maintaining and recording",
+      "blocks": [
+        {
+          "h": "Why periodic inspection and testing"
+        },
+        {
+          "p": "A distribution system is tested when it is new. It is also inspected and tested **periodically**, because **wear, damage, changes and loose joints develop over time**: terminals loosen, insulation ages, extra loads are added, circuits are altered, and protective devices wear out. Periodic testing finds these before they cause a fire or a shock."
+        },
+        {
+          "h": "Planning and leading a periodic inspection"
+        },
+        {
+          "flow": [
+            "Agree the scope, the sampling and the outage times with the client; get the drawings, schedules and last report",
+            "Visual inspection: the condition of boards, cables and accessories; heat, damage, corrosion, labels and schedules; changes since the last test",
+            "Safe isolation of each circuit: isolate, lock off, tag, prove dead with a tester checked before and after",
+            "Dead tests by the team: continuity of protective conductors, insulation resistance, polarity",
+            "Live tests by the authorised person only",
+            "Results recorded on a schedule; dangers made safe and reported at once",
+            "A report listing findings by priority, with the date of the next inspection"
+          ]
+        },
+        {
+          "table": {
+            "head": [
+              "Dead tests (the team)",
+              "Live tests (the authorised person)"
+            ],
+            "rows": [
+              [
+                [
+                  "Continuity of protective conductors",
+                  "Insulation resistance, with electronics, SPDs and drivers **disconnected**, or tested as their makers say",
+                  "Polarity",
+                  "Visual inspection and labels"
+                ],
+                [
+                  "Earth fault loop impedance and prospective fault current",
+                  "GFCI/RCD trip time and trip current with an RCD tester",
+                  "Voltages, phase rotation and running currents",
+                  "Thermal imaging and neutral currents on load"
+                ]
+              ]
+            ]
+          }
+        },
+        {
+          "h": "Testing with electronics on the circuit"
+        },
+        {
+          "ul": [
+            "An insulation resistance tester puts 250 or 500 V DC (or more) on the circuit. That can destroy **drives, soft starters, SPDs, electronic timers, dimmers, LED drivers, PLC and computer power supplies, and surge-protected outlets**. Disconnect them, or link line and neutral together and test to earth, as the makers say.",
+            "A circuit with an SPD still connected reads a low value on every circuit. The same low value on all circuits points to something they share.",
+            "After the test, reconnect everything, and **discharge** the circuit: the tester has charged it."
+          ]
+        },
+        {
+          "h": "GFCI and RCD testing"
+        },
+        {
+          "p": "The user presses the **test button** at the interval shown on the maker's label. The authorised person uses an **RCD tester** to check that the device trips within its rated time, at its rated current. A device marked 30 mA must trip at a leakage between half its rating and its full rating (15 to 30 mA) with a ramp test; one that only trips at, say, 38 mA, fails and is replaced."
+        },
+        {
+          "h": "Circuit schedules"
+        },
+        {
+          "p": "A board's **circuit schedule** says what each breaker feeds. If it no longer matches the circuits, do not leave it, remove it or ask someone who 'thinks' they know. **Trace and confirm** each circuit, with the circuit isolated and proved dead, then correct the schedule. A wrong schedule leads to a worker isolating the wrong circuit."
+        },
+        {
+          "h": "Records after any change"
+        },
+        {
+          "ul": [
+            "Update the **circuit schedule**, the **test results** and the **drawings** after a circuit is added.",
+            "Keep each drive's, UPS's and inverter's **settings** and **maintenance history**.",
+            "Write real readings, with the date, instrument and the name of the person who took them."
+          ]
+        },
+        {
+          "h": "Supervising trainees on electronic work"
+        },
+        {
+          "ul": [
+            "Look first for the commonest mistakes: signal wires run beside a motor cable, a screen left unconnected or in a pigtail, and electronics left connected for an insulation test.",
+            "Check that each person's own padlock is on the hasp.",
+            "Make sure nobody works inside a drive, UPS or inverter without proving dead and waiting for the discharge time.",
+            "Insist on ESD precautions for cards.",
+            "Make clear what the authorised person does: first run, parameters, live tests."
+          ]
+        },
+        {
+          "h": "Handover"
+        },
+        {
+          "p": "Hand over the drawings, schedules, test results, parameter lists and the makers' manuals. Show the operator how to **start, stop and isolate** the equipment, and what the alarms mean. They must not be shown how to bypass trips or open covers while the equipment is running."
+        }
+      ]
+    },
+    {
+      "title": "Revision",
+      "blocks": [
+        {
+          "h": "Checklist"
+        },
+        {
+          "p": "Tick each statement only when you can do it without looking at the notes."
+        },
+        {
+          "ul": [
+            "I can plan an installation from the maker's manual and nameplate, and say why equipment with no manual or approval marks is a bad choice.",
+            "I can explain how heat shortens the life of electronics, and give clearances, de-rating and cooling for a drive or a rack.",
+            "I can handle cards with ESD precautions.",
+            "I can size a 24 V DC supply with a margin and split its output into protected groups.",
+            "I can explain how a VSD works and use n = 120 × f ÷ p.",
+            "I can use the cube law to show how a VSD saves energy on a fan or pump.",
+            "I can install a drive to EMC practice: screened motor cable clamped 360° at both ends, short, apart from control cables, crossing at right angles.",
+            "I can test a motor and cable fed from a drive without damaging the drive.",
+            "I can explain what the authorised person does with a drive's parameters and first run, and why parameters are backed up.",
+            "I can compare DOL, star-delta, soft starter and VSD, and explain the bypass contactor.",
+            "I can describe staged surge protection and the rules for SPD leads and earthing.",
+            "I can explain why all earths go to one main earthing terminal.",
+            "I can check spare ways, sub-main capacity, voltage drop and load balance before adding circuits.",
+            "I can explain harmonics, hot neutrals, leakage currents and nuisance GFCI/RCD trips, and say how to deal with them.",
+            "I can say what a UPS's VA and watt ratings mean and check a load against them.",
+            "I can describe the hazards of rooftop solar and explain anti-islanding.",
+            "I can plan a periodic inspection, say which tests are dead and which live, and disconnect electronics before insulation tests.",
+            "I can keep records, supervise trainees on electronic work and hand over."
+          ]
+        },
+        {
+          "h": "Numbers and formulas to remember"
+        },
+        {
+          "table": {
+            "head": [
+              "Figure or formula",
+              "What it is"
+            ],
+            "rows": [
+              [
+                "n = 120 × f ÷ p",
+                "Synchronous speed in rpm of an induction motor"
+              ],
+              [
+                "Power ∝ speed³",
+                "The cube law for fans and centrifugal pumps; 80% speed needs about 51% power"
+              ],
+              [
+                "Voltage drop = mV/A/m × A × m ÷ 1,000",
+                "Voltage drop on a cable"
+              ],
+              [
+                "Voltage drop % = drop ÷ supply voltage × 100",
+                "Compared with the specification's limit"
+              ],
+              [
+                "Watts = VA × power factor",
+                "The real power rating of a UPS"
+              ],
+              [
+                "Total supply current = sum of the loads, plus about 25% margin",
+                "Sizing a 24 V DC supply"
+              ],
+              [
+                "About 1.4 × supply voltage",
+                "The DC bus voltage inside a drive"
+              ],
+              [
+                "A few mA per computer",
+                "Typical leakage current to earth, which adds up"
+              ],
+              [
+                "Under about 0.5 m of lead",
+                "A good total SPD lead length"
+              ],
+              [
+                "50 Hz",
+                "The JPS supply frequency"
+              ]
+            ]
+          }
+        },
+        {
+          "h": "Key terms"
+        },
+        {
+          "terms": [
+            [
+              "Acceleration time",
+              "The time a drive takes to bring a motor from standstill up to its set speed."
+            ],
+            [
+              "Anti-islanding",
+              "The function that stops a grid-tied inverter feeding the lines when the mains fails."
+            ],
+            [
+              "DC bus",
+              "The part of a drive where the rectified DC is stored in capacitors; it stays charged after the supply is isolated."
+            ],
+            [
+              "EMC",
+              "Electromagnetic compatibility: equipment working properly beside other equipment without interference."
+            ],
+            [
+              "ESD",
+              "Electrostatic discharge, which can destroy electronic cards."
+            ],
+            [
+              "GFCI / RCD",
+              "A device that trips when current leaks to earth."
+            ],
+            [
+              "Harmonics",
+              "Distorted currents at multiples of the supply frequency, drawn by electronic loads."
+            ],
+            [
+              "Parameters",
+              "The stored settings in a drive: motor data, ramp times and limits."
+            ],
+            [
+              "Screened (shielded) cable",
+              "Cable with a metal braid or foil around its cores, used between a drive and its motor and for signals."
+            ],
+            [
+              "Soft starter",
+              "A starter that ramps up a motor's voltage smoothly but does not control its running speed."
+            ],
+            [
+              "SPD",
+              "Surge protective device: diverts a surge to earth."
+            ],
+            [
+              "Synchronous speed",
+              "The speed of a motor's rotating field, set by the frequency and the number of poles."
+            ],
+            [
+              "UPS",
+              "Uninterruptible power supply: keeps loads running from batteries when the mains fails."
+            ],
+            [
+              "VSD",
+              "Variable speed drive: changes the frequency and voltage fed to a motor to control its speed."
+            ],
+            [
+              "Voltage drop",
+              "The voltage lost along a cable because of its resistance, which grows with current and length."
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "cases": {
+    "c1": {
+      "title": "A blower drive at a Moneague feed mill",
+      "text": "Orane, a Level 3 electrician, installs a variable speed drive for a 5.5 kW, 4-pole blower motor at a feed mill in Moneague, St Ann. The drive manual asks for screened motor cable, with the screen clamped at both ends. The motor is 22 m from the drive. The panel stands in a plant room where the air reaches 46 °C in the afternoon. A trainee has pulled a 4–20 mA control cable in the same trunking as the motor cable, and wants to earth the cable's screen with a long wire pigtail at the motor end."
+    },
+    "c2": {
+      "title": "A call centre at Half Way Tree",
+      "text": "A call centre at Half Way Tree, Kingston, has 60 computer workstations, LED lighting and a rack of servers on a three-phase, four-wire supply, balanced across the phases. The neutral conductor runs hot, though line currents are equal. Each workstation leaks about 1.5 mA to earth, and 30 of them share one 30 mA RCD, which trips about once a week with no fault found. The server rack is fed from a UPS rated 6 kVA at a power factor of 0.8, and the servers draw 3.6 kW. The client wants to add 1.5 kW of servers."
+    },
+    "c3": {
+      "title": "Solar panels on a Treasure Beach guest house",
+      "text": "A guest house at Treasure Beach, St Elizabeth, has a grid-tied solar system: ten panels in one string, each giving 36 V when working, and a 4 kW inverter on the wall of a store room. The owner asks Tamar, a Level 3 electrician, to wire a few lights so that they stay on during power cuts straight from the inverter. After a week of heavy rain the inverter shows an isolation fault and will not start. A helper offers to unplug the panel connectors on the roof to 'make it safe' while the inverter is still running."
+    },
+    "c4": {
+      "title": "Storm damage at a Morant Bay credit union",
+      "text": "After a lightning storm at a credit union in Morant Bay, St Thomas, the router, the alarm panel and a drive on an air-handling unit have failed. The surge protective device at the main board shows a red window, and its leads are 1.3 m long and coiled. An IT contractor had earlier driven a separate earth rod for the server rack, not connected to the building's main earthing terminal. The only data cable to the alarm panel runs from the server room to the front office."
+    },
+    "c5": {
+      "title": "New circuits at a Santa Cruz office",
+      "text": "An office in Santa Cruz, St Elizabeth, is adding 12 computer workstations and a printer on a 110/220 V board. The sub-main is 30 m long and, with the new load, will carry 45 A at 220 V; the cable data gives 2.8 mV per amp per metre, and the specification allows a 3% voltage drop. The authorised person's clamp readings on the board are L1 at 48 A and L2 at 22 A. During periodic testing, a 30 mA RCD protecting the existing computer circuit trips on the RCD tester only when the test current reaches 38 mA."
+    }
+  },
+  "questions": [
+    {
+      "id": "P-01",
+      "c": "c1",
+      "q": "The blower motor is to run at 35 Hz. About what is the motor's synchronous speed?",
+      "o": [
+        "1,050 rpm",
+        "1,500 rpm",
+        "2,100 rpm",
+        "525 rpm"
+      ],
+      "a": 0,
+      "why": "n = 120 × f ÷ p = 120 × 35 ÷ 4 = 1,050 rpm, which is 70% of the 1,500 rpm at 50 Hz. The real running speed is a little lower, by the slip."
+    },
+    {
+      "id": "P-02",
+      "c": "c1",
+      "q": "Running at 70% speed, about what share of full power does the blower need, if it follows the cube law?",
+      "o": [
+        "About 70%",
+        "About 49%",
+        "About 34%",
+        "About 21%"
+      ],
+      "a": 2,
+      "why": "Power varies with the cube of the speed: 0.7 × 0.7 × 0.7 = 0.343, about 34%. That is why a VSD on a fan or centrifugal pump can save so much, compared with throttling the air at full motor speed."
+    },
+    {
+      "id": "P-03",
+      "c": "c1",
+      "q": "Why is the trainee's idea of earthing the control cable screen with a long pigtail a poor one?",
+      "o": [
+        "A long pigtail costs more, since it uses extra wire",
+        "A screen should never be connected to earth at all",
+        "A long pigtail is a poor path for high-frequency noise",
+        "The screen would then carry the full motor current"
+      ],
+      "a": 2,
+      "why": "At the high frequencies a drive produces, a long wire has too much inductance and acts more like an aerial than a path to earth. A short, full-circle (360°) clamp in an EMC gland or clamp gives a low-impedance path, as the maker's manual says."
+    },
+    {
+      "id": "P-04",
+      "c": "c1",
+      "q": "The control cable is already in the same trunking as the motor cable. What is the right correction?",
+      "o": [
+        "Leave it, since the control cable is screened",
+        "Move it to separate trunking and cross the motor cable at right angles",
+        "Swap the two cables over, so that the control cable runs to the motor",
+        "Tape the two cables tightly together so that they cannot move about"
+      ],
+      "a": 1,
+      "why": "Fast switching on the motor cable induces noise in nearby cables, and a screen reduces but does not remove it. Run control and signal cables apart from the motor cable, and where they must cross, cross at right angles so that the coupling is small."
+    },
+    {
+      "id": "P-05",
+      "c": "c1",
+      "q": "What should Orane do about the 46 °C plant room?",
+      "o": [
+        "Fit the drive as it is, since drives work better in the heat",
+        "Take off the drive's own fan, to save heat and energy",
+        "Check the maker's de-rating data, then add cooling or de-rate it",
+        "Set the drive to run the motor at a higher frequency to cool it"
+      ],
+      "a": 2,
+      "why": "Most drives are rated for about 40 to 50 °C, and heat shortens the life of the capacitors and electronic parts. The maker's data shows the de-rating, and the panel may need filtered fans, a heat exchanger or air-conditioning sized from its heat loss."
+    },
+    {
+      "id": "P-06",
+      "c": "c2",
+      "q": "What is the most likely reason the neutral runs hot, with balanced line currents?",
+      "o": [
+        "The earth conductor is sharing the neutral's current",
+        "The neutral cable is much longer than the line cables are",
+        "The supply voltage is a little too high for the equipment",
+        "Harmonic currents from the loads add up in the neutral"
+      ],
+      "a": 3,
+      "why": "Computers and LED drivers draw current in pulses. The third harmonic and its odd multiples do not cancel in the neutral of a three-phase, four-wire system: they add, so the neutral can carry a current as large as the line currents, even when the lines are balanced."
+    },
+    {
+      "id": "P-07",
+      "c": "c2",
+      "q": "The 30 mA RCD on 30 workstations trips once a week. What is the best remedy?",
+      "o": [
+        "Spread the workstations over several RCD-protected circuits",
+        "Replace the 30 mA RCD with a 100 mA one on the same circuit",
+        "Remove the earth connections from the workstations' plugs",
+        "Bypass the RCD with a link, as no fault has been found"
+      ],
+      "a": 0,
+      "why": "30 workstations × 1.5 mA = 45 mA of normal leakage, more than the 30 mA device is meant to stand. Sharing them over several RCDs leaves each with a small total and means one trip does not stop the whole office. A 100 mA device does not protect people, and bypassing or unearthing is dangerous."
+    },
+    {
+      "id": "P-08",
+      "c": "c2",
+      "q": "What share of the UPS's watt rating do the servers use now?",
+      "o": [
+        "60%",
+        "75%",
+        "80%",
+        "40%"
+      ],
+      "a": 1,
+      "why": "The UPS's real power rating is 6,000 VA × 0.8 = 4,800 W. The servers draw 3,600 W, and 3,600 ÷ 4,800 = 75%. Comparing watts with VA would give the wrong answer, and it is the watt rating that the load must not exceed."
+    },
+    {
+      "id": "P-09",
+      "c": "c2",
+      "q": "Can the extra 1.5 kW of servers be added to this UPS?",
+      "o": [
+        "Yes: 5.1 kW is less than the UPS's 6 kVA rating",
+        "Yes: UPS units can always run at up to 120% of their rating",
+        "No: 5.1 kW is above its 4.8 kW rating; a larger UPS is needed",
+        "No: servers can never be put on a UPS at all, whatever its size"
+      ],
+      "a": 2,
+      "why": "3.6 + 1.5 = 5.1 kW, above the 4.8 kW real-power rating. The VA figure is higher but the load must stay below the watt figure, and it is better still to stay at about 70 to 80% for growth and battery life."
+    },
+    {
+      "id": "P-10",
+      "c": "c3",
+      "q": "What DC voltage is on the cables from the string of ten panels in daylight?",
+      "o": [
+        "About 36 V",
+        "About 220 V",
+        "About 360 V",
+        "About 3,600 V"
+      ],
+      "a": 2,
+      "why": "Panels in a string add their voltages: 10 × 36 V = 360 V DC. That is as dangerous as a mains supply, and it cannot be switched off while light falls on the panels, even though the AC side of the system is only 220 V."
+    },
+    {
+      "id": "P-11",
+      "c": "c3",
+      "q": "Why will the lights not stay on during a power cut if the owner's idea is wired straight from the inverter?",
+      "o": [
+        "A grid-tied inverter shuts itself off when the mains fails",
+        "The panels stop producing power whenever the grid fails",
+        "The lights would take too much current from the string",
+        "The inverter can only supply DC, which lights cannot use"
+      ],
+      "a": 0,
+      "why": "Anti-islanding protection makes a grid-tied inverter stop within moments of a mains failure, so that it cannot feed the dead lines and endanger line workers. Lights that must stay on need a different, properly designed arrangement, such as a hybrid inverter with a battery and an approved transfer switch."
+    },
+    {
+      "id": "P-12",
+      "c": "c3",
+      "q": "What should Tamar tell the helper who offers to unplug the panel connectors?",
+      "o": [
+        "Yes, but only if he wears rubber gloves on the roof",
+        "Yes, as long as the inverter's display shows zero power",
+        "Yes, because the AC isolator is already off",
+        "No: DC connectors are never pulled apart under load"
+      ],
+      "a": 3,
+      "why": "The panels make voltage whenever there is light, and a DC arc does not go out by itself. A connector pulled apart under load can start a lasting arc and a fire. Switch off AC, open and lock the DC isolator, wait the stated time and follow the maker's order."
+    },
+    {
+      "id": "P-13",
+      "c": "c3",
+      "q": "The isolation fault appeared after a week of heavy rain. What should Tamar do?",
+      "o": [
+        "Reset the inverter again and again until the fault clears",
+        "Isolate it, then inspect the DC cables and connectors",
+        "Switch the inverter to a higher output voltage setting",
+        "Wait for the rain to stop and then install a bigger inverter"
+      ],
+      "a": 1,
+      "why": "Water in a DC connector, or a cable with damaged insulation, lets DC leak to earth, and the inverter's insulation monitor stops it from starting, which is what it is for. Repeated resetting risks an arc. The cause is found with the system isolated and made safe."
+    },
+    {
+      "id": "P-14",
+      "c": "c4",
+      "q": "The credit union's air-handling drive failed after the storm. What should be done before a replacement drive is fitted?",
+      "o": [
+        "Fit a new drive at once; the old one must simply have been faulty",
+        "Fit a new drive, and keep the red SPD in service until it fails again",
+        "Test only the motor, since a surge cannot get into a drive",
+        "Find the cause, including the SPD, the earths and the motor, first"
+      ],
+      "a": 3,
+      "why": "A drive that failed from a surge will be damaged again by the next one if the cause is left. The SPD that has reached end of life, any loose or separate earths, and the motor and cable insulation are all checked first, then the new drive is fitted with the saved parameters."
+    },
+    {
+      "id": "P-15",
+      "c": "c4",
+      "q": "Why did the separate earth rod for the server rack add to the damage?",
+      "o": [
+        "A separate rod gives the rack a quieter, safer earth of its own",
+        "The earths rise unequally, so a voltage appears between them",
+        "Earth rods stop surge current from flowing out of the equipment",
+        "The rod's long lead acted as the rack's own lightning conductor"
+      ],
+      "a": 1,
+      "why": "When surge current flows into the ground, the voltage near each rod rises by a different amount. Equipment on one earth and equipment on the other, joined by a data cable, sees that difference across it and fails. All earths go to one main earthing terminal."
+    },
+    {
+      "id": "P-16",
+      "c": "c4",
+      "q": "What should be done about the SPD with the 1.3 m coiled leads?",
+      "o": [
+        "Replace it, and fit short, straight leads to the main earth terminal",
+        "Keep it, since its leads are long enough to reach the earth bar",
+        "Coil the leads tighter, so that the surge has farther to travel",
+        "Replace it with another with even longer leads, for more protection"
+      ],
+      "a": 0,
+      "why": "A surge changes extremely quickly, and each extra length of lead adds voltage across itself, on top of what the SPD allows through. Total lead length should be as short and straight as possible, ideally under about half a metre. A coil adds even more."
+    },
+    {
+      "id": "P-17",
+      "c": "c5",
+      "q": "What is the voltage drop on the sub-main at 45 A?",
+      "o": [
+        "About 3.8 V",
+        "About 12.6 V",
+        "About 0.4 V",
+        "About 1.7 V"
+      ],
+      "a": 0,
+      "why": "Voltage drop = mV/A/m × A × m ÷ 1,000 = 2.8 × 45 × 30 ÷ 1,000 = 3.78 V, which is about 1.7% of 220 V. The limit of 3% is 6.6 V, so the sub-main passes."
+    },
+    {
+      "id": "P-18",
+      "c": "c5",
+      "q": "About how much of the 110 V load should be moved from L1 to L2?",
+      "o": [
+        "About 26 A",
+        "About 13 A",
+        "About 35 A",
+        "About 6 A"
+      ],
+      "a": 1,
+      "why": "The average of 48 A and 22 A is 35 A. Moving 13 A from L1 to L2 leaves both near 35 A: 48 − 13 = 35 and 22 + 13 = 35. This is planned for an outage and recorded. Moving 220 V circuits would not help, because they load both lines equally."
+    },
+    {
+      "id": "P-19",
+      "c": "c5",
+      "q": "What does the RCD tester result of 38 mA on the 30 mA device show?",
+      "o": [
+        "It is working as it should, since it tripped at 38 mA",
+        "It has failed: it should have tripped at or below 30 mA, so replace it",
+        "It is working, because a trip at any current under 100 mA is allowed",
+        "The result is meaningless, since an RCD tester cannot test it"
+      ],
+      "a": 1,
+      "why": "A 30 mA RCD must trip at a leakage between half its rating and its full rating. A device that needs 38 mA is less sensitive than marked and may not protect a person, so it is replaced. This test is done by the authorised person with an RCD tester."
+    },
+    {
+      "id": "P-20",
+      "c": "c5",
+      "q": "During the dead insulation test, every circuit on the new board reads about 0.5 MΩ. What is the best next step?",
+      "o": [
+        "Fail every circuit and begin to rewire all of them at once",
+        "Raise the test voltage until the reading improves a little",
+        "Record the 0.5 MΩ as the value for each of the circuits",
+        "Disconnect the SPD and electronics as makers say, then retest"
+      ],
+      "a": 3,
+      "why": "The same low value on every circuit points to something they share, often an SPD or an electronic device connected between the conductors and earth. Disconnect them as their makers say, retest, and reconnect afterwards. A higher test voltage could damage them."
+    }
+  ]
+}

@@ -1,0 +1,417 @@
+{
+  "format": "cestis-study-kit",
+  "version": 1,
+  "status": "to-check",
+  "written": "2026-11-07",
+  "programme": "Electrical Installation",
+  "qualification": { "id": "QUAL-EIM-L3", "title": "ELECTRICAL INSTALLATION AND MAINTENANCE LEVEL 3", "code": "MEM32507" },
+  "level": 3,
+  "unit": { "code": "MEMCOR0022A", "title": "Perform related computations" },
+  "summary": "This unit covers the calculations a Level 3 electrician uses to design, check and price circuits. You will use Ohm's law and the power formulas, solve series and parallel circuits, work with energy, power factor, transformers, efficiency and motor speed, size cables and breakers with rating factors, check voltage drop, plan lighting with the lumen method, and work out loads, quantities, costs and simple statistics, always checking your answers.",
+  "sections": [
+    {
+      "title": "Unit overview",
+      "blocks": [
+        { "p": "At Level 3 you do the sums that decide whether a circuit is safe and whether a job makes money: the current a load draws, the breaker and cable it needs, the voltage lost along a long run, the number of light fittings in a room and the cost of the materials. You also check other people's calculations before materials are ordered. This kit teaches each method with worked examples using Jamaica's **110 V and 220 V, 50 Hz** supply." },
+        { "h": "What you must be able to do" },
+        { "table": { "head": ["Task", "What it looks like on the job"], "rows": [
+          ["Handle units and formulas", "Convert between mA and A, W and kW, mm² and m², hp and kW; rearrange a formula; round sensibly."],
+          ["Use Ohm's law and the power formulas", "Find current, resistance and power for heaters, kettles, lamps and other loads at 110 V and 220 V."],
+          ["Solve series and parallel circuits", "Find total resistance, currents and voltages in resistor networks and check them with a meter."],
+          ["Work out energy and its cost", "Turn kW and hours into kWh and J$, and show a client where savings can be made."],
+          ["Work with AC quantities", "Use frequency, power factor, apparent power, transformer ratios and efficiency."],
+          ["Do motor calculations", "Find synchronous speed, slip, input power and full-load current from a nameplate."],
+          ["Size cables and protective devices", "Find the design current, choose a breaker, apply rating factors and check that design current ≤ breaker ≤ cable rating."],
+          ["Check voltage drop", "Use the mV/A/m method or the conductor resistance, and compare the result with the limit in the specification."],
+          ["Plan lighting and layouts", "Use the lumen method, space fittings evenly, and use areas, space factors, Pythagoras, trigonometry and scales."],
+          ["Work out loads, quantities and costs", "Build a load schedule, allow for demand, take off cable with waste, price with mark-up and GCT, and estimate labour time."],
+          ["Check results", "Estimate first, check units, redo or reverse key steps, and use the mean, range and percentage error."]
+        ] } },
+        { "note": "Cable ratings, rating factors, voltage-drop figures and voltage-drop limits in this kit are **example values** for learning. On a real job, use the tables from the cable maker or the code your firm works to, the limit in the specification, and the figures your instructor gives you.", "label": "Remember" },
+        { "h": "How to use this kit" },
+        { "p": "Work through every example with a calculator before you read the answer. Then try the practice test. In the exam, show your working and the units at every step: an examiner can give marks for a correct method even when a slip spoils the final answer." }
+      ]
+    },
+    {
+      "title": "Working with numbers",
+      "blocks": [
+        { "h": "Prefixes and conversions" },
+        { "table": { "head": ["Prefix", "Meaning", "Examples"], "rows": [
+          ["milli (m)", "÷ 1 000", "30 mA = 0.03 A; 3.5 mA = 0.0035 A; 20 ms = 0.02 s; 7.41 mΩ = 0.00741 Ω"],
+          ["kilo (k)", "× 1 000", "1.8 kW = 1 800 W; 3.3 kVA = 3 300 VA"],
+          ["mega (M)", "× 1 000 000", "200 MΩ = 200 000 000 Ω"],
+          ["micro (µ)", "÷ 1 000 000", "250 µs = 0.000 25 s"]
+        ] } },
+        { "table": { "head": ["Conversion", "Rule"], "rows": [
+          ["Horsepower to watts", "1 hp ≈ 746 W, so 2 hp ≈ 1 492 W ≈ 1.5 kW"],
+          ["Minutes to hours", "÷ 60: 90 minutes = 1.5 h"],
+          ["Millivolts to volts", "÷ 1 000: 8 100 mV = 8.1 V"],
+          ["mm² and m²", "1 m² = 1 000 000 mm². Cable areas are always in mm²."],
+          ["°F to °C", "(°F − 32) × 5 ÷ 9: 104 °F = 40 °C"],
+          ["Wire sizes", "Imported equipment may give AWG: 14 AWG ≈ 2.1 mm², 12 AWG ≈ 3.3 mm², 10 AWG ≈ 5.3 mm², 8 AWG ≈ 8.4 mm². Never round a cable size down."]
+        ] } },
+        { "h": "Rearranging (transposing) a formula" },
+        { "p": "Whatever you do to one side of a formula, do to the other. From V = I × R: divide both sides by R to get I = V ÷ R, or by I to get R = V ÷ I. From P = V × I: I = P ÷ V. A memory aid is the triangle with V on top and I and R below: cover the one you want." },
+        { "h": "Rounding" },
+        { "ul": [
+          "Keep full figures in the calculator until the end; round only the final answer.",
+          "Round **up** whenever rounding down would leave something unsafe or short: light fittings, rolls of cable, breaker sizes, cable sizes, days of work, people needed.",
+          "Give sensible precision: 16.4 A, not 16.363636 A."
+        ] },
+        { "h": "Percentages" },
+        { "table": { "head": ["To find", "Method", "Example"], "rows": [
+          ["A percentage of an amount", "amount × percentage ÷ 100", "3% of 220 V = 220 × 3 ÷ 100 = 6.6 V"],
+          ["One amount as a percentage of another", "part ÷ whole × 100", "5.5 V of 220 V = 5.5 ÷ 220 × 100 = 2.5%"],
+          ["An amount increased by a percentage", "amount × (1 + percentage ÷ 100)", "J$45 000 + 20% = 45 000 × 1.2 = J$54 000"],
+          ["Percentage change", "(new − old) ÷ old × 100", "From 360 to 414 = 54 ÷ 360 × 100 = 15% more"]
+        ] } },
+        { "h": "Mean, range and percentage error" },
+        { "p": "**Mean** (average) = total of the readings ÷ number of readings. **Range** = largest − smallest. **Example:** five earth continuity readings of 0.52, 0.48, 0.55, 0.47 and 0.48 Ω: total 2.50, mean 2.50 ÷ 5 = **0.50 Ω**; range 0.55 − 0.47 = **0.08 Ω**." },
+        { "p": "**Percentage error** = (measured − true) ÷ true × 100. **Example:** a voltmeter reads 108 V on a calibrator set at 110 V: (108 − 110) ÷ 110 × 100 = **−1.8%** (it reads low). When you compare a calculated value with a measured one, the same formula gives the **percentage difference**." },
+        { "h": "Checking your answer" },
+        { "ul": [
+          "**Estimate first.** A 2 kW load on 220 V is about 2 000 ÷ 200 = 10 A. If you get 90 A, something is wrong.",
+          "**Check the units** at every step: mV or V, W or kW, mm² or m².",
+          "**Work backwards:** multiply your current by the voltage and see whether you get back to the power.",
+          "**Ask whether it makes sense:** a 1 kW heater cannot draw 45 A at 220 V; a 25 m length of cable cannot have a resistance of 10 Ω.",
+          "Common mistakes: mixing kW and W, using mV as V, using 220 V for a 110 V circuit, forgetting both conductors in a voltage-drop sum, forgetting rating factors, rounding down."
+        ] }
+      ]
+    },
+    {
+      "title": "Ohm's law, power and energy",
+      "blocks": [
+        { "table": { "head": ["Quantity", "Symbol", "Unit"], "rows": [
+          ["Voltage (potential difference)", "V (or U)", "volt, V"],
+          ["Current", "I", "ampere, A"],
+          ["Resistance", "R", "ohm, Ω"],
+          ["Power", "P", "watt, W"],
+          ["Energy", "E", "kilowatt-hour, kWh (1 kWh = 1 kW for 1 hour)"]
+        ] } },
+        { "table": { "head": ["Formula", "Use it to find"], "rows": [
+          ["V = I × R", "Voltage across a resistance"],
+          ["I = V ÷ R", "Current through a resistance"],
+          ["R = V ÷ I", "Resistance from a voltage and a current"],
+          ["P = V × I", "Power from voltage and current (resistive loads)"],
+          ["I = P ÷ V", "Current a load draws from its power rating"],
+          ["P = I² × R", "Power lost as heat in a resistance, such as a cable"],
+          ["P = V² ÷ R", "Power when the voltage changes and the resistance stays the same"],
+          ["E = P × t", "Energy in kWh: power in kW × time in hours"]
+        ] } },
+        { "h": "Worked examples" },
+        { "ul": [
+          "A 2.2 kW kettle on 220 V: I = 2 200 ÷ 220 = **10 A**; its resistance R = 220 ÷ 10 = **22 Ω**.",
+          "A 1.5 kW heater on 110 V: I = 1 500 ÷ 110 = **13.6 A**. The same power on 110 V draws twice the current it would on 220 V, which is why big loads in Jamaica are usually 220 V.",
+          "A 2 000 W, 220 V heater connected to 110 V by mistake: its resistance is the same, so P = V² ÷ R. Half the voltage gives a quarter of the power: **500 W**.",
+          "Ten 60 W lamps in parallel on a 110 V lighting circuit: total 600 W, so I = 600 ÷ 110 = **5.5 A**."
+        ] },
+        { "h": "Energy and its cost" },
+        { "p": "Energy (kWh) = power (kW) × hours. Cost = kWh × the price per kWh." },
+        { "p": "**Example.** A 2 kW air-conditioner runs 6 hours a day for 30 days: 2 × 6 × 30 = **360 kWh**. At an example rate of J$58 per kWh, 360 × 58 = **J$20 880** a month." },
+        { "flow": [
+          "Change every power to kW (watts ÷ 1 000)",
+          "Multiply each load's kW by its hours of use a day",
+          "Add the loads to get kWh a day",
+          "Multiply by the number of days",
+          "Multiply by the rate per kWh"
+        ] },
+        { "p": "A load that cycles on and off, such as a fridge or freezer, is worked out from its **average** power over the day, which is much less than its rating. To show a client a saving, work out the old and new energy and subtract; the **payback time** is the cost of the change ÷ the saving per month." },
+        { "note": "The rates in exam questions are examples. A real JPS bill has other charges as well as the energy rate, and rates change, so when you advise a client, use the figures on their own bill.", "label": "Jamaica" }
+      ]
+    },
+    {
+      "title": "Series and parallel circuits",
+      "blocks": [
+        { "table": { "head": ["Feature", "Series", "Parallel"], "rows": [
+          ["Connection", "One after another: one path", "Side by side: each has its own path between the same two points"],
+          ["Current", "The same through every part", "Divides between the branches; the branch currents add up to the total"],
+          ["Voltage", "Divides; the voltages add up to the supply", "The same across every branch"],
+          ["Total resistance", "R = R1 + R2 + R3 …", "1/R = 1/R1 + 1/R2 + …; for two: R = (R1 × R2) ÷ (R1 + R2)"],
+          ["Total is", "Bigger than the biggest", "Smaller than the smallest"]
+        ] } },
+        { "p": "Shortcut: **n equal resistors in parallel** give one of them ÷ n. Three 33 Ω in parallel = 11 Ω. Two 30 Ω in parallel = 15 Ω." },
+        { "h": "Worked example: a series–parallel network" },
+        { "p": "A 24 V DC supply feeds a 4 Ω resistor in series with a 6 Ω and a 12 Ω resistor in parallel." },
+        { "flow": [
+          "Parallel pair: (6 × 12) ÷ (6 + 12) = 72 ÷ 18 = 4 Ω",
+          "Total: 4 + 4 = 8 Ω",
+          "Supply current: 24 ÷ 8 = 3 A",
+          "Voltage across the 4 Ω: 3 × 4 = 12 V; across the pair: 3 × 4 = 12 V (12 + 12 = 24 V, which checks)",
+          "Branch currents: 12 ÷ 6 = 2 A and 12 ÷ 12 = 1 A (2 + 1 = 3 A, which checks)"
+        ] },
+        { "h": "Checking with a meter (bench supply only)" },
+        { "ul": [
+          "Measure **resistance with the supply off**; a meter on the ohms range can be damaged, and reads wrongly, if the circuit is powered.",
+          "Measure **voltage with the meter in parallel** (across the part).",
+          "Measure **current with the meter in series** (break the circuit and put the meter in the path), on the current range and the right socket.",
+          "Switch off before changing any connection, and set the bench supply's current limit first.",
+          "Compare measured with calculated values: percentage difference = (measured − calculated) ÷ calculated × 100. Small differences come from **resistor tolerance** (a gold band means ±5%), meter accuracy and lead resistance."
+        ] },
+        { "note": "Never connect a meter set to the current range across a supply: it acts as a short circuit. Practise these measurements only on a low-voltage bench supply, never on mains.", "label": "Safety" }
+      ]
+    },
+    {
+      "title": "AC: power factor, transformers, efficiency and motors",
+      "blocks": [
+        { "h": "Frequency and peak values" },
+        { "ul": [
+          "Jamaica's supply is **50 Hz**: 50 complete cycles a second. **Period = 1 ÷ frequency** = 1 ÷ 50 = 0.02 s = **20 ms**. (On 60 Hz, as in North America, it is 16.7 ms.)",
+          "110 V and 220 V are **rms** values. The peak is about 1.414 times bigger: about **156 V** and **311 V**. Insulation and components must withstand the peak."
+        ] },
+        { "h": "Power factor" },
+        { "p": "Motors, transformers and ballasts have coils, so their current is out of step with the voltage. Not all of the current does useful work." },
+        { "table": { "head": ["Quantity", "Formula", "Unit"], "rows": [
+          ["Apparent power (S)", "V × I", "volt-ampere, VA (or kVA)"],
+          ["Real (true) power (P)", "V × I × power factor", "watt, W (or kW)"],
+          ["Reactive power (Q)", "√(S² − P²)", "volt-ampere reactive, var"],
+          ["Power factor (pf)", "P ÷ S (real power ÷ apparent power)", "No unit; between 0 and 1"]
+        ] } },
+        { "p": "**Example.** A motor takes 8 A from 220 V at a power factor of 0.75. S = 220 × 8 = **1 760 VA**. P = 1 760 × 0.75 = **1 320 W**. Q = √(1 760² − 1 320²) ≈ **1 164 var**." },
+        { "p": "**Why it matters.** For the same real power, a lower power factor means **more current**. At a power factor of 1 the motor above would need only 1 320 ÷ 220 = 6 A, but it actually takes 8 A, and the cable, breaker and switchgear must carry the 8 A. Low power factor also wastes energy in cables, and large users may be charged for it. It can be improved with capacitors, chosen by a designer." },
+        { "h": "Transformers" },
+        { "p": "**Vp ÷ Vs = Np ÷ Ns = Is ÷ Ip.** Voltage goes down in the same ratio as the turns; current goes up in the same ratio. Ignoring losses, the VA is the same on both sides." },
+        { "p": "**Example.** A 220 V / 12 V bell transformer has 880 primary turns. Ns = 880 × 12 ÷ 220 = **48 turns**. Rated at 24 VA: secondary current = 24 ÷ 12 = **2 A**; primary current = 24 ÷ 220 ≈ **0.11 A**." },
+        { "p": "Protection: the secondary protection must not be larger than the secondary rated current. The primary protection is chosen from the maker's data, because a transformer takes a short surge (inrush) of current when switched on and a fuse that is too small may blow at switch-on." },
+        { "h": "Efficiency" },
+        { "p": "**Efficiency = output ÷ input × 100%.** A pump motor taking 1.5 kW and giving 1.2 kW at the shaft is 1.2 ÷ 1.5 × 100 = **80%** efficient; the other 0.3 kW is lost as heat, friction and noise. Input = output ÷ efficiency." },
+        { "h": "Motor speed and slip" },
+        { "p": "**Synchronous speed n = 120 × f ÷ p** (rev/min), where f is the frequency and p is the number of poles. The rotor runs a little slower than the rotating field; the difference is the **slip**." },
+        { "table": { "head": ["Poles", "Synchronous speed at 50 Hz", "At 60 Hz"], "rows": [
+          ["2", "3 000 rev/min", "3 600 rev/min"],
+          ["4", "1 500 rev/min", "1 800 rev/min"],
+          ["6", "1 000 rev/min", "1 200 rev/min"],
+          ["8", "750 rev/min", "900 rev/min"]
+        ] } },
+        { "p": "**Slip % = (synchronous speed − rotor speed) ÷ synchronous speed × 100.** A 4-pole motor running at 1 455 rev/min on 50 Hz: (1 500 − 1 455) ÷ 1 500 × 100 = **3%**." },
+        { "h": "Full-load current from a nameplate" },
+        { "p": "A nameplate's power is the **output** at the shaft. For a single-phase motor: input power = output ÷ efficiency, and **I = input power ÷ (V × power factor)**." },
+        { "p": "**Example.** 1.5 kW output, efficiency 0.8, power factor 0.78, 220 V. Input = 1 500 ÷ 0.8 = 1 875 W. I = 1 875 ÷ (220 × 0.78) ≈ **10.9 A**. In practice, use the full-load current printed on the nameplate where there is one." },
+        { "note": "Equipment from North America is often rated **60 Hz**. A 60 Hz motor on Jamaica's 50 Hz supply runs about one-sixth slower, so a pump or fan gives less output, and at the same voltage it can draw more magnetising current and overheat. Always check the frequency on the nameplate and ask the maker.", "label": "Jamaica" }
+      ]
+    },
+    {
+      "title": "Cables: resistance, current rating and protective devices",
+      "blocks": [
+        { "h": "Conductor resistance" },
+        { "p": "**R = ρ × L ÷ A**, where ρ (rho) is the resistivity, L the length in metres and A the cross-sectional area in mm². For copper at 20 °C, ρ ≈ **0.0172 Ω·mm²/m**. Resistance goes up with length and down with area." },
+        { "p": "**Example.** One 40 m conductor of 1.5 mm² copper: R = 0.0172 × 40 ÷ 1.5 ≈ **0.46 Ω**. A circuit has two current-carrying conductors (out and back), so the loop is about **0.92 Ω**." },
+        { "p": "Data sheets often give resistance per metre: 7.41 mΩ/m × 40 m = 296 mΩ ≈ **0.30 Ω**. Resistance rises as a conductor warms up, so cable-table figures for hot, loaded cables are higher than this simple sum." },
+        { "h": "Design current, breaker and cable" },
+        { "p": "Three currents must be in the right order: **design current (Ib) ≤ breaker rating (In) ≤ cable rating as installed (Iz).**" },
+        { "flow": [
+          "Find the design current: I = P ÷ V (or the nameplate full-load current)",
+          "Choose the next standard breaker size at or above it",
+          "Look up the cable's rating in the table for its installation method",
+          "Multiply by the rating factors for heat, grouping and insulation",
+          "Check that the derated cable rating is at least the breaker rating; if not, choose a bigger cable",
+          "Check the voltage drop for the length of the run"
+        ] },
+        { "p": "**Example.** A 2.5 kW, 220 V heater: Ib = 2 500 ÷ 220 ≈ 11.4 A. From breakers of 10, 16, 20 and 32 A, choose **16 A** (10 A is too small). The cable must be rated at least 16 A after its rating factors." },
+        { "note": "A breaker protects the **cable**. If its rating were above the cable's rating, the cable could carry more current than is safe without the breaker tripping, overheat and start a fire.", "label": "Remember" },
+        { "h": "Rating (derating) factors" },
+        { "p": "A table rating assumes standard conditions, often an air temperature of 30 °C and one circuit on its own. When a cable cannot lose its heat as easily, multiply its rating by **rating factors**, numbers less than 1 (also called derating or correction factors)." },
+        { "table": { "head": ["Condition", "Why the rating falls", "Example factor (use the maker's table)"], "rows": [
+          ["Hot place, such as a roof space", "The cable starts hotter and cannot shed heat", "0.87"],
+          ["Grouped with other loaded cables", "The cables heat each other", "0.8 for a small group; lower for more cables"],
+          ["In or touching thermal insulation", "Heat is trapped", "0.5 or lower"]
+        ] } },
+        { "p": "**Apply every factor that applies, by multiplying.** A 4 mm² cable rated 36 A, in a hot roof space (0.87) and grouped (0.8): 36 × 0.87 × 0.8 ≈ **25.1 A**." },
+        { "p": "The table also gives different ratings for different installation methods, such as clipped direct, in conduit or in an insulated wall, because heat escapes from the cable at a different rate in each." }
+      ]
+    },
+    {
+      "title": "Voltage drop",
+      "blocks": [
+        { "p": "Current flowing through a cable's resistance loses some voltage along the way. Too much drop makes motors run hot and struggle to start, lamps dim and electronic equipment misbehave. A specification usually sets a limit, for example **3% of the supply voltage** for a final circuit. (Your code or specification may give other limits; use them.)" },
+        { "table": { "head": ["Limit", "On 220 V", "On 110 V"], "rows": [
+          ["3%", "0.03 × 220 = 6.6 V", "0.03 × 110 = 3.3 V"],
+          ["5%", "11 V", "5.5 V"]
+        ] } },
+        { "h": "Method 1: the mV/A/m table" },
+        { "p": "Cable tables give the voltage drop in **millivolts per amp per metre** of run (for the whole circuit, out and back). **Voltage drop (V) = mV/A/m × current × length ÷ 1 000.**" },
+        { "p": "**Example.** 2.5 mm² cable at 18 mV/A/m, a 12 A load and a 20 m run: 18 × 12 × 20 = 4 320 mV = **4.32 V**. As a percentage of 220 V: 4.32 ÷ 220 × 100 = **1.96%**, within 3%." },
+        { "h": "Method 2: from the resistance" },
+        { "p": "Voltage drop = current × the resistance of **both** conductors. **Example:** a 1.5 mm², 40 m circuit has a loop resistance of about 0.92 Ω at 20 °C; at 10 A the drop is about 9.2 V, or 4.2% of 220 V. A table for the same cable gives a larger figure, because it allows for the cable running warm, so use the table when you have one." },
+        { "h": "What changes the drop" },
+        { "ul": [
+          "Drop is **proportional to the length**: twice the run, twice the drop.",
+          "Drop is **proportional to the current**: twice the load, twice the drop.",
+          "A **bigger cable** has a lower mV/A/m and a lower drop.",
+          "The same drop in volts is **twice the percentage on 110 V** as on 220 V, which is one reason long runs and big loads are fed at 220 V."
+        ] },
+        { "h": "When the drop is too high" },
+        { "flow": [
+          "Work out the allowed drop in volts",
+          "Work out the drop with the cable chosen for current",
+          "If it is over the limit, try the next cable size up",
+          "Repeat until it is within the limit",
+          "Check the breaker and the cable's current rating still fit Ib ≤ In ≤ Iz"
+        ] },
+        { "note": "On long runs, such as to an outbuilding, a pump or a gate, voltage drop often decides the cable size, not the current. A cable that carries the current safely can still be too small for the distance.", "label": "Tip" }
+      ]
+    },
+    {
+      "title": "Lighting and geometry",
+      "blocks": [
+        { "h": "Light levels" },
+        { "p": "**Illuminance** (E) is the light falling on a surface, in **lux** (lumens per square metre). A light fitting's output is in **lumens** (lm). Typical design levels are about 300 lux for classrooms and offices and 500 lux for detailed work; the specification gives the figure for each room." },
+        { "h": "The lumen method" },
+        { "p": "**N = (E × A) ÷ (F × UF × MF)**, where N is the number of fittings, E the lux needed, A the area in m², F the lumens of one fitting, UF the **utilisation factor** (the share of light that reaches the working surface after losses on walls and ceiling) and MF the **maintenance factor** (allowing for dirt and lamps getting dimmer with age)." },
+        { "p": "**Example.** A workshop 10 m × 8 m needs 300 lux. Each fitting gives 6 000 lm; UF 0.5, MF 0.8. Area = 80 m². Lumens needed = 300 × 80 = 24 000 lm. Useful lumens per fitting = 6 000 × 0.5 × 0.8 = 2 400 lm. N = 24 000 ÷ 2 400 = **10 fittings**." },
+        { "ul": [
+          "If N is not a whole number, **round up** (13.2 becomes 14), or the room will be below the required level.",
+          "You may add one or two more to make an even layout, such as 3 rows of 5 instead of 14 in a ragged pattern.",
+          "A dusty room has a lower MF, so it needs more fittings."
+        ] },
+        { "h": "Spacing fittings evenly" },
+        { "p": "Space the fittings evenly, with the gap from the end fittings to the wall about **half** the gap between fittings. Gap = room length ÷ number of fittings in the row. **Example:** 5 fittings along 10 m: gap 10 ÷ 5 = 2 m, so 1 m from each end wall, then every 2 m. Check the maker's maximum spacing." },
+        { "h": "Areas and space factor" },
+        { "p": "Area of a circle = **π × d² ÷ 4** (π ≈ 3.142). A conduit with an inside diameter of 18 mm has an inside area of 3.142 × 18 × 18 ÷ 4 ≈ **254.5 mm²**. If the rule for the job is that cables may fill no more than **40%** of it, the cables may total 0.4 × 254.5 ≈ 101.8 mm². A cable 4 mm across takes up 3.142 × 4 × 4 ÷ 4 ≈ 12.6 mm², so up to 101.8 ÷ 12.6 ≈ 8 such cables may be drawn in (round down here: 8.1 cables means 8)." },
+        { "h": "Right-angled triangles" },
+        { "p": "**Pythagoras:** the longest side (hypotenuse) c = √(a² + b²). A cable tray rising 1.2 m over a level distance of 1.6 m is √(1.44 + 2.56) = √4 = **2.0 m** long." },
+        { "table": { "head": ["Ratio", "Formula", "Use"], "rows": [
+          ["sin θ", "opposite ÷ hypotenuse", "Height reached by a ladder: length × sin θ"],
+          ["cos θ", "adjacent ÷ hypotenuse", "Distance of a ladder foot from the wall: length × cos θ"],
+          ["tan θ", "opposite ÷ adjacent", "Slope of a ramp or roof"]
+        ] } },
+        { "p": "**Example.** A 5 m ladder at 75° to the ground reaches 5 × sin 75° ≈ 5 × 0.966 ≈ **4.83 m** up the wall, with its foot 5 × cos 75° ≈ **1.29 m** out. That is close to the 1-in-4 rule." },
+        { "h": "Conduit offsets" },
+        { "p": "To step a conduit sideways around an obstacle with two equal bends, the distance between the bends = **offset depth × multiplier**, where the multiplier is 1 ÷ sin of the bend angle." },
+        { "table": { "head": ["Bend angle", "Multiplier", "Example: 60 mm offset"], "rows": [
+          ["22.5°", "2.6", "156 mm"],
+          ["30°", "2.0", "120 mm"],
+          ["45°", "1.41", "85 mm"],
+          ["60°", "1.15", "69 mm"]
+        ] } },
+        { "h": "Scale drawings" },
+        { "p": "On a 1 : 50 drawing, 1 mm on paper is 50 mm on site. Real length = drawing length × scale. 84 mm on a 1 : 50 plan = 84 × 50 = 4 200 mm = **4.2 m**. 37 mm on a 1 : 100 plan = **3.7 m**. Always measure the route along the drawing, then add drops to switches and fittings." }
+      ]
+    },
+    {
+      "title": "Loads, quantities and costs",
+      "blocks": [
+        { "h": "Load schedule, connected load and demand" },
+        { "p": "A **load schedule** lists every circuit with its load, voltage, design current, breaker, cable and voltage drop. The **connected load** is the total of everything connected. Not everything runs at once, so designers allow for **demand** (sometimes called diversity): the load expected at any one time." },
+        { "p": "**Example.** A shop has lighting 1 200 W, socket loads 3 000 W and a 1 800 W air-conditioner. Connected load = 1 200 + 3 000 + 1 800 = **6 000 W**. If the designer expects 50% of the socket load at one time, the socket demand is 0.5 × 3 000 = 1 500 W, and the total demand is 1 200 + 1 500 + 1 800 = **4 500 W**. Demand percentages come from the code or the designer, not from guesswork." },
+        { "h": "Cable take-off" },
+        { "flow": [
+          "Measure each route from the scaled drawing or on site, and add drops to switches and fittings",
+          "Multiply by the number of conductors in each circuit (for example line, neutral and ground)",
+          "Multiply by the number of circuits",
+          "Add the waste allowance, for example 10%",
+          "Round up to whole rolls or drums"
+        ] },
+        { "p": "**Example.** Three circuits, each with three conductors on a 45 m route: 3 × 3 × 45 = 405 m. Plus 10%: 405 × 1.1 = 445.5 m. In 100 m rolls: **5 rolls**, split by colour as the circuits need." },
+        { "h": "Pricing" },
+        { "flow": [
+          "Materials at cost",
+          "Add the firm's mark-up: J$80 000 + 25% = 80 000 × 1.25 = J$100 000",
+          "Add labour and other costs",
+          "This gives the price before tax",
+          "Add GCT at the current rate on the price before tax, shown on its own line"
+        ] },
+        { "p": "**Cost per unit** = total cost ÷ number of units: J$156 000 for 24 outlets is J$6 500 an outlet." },
+        { "h": "Labour time" },
+        { "p": "If a team wires 10 points a day, 45 points take 45 ÷ 10 = **4.5 days**. Labour cost = labour-hours × rate: 45 labour-hours at J$2 200 = **J$99 000**." },
+        { "h": "Setting out a calculation sheet" },
+        { "ul": [
+          "Say what the job is, which drawing and tables were used, the date and your name.",
+          "List the input data: load, voltage, length, installation method, factors.",
+          "Write each step with its formula, the figures and the units.",
+          "Check it by estimating or working backwards, and have another person check and sign it before materials are ordered."
+        ] }
+      ]
+    },
+    {
+      "title": "Revision",
+      "blocks": [
+        { "h": "Checklist" },
+        { "p": "Tick each statement only when you can do it without looking at the notes." },
+        { "ul": [
+          "I can convert mA, kW, MΩ, mV, minutes, hp and °F, and rearrange a formula.",
+          "I can use Ohm's law and the power formulas for loads on 110 V and 220 V.",
+          "I can work out the new power of a heater connected to the wrong voltage.",
+          "I can solve a series–parallel network and check it with a meter on a bench supply.",
+          "I can work out energy in kWh, its cost, a saving and a payback time.",
+          "I can work out apparent power, real power and power factor, and explain why a low power factor needs a bigger cable.",
+          "I can use a transformer's turns ratio to find voltages, turns and currents.",
+          "I can work out efficiency, synchronous speed, slip and full-load current.",
+          "I can work out a conductor's resistance from ρ, L and A.",
+          "I can choose a breaker and check a cable so that Ib ≤ In ≤ Iz after rating factors.",
+          "I can work out voltage drop by the mV/A/m method and as a percentage, and choose a bigger cable when needed.",
+          "I can use the lumen method, round up and space fittings evenly.",
+          "I can use circle areas, a space factor, Pythagoras, sin, cos and tan, offset multipliers and drawing scales.",
+          "I can build a load schedule with connected load and demand, and a cable take-off in whole rolls.",
+          "I can price materials with mark-up and add GCT in the right order.",
+          "I can work out a mean, a range and a percentage error, and check a calculation sheet."
+        ] },
+        { "h": "Formulas to remember" },
+        { "table": { "head": ["Formula", "Use"], "rows": [
+          ["V = I × R; P = V × I; P = I²R; P = V² ÷ R", "Ohm's law and power"],
+          ["kWh = kW × hours", "Energy"],
+          ["Series: R = R1 + R2; two in parallel: R = R1R2 ÷ (R1 + R2)", "Networks"],
+          ["S = V × I; P = V × I × pf; pf = P ÷ S", "Power factor"],
+          ["Vp ÷ Vs = Np ÷ Ns = Is ÷ Ip", "Transformers"],
+          ["Efficiency = output ÷ input × 100", "Efficiency"],
+          ["n = 120 × f ÷ p; slip % = (ns − n) ÷ ns × 100", "Motor speed"],
+          ["R = ρ × L ÷ A (ρ copper ≈ 0.0172 Ω·mm²/m)", "Conductor resistance"],
+          ["Ib ≤ In ≤ Iz", "Breaker and cable selection"],
+          ["VD = mV/A/m × I × L ÷ 1 000", "Voltage drop"],
+          ["N = (E × A) ÷ (F × UF × MF)", "Number of light fittings"],
+          ["Area = π × d² ÷ 4; c = √(a² + b²)", "Geometry"],
+          ["Period = 1 ÷ f (20 ms at 50 Hz)", "AC"],
+          ["% error = (measured − true) ÷ true × 100", "Accuracy"]
+        ] } },
+        { "h": "Key terms" },
+        { "terms": [
+          ["Apparent power", "Volts × amps, measured in volt-amperes (VA or kVA)."],
+          ["Connected load", "The total of all loads connected to an installation."],
+          ["Demand", "The part of the connected load expected to run at any one time."],
+          ["Design current (Ib)", "The current a circuit is expected to carry in normal use."],
+          ["Efficiency", "Output power ÷ input power, as a percentage."],
+          ["Lux", "Lumens per square metre: the light falling on a surface."],
+          ["Maintenance factor", "A figure that allows for dirt and the fall in a lamp's light output over time."],
+          ["Mean", "The total of a set of readings divided by the number of readings."],
+          ["mV/A/m", "Millivolts of voltage drop per amp of current per metre of cable run."],
+          ["Power factor", "Real power ÷ apparent power; a figure between 0 and 1."],
+          ["Rating (derating) factor", "A number less than 1 by which a cable's current rating is multiplied for heat, grouping or insulation."],
+          ["Resistivity", "How strongly a material opposes current, used in R = ρL ÷ A."],
+          ["Slip", "How much slower an induction motor's rotor turns than the rotating field, as a percentage."],
+          ["Space factor", "The share of a conduit's or trunking's inside area that cables may fill."],
+          ["Synchronous speed", "The speed of a motor's rotating magnetic field: 120 × f ÷ p."],
+          ["Utilisation factor", "The share of a fitting's light that reaches the working surface."],
+          ["Voltage drop", "The voltage lost along a cable because of its resistance."]
+        ] }
+      ]
+    }
+  ],
+  "cases": {
+    "c1": { "title": "A drying cabinet at a shed near Frankfield", "text": "Kerry Campbell is designing a new circuit for a 3.6 kW, 220 V electric drying cabinet in a small shed near Frankfield, Clarendon, where a farmer dries ginger and pimento. The cable will be clipped along the rafters of the shed's hot roof space for a 30 m run from the panel. The example cable table gives 27 A for 2.5 mm² cable and 36 A for 4 mm², a rating factor of 0.87 for the roof space, and voltage drops of 18 mV/A/m for 2.5 mm² and 11 mV/A/m for 4 mm². Breakers come in 10, 16, 20 and 32 A. The specification limits voltage drop to 3%." },
+    "c2": { "title": "A sewing room at a school in Chapelton", "text": "Sanjay Brown is planning the lighting for a sewing room 9 m long and 6 m wide at a high school in Chapelton, Clarendon. The room needs an average of 500 lux on the work tables. Each LED fitting gives 5 000 lumens and uses 40 W; the utilisation factor is 0.6 and the maintenance factor is 0.75. The lights will be on a 110 V circuit." },
+    "c3": { "title": "The light bill at a cookshop in Lionel Town", "text": "Ms Yvonne Hall runs a cookshop in Lionel Town, Clarendon, and asks why her electricity costs so much. Each day the shop uses lighting of 0.4 kW for 12 hours, a chest freezer that averages 0.25 kW over 24 hours, and a 1.2 kW microwave for 1.5 hours. Use 30 days and an example rate of J$60 per kWh. New LED lighting would give the same light for 45% of the present lighting power and would cost J$28 500 to fit." },
+    "c4": { "title": "An air compressor at a tyre shop in Linstead", "text": "A tyre shop in Linstead, St Catherine, is buying a new air compressor. Its single-phase motor's nameplate reads: 220 V, 50 Hz, 2-pole, 2 850 rev/min, output 3.7 kW (5 hp), efficiency 85%, power factor 0.82. The owner has also been offered a cheaper second-hand compressor, brought in from the United States, whose motor is marked 230 V, 60 Hz only." },
+    "c5": { "title": "A gate-intercom transformer in Harbour View", "text": "Odean Clarke is fitting a door-entry and gate-intercom system at a townhouse complex in Harbour View, St Andrew. Its transformer is rated 60 VA, 220 V primary and 24 V secondary, and the primary winding has 1 650 turns." }
+  },
+  "questions": [
+    { "id": "P-01", "c": "c1", "q": "Which breaker should Kerry choose for the drying cabinet?", "o": ["16 A", "20 A", "32 A", "10 A"], "a": 1, "why": "Design current = 3 600 ÷ 220 ≈ 16.4 A. The breaker must be at or above this, so 16 A is too small and 20 A is the next size. 32 A would be above the cable's rating, so it could not protect the cable." },
+    { "id": "P-02", "c": "c1", "q": "What is the rating of the 2.5 mm² cable once the roof-space factor is applied?", "o": ["31.0 A", "27.0 A", "23.5 A", "14.2 A"], "a": 2, "why": "Multiply the table rating by the factor: 27 × 0.87 ≈ 23.5 A. A factor below 1 always lowers the rating. 23.5 A is above the 20 A breaker, so the cable can carry the current safely; the next check is voltage drop." },
+    { "id": "P-03", "c": "c1", "q": "What is the voltage drop along the 30 m run with 2.5 mm² cable, and does it meet the specification?", "o": ["About 8.8 V; it is over the 6.6 V limit", "About 5.4 V; it is within the 6.6 V limit", "About 8.8 V; it is within the 11 V limit", "About 0.9 V; it is well within the limit"], "a": 0, "why": "Voltage drop = 18 × 16.4 × 30 ÷ 1 000 ≈ 8.8 V, which is about 4% of 220 V. The limit is 3% of 220 V = 6.6 V, so 2.5 mm² fails on voltage drop even though it carries the current safely." },
+    { "id": "P-04", "c": "c1", "q": "What should Kerry do about the cable?", "o": ["Keep 2.5 mm², since it carries the current safely after the factor", "Fit a 16 A breaker instead, which will reduce the voltage drop", "Keep 2.5 mm² and ask JPS to raise the supply voltage at the farm", "Use 4 mm²: the drop is about 5.4 V, within the limit"], "a": 3, "why": "With 4 mm²: 11 × 16.4 × 30 ÷ 1 000 ≈ 5.4 V, about 2.5% of 220 V, within 3%. The breaker size does not change the voltage drop, which depends on the current, the length and the cable. On long runs, voltage drop often decides the cable size." },
+    { "id": "P-05", "c": "c2", "q": "How many fittings does the sewing room need?", "o": ["10", "15", "12", "8"], "a": 2, "why": "Area = 9 × 6 = 54 m², so lumens needed = 500 × 54 = 27 000 lm. Each fitting gives 5 000 × 0.6 × 0.75 = 2 250 useful lumens. N = 27 000 ÷ 2 250 = 12 fittings." },
+    { "id": "P-06", "c": "c2", "q": "Sanjay sets the fittings out in 3 rows of 4. Along the 9 m length, how far apart should the fittings in a row be, with half that gap at each end wall?", "o": ["2.25 m", "3.00 m", "2.00 m", "1.80 m"], "a": 0, "why": "Gap = room length ÷ fittings in the row = 9 ÷ 4 = 2.25 m, with 1.125 m from each end wall: 1.125 + 2.25 + 2.25 + 2.25 + 1.125 = 9 m. Even spacing gives even light across the tables." },
+    { "id": "P-07", "c": "c2", "q": "What current will the 12 fittings draw from the 110 V circuit?", "o": ["About 2.2 A", "About 0.36 A", "About 43.6 A", "About 4.4 A"], "a": 3, "why": "Total power = 12 × 40 = 480 W, so I = 480 ÷ 110 ≈ 4.4 A. On 220 V it would be half, about 2.2 A; 0.36 A is the current of one fitting." },
+    { "id": "P-08", "c": "c3", "q": "How much energy does the freezer use in the 30 days?", "o": ["6 kWh", "7.5 kWh", "180 kWh", "720 kWh"], "a": 2, "why": "Energy = kW × hours: 0.25 × 24 = 6 kWh a day, and 6 × 30 = 180 kWh a month. Use the average power for a freezer, because its compressor switches on and off." },
+    { "id": "P-09", "c": "c3", "q": "What will Ms Hall's electricity cost her for the month?", "o": ["J$21 600", "J$22 680", "J$756", "J$2 268"], "a": 1, "why": "Each day: lighting 0.4 × 12 = 4.8 kWh, freezer 6 kWh, microwave 1.2 × 1.5 = 1.8 kWh, total 12.6 kWh. For 30 days: 378 kWh. At J$60: 378 × 60 = J$22 680. J$756 is one day's cost; J$21 600 counts the microwave for only 1 hour." },
+    { "id": "P-10", "c": "c3", "q": "How much would the LED lighting save each month?", "o": ["J$3 888", "J$8 640", "J$158.40", "J$4 752"], "a": 3, "why": "LEDs use 45% of 0.4 kW, so the saving is 55%: 0.4 × 0.55 = 0.22 kW. Over 12 hours for 30 days: 0.22 × 12 × 30 = 79.2 kWh, and 79.2 × 60 = J$4 752. J$3 888 is what the LEDs would still cost to run; J$8 640 is the whole present lighting cost." },
+    { "id": "P-11", "c": "c3", "q": "About how long would the LED lighting take to pay for itself?", "o": ["About 6 months", "About 3 months", "About 7 months", "About 2 years"], "a": 0, "why": "Payback = cost of the change ÷ saving per month = 28 500 ÷ 4 752 ≈ 6 months. After that the saving is money in Ms Hall's pocket. Dividing by the whole lighting cost (about 3.3 months) overstates the saving." },
+    { "id": "P-12", "c": "c4", "q": "How fast does the compressor motor's magnetic field turn, and by what percentage does the rotor lag behind it?", "o": ["3 600 rev/min and about 21%", "3 000 rev/min and 5%", "1 500 rev/min and 5%", "3 000 rev/min and about 5.3%"], "a": 1, "why": "n = 120 × f ÷ p = 120 × 50 ÷ 2 = 3 000 rev/min. Slip = (3 000 − 2 850) ÷ 3 000 × 100 = 5%. Slip is a percentage of the synchronous speed, not of the rotor speed, and 3 600 rev/min is the 60 Hz figure." },
+    { "id": "P-13", "c": "c4", "q": "What electrical power does the motor take from the supply at full load?", "o": ["About 3.15 kW", "About 3.70 kW", "About 4.35 kW", "About 4.51 kW"], "a": 2, "why": "The nameplate power is the output at the shaft. Input = output ÷ efficiency = 3.7 ÷ 0.85 ≈ 4.35 kW. Multiplying by the efficiency (3.15 kW) gives a figure smaller than the output, which is impossible for a motor." },
+    { "id": "P-14", "c": "c4", "q": "About what full-load current will the motor draw?", "o": ["About 16.8 A", "About 19.8 A", "About 20.5 A", "About 24.1 A"], "a": 3, "why": "I = input power ÷ (V × pf) = 4 353 ÷ (220 × 0.82) ≈ 24.1 A. Leaving out the efficiency or the power factor gives too small a current, and a cable or breaker sized on it would be too small." },
+    { "id": "P-15", "c": "c4", "q": "What would happen if the second-hand 60 Hz compressor were run on the shop's 50 Hz supply?", "o": ["It runs one-sixth slower, gives less air and may overheat", "It runs about one-sixth faster and gives more air than before", "Nothing changes, as frequency does not affect a motor's speed", "It will not turn at all, as 60 Hz motors cannot run on 50 Hz"], "a": 0, "why": "Motor speed is proportional to frequency: a 2-pole field turns at 3 600 rev/min on 60 Hz but 3 000 rev/min on 50 Hz, about one-sixth slower, so the compressor delivers less air. At the same voltage the motor can also draw more magnetising current and run hot. Check with the maker before using it." },
+    { "id": "P-16", "c": "c5", "q": "How many turns does the transformer's secondary winding have?", "o": ["15 125", "180", "1 800", "150"], "a": 1, "why": "Ns = Np × Vs ÷ Vp = 1 650 × 24 ÷ 220 = 180 turns. A step-down transformer has fewer secondary turns than primary turns; 15 125 comes from turning the ratio upside down." },
+    { "id": "P-17", "c": "c5", "q": "Ignoring losses, what are the full-load currents in the transformer's windings?", "o": ["0.27 A secondary and 2.5 A primary", "2.5 A in both windings, as the VA is the same", "2.5 A secondary and about 0.27 A primary", "60 A secondary and 60 A primary"], "a": 2, "why": "Secondary current = 60 ÷ 24 = 2.5 A; primary current = 60 ÷ 220 ≈ 0.27 A. The VA is the same on both sides, so the low-voltage side carries the larger current. These figures set the size of the secondary protection and the control wiring." },
+    { "id": "P-18", "c": null, "q": "A 12 V DC bench supply feeds an 18 Ω resistor in series with a 20 Ω and a 30 Ω resistor in parallel. What current flows through the 20 Ω resistor?", "o": ["0.40 A", "0.60 A", "0.16 A", "0.24 A"], "a": 3, "why": "The pair is (20 × 30) ÷ 50 = 12 Ω, so the total is 30 Ω and the supply current is 12 ÷ 30 = 0.4 A. The pair has 0.4 × 12 = 4.8 V across it, so the 20 Ω carries 4.8 ÷ 20 = 0.24 A (and the 30 Ω carries 0.16 A; together 0.4 A)." },
+    { "id": "P-19", "c": null, "q": "A conduit must step out 60 mm to clear a pipe, using two 45° bends. How far apart should the bends be?", "o": ["About 85 mm", "About 120 mm", "About 42 mm", "About 60 mm"], "a": 0, "why": "Distance between bends = offset depth × multiplier, and the multiplier for 45° bends is 1 ÷ sin 45° ≈ 1.41: 60 × 1.41 ≈ 85 mm. The multiplier of 2 belongs to 30° bends." },
+    { "id": "P-20", "c": null, "q": "A trainee's sheet gives the resistance of one 25 m conductor of 4 mm² copper as 10.75 Ω. What is the best response?", "o": ["Accept it, because long cables always have a high resistance", "Check the working: a rough estimate gives about 0.1 Ω", "Accept it, as the answer has been given to two decimal places", "Re-measure the route, as the 25 m length must be wrong"], "a": 1, "why": "R = 0.0172 × 25 ÷ 4 ≈ 0.11 Ω. The trainee's answer is 100 times too big, which happens when 4 mm² is entered as 0.04. A quick estimate catches unit mistakes like this before materials are ordered or a test result is judged." }
+  ]
+}

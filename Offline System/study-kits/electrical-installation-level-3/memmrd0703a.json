@@ -1,0 +1,513 @@
+{
+  "format": "cestis-study-kit",
+  "version": 1,
+  "status": "to-check",
+  "written": "2026-11-07",
+  "programme": "Electrical Installation",
+  "qualification": { "id": "QUAL-EIM-L3", "title": "ELECTRICAL INSTALLATION AND MAINTENANCE LEVEL 3", "code": "MEM32507" },
+  "level": 3,
+  "unit": { "code": "MEMMRD0703A", "title": "Coordinate the installation of substation plant and apparatus" },
+  "summary": "This unit teaches you to coordinate the installation of a customer substation: the medium-voltage switchgear, the transformer, the protection, the earthing and the low-voltage main board that supply a hotel, factory or large building. You will learn what each item of plant does, how to do the transformer calculations, how to plan and programme the work with the power company and the other contractors, how to manage delivery, lifting, earthing, cabling, inspection and testing, and what must be handed over. You will also learn why all work on or near live plant stays with authorised persons.",
+  "sections": [
+    {
+      "title": "Unit overview",
+      "blocks": [
+        { "p": "A hotel, factory, hospital or shopping centre needs far more power than an ordinary low-voltage service can deliver. The power company brings a **medium-voltage (MV)** supply to the site, and a **substation** steps it down to the low voltage the building uses. Building one involves the owner, the designer, the power company, a civil contractor, a crane company, cable crews, specialist jointers, a testing team and the government's electrical inspector. At Level 3 your part is to **coordinate**: to plan the sequence, check the equipment and the work against the drawings and specification, keep the parties informed, and make sure the records are complete." },
+        { "h": "What you must be able to do" },
+        { "table": { "head": ["Task", "What it looks like on the job"], "rows": [
+          ["Explain the plant and apparatus", "Name each main item in a customer substation and say what it does and why it is there."],
+          ["Read the drawings and specification", "Use the single-line diagram, layout drawings and equipment schedule; raise written queries when they disagree."],
+          ["Do the transformer calculations", "Work out voltage ratio, kVA from kW and power factor, full-load current, a suitable standard size, fault current and bund capacity."],
+          ["Plan and programme the work", "List the tasks, put them in a workable order on a Gantt chart, find the critical path and order long-delivery items early."],
+          ["Coordinate the parties", "Set out who does what at each interface, hold briefings and meetings, and deal with changes and delays in writing."],
+          ["Manage delivery, lifting and storage", "Inspect plant on arrival, check the lifting plan, and see that items are stored as the maker says."],
+          ["Check civil works and earthing", "Check plinths, bunds, ducts, fences and the buried earth grid against the drawings before they are covered."],
+          ["Coordinate cabling, inspection and testing", "See that specialist work is done by the right people, defects are closed and results recorded."],
+          ["Keep live work with authorised persons", "Plan so that switching, earthing, testing and energising are done only by authorised persons under the safety rules and permits."],
+          ["Hand over", "Assemble the as-built drawings, test records, certificates, manuals and settings, and get a signed receipt."]
+        ] } },
+        { "h": "Voltage levels: the words used" },
+        { "table": { "head": ["Term", "Roughly", "Where you meet it"], "rows": [
+          ["Low voltage (LV)", "Up to 1,000 V AC", "Inside the building: 110/220 V, 120/208 V, 277/480 V"],
+          ["Medium voltage (MV); often loosely called 'high voltage'", "Above 1,000 V, up to a few tens of kilovolts", "JPS distribution lines and cables, for example 12 kV or 24 kV; JPS gives the voltage for each site"],
+          ["High voltage (HV) transmission", "Tens to hundreds of kilovolts", "JPS transmission lines (69 kV and 138 kV) and grid substations"]
+        ] } },
+        { "note": "The supply in Jamaica runs at **50 Hz**. The MV voltage for a site, the point of supply, the metering and what JPS will own and operate are all set by JPS, so JPS is brought in at the very start of a substation project. A new substation must be inspected and certified under the Government Electrical Regulator (GER) before JPS will connect it.", "label": "Jamaica" },
+        { "note": "**Trainees never enter a live substation and never operate MV switchgear.** At these voltages you do not have to touch a conductor to be killed: coming too close is enough. In this unit you learn the planning, the drawings, the calculations and the checks that are done away from live plant. Switching, earthing, testing and energising belong to authorised persons.", "label": "Safety" }
+      ]
+    },
+    {
+      "title": "Substation plant and apparatus",
+      "blocks": [
+        { "p": "A customer distribution substation has one main job: to **step the power company's medium voltage down to low voltage** for the building. Everything else in it is there to switch, protect, measure or make safe." },
+        { "h": "Common arrangements" },
+        { "table": { "head": ["Type", "Description"], "rows": [
+          ["Pad-mounted transformer", "A sealed, tamper-resistant steel cabinet on a concrete plinth (pad), with an MV compartment and an LV compartment side by side behind locked doors. Common at Jamaican hotels, plazas and housing schemes."],
+          ["Ring main unit (RMU) with transformer", "Compact MV switchgear, a transformer and an LV board, outdoors in a fenced compound or in a substation room."],
+          ["Indoor substation", "The same plant in a dedicated room, often with a dry-type transformer."],
+          ["Pole-mounted transformer", "Smaller transformers on JPS poles. They are JPS's own plant."]
+        ] } },
+        { "h": "The main items and what each does" },
+        { "table": { "head": ["Item", "What it does"], "rows": [
+          ["MV switchgear, often a **ring main unit (RMU)**", "Compact switchgear that receives the power company's cables. Two switches connect the incoming and outgoing cables of the supply 'ring', and a third circuit (a fuse-switch or a circuit breaker) feeds and protects the transformer."],
+          ["**Transformer**", "Steps the MV down to LV. Oil-filled or dry-type."],
+          ["**Surge arresters**", "Send lightning and switching surges to earth before they can damage the transformer and cables."],
+          ["**Current transformers (CTs)**", "Give relays and meters a small current in proportion to the large current in the main circuit."],
+          ["**Voltage transformers (VTs)**", "Give meters and relays a small voltage in step with the main voltage."],
+          ["**Protection relays**", "Sense a fault through the CTs and trip the circuit breaker. The usual type is an overcurrent and earth fault relay."],
+          ["**Battery and charger**", "A DC supply for the relays and breaker trip coils, so that the breakers can still trip when the AC supply has been lost or pulled down by the fault itself."],
+          ["**Metering**", "Records the energy used, for billing. The revenue meter and its CTs and VTs belong to, or are sealed by, the power company."],
+          ["**LV main switchboard**", "Takes the transformer's output through a main breaker and feeds the building's circuits."],
+          ["**Busbars**", "The copper or aluminium bars inside switchgear that carry current to each circuit."],
+          ["**Earthing system**", "The buried earth grid and electrodes, bonded to all metalwork, which keep step and touch voltages safe in a fault."],
+          ["**Enclosure or fence, locks and danger signs**", "Keep unauthorised people out."]
+        ] } },
+        { "h": "Switching devices are not all the same" },
+        { "table": { "head": ["Device", "What it can do", "What it cannot do"], "rows": [
+          ["Isolator (disconnector)", "Give a visible, lockable break for safe working", "Interrupt load or fault current. It is opened only after the current has been broken elsewhere."],
+          ["Switch (load-break switch)", "Make and break normal load current", "Interrupt fault current. It relies on fuses or an upstream breaker for that."],
+          ["Fuse", "Interrupt fault current very quickly", "Be reset: it must be replaced after it operates."],
+          ["Circuit breaker", "Make and break load current **and interrupt fault current**, tripped by its relays", "Give a visible break, in many designs. Isolation is done by withdrawing it or by a separate isolator."],
+          ["Earth switch", "Connect isolated conductors to earth so that they are safe to work on", "Be closed onto live conductors: interlocks are fitted to prevent it, and it is never forced."]
+        ] } },
+        { "ul": [
+          "In many RMUs the transformer circuit is protected by **MV fuses**. When one fuse blows, a striker pin in it trips the switch, so that all three phases open together and the transformer is not left running on two phases. The blown fuse is replaced; common practice is to replace all three.",
+          "**Interlocks** on MV switchgear force a safe order: the earth switch cannot be closed until the main switch is open, and a cable compartment cannot be opened until its circuit is earthed. Interlocks are never defeated.",
+          "The arc inside an MV switch is put out in **vacuum** or in **SF6 gas** (sulphur hexafluoride). SF6 is a very good insulator, but it is a powerful greenhouse gas, and gas that has been exposed to arcing holds toxic by-products. Only trained people with recovery equipment handle it. A gas pressure gauge shows whether a switch is safe to operate."
+        ] },
+        { "note": "If the gas gauge on an SF6 switch is outside its green zone, the switch may no longer be able to break current safely. Nobody operates it. It is reported at once to the owner's or power company's authorised person.", "label": "Safety" }
+      ]
+    },
+    {
+      "title": "Transformers: types, nameplate and calculations",
+      "blocks": [
+        { "h": "Oil-filled and dry-type" },
+        { "table": { "head": ["Type", "Good points", "Points to manage"], "rows": [
+          ["Oil-filled (mineral oil)", "Compact, efficient, well suited to outdoor use; the oil both insulates and cools.", "The oil can burn and can pollute. Outdoors it usually stands in a **bund** (a low wall or pit) that holds any leak. Not favoured inside occupied buildings."],
+          ["Oil-filled with a fire-resistant fluid, such as a natural ester", "A much higher fire point; breaks down more easily in the environment.", "Costs more; follow the maker's handling rules."],
+          ["Dry-type (cast resin or varnished)", "No oil, so a lower fire and spill risk. Often specified inside buildings, for example near hotel guest rooms.", "Larger and usually dearer for the same rating; needs clean, dry, well-ventilated air; needs its own enclosure outdoors."]
+        ] } },
+        { "h": "Parts of an oil-filled transformer" },
+        { "table": { "head": ["Part", "Purpose"], "rows": [
+          ["Tank, with cooling fins or radiators", "Holds the core, windings and oil; the fins give the heat away to the air."],
+          ["Bushings", "Insulators that bring the MV and LV connections through the tank. They are fragile and are never used for lifting or stepping on."],
+          ["Conservator", "A small tank above the main tank that lets the oil expand and contract as it heats and cools. Many small and pad-mounted units are sealed instead and have none."],
+          ["Breather with silica gel", "Dries the air drawn into the conservator. The gel changes colour as it takes up moisture (blue types turn pink; orange types turn green) and must then be renewed."],
+          ["Buchholz relay", "Fitted in the pipe between the tank and the conservator. It gives an alarm when gas from a slow fault collects in it, and trips the transformer on a sudden surge of oil from a serious internal fault."],
+          ["Tap changer", "Selects tappings on the MV winding to adjust the ratio by a few per cent. The usual off-circuit type is moved **only with the transformer de-energised**, by an authorised person."],
+          ["Oil level and temperature gauges, pressure relief device", "Show the transformer's condition; the relief device vents dangerous pressure."],
+          ["Lifting lugs and jacking points", "The only points for lifting and jacking."],
+          ["Earthing terminals", "Connect the tank to the earth system."]
+        ] } },
+        { "h": "Reading the nameplate" },
+        { "table": { "head": ["On the nameplate", "Meaning"], "rows": [
+          ["Rating in **kVA** (kilovolt-amperes)", "The load it can carry continuously. It is given in kVA, not kW, because heating depends on voltage and current whatever the power factor of the load."],
+          ["Voltages, for example 24,000 V / 480 V", "The MV (primary) and LV (secondary) line voltages at no load."],
+          ["Frequency", "50 Hz in Jamaica."],
+          ["**Vector group**, for example Dyn11", "How the windings are connected and the phase shift between them. D: MV winding in delta. y: LV winding in star. n: LV neutral brought out. 11: the phase shift, as a clock position."],
+          ["Impedance, for example 5%", "The internal voltage drop at full load. It limits the fault current the transformer can deliver."],
+          ["Cooling, for example ONAN", "**O**il **N**atural, **A**ir **N**atural: oil circulates by itself and the air cools the fins without fans. ONAF adds fans. AN is a dry-type cooled by natural air. KNAN uses a fire-resistant fluid."],
+          ["Tappings", "The steps available on the tap changer, for example ±2 × 2.5%."],
+          ["Weight and oil volume", "Needed for the lifting plan, the plinth and the bund."],
+          ["Serial number", "Must match the test certificate."]
+        ] } },
+        { "note": "Transformers that will run in parallel must have the same voltage ratio, the **same vector group** and closely matching impedances. A wrong vector group cannot be corrected on site, so check it against the equipment schedule before the order is placed and again on delivery.", "label": "Remember" },
+        { "h": "Calculations" },
+        { "table": { "head": ["To find", "Formula", "Worked example"], "rows": [
+          ["Voltage ratio", "Primary voltage ÷ secondary voltage", "24,000 V / 480 V: 24,000 ÷ 480 = 50, written 50:1"],
+          ["kVA from kW", "kVA = kW ÷ power factor", "440 kW at 0.88: 440 ÷ 0.88 = 500 kVA"],
+          ["Three-phase kVA from readings", "kVA = 1.732 × V × I ÷ 1,000", "250 A at 480 V: 1.732 × 480 × 250 ÷ 1,000 = 208 kVA"],
+          ["Full-load current (three-phase)", "I = kVA × 1,000 ÷ (1.732 × V)", "1,000 kVA at 480 V: 1,000,000 ÷ 831.4 = 1,203 A"],
+          ["Fault current at the LV terminals (worst case)", "Full-load current × 100 ÷ impedance %", "1,203 A at 5%: 1,203 × 100 ÷ 5 = 24,060 A, about 24 kA"],
+          ["Bund capacity", "Oil volume × the percentage specified (commonly 110%)", "1,200 litres × 1.10 = 1,320 litres"]
+        ] } },
+        { "h": "Choosing a size: worked example" },
+        { "flow": [
+          "Maximum demand: 600 kW at power factor 0.8",
+          "Convert to kVA: 600 ÷ 0.8 = 750 kVA",
+          "Add the growth the client wants, say 15%: 750 × 1.15 = 862.5 kVA",
+          "Choose the smallest standard size that is not less: 1,000 kVA",
+          "Full-load LV current at 480 V: 1,203 A, used to size the main breaker, busbars and LV cables",
+          "Confirm with the designer and the specification"
+        ] },
+        { "p": "Too small a transformer is overloaded from the first day and ages fast. One that is far too large costs more to buy and wastes energy in its core every hour of the year. The final choice is the designer's, and may also depend on JPS's rules, large motor starting currents and the space on site." },
+        { "note": "**Why the fault current matters to you.** The LV main switchboard must have a fault rating at least as high as the current the transformer can drive into a short circuit. If a larger transformer is substituted, or one with a lower impedance, the fault current rises, and a board that was adequate may no longer be. This is why substitutions go back to the designer.", "label": "Remember" }
+      ]
+    },
+    {
+      "title": "Planning and coordinating the project",
+      "blocks": [
+        { "h": "Who is involved" },
+        { "table": { "head": ["Party", "Their part"], "rows": [
+          ["Owner (client)", "Pays for and will own the customer's plant; gives access; receives the handover."],
+          ["Designer (consulting engineer)", "Produces the drawings, specification and equipment schedule; answers queries; approves changes."],
+          ["Power company (JPS)", "Sets the supply voltage, the point of supply, its own equipment and metering, and its rules; switches its network; makes the final connection."],
+          ["Civil contractor", "Plinth, bund, trenches, ducts, substation room or fence."],
+          ["Suppliers and makers", "Transformer, switchgear, cables and termination kits, with drawings and test certificates."],
+          ["Crane company", "The crane, the operator and often the lift supervisor for the heavy lifts."],
+          ["Cable crew", "Lays MV and LV cables and the earth grid."],
+          ["Jointers", "Trained specialists who make MV cable joints and terminations."],
+          ["Testing team", "Competent test engineers with MV test equipment."],
+          ["Government electrical inspector", "Inspects and certifies the installation before connection."]
+        ] } },
+        { "h": "The documents you plan from" },
+        { "ul": [
+          "The **single-line diagram**: the main electrical connections, with one line for each three-phase circuit, and the ratings of each item.",
+          "The **layout drawings**: positions, dimensions, clearances, cable routes and the earthing layout.",
+          "The **specification and equipment schedule**: the transformer's kVA, voltages, vector group, cooling type and impedance; the switchgear ratings; the cable types; the tests required.",
+          "The **makers' drawings**: actual sizes, weights, cable entry positions and fixing details.",
+          "The **power company's requirements**."
+        ] },
+        { "note": "When two drawings disagree, for example the layout drawing and the maker's drawing show the cable entries in different places, do not choose between them and do not leave it for site. Raise a written query with the designer and get a written reply before the civil work is built.", "label": "Remember" },
+        { "h": "A workable sequence" },
+        { "flow": [
+          "Approved design, specification and power company requirements",
+          "Order long-delivery plant: transformer and switchgear",
+          "Site survey, setting out and locating existing services",
+          "Civil works: trenches, ducts, earth grid, plinth, bund, fence or room",
+          "Concrete cured; site ready and secure",
+          "Delivery, inspection and lifting of transformer and switchgear",
+          "MV and LV cables laid, then terminated by trained jointers",
+          "Protection, metering and LV board fitted and wired",
+          "Inspection, then testing by the competent testing team",
+          "Government inspection and certificate",
+          "Energising by authorised persons",
+          "Handover documents and training"
+        ] },
+        { "h": "The programme: Gantt chart and critical path" },
+        { "p": "A **Gantt chart** is a bar chart with the tasks down the side and time along the top; each bar shows when a task starts and finishes. Some tasks can run at the same time; others must wait for an earlier task. The **critical path** is the longest chain of tasks that depend on each other: it sets the finish date. A delay to any task on the critical path delays the whole job. Tasks off the critical path have **float**: spare time by which they can slip without moving the finish date." },
+        { "p": "**Example.** Switchgear takes 12 weeks to arrive. The substation room takes 6 weeks to build and can start at once. Once both are done, installing takes 2 weeks, testing 1 week and approval 1 week. Chain A: delivery 12 + 2 + 1 + 1 = 16 weeks. Chain B: room 6 + 2 + 1 + 1 = 10 weeks. Chain A is the critical path, so the job takes 16 weeks. The room has 12 − 6 = 6 weeks of float. If the room runs 3 weeks late, the finish date does not move; if the switchgear is 1 week late, the whole job is 1 week late." },
+        { "ul": [
+          "Long-delivery items are usually on the critical path. **Order them first.**",
+          "Allow real time for concrete to cure before a heavy transformer is set on it, as the civil engineer specifies.",
+          "Allow for the weather. The hurricane season runs from June to November, and heavy rain stops trench work and crane lifts.",
+          "The power company's and the inspector's dates are hard to change. Book them early and keep both informed.",
+          "When something slips, **re-plan and tell everyone affected** at once. A crew standing idle on site, or arriving to find nothing ready, costs money."
+        ] },
+        { "h": "Keeping communication clear" },
+        { "ul": [
+          "A **responsibility table** names one owner for every task and every interface: for example, who supplies the termination kits, who makes off the cable at the power company's switch, who provides the temporary supply for testing.",
+          "One shared programme, kept up to date and re-issued when it changes.",
+          "A short **daily briefing** on site: today's work, the work areas for each crew, the hazards and any permits.",
+          "A weekly **coordination meeting** with written minutes, each action given to a named person with a date.",
+          "Queries, changes and delays are put **in writing**. Drawings are updated and old copies withdrawn."
+        ] }
+      ]
+    },
+    {
+      "title": "Site, civil works, delivery and lifting",
+      "blocks": [
+        { "h": "Choosing and checking the site" },
+        { "table": { "head": ["Point", "What to look for"], "rows": [
+          ["Flooding", "Above known flood and storm-surge levels. Never the lowest corner of a yard or car park."],
+          ["Access", "A firm route for the delivery truck and room for the crane, now and when the transformer has to be changed in years to come. Access at all hours for the power company."],
+          ["Clearances", "The distances from buildings, windows, doors, fuel stores and boundaries shown on the drawings, and the working space around the equipment. Take them from the drawings; do not guess them."],
+          ["Ventilation", "Free air around the cooling fins; not boxed in by walls, planting or stored goods."],
+          ["Trees and structures", "Nothing overhanging that could fall in a storm or block a crane."],
+          ["Security and the public", "Locked doors or a fence with locked gates, and danger signs. Away from pools, play areas and places where people gather."],
+          ["Sea air", "Near the coast, the enclosure, paint system and fixings must suit salt air, as specified."]
+        ] } },
+        { "h": "Civil works to check before the plant arrives" },
+        { "ul": [
+          "The **plinth** (the concrete pad or base): size, level, cable openings and fixing points to the maker's drawing; cured for the time the civil engineer specifies.",
+          "The **bund** for an oil-filled transformer: capacity as specified (commonly 110% of the oil volume), sealed, with a way of removing rainwater that does not let oil escape.",
+          "**Cable ducts and trenches**: the right sizes, depths, bends and routes, with draw cords in the ducts and the ends sealed.",
+          "The **earth grid**: laid and inspected before it is covered (see the next section).",
+          "The **fence and gates**, or the substation room: gates that open outwards and can be locked; in a room, doors that open outwards for escape.",
+          "Existing buried services located and marked before any digging."
+        ] },
+        { "note": "The plinth, cured and ready, with its cable ducts in place, must be finished **before** the transformer is delivered. A transformer left on a truck or dumped beside a wet plinth means a second crane hire and a risk of damage.", "label": "Tip" },
+        { "h": "Receiving the plant" },
+        { "flow": [
+          "Before the day: access route, unloading area, lifting plan and storage ready",
+          "Check the delivery note against the purchase order and specification",
+          "Inspect for damage: tank, fins, bushings, gauges, switchgear panels, paint",
+          "Look for oil leaks and broken seals",
+          "Read the shock (impact) indicator or recorder",
+          "Match the nameplate to the order: kVA, voltages, vector group, impedance, cooling, serial number",
+          "Check that the test certificates, drawings, manuals and accessories have come",
+          "Write any damage or mismatch on the delivery note before signing; photograph and report it",
+          "Record everything in the receiving log"
+        ] },
+        { "p": "A **shock indicator** or impact recorder is fitted for the journey. If it shows a jolt beyond the maker's limit, the core or windings may have moved even though the tank looks perfect. The maker must say what inspection or testing is needed before the unit is accepted." },
+        { "h": "The lifting plan" },
+        { "table": { "head": ["The plan covers", "Why it matters"], "rows": [
+          ["The weight (with oil) and centre of gravity, from the maker's data", "The crane and slings are chosen for the real load."],
+          ["The total lifted load: the transformer plus slings, shackles and any spreader beam", "The crane's capacity must cover everything hanging from the hook."],
+          ["The crane, its position, and its rated capacity at the radius (reach) needed", "A crane lifts much less at a long reach than close in."],
+          ["The ground under the crane's outriggers", "Soft ground, trench backfill or buried ducts can give way and overturn the crane."],
+          ["Slings and shackles, with their ratings and certificates, attached only to the maker's lifting lugs", "Bushings, fins and cable boxes are not made to take the weight."],
+          ["A competent person in charge and one signaller", "The operator takes signals from one person only."],
+          ["Overhead lines and an exclusion zone", "Nobody under the load; no contact with live lines."],
+          ["Weather limits", "High wind makes a load swing; lifting stops."],
+          ["Setting down and lining up with the cable entries", "The unit is placed right first time."],
+          ["A briefing for everyone before the lift", "Each person knows the plan and their part in it."]
+        ] } },
+        { "h": "Sling angles" },
+        { "p": "When two sling legs spread out from the hook, each leg carries more than half the load, and the wider the angle between them, the greater the tension." },
+        { "table": { "head": ["Angle between the two legs", "Tension in each leg, as a share of the load"], "rows": [
+          ["0° (legs vertical, as under a spreader beam)", "0.50"],
+          ["60°", "0.58"],
+          ["90°", "0.71"],
+          ["120°", "1.00: each leg carries the whole weight"]
+        ] } },
+        { "p": "This is why lifting plans limit the sling angle (many allow no more than 90° between legs) and why a spreader beam is used when the lugs are far apart. Wide angles also pull the lugs sideways, which they are not designed for." },
+        { "h": "Storage" },
+        { "ul": [
+          "If plant cannot be installed straight away, store it as the maker says: **dry, covered, off the ground**, with packing and covers left on, in a secure area.",
+          "Switchgear and relays are stored indoors. Damp ruins insulation and corrodes mechanisms.",
+          "An oil-filled transformer stored outdoors is kept sealed and upright, on firm level ground, and its oil level and breather are checked regularly.",
+          "Termination kits have a shelf life: keep them sealed and cool, and check the dates."
+        ] }
+      ]
+    },
+    {
+      "title": "Earthing and bonding",
+      "blocks": [
+        { "p": "When an earth fault happens at a substation, a very large current flows into the ground and back to the source. For a moment, the ground itself and every piece of metalwork connected to it rise in voltage. The earthing system is designed to do two things: to give the fault current an easy path so that **the protection operates quickly**, and to keep the voltages that a person could bridge at a safe level." },
+        { "table": { "head": ["Term", "Meaning"], "rows": [
+          ["**Touch voltage**", "The voltage between metalwork a person is touching, such as the transformer tank or the fence, and the ground where they stand."],
+          ["**Step voltage**", "The voltage between a person's two feet, as the current spreads out through the soil."],
+          ["Transferred voltage", "A dangerous voltage carried out of the substation by something metal, such as a pipe, a fence or a cable sheath, to a place where nobody expects it."]
+        ] } },
+        { "h": "How the design keeps them safe" },
+        { "ul": [
+          "A buried **earth grid** (earth mat) of bare copper conductor under and around the plant, with earth rods, keeps the whole area at nearly the same voltage, so that little voltage appears between hand and feet or between one foot and the other.",
+          "**Every item of metalwork is bonded** to the grid: transformer tank, switchgear, LV board, cable screens and armour, plinth steel, fence and gates. A fault cannot then leave a dangerous voltage on one item while the next is at earth.",
+          "The fence is bonded as the design shows, usually with a buried conductor running just outside it so that a person touching the fence stands over earthed ground. Gates are bonded to their posts with flexible straps.",
+          "A layer of **crushed stone** over the yard has a high resistance. It reduces the current that can flow through a person's feet in a fault.",
+          "Joints in buried conductors are welded or made with compression fittings, as specified, because they cannot be inspected again once covered."
+        ] },
+        { "h": "What you check, and when" },
+        { "flow": [
+          "Materials on site match the specification: conductor size, rods, joint type",
+          "Conductors laid at the depth and spacing on the drawing",
+          "Rods driven where shown; every joint made and inspected",
+          "Tails left long enough to reach each item of plant, the fence and the gates",
+          "Photographs taken, and the layout marked on the as-built drawing",
+          "Inspection by the engineer where the plan requires it",
+          "Only then: backfill",
+          "Earth resistance tested and recorded by the testing team, against the design figure"
+        ] },
+        { "p": "The resistance of the earth system is measured with an **earth tester** (earth resistance tester). The acceptable figure comes from the **designer**: it depends on the fault level and the soil, and for a substation it is usually far lower than the 25 ohms the NEC accepts for a single rod at an ordinary building. If the measured figure is too high, the designer decides the remedy, such as more rods, deeper rods or more conductor." },
+        { "note": "Buried earthing is the classic 'hidden work'. Once the trench is filled, nobody can see whether a joint was made or a tail was left out. Inspect, photograph and record it **before** backfilling, however much the programme is pressing.", "label": "Remember" }
+      ]
+    },
+    {
+      "title": "Cables, terminations and protection",
+      "blocks": [
+        { "h": "MV cables are not big LV cables" },
+        { "p": "An MV cable has a conductor, a smooth semi-conducting layer, thick insulation (usually XLPE), a second semi-conducting layer, a metal screen that is earthed, and an outer sheath. The layers control the electrical stress in the insulation. Where the cable is cut for a joint or termination, the stress concentrates at the end of the screen, and the termination kit is designed to spread it." },
+        { "ul": [
+          "MV joints and terminations are made **only by a trained jointer**, following the kit maker's instructions exactly. A cut-back that is a few millimetres wrong, a nick in the insulation, or a trace of dirt, sweat or semi-conducting material left on the surface can cause a failure, sometimes months later.",
+          "The jointer needs a clean, dry, sheltered place to work. Do not ask for terminations in the rain or in blowing dust.",
+          "Respect the **minimum bending radius** in the maker's data, often 12 to 15 times the cable's diameter, and the maximum pulling tension. Kinked or over-pulled cable is damaged inside.",
+          "Seal cable ends against water until they are terminated.",
+          "The metal screens are earthed as the design shows.",
+          "Before a new MV cable is connected, the **competent testing team** tests its insulation, as the specification says. A continuity buzzer or a look at the sheath proves nothing about MV insulation."
+        ] },
+        { "note": "An MV cable that has been switched off, or has just been tested, can hold a charge like a capacitor. One lying beside live cables can also pick up an induced voltage. It is safe to handle only after an authorised person has earthed it and issued a permit.", "label": "Safety" },
+        { "h": "Protection" },
+        { "table": { "head": ["Device", "What it protects against"], "rows": [
+          ["Overcurrent and earth fault relay, with CTs and a circuit breaker", "Short circuits and earth faults. The relay senses the fault current through the CTs and trips the breaker, after a time that depends on its settings."],
+          ["MV fuses in a fuse-switch", "Faults in the transformer circuit, where a breaker is not used."],
+          ["Buchholz relay", "Faults inside an oil-filled transformer with a conservator."],
+          ["Winding or oil temperature devices", "Overheating from overload or poor cooling."],
+          ["Pressure relief device", "A dangerous rise of pressure in the tank."],
+          ["Surge arresters", "Lightning and switching surges. They are mounted as close to the transformer terminals as possible, with short, direct leads to earth, because every extra length of lead adds to the voltage the transformer sees."],
+          ["LV main breaker", "Overloads and faults on the LV side."]
+        ] } },
+        { "ul": [
+          "Relay **settings** come from the designer's protection study and are agreed with the power company, so that the device nearest a fault trips first. They are applied and tested by the testing team and recorded. Nobody alters them casually.",
+          "The **battery and charger** must be in service before the switchgear is energised: without DC, the relays cannot trip the breakers.",
+          "CT secondary circuits are never left open: they are connected to their relay or meter, or shorted."
+        ] }
+      ]
+    },
+    {
+      "title": "Safety rules and work near live plant",
+      "blocks": [
+        { "h": "The hazards" },
+        { "table": { "head": ["Hazard", "Control"], "rows": [
+          ["**MV shock.** Contact with, or simply coming too close to, live MV conductors", "Only authorised persons enter or operate live plant, under the safety rules. Minimum approach distances are kept. Barriers and locked doors."],
+          ["**Arc flash.** A blast of intense heat, light and pressure from a fault, able to burn and kill at a distance", "Switching by authorised persons only, with the doors closed and everyone else well clear. The PPE the rules require."],
+          ["**Stored and induced voltage** on isolated cables and plant", "Earthed by an authorised person before work; a permit to work."],
+          ["**Buried live cables** when digging", "A permit; cables located from records and with a locator, and marked; trial holes dug by hand; no machine digging close to them."],
+          ["**Heavy lifts**", "A lifting plan, an exclusion zone and a check for overhead lines."],
+          ["**Oil**", "Bunds, spill kits, no naked flames; spills cleaned up and reported."],
+          ["**SF6 gas**", "Handled only by trained people with the right equipment."],
+          ["**Trenches**", "Sides supported where needed, barriers and covers, safe ways in and out."]
+        ] } },
+        { "h": "Authorised persons, safety rules and permits" },
+        { "ul": [
+          "The owner of MV plant, and the power company for its network, work to written **safety rules**. The rules name who may do what.",
+          "An **authorised person** is appointed in writing to switch, isolate and earth particular plant and to issue permits. Holding a trade certificate does not make anyone authorised.",
+          "Before work on MV plant it is made **dead, isolated, locked, proved dead with an approved MV tester and earthed** by the authorised person.",
+          "A **permit to work** is then issued to the person in charge of the work. It states exactly which plant has been made safe, where it is isolated and earthed, what work may be done and the limits of the safe area.",
+          "The person in charge reads it, signs for it and briefs the crew. Work stays inside its limits.",
+          "When the work is finished, or stops for the day if the rules say so, the permit is **signed off and returned** before anything is re-energised. Plant is never switched while a permit is still out.",
+          "Other documents may be used for testing and for work near, but not on, live plant."
+        ] },
+        { "note": "A permit to work is not permission to work live. It is a written statement that the plant has been made dead and safe, and exactly how far that safety extends.", "label": "Remember" },
+        { "h": "What you and your crew do" },
+        { "ul": [
+          "Plan the job so that every switching, earthing, testing and energising step is given to an authorised person, and say so in the programme and the risk assessment.",
+          "Keep the crew out of live areas. Mark the limits of the work area with barriers.",
+          "Stay well clear during switching. Stand where the authorised person tells you, outside the substation.",
+          "Stop work and ask if anything is not as the permit describes.",
+          "Use only the dimensions and clearances given on the drawings; never estimate a clearance for a real site."
+        ] }
+      ]
+    },
+    {
+      "title": "Inspection, testing, energising and handover",
+      "blocks": [
+        { "h": "Inspection" },
+        { "p": "Before any testing, the coordinator and the installer inspect the finished work against the drawings and the specification." },
+        { "ul": [
+          "The right equipment in the right place, undamaged, with nameplates matching the schedule.",
+          "Labels, phase markings, danger signs and operating instructions in place.",
+          "Clearances and working space as drawn.",
+          "Connections tight to the makers' torque figures; cable glands tight; cables supported and identified.",
+          "Earthing and bonding complete on every item, including the fence and gates.",
+          "Oil level correct, no leaks, breather in good condition, valves in their service positions.",
+          "Tap changer on the tapping specified.",
+          "Bund clean and empty; site clear of rubbish and tools.",
+          "Locks, keys and gates working."
+        ] },
+        { "p": "Every defect is **recorded, put right and checked again**. A defect you fix quietly and do not record cannot be shown to have been found and closed; a defect you leave for the client is a failure of your job." },
+        { "h": "Tests by the competent testing team" },
+        { "table": { "head": ["Test", "What it shows"], "rows": [
+          ["Insulation resistance of cables, transformer windings and switchgear", "The insulation is sound and dry."],
+          ["Withstand test on MV cables, as specified", "The cable and its terminations can stand the working voltage."],
+          ["Turns ratio test on the transformer", "The windings give the correct voltage ratio on each tapping."],
+          ["Oil tests on an oil-filled transformer", "Moisture or dirt has not weakened the oil's insulating strength."],
+          ["Earth resistance test", "The earth system meets the design figure."],
+          ["CT checks and secondary injection of the relays", "The CTs are connected the right way round and the relays operate at their settings and trip the breaker."],
+          ["Contact resistance of switchgear and joints", "Main contacts and bolted joints are sound."],
+          ["Operation of switches, interlocks, earth switches and trip circuits", "Everything works in the right order, and the breaker trips from the battery."]
+        ] } },
+        { "p": "Results are written on test sheets with the instrument used, the date and the tester's name, and are compared with the values required. A result outside the limits is investigated, never averaged away or left blank." },
+        { "h": "Approval and energising" },
+        { "flow": [
+          "Inspection complete and defects closed",
+          "Tests complete and recorded",
+          "Government electrical inspection passed; certificate issued",
+          "Power company's requirements met; its own checks complete",
+          "All permits cancelled; earths removed by the authorised person; everyone clear",
+          "Energised by the authorised persons of the power company and the owner",
+          "Voltages and phase rotation checked at the LV board before any load is connected",
+          "Load applied in stages; readings and the energising record signed"
+        ] },
+        { "h": "Handover documents" },
+        { "table": { "head": ["Document", "Why the owner needs it"], "rows": [
+          ["As-built drawings, including the single-line diagram, layout and earthing", "They show what was really installed, with every change, so that future work is safe and correct."],
+          ["Test and commissioning records", "Proof that the work met the specification, and a baseline for later maintenance tests."],
+          ["Inspection certificate", "Shows the installation was approved for connection."],
+          ["Makers' manuals, data sheets and factory test certificates", "For operating, servicing and ordering spares."],
+          ["Protection settings record", "Shows how each relay is set, for checking or changing by competent people."],
+          ["Warranties", "Protect the owner if plant fails early."],
+          ["Switching procedure, operating labels, keys and spares list", "For safe operation by the owner's authorised persons."]
+        ] } },
+        { "p": "Check that every document is complete, file them with an index, and have the owner sign to say they have been received." }
+      ]
+    },
+    {
+      "title": "Revision",
+      "blocks": [
+        { "h": "Checklist" },
+        { "p": "Tick each statement only when you can do it without looking at the notes." },
+        { "ul": [
+          "I can state the main job of a customer substation and name its main items of plant.",
+          "I can explain what an RMU, a surge arrester, a CT, a VT, a relay, the battery and an earth switch each do.",
+          "I can tell an isolator, a switch, a fuse and a circuit breaker apart by what each can interrupt.",
+          "I can compare oil-filled and dry-type transformers and say when each is specified.",
+          "I can explain the conservator, breather, Buchholz relay, tap changer and bund.",
+          "I can read a transformer nameplate, including kVA, vector group, impedance and ONAN.",
+          "I can work out a voltage ratio, kVA from kW, full-load current, a standard size with growth, fault current and bund capacity.",
+          "I can list the parties in a substation project and say why the power company is involved early.",
+          "I can put the tasks in a workable order, draw a Gantt chart and find the critical path and float.",
+          "I can say what to do when drawings disagree or a delivery is late.",
+          "I can choose a sound position for a substation and check the civil works before delivery.",
+          "I can receive and inspect a transformer and say how plant is stored.",
+          "I can list what a lifting plan covers and explain the effect of sling angle.",
+          "I can explain step and touch voltage, and what to check on an earth grid before backfilling.",
+          "I can explain why MV terminations are made only by trained jointers.",
+          "I can describe the protection on a transformer circuit.",
+          "I can explain authorised persons, safety rules and permits to work, and why trainees stay out of live substations.",
+          "I can list the inspections and tests before energising, and who does each.",
+          "I can list the handover documents and say why each is needed."
+        ] },
+        { "h": "Numbers and formulas to remember" },
+        { "table": { "head": ["Figure or formula", "What it is"], "rows": [
+          ["50 Hz", "Supply frequency in Jamaica"],
+          ["kVA = kW ÷ power factor", "Converting demand to transformer loading"],
+          ["I = kVA × 1,000 ÷ (1.732 × V)", "Three-phase full-load current"],
+          ["kVA = 1.732 × V × I ÷ 1,000", "Three-phase load from voltage and current"],
+          ["Fault current = full-load current × 100 ÷ impedance %", "Worst-case fault current at the transformer's LV terminals"],
+          ["110% of the oil volume", "A common bund capacity: use the figure specified"],
+          ["ONAN", "Oil natural, air natural cooling"],
+          ["Dyn11", "A vector group: delta MV winding, star LV winding with neutral, clock position 11"],
+          ["120° between two sling legs", "Each leg carries the whole load: too wide"]
+        ] } },
+        { "h": "Key terms" },
+        { "terms": [
+          ["Arc flash", "A blast of intense heat, light and pressure from an electrical fault, able to burn at a distance."],
+          ["As-built drawings", "Drawings showing what was really installed, including all changes."],
+          ["Authorised person", "A person appointed in writing, under the safety rules, to switch, isolate and earth named plant and to issue permits."],
+          ["Buchholz relay", "A relay on an oil-filled transformer with a conservator that detects gas or a surge of oil from an internal fault."],
+          ["Bund", "A low wall or pit round an oil-filled transformer that holds any oil that leaks."],
+          ["Busbars", "The copper or aluminium bars inside switchgear that carry current to each circuit."],
+          ["Conservator", "The small tank above some transformers that lets the oil expand and contract."],
+          ["Critical path", "The longest chain of dependent tasks in a programme; a delay to any of them delays the whole job."],
+          ["Earth grid (earth mat)", "Buried bare conductors and rods under and around a substation, bonded to all metalwork."],
+          ["Earth switch", "A switch that connects isolated conductors to earth so that they are safe to work on."],
+          ["Float", "The time a task can slip without delaying the finish date."],
+          ["Gantt chart", "A bar chart showing a project's tasks against time."],
+          ["kVA", "Kilovolt-ampere: the unit of a transformer's rating."],
+          ["ONAN", "Oil natural, air natural: a cooling type with no pumps or fans."],
+          ["Permit to work", "A written statement from the authorised person that named plant has been made dead and safe, and the limits of the work allowed."],
+          ["Plinth", "The concrete base (pad) on which a transformer or switchgear stands."],
+          ["Ring main unit (RMU)", "Compact MV switchgear that switches the ring cables and feeds and protects the transformer."],
+          ["SF6", "Sulphur hexafluoride gas, used to insulate and to put out the arc in some MV switchgear."],
+          ["Shock indicator", "A device fitted for transport that shows whether the load was dropped or jolted hard."],
+          ["Step voltage", "The voltage between a person's two feet when fault current flows through the ground."],
+          ["Surge arrester", "A device that diverts lightning and switching surges to earth."],
+          ["Touch voltage", "The voltage between metalwork a person touches and the ground they stand on."],
+          ["Turns ratio test", "A test that checks a transformer's windings give the correct voltage ratio."],
+          ["Vector group", "The code, such as Dyn11, for how a three-phase transformer's windings are connected and the phase shift between them."],
+          ["Voltage transformer (VT)", "A device that gives meters and relays a small voltage in step with the main voltage."]
+        ] }
+      ]
+    }
+  ],
+  "cases": {
+    "c1": { "title": "A new transformer for a Bog Walk bakery", "text": "A bakery in Bog Walk, St Catherine, is adding ovens and mixers. The designer gives the new maximum demand as 410 kW at a power factor of 0.82, and the owner wants 25% spare for growth. Standard transformer sizes are 500, 750 and 1,000 kVA. JPS supplies the site at 24 kV, the secondary voltage is 480 V three-phase, and the transformer offered has an impedance of 5.75% and an off-circuit tap changer. The full-load current of a 750 kVA transformer at 480 V is 902 A." },
+    "c2": { "title": "The programme for a Mandeville hospital substation", "text": "Sheree, a Level 3 electrician, is drawing the programme for a new substation at a hospital in Mandeville, Manchester. The transformer takes 16 weeks to arrive from the date of order. On site, the earth grid takes 1 week and must be laid first; the plinth, bund, ducts and fence then take 5 weeks; and the concrete needs 1 more week to cure. Once the transformer has arrived and the plinth is cured, placing and terminating take 1 week, testing 1 week, and inspection and approval 2 weeks. The order is placed and site work starts in week 1." },
+    "c3": { "title": "Lifting day at a Yallahs ice factory", "text": "A 1,000 kVA oil-filled transformer weighing 3,400 kg with its oil is to be lifted from a truck onto its plinth at an ice factory in Yallahs, St Thomas. The slings, shackles and spreader beam weigh 150 kg. Because of a trench, the mobile crane must stand 12 m from the plinth. Damion, a Level 3 electrician, is coordinating. When the truck arrives he sees fresh oil below the transformer's drain valve." },
+    "c4": { "title": "The earth grid at an Ewarton block factory", "text": "A substation is being built at a concrete block factory in Ewarton, St Catherine. The earth grid of bare copper conductor and rods has been laid in its trenches. The inspection and test plan has a hold point for the owner's engineer before the trenches are backfilled. The civil crew want to backfill first thing tomorrow, but the engineer can only come in the afternoon. The design calls for 100 mm of crushed stone over the yard and an earth resistance of not more than 2 ohms." },
+    "c5": { "title": "Working beside a live substation at Bushy Park", "text": "A second transformer is being added beside a live 24 kV substation at a food factory at Bushy Park, St Catherine. Romario, a Level 3 electrician, coordinates the cable crew and the jointer; trainee Kemar is with the crew. The owner's authorised person will switch the existing ring main unit to make one cable dead for the jointer. On his walk-round with the authorised person, Romario notices that the gas gauge on the ring main unit shows its needle in the red zone." }
+  },
+  "questions": [
+    { "id": "P-01", "c": "c1", "q": "Which standard size suits the bakery's new demand and the spare the owner wants?", "o": ["500 kVA", "750 kVA", "1,000 kVA", "410 kVA, made to order"], "a": 1, "why": "410 kW ÷ 0.82 = 500 kVA. Adding 25% gives 625 kVA. The smallest standard size that is not less than 625 kVA is 750 kVA. A 500 kVA unit would be fully loaded on the first day, with nothing spare." },
+    { "id": "P-02", "c": "c1", "q": "About what current flows in each 24 kV supply conductor when a 750 kVA transformer is at full load?", "o": ["About 902 A", "About 31 A", "About 3 A", "About 18 A"], "a": 3, "why": "I = kVA × 1,000 ÷ (1.732 × V) = 750,000 ÷ (1.732 × 24,000) = about 18 A. The same power at a much higher voltage needs a much smaller current, which is why distribution is done at medium voltage. Leaving out the 1.732 gives 31 A, which is wrong for three-phase." },
+    { "id": "P-03", "c": "c1", "q": "The supplier offers an LV main switchboard with a fault rating of 10 kA for the 750 kVA transformer. Is it acceptable?", "o": ["No: the fault current could reach about 16 kA", "Yes: 10 kA is far above the 902 A full-load current", "Yes: a fault can never exceed twice the full-load current", "No: every transformer needs a board rated at 100 kA"], "a": 0, "why": "Worst-case fault current = full-load current × 100 ÷ impedance % = 902 × 100 ÷ 5.75 = about 15,700 A. The board must be rated at or above this, using the figure the designer confirms. A board with too low a rating can burst apart in a fault." },
+    { "id": "P-04", "c": "c1", "q": "After energising, the no-load voltage at the LV board is found to be about 4% high. How is it corrected?", "o": ["The bakery runs more ovens, to pull the voltage down", "A larger LV main breaker is fitted to absorb the excess", "The tap is changed at a quiet time, with the bakery's load still on", "An authorised person changes the tap with it de-energised"], "a": 3, "why": "The tap changer alters the ratio in small steps. An off-circuit tap changer cannot break current, so moving it on load would cause an arc inside the tank. The transformer is switched out, isolated and earthed first, and the change is recorded." },
+    { "id": "P-05", "c": "c2", "q": "Which chain of tasks is the critical path on Sheree's programme?", "o": ["The earth grid, the plinth and its curing, then placing", "Transformer delivery, then placing, testing and approval", "Inspection and approval, since it is the last task of all", "The civil works, since they involve the largest crew"], "a": 1, "why": "Transformer delivery (16 weeks) followed by placing and terminating (1), testing (1) and approval (2) makes 20 weeks, the longest chain. The site chain of earth grid, civil works and curing is ready after only 7 weeks, so it has float." },
+    { "id": "P-06", "c": "c2", "q": "As planned, when is the earliest that JPS could energise the substation?", "o": ["The end of week 20", "The end of week 11", "The end of week 16", "The end of week 27"], "a": 0, "why": "The transformer arrives at the end of week 16; placing and terminating, testing and approval add 1 + 1 + 2 = 4 weeks, giving week 20. Week 11 would be right only if the transformer were already on site; adding every task end to end (27) ignores the fact that the site work runs alongside the delivery time." },
+    { "id": "P-07", "c": "c2", "q": "The civil contractor warns that the plinth will be finished 4 weeks late. What is the effect on the energising date?", "o": ["It moves 4 weeks later, because all of the site work is critical", "It moves 2 weeks later, as half the delay is absorbed", "It does not move: the site work has about 9 weeks of float", "It cannot be worked out without each task's cost"], "a": 2, "why": "The site chain needs 7 weeks and the transformer does not arrive until week 16, so there are 9 weeks of float. A 4-week slip uses up part of the float and leaves 5. Sheree should still update the programme and tell everyone, because the float is no longer there for the next problem." },
+    { "id": "P-08", "c": "c3", "q": "Which load must be compared with the crane's rated capacity at a 12 m radius?", "o": ["3,400 kg: the weight of the transformer with its oil", "1,700 kg: half the weight, as two slings share it", "1,000 kg: one kilogram for each kVA of the rating", "3,550 kg: the transformer plus all the lifting gear"], "a": 3, "why": "Everything hanging from the hook counts: 3,400 kg + 150 kg = 3,550 kg. A crane's capacity falls quickly as the radius grows, so the lifting plan checks the capacity at the actual 12 m reach, not the crane's headline figure." },
+    { "id": "P-09", "c": "c3", "q": "Without the spreader beam, the two sling legs would meet at the hook at an angle of 120°. Why is that unacceptable?", "o": ["The slings would then be too short to reach the lugs", "Each leg would carry about the whole weight, not half", "The load would feel lighter and so would swing more", "The crane's hook would be overloaded by about 20%"], "a": 1, "why": "The wider the angle between the legs, the greater the tension in each. At 120° each leg carries a force equal to the full weight, and the lugs are pulled sideways as well. A spreader beam keeps the legs near vertical, so each carries about half." },
+    { "id": "P-10", "c": "c3", "q": "Apart from the mess, why does the fresh oil below the drain valve matter?", "o": ["A leak can let moisture in and the oil level fall, weakening the insulation", "Oil on the plinth makes the earth grid below it much less effective", "The oil is there only for cooling, so a small loss is of little account", "Leaking oil changes the voltage ratio between the two windings"], "a": 0, "why": "The oil insulates as well as cools. A leaking valve or gasket can let damp air in and the level drop, and moisture sharply lowers the oil's insulating strength. Damion records it on the delivery note before signing, photographs it and gets the maker's instructions before the unit is accepted." },
+    { "id": "P-11", "c": "c4", "q": "The civil crew want to backfill in the morning, before the engineer can come. What should happen?", "o": ["Backfill, and send the engineer photographs of every joint", "Backfill only the trenches that lie under the plinth", "Keep the trenches open until the engineer has released them", "Backfill, as the resistance test will prove the grid later"], "a": 2, "why": "A hold point means work stops until the named person has inspected and released it. Buried joints and tails cannot be seen again, and a resistance test does not show a missing tail or a poor joint. Re-plan the civil crew for half a day." },
+    { "id": "P-12", "c": "c4", "q": "Why does the design put a layer of crushed stone over the substation yard?", "o": ["It keeps the buried copper conductors from corroding", "It lowers the resistance of the earth grid to the soil", "It drains spilt oil away from the transformer's bund", "Its high resistance limits current through a person's feet"], "a": 3, "why": "In an earth fault the ground surface rises in voltage. A dry, high-resistance layer of stone between a person's feet and the soil reduces the current that step and touch voltages can drive through the body. It is part of the earthing design, so its depth is checked like anything else." },
+    { "id": "P-13", "c": "c4", "q": "The testing team measures the finished earth system at 3.8 ohms. What should happen next?", "o": ["Report it to the designer, who decides on more rods or copper", "Accept it, since the code allows 25 ohms for an earth rod", "Soak the ground with water and test it again on the same day", "Disconnect the fence from the grid to lower the reading"], "a": 0, "why": "The design figure of 2 ohms comes from the fault level and the soil, and it governs here. The 25 ohms in the NEC is for a single rod at an ordinary building, not for a substation. Watering the ground gives a reading that will not last, and unbonding the fence makes the site more dangerous." },
+    { "id": "P-14", "c": "c5", "q": "What should be done about the gas gauge in the red zone?", "o": ["Open the switch quickly, before any more of the gas is lost", "Do not operate it; the authorised person reports it now", "Tap the gauge and carry on if the needle moves back", "Have the cable crew top it up from a gas cylinder"], "a": 1, "why": "Low gas pressure means the switch may not be able to break current or insulate safely, and operating it could cause an explosion. It must not be operated; the owner's authorised person reports it to those responsible for the unit, and the planned switching is rearranged. SF6 is handled only by trained people with the proper equipment." },
+    { "id": "P-15", "c": "c5", "q": "Before the jointer starts on the cable, what must the permit to work tell him?", "o": ["The price of the termination kit and who supplied it", "The names of all of the people who work at the factory", "Which plant is dead and earthed, and the work allowed", "That the cable is to be worked on live, with care"], "a": 2, "why": "A permit is the authorised person's written statement of exactly which plant has been isolated and earthed, where the earths are, what work may be done and the limits of the safe area. The jointer reads it, signs for it and keeps within it." },
+    { "id": "P-16", "c": "c5", "q": "Where should Romario's crew, including Kemar, be while the authorised person switches the ring main unit?", "o": ["Beside him, to watch and learn how the switching is carried out", "Inside the fence, but at least one metre back from the unit", "In the cable trench, ready to start as soon as it is dead", "Outside the substation, well clear, until told it is safe"], "a": 3, "why": "Switching is when an arc flash is most likely, and its heat and blast reach well beyond the switchgear. Only the people the safety rules require are present. Everyone else waits outside until the plant has been isolated, proved dead and earthed and the permit issued." },
+    { "id": "P-17", "c": null, "q": "One of the three MV fuses in a ring main unit's transformer circuit blows. Why does its striker pin trip the switch?", "o": ["So that all three phases open and the transformer is not left on two", "So that the blown fuse cools down more quickly before it is handled", "So that the other two fuses share the load current more evenly", "So that the power company's meter stops recording at once"], "a": 0, "why": "With one fuse blown, the transformer would be fed on two phases only, giving wrong voltages on the LV side that can burn out the customer's three-phase motors. The striker opens all three phases together. The cause is found before the fuses are replaced." },
+    { "id": "P-18", "c": null, "q": "Why are surge arresters mounted right beside the transformer's MV terminals, with short, straight earth leads?", "o": ["So that they can be reached easily for cleaning", "So that long leads do not add to the surge voltage", "So that they can share the transformer's cooling fins", "So that one arrester can protect all three phases"], "a": 1, "why": "A surge rises extremely fast, and every length of lead between the arrester and the terminal, and between the arrester and earth, adds voltage on top of what the arrester lets through. The closer and straighter the connection, the less surge the transformer's insulation sees." },
+    { "id": "P-19", "c": null, "q": "During an inspection, the silica gel in a transformer's breather is found to have changed colour for most of its depth. What does this show?", "o": ["The transformer has been overloaded for some time", "The oil has reached the end of its working life", "The gel is full of moisture and needs renewing", "The Buchholz relay has operated and needs resetting"], "a": 2, "why": "The gel dries the air that the conservator breathes in as the oil cools. When it has changed colour it can hold no more moisture, so damp air reaches the oil and weakens its insulating strength. The gel is renewed or dried as the maker says." },
+    { "id": "P-20", "c": null, "q": "A second transformer is to share the load with an existing one, in parallel. Which of these must match?", "o": ["The makers' names and the years of manufacture", "The weights, the oil volumes and the cooling types", "The kVA ratings, which must be exactly the same", "The voltage ratios, vector groups and impedances"], "a": 3, "why": "With different ratios or vector groups, large currents circulate between the two transformers as soon as they are connected; with very different impedances, they do not share the load in proportion. The ratings may differ. This is checked on the equipment schedule before ordering." }
+  ]
+}

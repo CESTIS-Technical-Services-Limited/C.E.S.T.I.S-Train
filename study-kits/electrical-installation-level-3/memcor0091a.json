@@ -1,0 +1,536 @@
+{
+  "format": "cestis-study-kit",
+  "version": 1,
+  "status": "to-check",
+  "written": "2026-11-07",
+  "programme": "Electrical Installation",
+  "qualification": { "id": "QUAL-EIM-L3", "title": "ELECTRICAL INSTALLATION AND MAINTENANCE LEVEL 3", "code": "MEM32507" },
+  "level": 3,
+  "unit": { "code": "MEMCOR0091A", "title": "Draw and interpret sketches and simple drawings" },
+  "summary": "This Level 3 unit teaches you to read every kind of drawing an electrical job uses, and to make clear sketches of your own. You will learn the drawing types, title blocks, scales, symbols and notes from both North American and IEC practice, single-line diagrams, schedules and control schematics. You will also learn to survey and sketch an existing installation, take quantities off a drawing, check a drawing set before work starts, control revisions, keep the as-built record and brief your team from a drawing.",
+  "sections": [
+    {
+      "title": "Unit overview",
+      "blocks": [
+        { "p": "Every electrical job runs on drawings. The layout plan says where things go, the single-line diagram shows how the supply is shared out, and the schematic shows how a control circuit works. This Level 3 unit is for electricians who lead a team. You must read all of these quickly and correctly, spot what is wrong or missing before the team starts, make sketches that someone in the office can draw from, and keep the drawings on site under control. The unit 'Prepare basic engineering drawing' goes further into drawing parts to scale; this unit is about reading drawings and sketching." },
+        { "h": "What you must be able to do" },
+        { "table": { "head": ["Task", "What it looks like on the job"], "rows": [
+          ["Know the kinds of drawing", "Pick the right drawing for a question: layout plan, reflected ceiling plan, single-line or riser diagram, schematic, wiring diagram, panel general arrangement, schedule or detail."],
+          ["Read the information on a sheet", "Use the title block, scale, grid, north point, legend, notes, abbreviations and revision table."],
+          ["Read symbols from more than one practice", "Read IEC and North American symbols, cable sizes in mm² and AWG, and metric and imperial dimensions, using each drawing's own legend."],
+          ["Read layout and ceiling plans", "Find each item's position, height, circuit and switching, and spot clashes with the building and with other services."],
+          ["Read single-line diagrams and schedules", "Follow the supply from the intake to every circuit, and check that ratings and cable sizes agree across the drawings, schedules and specification."],
+          ["Read control circuits", "Trace a motor starter schematic using terminal markings, wire numbers and cross-references, and show a change correctly."],
+          ["Sketch on site", "Make a dimensioned sketch of a room, a board or a conduit run, measured from fixed points, that someone else can draw or price from."],
+          ["Use drawings on the job", "Take off quantities, raise written queries, brief the team, mark up changes and pass red-lines on for the as-built drawings."],
+          ["Control drawings", "Keep a drawing register, work only from the current revision and take superseded copies out of use."]
+        ] } },
+        { "h": "Drawings in Jamaica" },
+        { "ul": [
+          "Drawings for Jamaican jobs come from many places. Some follow **North American practice**: NEC-style symbols, feet and inches, cable sizes in AWG and 'three-way' switches. Others follow **British or IEC practice**: IEC 60617 symbols, millimetres, cable sizes in mm² and 'two-way' switches. Some mix the two. Always read each drawing's own legend and notes.",
+          "Larger jobs are designed by an engineer or designer, who issues the drawings and the specification. You build to them, and any change goes back through the designer.",
+          "The finished installation is inspected by a licensed electrical inspector under the **Government Electrical Regulator (GER)** before JPS will connect it. Correct board schedules and labels are part of a job that passes.",
+          "Most new drawings are metric, in millimetres. Older drawings and drawings from US firms may be in feet and inches: **1 inch = 25.4 mm** and **1 foot = 304.8 mm**."
+        ] },
+        { "note": "A drawing is an instruction. If you cannot read it with certainty, ask in writing before the team works from it. A wrong guess built into a wall costs far more to put right than a query.", "label": "Remember" },
+        { "h": "How to use this kit" },
+        { "p": "Read the sections in order, with a real drawing set beside you if you can: your instructor will lend you one. Work through every worked example with a calculator and a scale rule. Then try the practice test and read every explanation, even when you get the answer right." }
+      ]
+    },
+    {
+      "title": "Kinds of drawing and what each is for",
+      "blocks": [
+        { "p": "A full set for a building has several kinds of drawing. Each one answers a different question. Learn which one to pick up." },
+        { "table": { "head": ["Drawing", "What it shows", "Used for"], "rows": [
+          ["Site plan", "The building on its plot, the road, the JPS pole or transformer, the service route and outside lighting", "Planning the supply route, trenches and outdoor work"],
+          ["Floor plan or layout plan (location drawing)", "Walls, doors and windows seen from above, with symbols for every outlet, switch, light and board, and often circuit numbers and switching links", "Setting out and wiring each room"],
+          ["Reflected ceiling plan (RCP)", "The ceiling as if seen in a mirror laid on the floor: ceiling grid, light fittings, fans, smoke detectors, AC grilles and access panels", "Setting out ceiling items so that they line up with the floor plan and miss other services"],
+          ["Elevation", "One wall or face seen straight on, with heights", "Positions and heights on a wall, such as a kitchen or switch room wall"],
+          ["Section", "The building or part of it as if cut through, showing heights and what is hidden behind finishes", "Ceiling voids, floor depths, trunking above a ceiling, risers"],
+          ["Detail", "A small part drawn again at a larger scale, labelled with a letter or number", "Fixing a fitting, a cable entry, a pole base, a trench cross-section"],
+          ["Single-line (one-line) diagram", "The supply, main switch, boards, sub-mains and circuits, each cable as one line, with ratings and sizes, but not where anything is in the building", "Understanding and checking the distribution; finding every source of supply"],
+          ["Riser (vertical) diagram", "How supplies and systems rise through the floors, from the main board to each floor's board", "Sub-mains, fire alarm, data and CCTV in buildings of more than one storey"],
+          ["Block diagram", "The main parts of a system as labelled boxes joined by lines or arrows", "Explaining a system such as solar PV, CCTV or a generator changeover at a glance"],
+          ["Schematic (circuit) diagram", "How a circuit works: each device as symbols in logical order, contacts drawn at rest", "Understanding control circuits and fault finding"],
+          ["Ladder diagram", "A schematic drawn between two vertical supply lines, one current path per rung", "Motor control and relay logic, mainly in North American practice"],
+          ["Wiring (connection) diagram", "The real terminals and wire numbers of each device, laid out roughly as the devices sit", "Wiring a panel and checking every connection"],
+          ["Panel general arrangement (GA)", "The enclosure, door cut-outs and device positions, to scale and dimensioned", "Ordering and cutting the enclosure; checking the space on site"],
+          ["Schedules", "Tables that go with the drawings: board (panel) schedules, cable schedules, luminaire (fittings) schedules", "Breaker ratings, cable sizes and references, fitting types and wattages"],
+          ["Specification", "Written requirements: standards, materials, workmanship and testing", "The type and quality of everything, but not positions"],
+          ["As-built (record) drawings", "The installation as it was really built", "Handover to the client and all future maintenance"]
+        ] } },
+        { "h": "Drawing, schedule or specification: which tells you what?" },
+        { "p": "As a rule, drawings show **where** and **how many**, schedules give **sizes and ratings**, and the specification says **what quality, which standard and how it is tested**. The contract or the specification usually says which document takes priority when they disagree. Even so, never decide for yourself: a disagreement between documents is a **query** for the designer, answered in writing." },
+        { "h": "Other trades' drawings you must also read" },
+        { "ul": [
+          "**Structural drawings**: beams, columns and slabs that you may not drill, core or chase without approval.",
+          "**Mechanical and plumbing drawings**: AC units, ducts, grilles and pipes that your containment must pass and your fittings must miss.",
+          "**Architectural drawings and details**: ceiling heights, finishes, worktops, sinks and built-in furniture that fix where outlets and switches can go.",
+          "**Door and window schedules**: which way each door swings, so that switches go on the opening (lock) side and not behind the door."
+        ] },
+        { "note": "When a question comes up on site, ask yourself which drawing was made to answer it. The floor plan will not tell you a breaker rating, and the single-line diagram will not tell you where an outlet goes.", "label": "Tip" }
+      ]
+    },
+    {
+      "title": "Reading the sheet: title block, scales, grids, notes and revisions",
+      "blocks": [
+        { "h": "The title block" },
+        { "p": "The title block, usually in the bottom right-hand corner, tells you what the sheet is and whether you can trust it. Read it first, every time." },
+        { "table": { "head": ["Item", "Why you need it"], "rows": [
+          ["Project, client, address and designer", "Makes sure the sheet belongs to this job, and tells you who to ask"],
+          ["Drawing title and number", "Identifies the sheet; quote the number in every query and report"],
+          ["Revision letter or number, and date", "Tells you whether your copy is the current one"],
+          ["Status: preliminary, for approval, for construction, as built", "Only sheets issued 'for construction' are built from"],
+          ["Scale or scales, and paper size (for example 1:50 @ A1)", "At any other paper size the stated scale is wrong"],
+          ["Drawn, checked and approved, with initials and dates", "Shows the sheet was checked, and by whom"],
+          ["Units and projection symbol", "Millimetres or feet and inches; first or third angle on engineering drawings"]
+        ] } },
+        { "h": "Scales" },
+        { "p": "A scale is a ratio of drawing size to real size. At **1:50**, 1 mm on the drawing is 50 mm on site. To find a real size, **multiply** the measured length by the scale number. To find a drawing size, **divide** the real size by the scale number." },
+        { "table": { "head": ["Scale", "1 mm on paper is", "Typical use"], "rows": [
+          ["1:500, 1:200", "500 mm, 200 mm", "Site plans, outdoor lighting, underground cable routes"],
+          ["1:100", "100 mm", "Floor plans of larger buildings"],
+          ["1:50", "50 mm", "Floor plans of houses and small buildings; room layouts"],
+          ["1:25, 1:20", "25 mm, 20 mm", "Switch rooms, plant rooms, kitchens"],
+          ["1:10, 1:5", "10 mm, 5 mm", "Panel GAs, board layouts and details"],
+          ["1:1, 2:1", "Full size; twice full size", "Small details"]
+        ] } },
+        { "p": "**Worked examples.** A corridor measures 86 mm on a 1:50 plan: 86 × 50 = 4 300 mm, which is **4.3 m**. A 2.4 m worktop drawn at 1:20 is 2 400 ÷ 20 = **120 mm** long on paper. A wall 6.3 m long is drawn 126 mm long: 6 300 ÷ 126 = 50, so the scale is **1:50**." },
+        { "p": "**Choosing a scale for a sketch or drawing.** Divide the real size by the space you have on the sheet, then pick the next standard scale that fits. A plant room 9.6 m long, with about 250 mm of drawing space: 9 600 ÷ 250 = 38.4, so 1:50 (192 mm long) fits and 1:25 (384 mm long) does not." },
+        { "note": "**Do not scale a print you cannot trust.** Copies are often printed smaller than the original: an A1 drawing printed on A3 is at half the stated scale, so a 1:50 plan becomes 1:100. Paper also stretches and shrinks. Use the written dimensions first. If you must measure, use the **scale bar** printed on the sheet, which grows or shrinks with the print, and confirm anything important with the designer.", "label": "Remember" },
+        { "h": "Imperial scales" },
+        { "p": "Drawings from North American designers often use scales such as **1/4 inch = 1 foot** (written 1/4\" = 1'-0\"), which is **1:48**, and 1/8 inch = 1 foot, which is 1:96. Dimensions are written in feet and inches, for example 12'-6\" (12 feet 6 inches = 150 inches = 3 810 mm). Use an architect's scale rule for these drawings, or convert: inches × 25.4 = millimetres. A metric scale rule set to 1:50 will give sizes about 4% wrong on a 1:48 drawing." },
+        { "h": "Grid references and building grid lines" },
+        { "ul": [
+          "Many sheets have letters along one edge and numbers along the other, like a map. 'See note at D3' means the square where column D meets row 3.",
+          "Building plans also have **structural grid lines** through the centres of the columns, labelled for example A, B, C one way and 1, 2, 3 the other. They appear in the same place on the architectural, structural, mechanical and electrical drawings.",
+          "Set out from grid lines and structural walls, not from partitions, which can move or be built out of place. Quote grid references in queries: 'outlet at grid C/4, drawing E-102 rev B'."
+        ] },
+        { "h": "North point" },
+        { "p": "The north arrow shows which way the building faces. Turn the drawing to match the building before you set out, and use compass directions ('the north wall') in queries so that nobody confuses left and right." },
+        { "h": "Notes and abbreviations" },
+        { "table": { "head": ["Abbreviation", "Meaning"], "rows": [
+          ["AFF", "Above finished floor (the note says whether to the centre, top or bottom of the box)"],
+          ["FFL", "Finished floor level"],
+          ["u.n.o. or UNO", "Unless noted otherwise"],
+          ["NTS", "Not to scale"],
+          ["TYP", "Typical: the same applies to all similar items"],
+          ["WP", "Weatherproof"],
+          ["GFCI, RCD", "Ground-fault circuit interrupter; residual current device"],
+          ["EM", "Emergency (a fitting with its own battery)"],
+          ["MDB, SMDB, DB", "Main, sub-main and distribution board"],
+          ["SWA", "Steel wire armoured (cable)"],
+          ["EMT", "Electrical metallic tubing (thin-wall steel conduit)"],
+          ["SD, HD", "Smoke detector, heat detector"],
+          ["C/W", "Complete with"],
+          ["(E), (N), (R)", "Existing, new, to be removed, on alteration drawings"]
+        ] } },
+        { "note": "Read all the general notes on a sheet before you read the plan. One line such as 'All outlets in kitchens to be GFCI protected' or 'Switches at 1350 mm AFF u.n.o.' applies to every item it covers, whether or not the plan repeats it.", "label": "Tip" },
+        { "h": "Revisions" },
+        { "p": "Each time a drawing is changed after it has been issued, its revision goes up: A, B, C… or 01, 02, 03…, and sometimes P1, P2 for preliminary issues. The **revision table** on the sheet lists each revision with its letter, date, a short description and who approved it. The changed areas are usually ringed with a **revision cloud** and marked with a small triangle carrying the revision letter, so you can find what changed without comparing every line." }
+      ]
+    },
+    {
+      "title": "Symbols, cable sizes and conventions",
+      "blocks": [
+        { "p": "Symbols save space, but there is no single world standard. The **legend** (key) on the drawing set is the authority for that job. Read it before anything else, and never guess what an unfamiliar symbol means." },
+        { "h": "Two practices you will meet" },
+        { "table": { "head": ["Item", "North American practice", "IEC / British practice"], "rows": [
+          ["Symbol standards", "IEEE 315 (ANSI) for diagrams; architectural symbols from the designer's legend", "IEC 60617 (BS EN 60617)"],
+          ["Dimensions", "Feet and inches (some metric)", "Millimetres"],
+          ["Cable sizes", "AWG (American Wire Gauge) and kcmil, for example 12 AWG", "mm², for example 2.5 mm², 4 mm²"],
+          ["Switch for lights from two places", "Three-way switch, marked S3", "Two-way switch"],
+          ["Middle switch for a third or further place", "Four-way switch, marked S4", "Intermediate switch"],
+          ["Outlet", "Receptacle; a duplex receptacle is drawn as a circle with two short lines", "Socket outlet"],
+          ["Earth", "Ground; equipment grounding conductor", "Earth; protective conductor (CPC)"],
+          ["Resistor", "Zigzag line", "Rectangle"],
+          ["Contactor or relay coil", "Circle marked M (motor starter) or CR (control relay)", "Rectangle marked with a letter and number, such as K1"],
+          ["Contacts on a ladder or schematic", "NO: two short parallel lines; NC: the same with a diagonal line across", "Drawn like a switch blade: open for NO, touching for NC"]
+        ] } },
+        { "h": "Cable sizes: AWG and mm²" },
+        { "table": { "head": ["AWG", "Area (about)", "Next metric size up"], "rows": [
+          ["14 AWG", "2.1 mm²", "2.5 mm²"],
+          ["12 AWG", "3.3 mm²", "4 mm²"],
+          ["10 AWG", "5.3 mm²", "6 mm²"],
+          ["8 AWG", "8.4 mm²", "10 mm²"],
+          ["6 AWG", "13.3 mm²", "16 mm²"]
+        ] } },
+        { "note": "In AWG the **lower** the number, the **thicker** the wire: 10 AWG is thicker than 14 AWG. A metric cable is not an exact swap for an AWG cable: 2.5 mm² is smaller than 12 AWG (3.3 mm²). If anyone wants to change a cable size or type from the drawing, the designer must agree in writing.", "label": "Remember" },
+        { "h": "Reading cable notes" },
+        { "table": { "head": ["Written on the drawing", "What it means"], "rows": [
+          ["2C+E 2.5 mm² PVC/PVC", "Two-core and earth cable, 2.5 mm² conductors, PVC insulation and PVC sheath"],
+          ["4C 35 mm² XLPE/SWA/PVC, 42 m", "Four-core 35 mm² cable with XLPE insulation, steel wire armour and a PVC outer sheath, 42 m long"],
+          ["2#12, #12G, 1/2\" EMT", "Two 12 AWG conductors and one 12 AWG grounding conductor in half-inch electrical metallic tubing"],
+          ["An arrow at the end of a line, marked DB-A/7", "A home run: this circuit goes back to board DB-A, way 7"],
+          ["Short marks across a cable line", "The number of conductors in that run; long and short marks may tell neutral from line, as the legend says"]
+        ] } },
+        { "h": "Mounting heights" },
+        { "p": "Heights are given in the general notes ('switches at 1350 mm AFF u.n.o.'), beside a symbol ('+450' or '18\" AFF'), or on elevations. The note should say whether the height is to the centre, the top or the bottom of the box. Heights often differ above worktops, in accessible toilets and outdoors, so read every note that applies to the room." },
+        { "h": "IP codes and enclosure types" },
+        { "p": "**IP** stands for ingress protection (also called international protection). The first digit is protection against solid objects and dust; the second is protection against water. The higher the number, the better the protection." },
+        { "table": { "head": ["Digit", "First digit: solids and dust", "Second digit: water"], "rows": [
+          ["2", "Fingers", "Drips when tilted"],
+          ["4", "Objects over 1 mm, such as wires", "Splashing from any direction"],
+          ["5", "Dust-protected", "Water jets"],
+          ["6", "Dust-tight", "Powerful water jets"],
+          ["7", "(no 7 for solids)", "Short immersion"],
+          ["8", "(no 8 for solids)", "Continuous immersion, as the maker states"]
+        ] } },
+        { "p": "North American drawings may name a **NEMA enclosure type** instead, for example NEMA 3R (rainproof, outdoors) or NEMA 4X (watertight and corrosion-resistant). These are not exact equals of IP codes: fit what the drawing names, or query it." },
+        { "note": "Near the coast, salt air corrodes metal fittings quickly. When a drawing calls for a WP, IP66 or NEMA 4X item outdoors, do not swap in an indoor item because it is in the van. Query any change.", "label": "Jamaica" }
+      ]
+    },
+    {
+      "title": "Layout plans and reflected ceiling plans",
+      "blocks": [
+        { "h": "How to read a layout plan" },
+        { "flow": [
+          "Check the title block: right job, right sheet, current revision, scale",
+          "Read the legend and the general notes",
+          "Find north, the grid lines and the room names or numbers",
+          "Find the board, then follow each circuit's home run",
+          "Follow the switching links from each switch to the lights it controls",
+          "Note heights, special outlets (GFCI, WP, dedicated) and fitting types",
+          "Compare with the ceiling plan, the board schedule and the other trades' drawings"
+        ] },
+        { "h": "Switching and circuits on a plan" },
+        { "ul": [
+          "A curved dashed or thin line from a switch to lights shows which lights the switch **controls**. It is not the cable route: the electrician chooses the route unless the drawing shows one.",
+          "A small letter beside a switch and the same letter beside lights (a, b, c) links them when lines would clutter the plan.",
+          "A number beside an outlet or light, or on a home-run arrow, gives the board and way that feeds it.",
+          "Two switches marked S3 control the same lights from two places; an S4 between them adds a third place.",
+          "A dedicated outlet for a fridge, server or medical item has its own circuit. The legend or a note shows how it is marked."
+        ] },
+        { "h": "Reflected ceiling plans" },
+        { "p": "A reflected ceiling plan shows the ceiling as if a mirror lay on the floor and you looked down into it. That way it **lines up exactly with the floor plan**: a light in the north-west corner of a room is in the north-west corner on both sheets. Read it lying face up, turned to match the room, just as you read the floor plan. Held overhead and looked at from below, it appears reversed." },
+        { "ul": [
+          "Set out each fitting from the ceiling grid or the building grid lines shown on the RCP.",
+          "Check the RCP against the mechanical drawings. Lights, fans and detectors must not clash with AC grilles, sprinkler heads, beams or access panels.",
+          "Smoke detectors need clearance from AC supply grilles, which blow smoke away from them; about 1 m is a common minimum. Follow the fire alarm designer's layout.",
+          "Use the floor plan to see which switch controls each light and where the circuits come from; use the RCP for each fitting's exact position."
+        ] },
+        { "h": "When the site does not match the drawing" },
+        { "table": { "head": ["What you find", "What to do"], "rows": [
+          ["A room is shorter or longer than drawn", "Do not stretch or squeeze the positions on your own. Report it, agree a reference point (a grid line or a fixed wall) and how to set out, and record the answer."],
+          ["A door swings the other way from the plan", "The switch belongs on the opening side. Query it; do not fit the switch behind the door."],
+          ["An outlet falls on a column, a window or a sink", "Raise a query with a sketch. You may suggest a position, but the designer decides."],
+          ["A light clashes with an AC grille or a beam", "Query it before the ceiling is cut or the box is fixed."],
+          ["The client no longer wants an item that is drawn", "Get a written instruction before leaving it out, and mark the change for the as-built drawings."]
+        ] } },
+        { "note": "When you set out from a drawing, measure from **fixed** things: grid lines, column centres, structural walls and finished floor level. Partitions, ceilings and furniture can move.", "label": "Tip" }
+      ]
+    },
+    {
+      "title": "Single-line diagrams, riser diagrams and schedules",
+      "blocks": [
+        { "p": "A single-line diagram (SLD) shows the whole distribution system on one page. Each cable is drawn as one line, whether it has two cores or four; the label says how many. The SLD shows **what feeds what, and with what**. It does not show where anything is." },
+        { "h": "What a good single-line diagram shows" },
+        { "ul": [
+          "Every source of supply: the JPS service, a standby generator and its transfer switch, solar PV inverters and batteries",
+          "The meter, the main switch or main breaker, and any surge protection",
+          "Each board, with its incoming device and its name (MDB, DB-1…)",
+          "Sub-main cables, with size, type, number of cores and length",
+          "Each outgoing circuit, with the breaker's type, poles and rating, any RCD or GFCI, and a description",
+          "The earthing arrangement: main earth terminal, grounding electrode and main bonding",
+          "A legend, a title block and a revision"
+        ] },
+        { "h": "Reading breaker marks" },
+        { "table": { "head": ["Mark", "Meaning"], "rows": [
+          ["1P 20 A", "Single-pole 20 A breaker: switches one line (a 110 V circuit in a Jamaican home)"],
+          ["2P 32 A", "Two-pole 32 A breaker: switches both lines of a 220 V circuit together"],
+          ["3P 100 A", "Three-pole breaker for a three-phase circuit"],
+          ["MCB, MCCB", "Miniature circuit breaker; moulded-case circuit breaker (larger ratings)"],
+          ["RCBO", "A breaker with RCD protection built in"],
+          ["30 mA, 5 mA", "The trip level of an RCD or a GFCI"],
+          ["10 kA", "Breaking capacity: the largest fault current the device can safely interrupt"],
+          ["B, C or D curve", "How quickly the magnetic trip of an IEC breaker acts on a large current"]
+        ] } },
+        { "h": "Board (panel) schedules" },
+        { "p": "A board schedule, or circuit chart, lists every way of a board. A **way** is one outgoing position for a single-pole device. A two-pole breaker takes two ways and a three-pole breaker takes three. A **spare** is a breaker that is fitted but not connected to a circuit; a **space** is an empty position where a breaker can be added later." },
+        { "table": { "head": ["Column", "What it records"], "rows": [
+          ["Way (circuit) number", "Where the circuit is in the board"],
+          ["Description", "What the circuit feeds, for example 'Lights, rooms 1–3' or 'Water heater'"],
+          ["Protective device", "Type, poles, rating, curve and any RCD or GFCI"],
+          ["Cable", "Size, type and length, or a cable reference"],
+          ["Load", "In watts or VA; on a 110/220 V or three-phase board, which line (phase) it is on, so that the load can be balanced"]
+        ] } },
+        { "p": "**Worked example.** A board must hold 14 single-pole breakers and 4 two-pole breakers, with 20% of its ways spare for future circuits. Ways in use: 14 + (4 × 2) = 22. With 20% more: 22 × 1.2 = 26.4, so the board needs at least 27 ways; you would choose the next standard size up." },
+        { "note": "The schedule must match the board. A breaker labelled 'Spare' that really feeds outlets, or two circuits with the same label, can lead someone to isolate the wrong circuit. When you find a wrong label, trace the circuit safely, correct the schedule, and tell the client and your supervisor.", "label": "Remember" },
+        { "h": "Cable schedules" },
+        { "p": "On larger jobs each cable has its own reference, for example SM-03 for a sub-main. The cable schedule lists it with where it runs from and to, its size, type, cores, length, route and gland size. The same reference is marked on both ends of the cable with tags or ferrules, so that each cable can always be matched to its record." },
+        { "h": "Luminaire (fittings) schedules" },
+        { "p": "Light fittings on a plan are often tagged with a type, such as 'Type L2'. The luminaire schedule lists each type with its description, lamp or LED module, wattage, colour temperature, mounting, IP rating and whether it has an emergency battery. Order and fit from the schedule, not from what looks similar." },
+        { "h": "Riser diagrams" },
+        { "p": "A riser diagram shows a building as a stack of floors, with the main board at the bottom and the sub-mains rising to each floor's board. It is the quickest way to see how a multi-storey building is fed. Riser diagrams are also drawn for fire alarm, data and CCTV systems." },
+        { "h": "Check that the documents agree" },
+        { "ul": [
+          "The breaker rating on the SLD matches the board schedule and the specification.",
+          "Each cable size suits the breaker that protects it, and agrees between drawing and schedule.",
+          "Every outlet, light and item of equipment on the layouts appears on a board schedule.",
+          "Two-pole items on the layouts (water heaters, AC units) have two-pole breakers on the schedule."
+        ] },
+        { "note": "Many Jamaican buildings have a standby generator with a transfer switch, and more now have solar PV with batteries. A good SLD shows every source of supply. Before anyone works on a board, the SLD should tell you whether that board can be fed from more than one source.", "label": "Jamaica" }
+      ]
+    },
+    {
+      "title": "Control schematics, ladder diagrams and wiring diagrams",
+      "blocks": [
+        { "h": "Rules for reading a schematic" },
+        { "ul": [
+          "Devices are drawn **at rest**: no power, nothing pressed, no coil energised and no overload tripped. 'Normally open' (NO) and 'normally closed' (NC) describe this resting state.",
+          "The parts of one device can be far apart on the drawing. A contactor's coil may be in one place and its contacts in several others. They share one label, such as K1 or M.",
+          "**Cross-references** link them. Numbers beside or under a coil give the sheet and column (or the rung) where each of its contacts appears, and a contact may carry a reference back to its coil.",
+          "Each wire has a **wire number**. Every point joined with no device between them has the same number; the number changes on the other side of a contact, a push-button or a coil.",
+          "The terminal numbers of each device are written beside its symbol, so you can find the exact terminal in the panel."
+        ] },
+        { "h": "Terminal markings (the usual IEC numbering)" },
+        { "table": { "head": ["Marking", "What it is"], "rows": [
+          ["A1–A2", "Contactor or relay coil"],
+          ["1–2, 3–4, 5–6 (or L1–T1, L2–T2, L3–T3)", "Main power contacts: odd numbers on the supply side, even numbers on the load side"],
+          ["13–14, 23–24, 33–34", "Auxiliary normally open contacts. A units digit of 3–4 means NO; the tens digit is the contact's position number"],
+          ["21–22, 31–32, 41–42", "Auxiliary normally closed contacts. A units digit of 1–2 means NC"],
+          ["95–96", "Overload relay's normally closed contact: it opens when the relay trips"],
+          ["97–98", "Overload relay's normally open contact: it closes when the relay trips, for example to light a 'tripped' lamp"]
+        ] } },
+        { "p": "Add-on auxiliary contact blocks carry their own position numbers, such as 53–54 or 61–62. The units digit still tells you NO (3–4) or NC (1–2). North American devices may be marked differently: check the maker's label and the legend." },
+        { "h": "The direct-on-line (DOL) starter control circuit" },
+        { "flow": [
+          "Control supply (line)",
+          "Overload contact 95–96 (NC)",
+          "Stop button (NC)",
+          "Start button (NO), with the holding contact 13–14 (NO) in parallel",
+          "Contactor coil A1–A2",
+          "Return (neutral)"
+        ] },
+        { "ul": [
+          "**Start pressed**: the coil is energised, the main contacts close and the motor runs. The holding contact 13–14 closes at the same moment.",
+          "**Start released**: current now flows through 13–14, so the coil stays in. This is the **holding**, latching or seal-in contact.",
+          "**Stop pressed**: the circuit opens, the coil drops out, and the main and holding contacts open. The motor stops and stays stopped until start is pressed again.",
+          "**Overload trips**: 95–96 opens and the coil drops out in the same way. The relay must be reset before the motor can be restarted.",
+          "**Supply fails**: the coil drops out and 13–14 opens, so the motor does **not** restart by itself when the supply returns. This is no-volt protection: nobody is surprised by a machine starting on its own."
+        ] },
+        { "h": "Showing changes to the circuit" },
+        { "table": { "head": ["Change", "How it is connected", "Why"], "rows": [
+          ["Extra stop button, for example at a remote position", "NC, in series with the first stop button", "Any one stop button must be able to break the circuit"],
+          ["Extra start button", "NO, in parallel with the first start button and the holding contact", "Any one start button can energise the coil"],
+          ["'Running' lamp", "Through a spare NO auxiliary contact (for example 23–24) of the contactor", "It lights only when the contactor has pulled in"],
+          ["'Tripped' lamp", "Through the overload relay's NO contact 97–98", "It lights when the overload trips"],
+          ["Emergency stop", "A latching mushroom-head NC button in series, usually first in the control circuit", "It stops the machine and stays pressed until reset by hand"],
+          ["Interlock (for example forward and reverse)", "An NC auxiliary contact of each contactor in series with the other contactor's coil", "The two contactors can never be on together"]
+        ] } },
+        { "p": "Pilot lamp colours are set by the designer: in some North American plants red means 'running', while under IEC practice green usually means normal and red means danger or a fault. Read the legend and notes." },
+        { "h": "Ladder diagrams" },
+        { "ul": [
+          "The two vertical lines (rails) are the control supply: line on the left, the return (neutral, or the grounded side of a control transformer) on the right.",
+          "Each horizontal rung is one current path, read from left to right. Rungs are numbered down the page.",
+          "Switches and contacts sit on the line side; the load (a coil or a lamp) sits at the right-hand end, connected to the return rail. Loads are never connected in series.",
+          "**Why the coil goes next to the return rail**: if the wire between a contact and the coil touches earth, the control fuse blows; the coil cannot be switched on by the fault. With all switching on the line side, a fault cannot start a machine on its own.",
+          "Numbers to the right of a coil list the rungs where its contacts are; the legend says how NC contacts are marked."
+        ] },
+        { "h": "Schematic, wiring diagram and GA compared" },
+        { "table": { "head": ["Drawing", "Answers the question", "Main user"], "rows": [
+          ["Schematic", "How does the circuit work?", "Designer, electrician fault finding, anyone learning the circuit"],
+          ["Wiring diagram", "Which terminal does each numbered wire go to?", "Panel wirer and the person checking the wiring"],
+          ["Panel GA", "Where does each device sit, and what size is everything?", "Enclosure maker, person cutting the door, site team checking space"]
+        ] } },
+        { "h": "Checking a wired panel against its drawings" },
+        { "flow": [
+          "Isolate, lock off and prove the panel dead with a tester proved before and after",
+          "Get the current revision of the schematic and wiring diagram",
+          "One person reads the drawing; another checks the panel",
+          "Check each wire number end to end, terminal to terminal, and that it is tight",
+          "Highlight each wire on the drawing once it is confirmed",
+          "Use a continuity tester for runs you cannot see",
+          "List every missing, wrong or extra wire; correct, recheck and sign the record"
+        ] },
+        { "note": "Tracing and checking wires is done with the panel isolated, locked off and proved dead. A schematic tells you what should be live; only a proven tester tells you what is.", "label": "Safety" }
+      ]
+    },
+    {
+      "title": "Sketching on site",
+      "blocks": [
+        { "p": "A good site sketch lets someone who has never seen the place draw it, price it or order for it. It does not need to be to scale, but it must be **in proportion**, clear and fully dimensioned." },
+        { "h": "What to bring" },
+        { "ul": [
+          "Squared paper on a clipboard, an HB pencil and an eraser",
+          "A 5 m tape and a laser distance meter",
+          "A phone or camera, and a torch for cupboards and ceiling spaces",
+          "A notebook or form for board details"
+        ] },
+        { "h": "Surveying a room" },
+        { "flow": [
+          "Walk round first and decide how many sheets you need",
+          "Draw the room outline in proportion as a plan, with doors, windows and the direction of north or the street",
+          "Add every switch, outlet, light, fan and board, using a simple legend",
+          "Measure the overall sizes, then each item's position from fixed points",
+          "Measure heights: ceiling, beams, each item and the board",
+          "Note types, ratings, containment, and anything the client wants added",
+          "Photograph each wall and the board, numbered to match the sketch",
+          "Check that the parts add up to the overall sizes; add the address, date and your name"
+        ] },
+        { "h": "Measuring well" },
+        { "ul": [
+          "Measure each item from **two fixed points**, such as a corner and the finished floor, so that its position can be found again exactly.",
+          "Use **running dimensions**: measure every item along a wall from the same corner. A misread figure then affects only one item, and the last figure can be checked against the wall's overall length. Chained gaps add their errors together.",
+          "Measure the overall sizes too, and check that the parts add up to the whole. If they do not, measure again **before you leave**.",
+          "Draw dimension lines with arrows and write each figure on its line, so that no figure can be read against the wrong item.",
+          "A laser meter measures to the first surface its dot hits. Check where the dot is landing, and hold the tape straight and level."
+        ] },
+        { "h": "Showing what is existing and what is new" },
+        { "p": "Make the difference obvious: for example, existing items drawn solid, new items drawn dashed or marked 'N', and items to remove crossed through, with a note in the legend. List the client's requests on the sheet. The office then prices the right work, and nobody thinks a requested outlet already exists." },
+        { "h": "Pictorial sketches" },
+        { "p": "For a conduit or trunking run that goes up a wall, across a ceiling and down again, a plan alone is confusing. An **isometric sketch** shows all three directions in one picture: vertical lines stay vertical, and the two horizontal directions are drawn at about 30° to the horizontal. Write the length of each straight, and mark each bend, box and fixing. An **oblique sketch**, with the front face drawn flat and the depth lines at 45°, is quick for a box or panel where the front matters most." },
+        { "h": "Sketching an existing board or panel" },
+        { "p": "Record the enclosure's height, width and depth, its fixing centres, the cable entries (top, bottom, sides; sizes and how many), the main switch and every breaker with its type, poles and rating, the cable sizes you can see, the labels, and the maker's data plate (including the breaking capacity). Photograph the schedule and the data plate." },
+        { "note": "A survey never involves touching live parts. Only a competent, authorised person removes a board cover, following the safe procedure, and you look without touching. Do not climb on furniture to reach a ceiling: use the laser meter, or proper steps with someone holding them. Never look into a laser meter's beam or point it at anyone's eyes.", "label": "Safety" },
+        { "h": "Sketches in reports and queries" },
+        { "p": "After a fault visit, a simple sketch of how you found the wiring and what you changed helps the next person and lets the office update its drawings. A sketch attached to a query, with the drawing number and grid reference, gets a faster and clearer answer than words alone." },
+        { "note": "A photo is a record, not a measurement. Photograph each wall from the doorway, then the board, and number the photos to match the sketch, but always write the sizes on the sketch itself.", "label": "Tip" }
+      ]
+    },
+    {
+      "title": "Using drawings on the job",
+      "blocks": [
+        { "h": "Taking off quantities" },
+        { "p": "To order cable, measure the route on the plan, convert it with the scale, then add what the plan does not show." },
+        { "p": "**Worked example.** On a 1:50 plan, the route from board DB-B to an AC isolator measures 168 mm. The cable rises 0.9 m from the board to the ceiling, and drops 0.5 m from the ceiling to the isolator. Allow 0.3 m at each end for terminating and 5% for waste." },
+        { "ol": [
+          "Plan length: 168 × 50 = 8 400 mm = 8.4 m",
+          "Add the rise and the drop, which a plan does not show: 8.4 + 0.9 + 0.5 = 9.8 m",
+          "Add the ends: 9.8 + 0.6 = 10.4 m",
+          "Add waste: 10.4 × 1.05 = 10.92 m",
+          "Round **up** to whole metres: order 11 m. A cable that is too short cannot usually be joined in a run."
+        ] },
+        { "p": "To count items, work room by room with a tick on each symbol as you count it, list them by type, and check the totals against the schedules. Do not forget boxes, plates, glands, fixings and labels." },
+        { "h": "Checking a drawing set before work starts" },
+        { "flow": [
+          "Check the drawing register: every sheet present, latest revision, status 'for construction'",
+          "Read the specification, legends, notes and schedules",
+          "Compare the electrical drawings with the architectural, structural and mechanical ones",
+          "Check that ratings and sizes agree across drawings, schedules and specification",
+          "List anything missing: heights, positions, details, equipment data",
+          "Send written queries with drawing numbers and grid references",
+          "Log each answer and mark it on the site drawings"
+        ] },
+        { "h": "Raising a query" },
+        { "ul": [
+          "Put it in writing (many sites use a 'request for information', RFI, or technical query form), through your supervisor.",
+          "One question per item, with the drawing number, revision and grid reference, and a sketch or photo.",
+          "Suggest an answer if you have one, and say by when you need the reply so the team is not held up.",
+          "Keep a log of queries and answers. A spoken answer on site should be confirmed in writing."
+        ] },
+        { "h": "Drawing control on site" },
+        { "ul": [
+          "Keep a **drawing register**: each sheet's number, title, current revision and date received, and who holds copies.",
+          "When a new revision arrives, read its revision table and clouds, find out what changed, stop any work it affects and brief the team.",
+          "Collect the old copies and stamp them 'SUPERSEDED' or destroy them. If one is kept for the record, it is clearly marked and kept apart.",
+          "Keep the current set clean, dry and in one place, especially in the rainy season."
+        ] },
+        { "note": "Photos of drawings on phones are uncontrolled copies: nobody updates them when a revision is issued. Work from the controlled set, and tell the team to delete old photos when a new revision comes in.", "label": "Remember" },
+        { "h": "Red-line mark-ups and as-built drawings" },
+        { "p": "When work is done differently from the drawing, for example a cable route moved to avoid a beam, the change is agreed with the supervisor and marked by hand on a site copy, usually in red, with the date and initials. These **red-line** drawings are kept up to date during the job, not written from memory at the end. The office uses them to produce the **as-built** drawings, which are handed to the client with the test results so that future electricians know what is really in the walls." },
+        { "h": "Briefing the team from a drawing" },
+        { "ul": [
+          "Turn the drawing to match the room, and point out north, the doors and the grid lines.",
+          "Walk through the circuits the team will do today, and highlight each person's area on a copy.",
+          "Point out the notes, heights, special items and anything that has been queried.",
+          "Ask each person to explain their part back to you. With a trainee, trace one circuit together, step by step, on the drawing and then on site."
+        ] }
+      ]
+    },
+    {
+      "title": "Revision",
+      "blocks": [
+        { "h": "Checklist" },
+        { "p": "Tick each statement only when you can do it without looking at the notes." },
+        { "ul": [
+          "I can say what each kind of drawing in a set is for, and pick the right one for a question.",
+          "I can read a title block and say whether a sheet is current and fit to build from.",
+          "I can work out real sizes from a scale, choose a scale, and explain why a reduced print must not be scaled with the stated scale.",
+          "I can convert feet and inches to millimetres and read a 1/4 inch = 1 foot drawing.",
+          "I can read common abbreviations and general notes, including AFF, u.n.o., TYP, WP and IP codes.",
+          "I can read symbols from North American and IEC practice, using the legend, and match AWG sizes to mm².",
+          "I can read a layout plan and a reflected ceiling plan together, and spot clashes with other services.",
+          "I can follow a single-line diagram from the supply to each circuit, and read a board schedule, counting ways for single- and two-pole breakers.",
+          "I can read a DOL starter schematic, explain the holding contact and no-volt protection, and use the usual terminal numbers.",
+          "I can show where a remote stop, an extra start, a 'running' lamp and a 'tripped' lamp are connected.",
+          "I can make a dimensioned site sketch from fixed points, using running dimensions, and check my figures before I leave.",
+          "I can take off a cable length from a plan, allowing for rises, drops, terminations and waste.",
+          "I can check a drawing set before work starts and raise a clear written query.",
+          "I can control drawings on site and keep red-lines for the as-built drawings.",
+          "I can brief my team from a drawing and help a trainee to read one."
+        ] },
+        { "h": "Numbers to remember" },
+        { "table": { "head": ["Figure", "What it is"], "rows": [
+          ["1 inch = 25.4 mm; 1 foot = 304.8 mm", "Converting imperial dimensions"],
+          ["1/4 inch = 1 foot is 1:48; 1/8 inch = 1 foot is 1:96", "Common North American scales"],
+          ["A1 printed on A3 = half the stated scale", "Why reduced prints must not be scaled with the stated scale"],
+          ["14 AWG ≈ 2.1 mm²; 12 AWG ≈ 3.3 mm²; 10 AWG ≈ 5.3 mm²", "AWG sizes; the lower the number, the thicker the wire"],
+          ["A1–A2; 13–14; 21–22; 95–96; 97–98", "Coil; first NO auxiliary; first NC auxiliary; overload NC; overload NO"],
+          ["IP first digit: solids; second digit: water", "IP66 = dust-tight and protected against powerful water jets"]
+        ] } },
+        { "h": "Key terms" },
+        { "terms": [
+          ["As-built drawing", "A drawing that shows the installation as it was really built, handed over to the client."],
+          ["Block diagram", "A drawing of a system's main parts as labelled boxes joined by lines or arrows."],
+          ["Cross-reference", "A number on a schematic that tells you where the other parts of a device, such as a coil's contacts, are drawn."],
+          ["Detail", "A small part of a drawing shown again at a larger scale."],
+          ["Drawing register", "The list of every drawing on a job, with its current revision and date."],
+          ["Elevation", "A view of one wall or face, seen straight on, showing heights."],
+          ["General arrangement (GA)", "A scaled, dimensioned drawing of a panel or item showing where everything sits."],
+          ["Grid line", "A fixed reference line through column centres, used on every drawing of a building."],
+          ["Holding contact", "A normally open auxiliary contact in parallel with the start button that keeps the coil energised after start is released; also called a latching or seal-in contact."],
+          ["Home run", "The part of a circuit that runs back to its board, shown on a plan by an arrow and the board and way number."],
+          ["Ladder diagram", "A control schematic drawn between two vertical supply rails, with one current path on each rung."],
+          ["Layout plan", "A floor plan showing where each electrical item goes."],
+          ["Legend", "The key on a drawing that says what each symbol means."],
+          ["No-volt protection", "The feature of a starter that stops a motor restarting by itself when the supply returns after a failure."],
+          ["Query (RFI)", "A written question to the designer about a drawing that is unclear, wrong or in conflict."],
+          ["Red-line drawing", "A site copy marked up by hand, usually in red, to show changes made during the work."],
+          ["Reflected ceiling plan", "A ceiling plan drawn as if seen in a mirror on the floor, so that it lines up with the floor plan."],
+          ["Revision cloud", "A wavy outline drawn round the part of a drawing that has changed."],
+          ["Riser diagram", "A drawing that shows how supplies or systems rise through the floors of a building."],
+          ["Running dimensions", "Measurements all taken from one starting point, so that errors do not add up."],
+          ["Scale bar", "A drawn bar of known length that grows or shrinks with the print, used to measure reduced copies."],
+          ["Schematic", "A drawing that shows how a circuit works, with devices drawn at rest in logical order."],
+          ["Single-line diagram", "A diagram of the distribution system with each cable drawn as one line, showing ratings and sizes but not positions."],
+          ["Spare and space", "A spare is a breaker fitted but not in use; a space is an empty position in a board."],
+          ["Specification", "The written document that sets out the standards, materials, workmanship and tests for the job."],
+          ["Superseded", "Replaced by a newer revision and no longer to be used."],
+          ["Title block", "The box on a drawing that gives its title, number, revision, scale, status and signatures."],
+          ["Way", "One outgoing position in a distribution board for a single-pole device."],
+          ["Wiring diagram", "A drawing that shows the real terminals of each device and where each numbered wire goes."]
+        ] }
+      ]
+    }
+  ],
+  "cases": {
+    "c1": { "title": "A clinic extension in Port Antonio", "text": "Kemar Lindo, a Level 3 electrician, leads the electrical team on a two-room extension to a health clinic in Port Antonio, Portland. The layout plan and the reflected ceiling plan were both drawn at 1:50 on A1 sheets, but his site copies were printed on A3. The general notes say 'Switches at 1350 mm AFF u.n.o.' and 'All outlets in the treatment room to be GFCI protected'. On the ceiling plan, one LED panel in the treatment room sits where the mechanical drawing shows an AC supply grille." },
+    "c2": { "title": "A pump panel on a poultry farm near Ewarton", "text": "On a poultry farm near Ewarton, St Catherine, the water pump is started by a direct-on-line starter. Team leader Simone Grant has the panel's schematic, Revision A. Contactor K1 has its holding contact on terminals 13–14 and a spare normally open contact on 23–24. Overload relay F2 has contacts 95–96 and 97–98. The farm manager wants a second stop button at the pump house door and a red lamp at the panel that lights when the overload trips." },
+    "c3": { "title": "Surveying a guest house in Negril", "text": "Tracey-Ann Morgan is sent to survey a ten-room guest house in Negril, Westmoreland, so that the office can price a rewire. She has squared paper, a tape, a laser distance meter and her phone. In room 4 she records the outlets on the back wall as 0.6 m, 2.1 m and 3.4 m from the left-hand corner; the wall is 4.8 m long. The old board is in a cupboard with its cover on, and the owner's handwritten circuit list is taped inside the cupboard door." },
+    "c4": { "title": "A three-storey office in New Kingston", "text": "Ricardo Brown's team is wiring a new three-storey office building in New Kingston. The single-line diagram shows the main board in the ground-floor switch room and a sub-main to each floor's board, for example 'SM-02: 4C 25 mm² XLPE/SWA/PVC, 46 m' to DB-2 on floor 2. DB-2's schedule lists 18 single-pole breakers and 5 two-pole breakers. The board chosen for DB-2 has 30 ways." },
+    "c5": { "title": "Drawings from Florida for a hotel spa in Ocho Rios", "text": "A hotel in Ocho Rios, St Ann, is adding a spa. Its electrical drawings come from a design firm in Florida. The layout is drawn at 1/4 inch = 1 foot. Switches are marked S, S3 and S4, outlets are noted at 18 inches AFF, and the outlet circuits are labelled '2#12, #12G, 3/4\" PVC'. Team leader Odane Campbell's crew learned on British-style drawings with millimetres and mm² cables." }
+  },
+  "questions": [
+    { "id": "P-01", "c": "c1", "q": "Kemar measures 37 mm on his A3 print with an ordinary rule. About how long is that distance on site?", "o": ["About 7.4 m", "About 3.7 m", "About 1.85 m", "About 0.74 m"], "a": 1, "why": "An A3 sheet is half the length and width of an A1 sheet, so a 1:50 drawing printed on A3 is at 1:100: 37 × 100 = 3 700 mm. Reading it as 1:50 gives 1.85 m, half the true size. Use written dimensions where there are any, and the scale bar when you must measure." },
+    { "id": "P-02", "c": "c1", "q": "One switch in the treatment room has no height written beside it. At what height should it be fixed?", "o": ["At 1350 mm AFF, as the general note says", "Level with the switches in the old part of the clinic", "At the height the team usually uses, often 1200 mm", "Leave it until the designer marks a height for it"], "a": 0, "why": "'u.n.o.' means unless noted otherwise: every switch goes at 1350 mm above finished floor unless the drawing gives that switch a different height. General notes apply to every item they cover, whether or not the plan repeats them." },
+    { "id": "P-03", "c": "c1", "q": "What should Kemar do about the LED panel that sits where the mechanical drawing shows an AC grille?", "o": ["Query it in writing before the ceiling is cut", "Move the panel to the nearest clear spot himself", "Let the ceiling fixer choose a new spot for it", "Fit it where the electrical drawing shows it"], "a": 0, "why": "Two trades' drawings that clash are a design problem. A written query with the drawing numbers and grid reference gets an answer that everyone works to. Moving the light on his own, or cutting first, can block the AC, leave the room badly lit and mean rework after the ceiling is finished." },
+    { "id": "P-04", "c": "c1", "q": "A trainee holds the reflected ceiling plan above his head to compare it with the ceiling, and says the fittings are all on the wrong side. What is the explanation?", "o": ["Ceiling plans are drawn as the ceiling looks when you look straight up", "The sheet has been printed in reverse and must go back to the designer", "The fittings are shown only roughly, so their sides do not matter on site", "The plan is drawn to line up with the floor plan, so it is read face up"], "a": 3, "why": "A reflected ceiling plan is drawn as if a mirror on the floor showed the ceiling, so it lines up with the floor plan. Read it flat and face up, turned to match the room. Held overhead and seen from below, it appears reversed." },
+    { "id": "P-05", "c": "c2", "q": "How must the second stop button at the pump house door be connected?", "o": ["As a normally open contact, in parallel with the start button", "As a normally closed contact, in series with the first stop", "As a normally closed contact, in parallel with the first stop", "As a normally open contact, in series with the overload contact"], "a": 1, "why": "Every stop button must be able to break the coil circuit on its own, so stop buttons are normally closed and connected in series. In parallel, pressing one stop would do nothing while the other stayed closed. Extra start buttons are the opposite: normally open, in parallel." },
+    { "id": "P-06", "c": "c2", "q": "Which pair of terminals should feed the new 'overload tripped' lamp?", "o": ["97–98 on the overload relay", "95–96 on the overload relay", "13–14 on contactor K1", "23–24 on contactor K1"], "a": 0, "why": "97–98 is the overload relay's normally open contact: it closes when the relay trips, so it can light a 'tripped' lamp. 95–96 opens on a trip to drop out the coil. 23–24 would light a lamp while the motor runs, and 13–14 is already the holding contact." },
+    { "id": "P-07", "c": "c2", "q": "After the changes, the pump runs only while someone holds the start button in. Which fault does the schematic point to?", "o": ["The coil is connected to A1 but not to A2", "The overload's contact 95–96 has been left open", "13–14 is not connected across the start button", "The new stop button was wired normally open"], "a": 2, "why": "The holding contact 13–14, in parallel with the start button, keeps the coil energised after start is released. If it is disconnected, the coil drops out as soon as the button is let go. An open overload contact, a normally open stop button or an unconnected coil would stop the pump running at all." },
+    { "id": "P-08", "c": "c2", "q": "During a JPS outage the pump stops. When the supply comes back, it stays off until someone presses start. Why is the circuit designed this way?", "o": ["The overload relay trips each time the supply fails, and must be reset", "The stop button is pressed in automatically when the supply fails", "Losing the supply drops out the coil and opens the holding contact", "A timer keeps the coil off for safety until it is switched on again"], "a": 2, "why": "When the supply fails the coil drops out and its holding contact opens, so nothing can energise the coil again until start is pressed. This no-volt protection stops a machine starting by itself, perhaps while someone is working on it, when the power returns." },
+    { "id": "P-09", "c": "c3", "q": "Why is it better for Tracey-Ann to record the outlets as 0.6, 2.1 and 3.4 m from the corner than to record the gaps between them?", "o": ["It means she has fewer measurements to take", "An error in one does not shift all the others", "The office can only draw from running dimensions", "Gaps are harder to write neatly on a small sketch"], "a": 1, "why": "With running dimensions every position is measured from the same corner, so one misread figure affects only that item; chained gaps add their errors together. The last running figure can also be checked against the wall's overall length of 4.8 m." },
+    { "id": "P-10", "c": "c3", "q": "The three hallway lengths on Tracey-Ann's sketch add up to 6.2 m, but she measured the whole hallway as 5.9 m. What should she do?", "o": ["Trust the parts, since short lengths are more accurate", "Keep the overall size and let the office sort it out", "Take 100 mm off each of the three parts so they agree", "Measure the hallway again before she leaves the site"], "a": 3, "why": "A 300 mm difference means at least one measurement is wrong, and nobody can tell which from the sketch. Checking that the parts add up to the whole, and measuring again on site when they do not, is far cheaper than a return trip or a wrong price." },
+    { "id": "P-11", "c": "c3", "q": "How should Tracey-Ann treat the owner's handwritten circuit list inside the cupboard door?", "o": ["Take off the cover and trace every circuit herself", "Record it, but mark it as not checked on site", "Ignore it, as handwritten lists are nearly always wrong", "Copy it onto her survey sheet as the board schedule"], "a": 1, "why": "The list is useful, but nobody has proved it right: circuits get added and labels go out of date. Recording it as unchecked stops the office pricing or isolating from it. Tracing circuits behind a board cover is for a competent, authorised person working safely, not part of her survey." },
+    { "id": "P-12", "c": "c3", "q": "The owner asks for two extra outlets by the bed in room 4 and a light on the verandah. How should Tracey-Ann show these on her survey?", "o": ["Draw them like the existing items, so the sketch looks complete", "Phone them through to the office and keep the sketch as it is", "Mark them as new in a different way and list them as requests", "Leave them off, since the survey is only of what is there now"], "a": 2, "why": "A survey must show clearly what exists and what is wanted. Marking new items differently (dashed, or with an 'N' and a note) lets the office price the extra work and stops anyone thinking the outlets are already there. A phone message is easily lost." },
+    { "id": "P-13", "c": "c4", "q": "The client wants DB-2 to have at least 20% of its ways spare. Is the 30-way board big enough for the breakers on the schedule?", "o": ["No: 28 ways in use plus 20% needs at least 34", "Yes: 28 ways in use leaves two ways to spare", "Yes: 23 breakers plus 20% needs only 28 ways", "No: each breaker takes two ways, so 46 are needed"], "a": 0, "why": "Each two-pole breaker takes two ways: 18 + (5 × 2) = 28 ways in use. Adding 20%: 28 × 1.2 = 33.6, so at least 34 ways are needed. Counting breakers (23) instead of ways gives the wrong answer." },
+    { "id": "P-14", "c": "c4", "q": "On DB-2's schedule, way 9 is marked 'Space' and way 11 is marked 'Spare'. What is the difference?", "o": ["A space is kept for 220 V circuits; a spare is kept for 110 V ones", "There is none: both are free positions for any new circuit", "A spare has no breaker fitted; a space has a breaker not yet in use", "A space has no breaker fitted; a spare has a breaker not yet in use"], "a": 3, "why": "A spare is a breaker already fitted but not connected to a circuit; a space is an empty position where a breaker can be added. Check both on site: a 'spare' that actually feeds outlets is a dangerous labelling error." },
+    { "id": "P-15", "c": "c4", "q": "Which drawing will show Ricardo where on floor 2 the circuit from DB-2 way 14 ends up?", "o": ["The single-line diagram, which lists every circuit", "The cable schedule entry for sub-main SM-02", "The floor 2 layout plan, using its circuit marks", "The DB-2 board schedule, which lists the loads"], "a": 2, "why": "A single-line diagram and a board schedule say what a circuit is and how it is protected, but not where its outlets or lights are. The layout plan shows each item's position, with circuit numbers or home-run arrows linking it to its board way." },
+    { "id": "P-16", "c": "c5", "q": "Two switches marked S3 control the spa corridor lights from each end. What would Odane's crew call these switches?", "o": ["Intermediate switches", "Double-pole switches", "Two-way switches", "One-way switches"], "a": 2, "why": "In North American practice a switch that controls lights from two places is a three-way switch (S3); in British practice it is a two-way switch. An S4 (four-way) switch is the British intermediate switch, used between two of them." },
+    { "id": "P-17", "c": "c5", "q": "The layout is drawn at 1/4 inch = 1 foot. What ratio is this scale?", "o": ["1:4", "1:50", "1:12", "1:48"], "a": 3, "why": "One foot is 12 inches, which is 48 quarter-inches, so the scale is 1:48. It is close to 1:50 but not the same: a metric rule set to 1:50 would make every size about 4% too large." },
+    { "id": "P-18", "c": "c5", "q": "The spa outlets are noted at 18 inches AFF. About how high is that in millimetres?", "o": ["About 457 mm", "About 180 mm", "About 549 mm", "About 300 mm"], "a": 0, "why": "One inch is 25.4 mm, so 18 × 25.4 = 457.2 mm above finished floor. Work each conversion out once, check it, and write the metric figure on the site copy so that everyone uses the same one." },
+    { "id": "P-19", "c": "c5", "q": "A trainee wants to use 2.5 mm² cable for the circuits marked '2#12' because 'that is what we use for outlets'. What should Odane tell him?", "o": ["No: a lower number means thinner wire, so use 1.5 mm²", "Yes, as long as the breaker is changed to a smaller one", "Yes, because 2.5 mm² and 12 AWG are the same size", "No: 12 AWG is about 3.3 mm², so ask the designer"], "a": 3, "why": "12 AWG is about 3.3 mm², so 2.5 mm² is smaller than the design. A different cable changes the current rating and voltage drop, so any change needs the designer's written agreement. In AWG the lower number is the thicker wire." },
+    { "id": "P-20", "c": null, "q": "A car park floodlight is marked IP66. What does the second 6 tell you?", "o": ["It is rated for use at 66 V or less", "It can stand powerful jets of water", "It can stay under water for long periods", "It is fully protected against dust getting in"], "a": 1, "why": "In an IP code the first digit is protection against solids and dust (6 = dust-tight) and the second against water (6 = powerful water jets). Continuous immersion would be 8. An IP code says nothing about voltage." }
+  ]
+}

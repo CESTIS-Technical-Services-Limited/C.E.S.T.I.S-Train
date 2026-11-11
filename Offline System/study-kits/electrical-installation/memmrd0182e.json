@@ -1,0 +1,1278 @@
+{
+ "format": "cestis-study-kit",
+ "version": 1,
+ "status": "to-check",
+ "written": "2026-11-07",
+ "programme": "Electrical Installation",
+ "qualification": {
+  "id": "QUAL-EIM-L2",
+  "title": "ELECTRICAL INSTALLATION AND MAINTENANCE LEVEL 2",
+  "code": "EEM20723"
+ },
+ "level": 2,
+ "unit": {
+  "code": "MEMMRD0182E",
+  "title": "Locate and repair/rectify electrical circuits"
+ },
+ "summary": "This unit teaches you to find and put right faults in electrical circuits: lighting, outlets, water heaters and motor control circuits. You will learn a logical fault-finding method, how to isolate safely before testing, how to use continuity, resistance and insulation resistance tests and read the results, how to repair faults properly with the right parts, and how to test, hand back and record the work.",
+ "sections": [
+  {
+   "title": "Unit overview",
+   "blocks": [
+    {
+     "p": "When a circuit fails, someone has to find out why and put it right, safely and for good. A good fault-finder does not guess or swap parts until something works: they gather information, think about how the circuit should work, test in a sensible order, find the real cause, repair it properly and prove that the repair is safe. This unit is for Level 2 trainees in Electrical Installation and Maintenance, who find and repair faults under supervision, using **dead tests** on isolated circuits."
+    },
+    {
+     "h": "What you must be able to do"
+    },
+    {
+     "table": {
+      "head": [
+       "Task",
+       "What it looks like on the job"
+      ],
+      "rows": [
+       [
+        "Gather information",
+        "Ask the user what happened, read the fault history, and study the drawings and manuals."
+       ],
+       [
+        "Work safely",
+        "Isolate, lock off, tag and prove dead before testing; never upsize or bypass a protective device."
+       ],
+       [
+        "Understand faults",
+        "Recognise open circuits, short circuits, earth faults, overloads, loose connections and failed parts from their symptoms."
+       ],
+       [
+        "Follow a logical method",
+        "Check simple things first, test in a sensible order, change one thing at a time and confirm the cause."
+       ],
+       [
+        "Use test instruments",
+        "Use a multimeter, a continuity tester and an insulation resistance tester correctly, and read the results."
+       ],
+       [
+        "Find faults in common circuits",
+        "Lighting circuits, outlet circuits, water heaters and motor starter control circuits."
+       ],
+       [
+        "Repair faults properly",
+        "Replace parts like for like, repair cables and terminations to the code, and protect the repair."
+       ],
+       [
+        "Test after repair and hand back",
+        "Carry out the dead tests, have an authorised person switch on, check that the fault has gone, and tell the user."
+       ],
+       [
+        "Record and report",
+        "Fill in the fault report and the equipment's history, and report anything you could not repair."
+       ]
+      ]
+     }
+    },
+    {
+     "h": "Circuits in Jamaica"
+    },
+    {
+     "ul": [
+      "Homes and small businesses take a JPS supply at **110 V and 220 V single-phase, 50 Hz**. Lights and ordinary outlets are usually 110 V; water heaters, air-conditioners, cookers and pumps are often 220 V, fed through a **two-pole breaker**. Factories may also have three-phase supplies for motors.",
+      "Jamaica's electrical code is based on the US **National Electrical Code (NEC)**, so you will meet US breaker sizes such as 15 A, 20 A and 30 A, and US colours: black or red for line, white or grey for neutral, green or bare for the equipment grounding (earth) conductor. Older installations may differ: test, never trust colours alone.",
+      "Common Jamaican causes of faults: loose and corroded connections in heat and salt air, rats chewing cables in roofs, water getting into outdoor fittings in heavy rain, and damage from lightning and supply surges."
+     ]
+    },
+    {
+     "note": "**You never work live.** At Level 2 all fault-finding tests and repairs are done with the circuit isolated, locked off and proved dead. Live tests, such as measuring voltage or current on a working circuit, are done only by authorised people with the right instruments and PPE.",
+     "label": "Safety"
+    },
+    {
+     "h": "How to use this kit"
+    },
+    {
+     "p": "Read the sections in order: safety, the basic rules of electricity, the kinds of fault, the method, the instruments, common circuits, repairs, and testing and records. Then try the practice test and read every explanation. Your instructor will show you the Centre's training boards and instruments; always follow the instrument maker's instructions."
+    }
+   ]
+  },
+  {
+   "title": "Safety in fault-finding and repair",
+   "blocks": [
+    {
+     "h": "Isolate before you test"
+    },
+    {
+     "flow": [
+      "Tell the supervisor and the users that the circuit will be switched off",
+      "Identify the circuit from the drawings and the panel schedule",
+      "Switch off the correct breaker or isolator, including any separate control supply",
+      "Lock off with your own padlock and fix a tag with your name, the date and the reason",
+      "Prove your two-pole voltage tester on a proving unit or known live source",
+      "Prove dead at the point of work between every pair of conductors",
+      "Prove the tester again; only then start testing and repairing"
+     ]
+    },
+    {
+     "ul": [
+      "Keep your lock on until the repair is finished and tested. If you leave for lunch or a break, **leave your lock and tag on** and secure the area.",
+      "Check your test instruments before you start: undamaged leads and probes, a good battery, and a calibration date that has not passed.",
+      "Discharge **capacitors** (motor capacitors, drives, power supplies) as the maker says before testing or replacing them. They can hold a charge after the supply is off.",
+      "An **insulation resistance tester** puts out a high DC voltage, typically 500 V on 110/220 V circuits. Warn others, keep hands off the conductors during the test, and let the tester discharge the circuit afterwards."
+     ]
+    },
+    {
+     "h": "Protective devices: never upsize, never bypass"
+    },
+    {
+     "p": "A fuse or breaker is chosen to protect the **cable** on its circuit: its rating matches the current the cable can carry safely. When it trips or blows, it is doing its job and warning you of a fault or an overload."
+    },
+    {
+     "table": {
+      "head": [
+       "Wrong action",
+       "What can happen"
+      ],
+      "rows": [
+       [
+        "Fitting a bigger fuse or breaker so that it stops tripping",
+        "The cable can carry more current than it is made for without the device tripping. It overheats, the insulation melts, and a fire or shock can follow."
+       ],
+       [
+        "Bridging out a fuse or breaker with wire, or holding it on",
+        "There is no protection at all: a short circuit can start a fire, damage the panel or injure someone."
+       ],
+       [
+        "Resetting it again and again",
+        "Each reset sends fault current through the damaged part again, making the damage worse."
+       ],
+       [
+        "Bypassing a GFCI because it 'keeps tripping'",
+        "People lose their protection against shock, often in exactly the wet places where it is needed."
+       ]
+      ]
+     }
+    },
+    {
+     "note": "**Find and fix the cause before a breaker is reset.** Then replace a protective device only with one of the **same type and rating** as the drawing or panel schedule shows.",
+     "label": "Remember"
+    },
+    {
+     "h": "PPE and the work area"
+    },
+    {
+     "ul": [
+      "Safety glasses when cutting and stripping, safety boots, and gloves suited to the job.",
+      "Barriers and signs round open panels; nothing left on top of a panel or inside it.",
+      "Use a sound stepladder for ceiling and roof-space work, and look out for rats, wasps and heat in roof spaces."
+     ]
+    }
+   ]
+  },
+  {
+   "title": "Electrical rules for fault-finding",
+   "blocks": [
+    {
+     "p": "You need only a few rules to make sense of your readings."
+    },
+    {
+     "table": {
+      "head": [
+       "Quantity",
+       "Unit",
+       "What it means"
+      ],
+      "rows": [
+       [
+        "Voltage (V)",
+        "volt (V)",
+        "The electrical push."
+       ],
+       [
+        "Current (I)",
+        "ampere (A)",
+        "The flow of electricity."
+       ],
+       [
+        "Resistance (R)",
+        "ohm (Ω)",
+        "How strongly something opposes the flow. 1 kΩ = 1,000 Ω; 1 MΩ = 1,000,000 Ω."
+       ],
+       [
+        "Power (P)",
+        "watt (W)",
+        "How fast energy is used. 1 kW = 1,000 W."
+       ]
+      ]
+     }
+    },
+    {
+     "table": {
+      "head": [
+       "Rule",
+       "Rearranged"
+      ],
+      "rows": [
+       [
+        "**Ohm's law: V = I × R**",
+        "I = V ÷ R and R = V ÷ I"
+       ],
+       [
+        "**Power: P = V × I**",
+        "I = P ÷ V and V = P ÷ I"
+       ],
+       [
+        "Combining the two",
+        "R = V × V ÷ P and P = I × I × R"
+       ]
+      ]
+     }
+    },
+    {
+     "h": "Worked examples"
+    },
+    {
+     "ul": [
+      "**A 3,000 W water heater element on 220 V.** Current: I = P ÷ V = 3,000 ÷ 220 ≈ **13.6 A**. Resistance: R = V ÷ I = 220 ÷ 13.6 ≈ **16 Ω** (or 220 × 220 ÷ 3,000 = 16.1 Ω). So a healthy element of this rating should read about 16 Ω on your meter.",
+      "**A 1,500 W heater on 110 V.** I = 1,500 ÷ 110 ≈ **13.6 A**, and R = 110 ÷ 13.6 ≈ **8 Ω**. The same current as the 3,000 W element on 220 V, but half the power.",
+      "**A loose joint.** A joint with 0.25 Ω of resistance carries 16 A. The voltage lost across it is V = I × R = 16 × 0.25 = 4 V, and the heat made in it is P = I × I × R = 16 × 16 × 0.25 = **64 W**: like a small heater shut inside a box. That is why loose connections scorch and burn."
+     ]
+    },
+    {
+     "h": "What readings tell you"
+    },
+    {
+     "table": {
+      "head": [
+       "Reading on a dead, disconnected part",
+       "Meaning"
+      ],
+      "rows": [
+       [
+        "Near 0 Ω",
+        "A complete path (continuity): a good conductor, a closed switch, a good fuse. Between two conductors that should be separate, it means a short."
+       ],
+       [
+        "The resistance you expect",
+        "A healthy component, such as an element, a coil or a winding. Work out or look up the expected value."
+       ],
+       [
+        "Much lower than expected",
+        "Part of the component is shorted, for example shorted turns in a winding."
+       ],
+       [
+        "Open circuit (OL, or the meter's highest range)",
+        "No path: a break, an open switch, a blown fuse, a failed element or coil."
+       ],
+       [
+        "High insulation resistance (many MΩ)",
+        "Good insulation between conductors, or between a conductor and earth."
+       ],
+       [
+        "Low insulation resistance",
+        "Damaged, dirty or wet insulation: a leakage path or an earth fault."
+       ]
+      ]
+     }
+    },
+    {
+     "note": "A filament lamp reads much lower cold than its hot working resistance, and LED lamps and drivers cannot be checked with an ohmmeter. Test a doubtful lamp by trying it in a holder you know is good, or try a lamp you know is good in the doubtful holder.",
+     "label": "Tip"
+    }
+   ]
+  },
+  {
+   "title": "Types of fault and their symptoms",
+   "blocks": [
+    {
+     "table": {
+      "head": [
+       "Fault",
+       "What it is",
+       "Usual symptoms",
+       "How you find it (dead tests)"
+      ],
+      "rows": [
+       [
+        "**Open circuit**",
+        "A break in the path: a broken conductor, a loose or disconnected terminal, a failed lamp, element, coil or switch, a blown fuse",
+        "Equipment does not work; the protective device does not usually trip",
+        "Continuity test along the path: a very high (open) reading at the break"
+       ],
+       [
+        "**Short circuit**",
+        "Line touches neutral or another line with almost no resistance",
+        "The breaker trips or the fuse blows at once, often with a bang, flash or burn marks; it trips again as soon as it is reset",
+        "With loads disconnected, resistance or insulation test between the conductors reads near zero"
+       ],
+       [
+        "**Earth (ground) fault**",
+        "A live conductor touches earth, an earthed metal case or conduit, or current leaks to earth through damp",
+        "A GFCI or RCD trips; a large fault trips the breaker; a metal case may give a shock",
+        "Insulation resistance test between the live conductors and earth: a low reading"
+       ],
+       [
+        "**Overload**",
+        "More current than the circuit or motor is made for: too many appliances, a jammed or overworked motor",
+        "Trips after a delay, not at once; cables, plugs or motors run hot",
+        "Compare the load with the rating; check the motor and its load; an authorised person may measure the current"
+       ],
+       [
+        "**High-resistance joint**",
+        "A loose, corroded or burnt connection",
+        "Flickering, dimming, buzzing, heat, a burning smell, brown or black marks; may work on and off",
+        "Look and smell; check tightness; continuity readings higher than expected"
+       ],
+       [
+        "**Insulation breakdown**",
+        "Insulation damaged by heat, age, rats, nails, water or chemicals",
+        "GFCI trips, earth faults, sometimes only in wet weather",
+        "Insulation resistance test: low readings"
+       ],
+       [
+        "**Wrong connection**",
+        "Wiring mistake: a switch in the neutral, reversed polarity, strappers mixed up",
+        "Equipment works wrongly or not at all; parts stay live when switched off",
+        "Compare with the drawing; polarity and continuity tests"
+       ],
+       [
+        "**Intermittent fault**",
+        "A fault that comes and goes",
+        "Works sometimes and fails sometimes, often with heat, vibration or rain",
+        "Ask when it happens; look for loose joints and water; test under the conditions that cause it"
+       ]
+      ]
+     }
+    },
+    {
+     "note": "A fault that **comes back** after a repair usually means the **real cause was not found**: for example, a fuse replaced without finding the damaged cable that blew it, or a motor overload reset without finding the jammed bearing.",
+     "label": "Remember"
+    }
+   ]
+  },
+  {
+   "title": "Gathering information and a logical method",
+   "blocks": [
+    {
+     "h": "Start with information"
+    },
+    {
+     "ul": [
+      "**Ask the user or operator**: what happened, when, how often, what they saw, heard or smelled, and what changed just before. 'It tripped when I plugged in the new kettle' saves an hour of testing.",
+      "**Read the fault history** on the equipment's history card or maintenance log. The fault may have happened before, with a known cause.",
+      "**Look and listen** before you touch: tripped breakers, blown fuses, burn marks, a hot or burning smell, water, loose covers, damage.",
+      "**Check your instruments** are working, undamaged and in date."
+     ]
+    },
+    {
+     "h": "Drawings"
+    },
+    {
+     "table": {
+      "head": [
+       "Drawing",
+       "What it shows",
+       "Use it to"
+      ],
+      "rows": [
+       [
+        "Circuit (schematic) diagram",
+        "How the circuit works: each part in logical order, not where it sits",
+        "Understand what should happen and list the parts that could cause the symptom"
+       ],
+       [
+        "Wiring (connection) diagram",
+        "How each wire is connected, terminal to terminal",
+        "Find the exact terminals to test and reconnect wires correctly"
+       ],
+       [
+        "Layout (location) drawing",
+        "Where the equipment, boxes and cable routes are in the building",
+        "Find the junction boxes, outlets and hidden cable runs"
+       ],
+       [
+        "Block diagram",
+        "The main parts and how they link",
+        "Get an overview of a large system"
+       ]
+      ]
+     }
+    },
+    {
+     "h": "The method"
+    },
+    {
+     "flow": [
+      "Collect information from the user, the history and the drawings",
+      "Look at the symptoms and check simple things first: a tripped breaker, a blown fuse, a failed lamp, a tripped GFCI",
+      "Work out from the drawing which parts could cause this symptom",
+      "Isolate, lock off, tag and prove dead",
+      "Test the likely parts in a sensible order",
+      "Find the faulty part and confirm the cause of the failure",
+      "Repair it properly",
+      "Test after the repair; an authorised person restores the supply",
+      "Check that the equipment works and the fault has gone",
+      "Record the fault, the cause, the repair and the tests"
+     ]
+    },
+    {
+     "h": "Ways to test in a sensible order"
+    },
+    {
+     "table": {
+      "head": [
+       "Way",
+       "How it works",
+       "When it helps"
+      ],
+      "rows": [
+       [
+        "Most likely and easiest first",
+        "Test the parts that fail most often, or are quickest to reach, before the rest",
+        "Most everyday faults"
+       ],
+       [
+        "Input to output",
+        "Start where the supply comes in and follow the path part by part",
+        "Short circuits with few parts"
+       ],
+       [
+        "**Half-split**",
+        "Test at the middle of the circuit; then at the middle of the half that is faulty; keep halving until the fault is found",
+        "Long chains of parts in series, such as a control circuit or a long cable run"
+       ],
+       [
+        "Compare with a good one",
+        "Two identical circuits: the working one shows what the faulty one should read",
+        "Repeated equipment, such as a row of identical lights or machines"
+       ]
+      ]
+     }
+    },
+    {
+     "ul": [
+      "**Change only one thing at a time**, then test again, so that you know which change cured the fault.",
+      "**Confirm the cause before you replace parts**, so that you fix the real fault and do not throw away good parts.",
+      "**Mark wires before you disconnect them** (wire markers or a quick sketch), so that each one goes back on the right terminal.",
+      "Use a **cable locator (detector)** to follow the route of a hidden cable in a wall or ceiling."
+     ]
+    }
+   ]
+  },
+  {
+   "title": "Test instruments and dead tests",
+   "blocks": [
+    {
+     "table": {
+      "head": [
+       "Instrument",
+       "Used for",
+       "Check before use"
+      ],
+      "rows": [
+       [
+        "Two-pole voltage tester and proving unit",
+        "Proving dead before work",
+        "Prove it on the proving unit before and after each test."
+       ],
+       [
+        "Multimeter (ohms and continuity ranges)",
+        "Continuity, the resistance of components, fuses and switches",
+        "Leads and probes undamaged; battery good; touch the leads together and read near zero."
+       ],
+       [
+        "Continuity tester (low-resistance ohmmeter)",
+        "Low resistance of conductors, including the earth conductor",
+        "Null (zero) the leads as the maker says."
+       ],
+       [
+        "Insulation resistance tester",
+        "Insulation between conductors, and between conductors and earth, at a high DC voltage",
+        "Choose the test voltage; check it reads open with the leads apart and zero with them together."
+       ],
+       [
+        "Cable locator",
+        "Tracing hidden cable routes",
+        "Battery; follow the maker's method."
+       ]
+      ]
+     }
+    },
+    {
+     "h": "Lead check (nulling)"
+    },
+    {
+     "p": "Before a resistance test, touch the meter's leads together. It should read near zero, often 0.1 to 0.5 Ω, which is the resistance of the leads themselves. If it reads open, a lead is broken or the meter is on the wrong range. Take the lead reading off your results, or use the meter's zero (null) button. Example: leads 0.4 Ω, conductor reading 0.9 Ω, so the conductor itself is 0.5 Ω."
+    },
+    {
+     "h": "Continuity and component tests"
+    },
+    {
+     "table": {
+      "head": [
+       "Part (disconnected, dead)",
+       "Good reading",
+       "Faulty reading"
+      ],
+      "rows": [
+       [
+        "Conductor, end to end",
+        "Near 0 Ω (a fraction of an ohm on short runs)",
+        "Open: a break. Higher than expected: a loose or corroded joint."
+       ],
+       [
+        "Equipment grounding (earth) conductor",
+        "Near 0 Ω from the panel's earth bar to each metal part",
+        "High or open: a loose or broken earth connection; dangerous."
+       ],
+       [
+        "Single-pole switch",
+        "Near 0 Ω when ON, open when OFF",
+        "Open both ways: failed contacts. Near 0 Ω both ways: welded contacts."
+       ],
+       [
+        "Fuse (removed)",
+        "Near 0 Ω",
+        "Open: the element has melted (blown)."
+       ],
+       [
+        "Heating element",
+        "Close to the value worked out from its rating",
+        "Open: burnt out. Low reading to earth: insulation failed."
+       ],
+       [
+        "Contactor or relay coil",
+        "The value in the maker's data, often tens to hundreds of ohms",
+        "Open: broken winding. Near 0 Ω: shorted coil."
+       ],
+       [
+        "Three-phase motor windings",
+        "All three about the same resistance",
+        "One open: broken winding. One clearly lower: shorted turns."
+       ],
+       [
+        "Single-phase motor windings",
+        "The start winding usually reads higher than the run winding (check the maker's data)",
+        "Open on either winding."
+       ],
+       [
+        "Motor capacitor (after discharging)",
+        "Within the tolerance printed on it, on a capacitance range",
+        "Well below its rating, open, shorted, bulging or leaking: replace with the same µF and voltage rating."
+       ]
+      ]
+     }
+    },
+    {
+     "h": "Insulation resistance test"
+    },
+    {
+     "flow": [
+      "Isolate, lock off and prove dead",
+      "Disconnect or remove anything the test voltage could damage or that would upset the reading: electronic equipment, dimmers, drives, surge protectors, LED drivers, lamps, and any device the maker says",
+      "Warn people nearby and make sure nobody can touch the conductors",
+      "Choose the test voltage the code or maker gives: commonly 500 V DC for 110/220 V circuits",
+      "Test between the live conductors, and between each live conductor and earth; for a motor, each winding to the frame",
+      "Read the result and let the tester discharge the circuit before you touch it",
+      "Reconnect everything you removed and record the results"
+     ]
+    },
+    {
+     "p": "A **high** reading, in megohms (MΩ), means good insulation. A **low** reading means damaged, dirty or wet insulation. A common minimum for 110/220 V circuits and motors is **1 MΩ**, but follow the code, the maker and your instructor; a healthy circuit normally reads far higher, often over 100 MΩ. A long cable acts like a capacitor and can hold a charge from the test, which is why the tester discharges it afterwards."
+    },
+    {
+     "h": "Polarity"
+    },
+    {
+     "p": "A **polarity test** checks that switches, fuses and breakers are in the **line** conductor, that the centre contact of a lamp holder is on the line, and that outlets are wired correctly (on NEC-style outlets, the shorter slot to line and the longer slot to neutral). A switch in the neutral turns a lamp off but leaves the fitting live."
+    }
+   ]
+  },
+  {
+   "title": "Finding faults in common circuits",
+   "blocks": [
+    {
+     "h": "Lighting circuits"
+    },
+    {
+     "table": {
+      "head": [
+       "Symptom",
+       "Likely causes",
+       "What to test"
+      ],
+      "rows": [
+       [
+        "One lamp out, others on the same switch work",
+        "The lamp; that lamp holder; its connections",
+        "Try a good lamp; continuity of that holder's switch wire and neutral."
+       ],
+       [
+        "A whole group of lamps out, other groups fine",
+        "The group's switch; the switch wire or neutral before the first lamp of the group",
+        "The switch (dead, disconnected); continuity of the switch wire and neutral to the first lamp."
+       ],
+       [
+        "Every lamp on the circuit out",
+        "Tripped breaker or blown fuse; the feed or neutral near the panel",
+        "The breaker and its terminals; continuity from the panel."
+       ],
+       [
+        "Two-way lamp works from one switch in only one position",
+        "A broken strapper (traveller) between the switches, or wires on the wrong terminals",
+        "Continuity of each strapper; check the common terminals against the drawing."
+       ],
+       [
+        "Lamp flickers",
+        "Loose connection, failing lamp or driver",
+        "Tightness of terminals; try a good lamp."
+       ]
+      ]
+     }
+    },
+    {
+     "p": "On **two-way switching** each switch has a **common** terminal (C or COM) and two strapper terminals (L1 and L2). The supply goes to the common of one switch, the two strappers join the switches, and the common of the other switch feeds the lamp."
+    },
+    {
+     "h": "Outlet circuits"
+    },
+    {
+     "ul": [
+      "Outlets are often wired in a chain: if one outlet and every outlet after it are dead, the break is usually at the **last outlet that works** or the first that does not.",
+      "Check for a **tripped GFCI outlet** first: one GFCI outlet often protects other outlets further along the circuit, which go dead when it trips.",
+      "Outlets wired through **push-in (back-wire) holes** often loosen, overheat and burn. Look for brown marks, melted plastic and a hot smell."
+     ]
+    },
+    {
+     "h": "Water heaters"
+    },
+    {
+     "ul": [
+      "A 220 V water heater has one or two elements, a thermostat and a **high-limit cut-out** with a reset button that trips if the water overheats.",
+      "No hot water with the breaker on: check the cut-out, then the element (open circuit) and the thermostat.",
+      "A tripped high-limit cut-out is a **symptom**: something made the water overheat, often a thermostat stuck closed, or an element with an earth fault. Find out why before resetting it.",
+      "A breaker or GFCI that trips when the heater switches on: insulation-test each element to the tank. A low reading means the element's sheath has failed and water has got in."
+     ]
+    },
+    {
+     "h": "Motor starter control circuits"
+    },
+    {
+     "p": "A **direct-on-line (DOL) starter** starts a motor with a contactor. In the control circuit, the current flows through the **control fuse**, the **stop button** (normally closed), the **start button** (normally open), the **contactor coil** and the **overload relay's contact** (normally closed). An auxiliary contact on the contactor, the **hold-in (seal-in) contact**, is wired across the start button, so that the coil stays on when start is released."
+    },
+    {
+     "table": {
+      "head": [
+       "Symptom",
+       "Likely causes",
+       "What to test (dead, isolated)"
+      ],
+      "rows": [
+       [
+        "Nothing happens when start is pressed; no click",
+        "Blown control fuse; tripped overload; stop button or its wiring open; open coil; no control supply",
+        "Check the overload and fuse first; continuity through each part in order; the coil's resistance."
+       ],
+       [
+        "Runs only while start is held in",
+        "The hold-in contact or its link is open or not connected",
+        "Continuity of the hold-in contact and its wiring, with the contactor pushed in by hand where the maker allows, or as the drawing shows."
+       ],
+       [
+        "Contactor pulls in but the motor does not run, or only hums",
+        "A burnt main contact, a blown power fuse (one phase missing), a loose power terminal, an open winding",
+        "The main contacts; the power fuses; each winding's resistance."
+       ],
+       [
+        "Runs, then the overload trips after some time",
+        "The motor draws too much current: a jammed or overloaded machine, worn bearings, a missing phase; or the overload is set too low",
+        "The machine and its load; the overload setting against the nameplate full-load current."
+       ],
+       [
+        "Breaker trips as soon as the motor starts",
+        "A short or earth fault in the motor or its cable",
+        "Insulation test of the cable and each winding to the frame."
+       ]
+      ]
+     }
+    },
+    {
+     "h": "Single-phase motors"
+    },
+    {
+     "p": "A single-phase motor that **hums but will not start** usually has a failed **start or run capacitor**, or a faulty starting switch inside the motor. Discharge the capacitor, then check it on a capacitance range, or replace it with one of the same capacitance (µF) and voltage rating. Never try to start a motor by spinning the shaft by hand."
+    }
+   ]
+  },
+  {
+   "title": "Repairing faults properly",
+   "blocks": [
+    {
+     "p": "A repair must leave the circuit at least as safe as it was designed to be, and it must last. Before any repair, the circuit is isolated, locked off, tagged and proved dead."
+    },
+    {
+     "table": {
+      "head": [
+       "Repair",
+       "Do",
+       "Do not"
+      ],
+      "rows": [
+       [
+        "Protective devices",
+        "Replace with the same type and rating as the drawing or schedule shows",
+        "Fit a larger rating, or a different type that does not match the panel"
+       ],
+       [
+        "Damaged cable",
+        "Find out what damaged it; replace the length, or join new cable of the same type and size with approved connectors inside a box that stays reachable",
+        "Wrap the damage in tape, twist conductors together, or bury a joint in a wall or ceiling"
+       ],
+       [
+        "Burnt terminals and devices",
+        "Replace the burnt outlet, switch or connector; cut conductors back to clean, bright copper",
+        "Clean up a burnt device and refit it, or reuse blackened, hardened conductor ends"
+       ],
+       [
+        "Terminations",
+        "Strip with **wire strippers** set to the conductor size, to the length the terminal needs; fit conductors fully; tighten to the maker's torque; use ferrules on stranded conductors",
+        "Leave bare copper showing, nick the strands, or overtighten and crush the conductor"
+       ],
+       [
+        "Components (coils, elements, capacitors, switches)",
+        "Replace like for like: same voltage, current, power or capacitance rating, as the drawing or nameplate shows",
+        "Fit 'something that fits' from the store"
+       ],
+       [
+        "Wiring changes",
+        "Mark wires before you disconnect them; reconnect as the drawing shows",
+        "Rely on memory"
+       ]
+      ]
+     }
+    },
+    {
+     "ul": [
+      "**Tape is not a repair.** It works loose with heat and age, gives no protection against crushing or rats, and hides damage from the next person.",
+      "**Protect the repair from the cause.** A cable crushed by a forklift needs a new route or a guard; a cable chewed by rats may need conduit; a fitting flooded by rain needs a weatherproof cover.",
+      "Use the right materials: cable of the same type and size, connectors rated for the conductors, boxes with covers.",
+      "Before a cover goes back on, check that **no tools, off-cuts or loose screws** are left inside the panel or box, and that no bare conductors show."
+     ]
+    },
+    {
+     "note": "Rats are a common cause of faults in Jamaican roofs and ceilings. When you find chewed cable, check the rest of that roof space, report it, and suggest that the run be protected in conduit or trunking.",
+     "label": "Jamaica"
+    }
+   ]
+  },
+  {
+   "title": "Testing after repair, handing back and records",
+   "blocks": [
+    {
+     "h": "Before anything is switched on"
+    },
+    {
+     "flow": [
+      "Check the repair: terminals tight, no bare conductors, covers fitted, nothing left inside",
+      "Continuity of the equipment grounding (earth) conductor to every metal part",
+      "Continuity of the circuit conductors you worked on",
+      "Insulation resistance, with electronics and lamps disconnected",
+      "Polarity: switches and protective devices in the line conductor",
+      "Compare the results with the expected values and record them"
+     ]
+    },
+    {
+     "h": "Switching on"
+    },
+    {
+     "ul": [
+      "Remove your lock and tag only when the dead tests have passed.",
+      "**An authorised person** switches the supply back on and carries out any live checks the code requires, such as testing a GFCI with its test button and the checks an authorised tester makes.",
+      "Check that the equipment works as it should and that **the original fault has gone**. For a motor, check start, stop, the hold-in and the overload.",
+      "Explain the repair to the user, and anything they should watch for."
+     ]
+    },
+    {
+     "h": "The fault report"
+    },
+    {
+     "table": {
+      "head": [
+       "Part of the report",
+       "What to write"
+      ],
+      "rows": [
+       [
+        "The equipment",
+        "Its name or number, location, the date and time, who reported the fault"
+       ],
+       [
+        "The fault",
+        "What was reported and the symptoms you found"
+       ],
+       [
+        "Tests and readings",
+        "Each test you did and its result"
+       ],
+       [
+        "The cause",
+        "What failed and why it failed"
+       ],
+       [
+        "The repair",
+        "What you did, the parts used with their ratings and part numbers"
+       ],
+       [
+        "Tests after repair",
+        "The dead tests and the functional check, with results"
+       ],
+       [
+        "Outstanding work",
+        "Anything still to be done, such as a part on order"
+       ],
+       [
+        "Sign-off",
+        "Your name and signature, the time taken, and the supervisor's check"
+       ]
+      ]
+     }
+    },
+    {
+     "p": "Good records prove that the work was done safely and properly, help the next person, show up faults that keep coming back so that their real cause can be found, and help plan maintenance and order spares. Write the repair on the equipment's **history card** or maintenance log too."
+    },
+    {
+     "h": "A fault you cannot repair today"
+    },
+    {
+     "flow": [
+      "Make it safe: leave it isolated, or disconnect the faulty part",
+      "Lock and tag it so that nobody uses it",
+      "Tell the supervisor and the user",
+      "Report it and record it, with what is needed to finish the repair"
+     ]
+    },
+    {
+     "note": "Never leave a faulty circuit switched on for the user 'to manage until next week', and never cover a fault with a quick taped repair. If you cannot fix it properly, make it safe and report it.",
+     "label": "Safety"
+    }
+   ]
+  },
+  {
+   "title": "Revision",
+   "blocks": [
+    {
+     "h": "Checklist"
+    },
+    {
+     "p": "Tick each statement only when you can do it without looking at the notes."
+    },
+    {
+     "ul": [
+      "I can gather information about a fault from the user, the fault history and the drawings.",
+      "I can isolate, lock off, tag and prove a circuit dead before testing, and keep my lock on until the work is finished.",
+      "I can explain why a fuse or breaker must never be upsized or bypassed, and why the cause of a trip must be found first.",
+      "I can use V = I × R and P = V × I to work out the current and resistance I expect.",
+      "I can describe open circuits, short circuits, earth faults, overloads, loose joints and intermittent faults and their symptoms.",
+      "I can follow a logical fault-finding method, including the half-split method.",
+      "I can tell a circuit diagram from a wiring diagram and use each one.",
+      "I can null my meter leads and carry out continuity, resistance and insulation resistance tests safely.",
+      "I can read test results on conductors, switches, fuses, elements, coils, windings and capacitors.",
+      "I can find faults in lighting, outlet, water heater and DOL starter control circuits.",
+      "I can repair cables, terminals and components properly, like for like.",
+      "I can carry out the tests after a repair and hand the circuit back.",
+      "I can write a fault report and say what to do with a fault I cannot repair."
+     ]
+    },
+    {
+     "h": "Formulas to remember"
+    },
+    {
+     "table": {
+      "head": [
+       "Formula",
+       "Example"
+      ],
+      "rows": [
+       [
+        "V = I × R",
+        "16 A through a 0.25 Ω joint loses 4 V"
+       ],
+       [
+        "I = P ÷ V",
+        "3,000 W on 220 V draws about 13.6 A"
+       ],
+       [
+        "R = V × V ÷ P",
+        "A 3,000 W, 220 V element reads about 16 Ω"
+       ],
+       [
+        "P = I × I × R",
+        "16 A in a 0.25 Ω joint makes 64 W of heat"
+       ]
+      ]
+     }
+    },
+    {
+     "h": "Key terms"
+    },
+    {
+     "terms": [
+      [
+       "Circuit (schematic) diagram",
+       "A drawing that shows how a circuit works, with its parts in logical order."
+      ],
+      [
+       "Continuity test",
+       "A test that shows whether there is a complete path, using a low-resistance range."
+      ],
+      [
+       "DOL starter",
+       "Direct-on-line starter: a contactor and overload relay that connect a motor straight to the supply."
+      ],
+      [
+       "Earth (ground) fault",
+       "A fault in which a live conductor touches earth or an earthed metal part."
+      ],
+      [
+       "GFCI",
+       "Ground-fault circuit interrupter: a device that trips when current leaks to earth (RCD in British terms)."
+      ],
+      [
+       "Half-split method",
+       "Testing at the middle of a circuit, then at the middle of the faulty half, and so on."
+      ],
+      [
+       "High-resistance joint",
+       "A loose, corroded or burnt connection that heats up under load."
+      ],
+      [
+       "History card",
+       "The record of every fault and repair on one machine or piece of equipment."
+      ],
+      [
+       "Hold-in (seal-in) contact",
+       "An auxiliary contact across the start button that keeps a contactor coil on after start is released."
+      ],
+      [
+       "Insulation resistance test",
+       "A test at a high DC voltage that measures how well insulation keeps conductors apart."
+      ],
+      [
+       "Intermittent fault",
+       "A fault that comes and goes."
+      ],
+      [
+       "MCB",
+       "Miniature circuit breaker."
+      ],
+      [
+       "Open circuit",
+       "A break in a circuit, so that no current can flow."
+      ],
+      [
+       "Overload",
+       "More current than a circuit or motor is made to carry, for longer than it can stand."
+      ],
+      [
+       "Polarity",
+       "The correct connection of line and neutral, with switches and fuses in the line."
+      ],
+      [
+       "Proving unit",
+       "A small device that gives a known voltage, to check a voltage tester."
+      ],
+      [
+       "Short circuit",
+       "A fault in which line touches neutral or another line, so that a very large current flows."
+      ],
+      [
+       "Wiring diagram",
+       "A drawing that shows how each wire is connected, terminal to terminal."
+      ]
+     ]
+    }
+   ]
+  }
+ ],
+ "cases": {
+  "c1": {
+   "title": "Lights out in a Christiana church hall",
+   "text": "A church hall in Christiana, Manchester, has six ceiling lights on one 15 A lighting circuit. They are switched in two groups of three by two one-way switches beside the door; in each group the switch wire runs to the first light, then on to the second and third. On Sunday the three lights nearest the stage stopped working; the other three still work. Trainee Romario and electrician Mr Winston Clarke are sent to find the fault."
+  },
+  "c2": {
+   "title": "A cold water heater in Portmore",
+   "text": "A family in Portmore, St Catherine, says their 220 V electric water heater gives only cold water, although its 20 A two-pole breaker has not tripped. The heater has one 3,000 W element, a thermostat and a high-limit cut-out with a red reset button, which has popped out. Trainee Kimberley and electrician Mr Wayne Morgan isolate the heater, lock it off, prove it dead and take off the cover."
+  },
+  "c3": {
+   "title": "A block-factory mixer in Old Harbour",
+   "text": "A concrete-block factory in Old Harbour, St Catherine, has a mixer driven by a three-phase motor through a direct-on-line (DOL) starter with a contactor, an overload relay, and start and stop buttons. The motor's nameplate gives a full-load current of 11 A. Trainee Shamar and maintenance electrician Mrs Marcia Thompson are called because the mixer now runs only while the start button is held in."
+  },
+  "c4": {
+   "title": "A tripping deck circuit at a Negril restaurant",
+   "text": "A seafood restaurant in Negril, Westmoreland, has outdoor outlets on its deck, protected by a GFCI breaker. The breaker trips during heavy rain, and sometimes again an hour after the rain stops; on dry days it never trips, and nothing is plugged into the deck outlets at night. Trainee Jodian and electrician Mr Ricardo Bailey are called in."
+  },
+  "c5": {
+   "title": "A burnt outlet in a Morant Bay computer lab",
+   "text": "In the computer lab of a high school in Morant Bay, St Thomas, a duplex outlet smells burnt and has brown marks round one slot. When trainee Alicia and electrician Mr Neville Gordon open it, they find that the wires were pushed into the push-in holes at the back instead of being fixed under the screws, and one connection has burnt. The other outlets on the same circuit were installed the same way."
+  }
+ },
+ "questions": [
+  {
+   "id": "P-01",
+   "c": "c1",
+   "q": "The three lights by the door still work. What does this tell Romario about the fault?",
+   "o": [
+    "The breaker has tripped, so the whole circuit needs testing",
+    "All three of the stage-end lamps must have failed at once",
+    "The breaker and supply are fine; the fault is in that group",
+    "The other group's switch is faulty and is feeding the wrong lights"
+   ],
+   "a": 2,
+   "why": "Both groups share the breaker and the supply, so if one group works the breaker and the feed are good. The fault must be in the part used only by the stage-end group: its switch, its switch wire or its neutral."
+  },
+  {
+   "id": "P-02",
+   "c": "c1",
+   "q": "In the stage-end group the switch wire runs from the switch to the first light, then to the second and third. All three lights are out. Where must the break be?",
+   "o": [
+    "Between the second and third lights, where the chain is longest",
+    "In the switch, or the wiring before the first light of the group",
+    "In each of the three lamp holders, which have all failed together",
+    "At the last light, because the end of a chain always fails first"
+   ],
+   "a": 1,
+   "why": "A break after the first light would leave the first light working. Since all three are out, the fault is before the first light: in the switch, the switch wire to the first light, or the neutral that feeds the group."
+  },
+  {
+   "id": "P-03",
+   "c": "c1",
+   "q": "With the circuit isolated, Romario disconnects the group's switch and tests it. It reads open circuit in both the ON and the OFF positions. What does this show?",
+   "o": [
+    "The switch is working, since a switch should read open when off",
+    "The meter leads are faulty, as a switch cannot read open when on",
+    "The switch's contacts have failed, so it must be replaced",
+    "The switch is fine, but it is fitted upside down in its box"
+   ],
+   "a": 2,
+   "why": "A good switch reads near 0 Ω when ON and open when OFF. Open in both positions means the contacts no longer close. Do a lead check first to make sure the meter is not at fault, then replace the switch with one of the same rating."
+  },
+  {
+   "id": "P-04",
+   "c": "c1",
+   "q": "Inside the switch box the end of the switch wire is brown and hard, and its terminal screw is loose. How should Romario repair it?",
+   "o": [
+    "Cut back to clean copper, fit a new switch and tighten the screw",
+    "Scrape the brown insulation off, refit the old switch and tighten it",
+    "Wrap the brown part of the conductor in tape and tighten the screw",
+    "Leave the screw slightly loose so that the conductor can cool down"
+   ],
+   "a": 0,
+   "why": "A loose terminal heats up and damages both the device and the conductor end. Cut back to bright, undamaged copper, strip to the right length, fit a new switch and tighten to the maker's torque, so that the joint does not overheat again."
+  },
+  {
+   "id": "P-05",
+   "c": "c2",
+   "q": "Before testing the element, Kimberley works out what a healthy 3,000 W, 220 V element should read. About what resistance should she expect?",
+   "o": [
+    "About 16 Ω",
+    "About 13.6 Ω",
+    "About 660 Ω",
+    "About 0.07 Ω"
+   ],
+   "a": 0,
+   "why": "R = V × V ÷ P = 220 × 220 ÷ 3,000 = about 16 Ω. (13.6 is the current in amps, I = P ÷ V.) A reading close to 16 Ω means the element is whole; an open reading means it has burnt out."
+  },
+  {
+   "id": "P-06",
+   "c": "c2",
+   "q": "Kimberley presses the cut-out's reset button and it clicks in. What should she do before the supply is restored?",
+   "o": [
+    "Restore the supply, since the reset has cured the fault",
+    "Test the thermostat and element to find why it tripped",
+    "Bridge out the cut-out so that it cannot trip again later",
+    "Ask for a larger breaker so that the heater heats faster"
+   ],
+   "a": 1,
+   "why": "The high-limit cut-out trips when the water gets too hot, which usually means the thermostat has stuck closed or the element is faulty. Resetting it without finding the cause leaves the fault there, and it will trip again or, worse, overheat."
+  },
+  {
+   "id": "P-07",
+   "c": "c2",
+   "q": "Kimberley's insulation resistance test from the element's terminals to the metal tank reads 0.05 MΩ. What does this show?",
+   "o": [
+    "The element is in good order, as any reading above zero is a pass",
+    "The tank is not earthed, so the test should be repeated to the pipe",
+    "The tester needs new batteries, since the reading is so very small",
+    "The element's insulation has failed; it must be replaced"
+   ],
+   "a": 3,
+   "why": "Between the element and its earthed tank the reading should be many megohms. 0.05 MΩ shows a leakage path, usually water inside a cracked element sheath. It is an earth fault, which can make a GFCI or breaker trip, and the element must be replaced like for like."
+  },
+  {
+   "id": "P-08",
+   "c": "c3",
+   "q": "The mixer runs only while the start button is held in. Which fault is most likely?",
+   "o": [
+    "The hold-in contact or its wiring across start is open",
+    "The stop button's contacts have welded shut and cannot open",
+    "The motor has a broken winding in one of its three phases",
+    "The overload relay is set far too high for the motor"
+   ],
+   "a": 0,
+   "why": "The hold-in (seal-in) contact is wired across the start button so that the coil stays on once start is released. If it or its link is open, the coil drops out as soon as the button is let go. Test its continuity with the circuit isolated."
+  },
+  {
+   "id": "P-09",
+   "c": "c3",
+   "q": "On another day Mrs Thompson tests the motor's three windings: 5.1 Ω, 5.0 Ω and 2.3 Ω. What does this show?",
+   "o": [
+    "Winding 3 is the best, as it has the lowest resistance",
+    "All three windings are fine, as none reads open circuit",
+    "Windings 1 and 2 are faulty, as they read higher than 3",
+    "Winding 3 has shorted turns; the motor needs repair"
+   ],
+   "a": 3,
+   "why": "The three windings of a healthy three-phase motor read about the same. One reading clearly lower than the others means some turns are shorted together, which makes the motor run hot and trip. It must be rewound or replaced."
+  },
+  {
+   "id": "P-10",
+   "c": "c3",
+   "q": "After the mixer has been washed down, an insulation test from the windings to the motor frame reads 0.3 MΩ. What should happen?",
+   "o": [
+    "Run the motor, since the heat will soon dry the windings out",
+    "Treat it as damp or damaged; dry it out and retest before use",
+    "Ignore it, as the test voltage was higher than the motor's own",
+    "Connect the frame to neutral so that the leakage has a path"
+   ],
+   "a": 1,
+   "why": "A low reading to the frame means a leakage path, often water in the windings or terminal box. Running it could cause an earth fault or burn out the motor. Dry it as the maker says, retest, and look for how the water got in."
+  },
+  {
+   "id": "P-11",
+   "c": "c3",
+   "q": "After the repair, Shamar sees that the overload relay dial is set to 30 A. What should be done?",
+   "o": [
+    "Leave it at 30 A, so that the overload never trips during work",
+    "Set it to the lowest number on the dial, to protect the motor more",
+    "Set it to the motor's full-load current as the maker's data says",
+    "Remove the overload, since the breaker already protects the motor"
+   ],
+   "a": 2,
+   "why": "An overload relay protects the motor only if it is set to the motor's full-load current, here 11 A, as the maker says. Set at 30 A, it would let the motor overheat and burn out without tripping; set too low, it trips during normal work."
+  },
+  {
+   "id": "P-12",
+   "c": "c4",
+   "q": "Which kind of fault is this most likely to be?",
+   "o": [
+    "An overload from too many appliances used on the deck",
+    "A GFCI breaker that has worn out and now trips at random",
+    "A short between line and neutral inside the main panel",
+    "An earth fault from water getting into a fitting or box"
+   ],
+   "a": 3,
+   "why": "The breaker trips only in or just after rain, and with no load plugged in, so it is not an overload. Water lowers the insulation between live parts and earth, and current leaks to earth, which is what a GFCI detects."
+  },
+  {
+   "id": "P-13",
+   "c": "c4",
+   "q": "With the deck circuit isolated, which test is most useful for finding this fault?",
+   "o": [
+    "Insulation resistance from each live conductor to earth",
+    "Continuity of the neutral from the panel to each outlet",
+    "A polarity check of the wiring at the GFCI breaker",
+    "A voltage check at each outlet with the circuit on"
+   ],
+   "a": 0,
+   "why": "An insulation resistance test between the live conductors and earth shows low readings where water has got in. Testing outlet by outlet, or splitting the circuit in half, narrows it down. A test soon after rain is more likely to catch it."
+  },
+  {
+   "id": "P-14",
+   "c": "c4",
+   "q": "Jodian finds one deck outlet box full of water behind a cracked cover. What is the proper repair?",
+   "o": [
+    "Drill a drain hole in the bottom of the box and leave the outlet in",
+    "Seal round the cracked cover with tape and restore the supply",
+    "Replace the outlet, and fit a weatherproof cover rated for outdoors",
+    "Change the GFCI breaker for a standard breaker that ignores water"
+   ],
+   "a": 2,
+   "why": "Water has damaged the outlet, so it is replaced. A weatherproof (in-use) cover keeps rain out even with a plug in. Then insulation-test the circuit again before the supply is restored. Removing the GFCI would take away people's shock protection in a wet place."
+  },
+  {
+   "id": "P-15",
+   "c": "c5",
+   "q": "How should Alicia repair the burnt outlet?",
+   "o": [
+    "Clean off the brown marks, push the wires back in and refit it",
+    "Fit a new outlet on clean copper, using the screw terminals",
+    "Fit a new outlet and push the old blackened wires into its holes",
+    "Wrap the burnt connection in tape and refit the outlet carefully"
+   ],
+   "a": 1,
+   "why": "A burnt outlet must be replaced, and blackened, hardened conductor ends cut back to clean copper. Fixing the conductors firmly under the screw terminals, tightened to the maker's torque, makes a joint that will not loosen and overheat."
+  },
+  {
+   "id": "P-16",
+   "c": "c5",
+   "q": "Why is it worth opening the other outlets on the same circuit?",
+   "o": [
+    "They were wired the same way, so they may be loose too",
+    "Opening them resets the breaker, which then trips less often",
+    "The code says every outlet must be opened whenever one is changed",
+    "The burnt outlet may have sent damaging current into the others"
+   ],
+   "a": 0,
+   "why": "The same push-in connections were used throughout, so other outlets may already be loose and starting to overheat. Finding them now prevents the next fire. Record what you find in the report."
+  },
+  {
+   "id": "P-17",
+   "c": "c5",
+   "q": "After the repair, which test shows that the outlet's shorter slot is connected to the line conductor?",
+   "o": [
+    "An insulation resistance test",
+    "A polarity test",
+    "An earth continuity test",
+    "A test of a GFCI with its button"
+   ],
+   "a": 1,
+   "why": "A polarity test checks that line and neutral are on the right terminals, with switches and protective devices in the line. On NEC-style outlets the shorter slot is line and the longer slot is neutral."
+  },
+  {
+   "id": "P-18",
+   "c": null,
+   "q": "With its leads touched together, a meter reads 0.4 Ω. A conductor then reads 0.9 Ω. What is the conductor's own resistance?",
+   "o": [
+    "0.4 Ω",
+    "0.9 Ω",
+    "0.5 Ω",
+    "1.3 Ω"
+   ],
+   "a": 2,
+   "why": "The 0.4 Ω is the resistance of the leads, so it is taken off the reading: 0.9 − 0.4 = 0.5 Ω. Always do a lead check before a resistance test, or use the meter's null button."
+  },
+  {
+   "id": "P-19",
+   "c": null,
+   "q": "A loose joint has a resistance of 0.25 Ω and carries 16 A. About how much heat does it make?",
+   "o": [
+    "About 4 W",
+    "About 16 W",
+    "About 0.25 W",
+    "About 64 W"
+   ],
+   "a": 3,
+   "why": "P = I × I × R = 16 × 16 × 0.25 = 64 W, like a small heater inside the box. That heat browns and burns the terminal, which loosens it further. (4 V is the voltage lost across the joint, not the power.)"
+  },
+  {
+   "id": "P-20",
+   "c": null,
+   "q": "A machine's control circuit has eight parts in a chain, and the coil gets no supply. Using the half-split method, where should you test first?",
+   "o": [
+    "At the first part, then each part in turn along the chain",
+    "At the last part, because it is the furthest from the supply",
+    "At the part that failed on another machine last month",
+    "Between parts 4 and 5, in the middle of the chain"
+   ],
+   "a": 3,
+   "why": "Half-split starts in the middle: the reading there shows which half holds the fault. Then you test the middle of that half, and so on. With eight parts it takes at most three tests to find the faulty one."
+  }
+ ]
+}

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <script src="cestis-config.js?v=284ebb2a"></script>
-<script src="cestis-core.js?v=09be8752"></script>
+<script src="cestis-core.js?v=bc7740cf"></script>
 <script src="transcript-assets.js?v=b9294324"></script>
 <!-- jsPDF (364 KB) is fetched the first time a PDF is wanted: see pdfLib() below. -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1507,7 +1507,8 @@ function renderStudent() {
   var stats = T.gradeStats(rows, q);
   var canTranscript = !T.hasOpenRequest(db.requests, s.id, 'transcript');
   var canCert = !T.hasOpenRequest(db.requests, s.id, 'certificate');
-  var myReqs = db.requests.filter(function (r) { return r && r.studentId === s.id; })
+  // A request the office deleted is not hers to see any more.
+  var myReqs = db.requests.filter(function (r) { return r && r.studentId === s.id && r.deleted !== true; })
     .sort(function (a, b) { return String(b.requestedAt).localeCompare(String(a.requestedAt)); });
 
   app.innerHTML =

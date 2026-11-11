@@ -1,0 +1,1297 @@
+{
+ "format": "cestis-study-kit",
+ "version": 1,
+ "status": "to-check",
+ "written": "2026-11-07",
+ "programme": "Electrical Installation",
+ "qualification": {
+  "id": "QUAL-EIM-L2",
+  "title": "ELECTRICAL INSTALLATION AND MAINTENANCE LEVEL 2",
+  "code": "EEM20723"
+ },
+ "level": 2,
+ "unit": {
+  "code": "MEMMRD0091D",
+  "title": "Terminate basic signal and data cables"
+ },
+ "summary": "This unit teaches you to terminate the signal and data cables found in homes, offices, shops and hotels: twisted-pair network cable, coaxial cable for TV, satellite and CCTV, and multi-core cables for alarms, intercoms and telephones. You will learn to choose the right cable, connector and tool, follow the T568A and T568B colour codes, fit plugs, jacks, patch panels and coax connectors, and then test, label and record every link.",
+ "sections": [
+  {
+   "title": "Unit overview",
+   "blocks": [
+    {
+     "p": "Data and signal cables carry information, not power: computer networks, telephones, TV and satellite signals, security cameras, alarms and intercoms. A link that is badly terminated may work for a day and then fail, or run slowly for years without anyone knowing why. This unit is for Level 2 trainees in Electrical Installation and Maintenance, who more and more are asked to install and terminate these cables alongside the power wiring."
+    },
+    {
+     "h": "What you must be able to do"
+    },
+    {
+     "table": {
+      "head": [
+       "Task",
+       "What it looks like on the job"
+      ],
+      "rows": [
+       [
+        "Work safely",
+        "Disconnect cables that may carry power or a ringing voltage, protect your eyes from off-cuts, work safely at height and keep clear of mains cables."
+       ],
+       [
+        "Prepare for the job",
+        "Read the drawing or cable schedule, check the cable type on the reel, and collect the right connectors, tools and labels."
+       ],
+       [
+        "Identify cables and connectors",
+        "Tell twisted pair, coax, telephone, screened signal and fibre cable apart, and match each to its connectors."
+       ],
+       [
+        "Use the colour codes",
+        "Terminate twisted pair to T568A or T568B as the job says, the same way at every point."
+       ],
+       [
+        "Terminate twisted-pair cable",
+        "Fit RJ45 plugs to patch leads, and punch cables down on keystone jacks and patch panels."
+       ],
+       [
+        "Terminate coaxial cable",
+        "Strip coax without damage and fit compression F-type and BNC connectors."
+       ],
+       [
+        "Terminate multi-core signal cable",
+        "Connect alarm, intercom and telephone cores to screw terminals, with ferrules and the screen connected as the drawing says."
+       ],
+       [
+        "Handle and route cables correctly",
+        "Pull gently, keep bends gentle, support runs, use snug ties and keep away from power cables."
+       ],
+       [
+        "Test, label and record",
+        "Test every link, find and remake faults, label both ends with the same number and fill in the test record."
+       ]
+      ]
+     }
+    },
+    {
+     "h": "Signal and data cabling in Jamaica"
+    },
+    {
+     "ul": [
+      "Offices, schools, hotels and shops use **twisted-pair (Cat 5e, Cat 6 and Cat 6A)** cable for their computer networks, phones, Wi-Fi access points and network cameras.",
+      "Homes, guest houses and hotels use **coaxial cable** from satellite dishes and cable TV services; many businesses still have analogue CCTV cameras on coax.",
+      "Security alarms, gate intercoms and access control use **multi-core** cables, often screened, terminated at screw terminals.",
+      "Jamaica's heat, sun, rain and salt air near the coast are hard on outdoor cables and connectors, so use outdoor-rated cable and weatherproof connections outside."
+     ]
+    },
+    {
+     "note": "These cables carry low voltages, but you often install them beside 110 V and 220 V wiring, in ceilings and in panels. Treat every power cable you meet as live, and never move or open a power circuit unless it has been safely isolated by an authorised person.",
+     "label": "Safety"
+    },
+    {
+     "h": "How to use this kit"
+    },
+    {
+     "p": "Read the sections in order: safety, cable types, connectors and tools, colour codes, then each kind of termination, then handling, testing and records. Then try the practice test and read every explanation. Your instructor will show you the Centre's own tools and testers; always follow the connector and tool maker's instructions."
+    }
+   ]
+  },
+  {
+   "title": "Safety when terminating signal and data cables",
+   "blocks": [
+    {
+     "table": {
+      "head": [
+       "Hazard",
+       "Why it matters",
+       "Control"
+      ],
+      "rows": [
+       [
+        "Power over Ethernet (PoE)",
+        "Network switches can send DC power, often around 44 to 57 V, down data cables to cameras, phones and Wi-Fi points. Plugging and unplugging under load can spark and damage contacts.",
+        "Unplug both ends, or have the switch port turned off, before you re-terminate a cable."
+       ],
+       [
+        "Telephone lines",
+        "A line sits at about 48 V DC, and the ringing voltage can be around 90 V AC. It can give a painful shock.",
+        "Disconnect the line at the incoming point, or have the provider do it, before you work on it."
+       ],
+       [
+        "Coax from satellite receivers and some cameras",
+        "A satellite receiver sends a DC voltage up the coax to power the dish's LNB; some cameras are also powered over coax. A short can damage the equipment.",
+        "Switch off and unplug the receiver, recorder or camera supply before you disconnect the coax."
+       ],
+       [
+        "Mains cables nearby",
+        "Data cables often share ceilings, walls and trunking routes with 110 V and 220 V wiring.",
+        "Treat mains cables as live; do not disturb them; never pull data cable through a box that holds live terminals."
+       ],
+       [
+        "Fibre-optic cable",
+        "Laser light in a fibre can damage your eyes, and you may not be able to see it. Broken glass fibre splinters into skin.",
+        "Never look into a fibre end or connector. Leave fibre work to trained technicians; pick up fibre off-cuts with tape and put them in a marked container."
+       ],
+       [
+        "Flying off-cuts",
+        "Short, sharp ends of copper and braid fly when you trim conductors.",
+        "Wear **safety glasses**; point the cut away from people."
+       ],
+       [
+        "Blades and sharp ends",
+        "Strippers, cutters and punch-down tools are sharp; braid strands are like needles.",
+        "Use the right tool, keep fingers clear, cut away from your body, and pick up off-cuts at once."
+       ],
+       [
+        "Work at height",
+        "Much data cable runs above ceilings.",
+        "Use a sound stepladder or platform set up properly; never stand on the top step, a chair or the ceiling grid."
+       ],
+       [
+        "Roof spaces",
+        "Jamaican roof spaces get very hot; there may be dust, fibreglass insulation, wasps and rats.",
+        "Plan short spells, drink water, wear a dust mask and long sleeves, and look before you reach."
+       ]
+      ]
+     }
+    },
+    {
+     "note": "Never plug a test lead, a tester or a cable you are working on into a live network switch, telephone line, satellite receiver or camera unless your supervisor tells you to. Many cable testers are damaged by the voltage on a live port or line.",
+     "label": "Remember"
+    },
+    {
+     "h": "Before you start"
+    },
+    {
+     "flow": [
+      "Read the drawing or cable schedule: the cable type, the connector and the label for each end",
+      "Check the type printed on the cable reel or box against the job specification",
+      "Collect the right connectors, tools, tester and labels",
+      "Disconnect or have isolated any equipment on the cables you will work on",
+      "Set up your ladder and work area, and put on safety glasses"
+     ]
+    }
+   ]
+  },
+  {
+   "title": "Cable types",
+   "blocks": [
+    {
+     "h": "Twisted-pair data cable"
+    },
+    {
+     "p": "Twisted-pair cable has **eight thin insulated copper conductors, twisted into four pairs**, inside an outer jacket. Each pair has a solid colour and a white partner striped with that colour: **blue, orange, green and brown**. The twists make interference picked up from outside cancel out, and stop the signal on one pair leaking into the next (**crosstalk**). Each pair has a different twist rate, which is why you must not untwist more than you need."
+    },
+    {
+     "table": {
+      "head": [
+       "Category",
+       "Typical use",
+       "Usual limits (channel up to 100 m unless stated)"
+      ],
+      "rows": [
+       [
+        "Cat 5e",
+        "Older and budget networks",
+        "Up to 1 Gb/s; rated to 100 MHz."
+       ],
+       [
+        "Cat 6",
+        "Most new office and school networks",
+        "Up to 1 Gb/s at 100 m; 10 Gb/s only on shorter runs, about 55 m; rated to 250 MHz."
+       ],
+       [
+        "Cat 6A",
+        "Fast links, busy Wi-Fi points, many PoE devices",
+        "Up to 10 Gb/s at 100 m; rated to 500 MHz. Thicker and stiffer than Cat 6."
+       ]
+      ]
+     }
+    },
+    {
+     "ul": [
+      "'**Cat**' stands for **category**. A link is only as good as its lowest-rated part, so a Cat 6 cable with Cat 5e jacks is a Cat 5e link.",
+      "**UTP** means unshielded twisted pair. **Screened** cables have foil or braid: **F/UTP** has one foil round all the pairs; **U/FTP** has foil on each pair. Screened cable needs screened plugs and jacks, with the screen connected as the maker says.",
+      "**Solid** conductors are used for the fixed cable in walls and ceilings, terminated on jacks and patch panels. **Stranded** conductors are used for patch leads, because they bend without breaking. Use plugs made for the conductor type.",
+      "Jackets are rated for where they go: general indoor use, risers between floors, air-handling spaces, or outdoors (sun-resistant, sometimes gel-filled for underground ducts). Check the marking on the jacket against the specification."
+     ]
+    },
+    {
+     "h": "Coaxial cable"
+    },
+    {
+     "p": "Coaxial (coax) cable has one **centre conductor**, surrounded by an insulating **dielectric** (usually white foam), then a **foil and braid screen**, then the outer **jacket**. All the layers share one centre, which is why it is called co-axial. The screen keeps outside interference out and the signal in."
+    },
+    {
+     "table": {
+      "head": [
+       "Cable",
+       "Impedance",
+       "Typical use"
+      ],
+      "rows": [
+       [
+        "RG6",
+        "75 Ω",
+        "Satellite and cable TV, TV aerials; the usual choice for TV. Thicker centre conductor, low loss."
+       ],
+       [
+        "RG59",
+        "75 Ω",
+        "Analogue CCTV cameras and short video runs. Thinner than RG6."
+       ],
+       [
+        "RG58",
+        "50 Ω",
+        "Two-way radio and some test equipment. **Not** for TV or CCTV."
+       ]
+      ]
+     }
+    },
+    {
+     "note": "Use the impedance the equipment is made for. TV, satellite and CCTV work at 75 Ω; a 50 Ω cable in a 75 Ω system reflects part of the signal and gives a poor picture.",
+     "label": "Remember"
+    },
+    {
+     "h": "Other signal cables"
+    },
+    {
+     "table": {
+      "head": [
+       "Cable",
+       "What it is",
+       "Used for"
+      ],
+      "rows": [
+       [
+        "Telephone cable",
+        "Two or more pairs; one line uses one pair, whose wires are called **tip** and **ring**",
+        "Telephone lines and extensions, with RJ11 plugs and outlets"
+       ],
+       [
+        "Multi-core signal cable",
+        "4, 6, 8 or more cores, often stranded, sometimes with an overall foil **screen** and a bare **drain wire**",
+        "Alarms, intercoms, access control and control signals"
+       ],
+       [
+        "Speaker cable",
+        "Two cores side by side (figure-8), one marked with a stripe or ridge",
+        "Loudspeakers; keep the marked core on the same terminal (+) at both ends"
+       ],
+       [
+        "Fibre-optic cable",
+        "Thin glass fibres that carry signals as light",
+        "Long or fast links, and links between buildings; terminated by trained technicians"
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "title": "Connectors and tools",
+   "blocks": [
+    {
+     "h": "Connectors"
+    },
+    {
+     "table": {
+      "head": [
+       "Connector",
+       "Looks like",
+       "Used on"
+      ],
+      "rows": [
+       [
+        "RJ45 (8P8C) plug",
+        "Clear plastic plug with 8 gold contacts and a spring clip",
+        "Twisted-pair patch leads"
+       ],
+       [
+        "Keystone jack",
+        "A small square jack that clips into a faceplate or panel; punched down at the back",
+        "Data outlets in walls and desks"
+       ],
+       [
+        "Patch panel",
+        "A row of 24 or 48 RJ45 ports in a rack, with punch-down blocks at the back",
+        "The end of every fixed cable at the rack"
+       ],
+       [
+        "RJ11 (6P2C or 6P4C)",
+        "Narrower plug, 2 or 4 contacts in 6 positions",
+        "Telephones and phone lines"
+       ],
+       [
+        "F-type",
+        "Threaded connector; the centre conductor itself forms the pin",
+        "Satellite and cable TV on RG6"
+       ],
+       [
+        "BNC",
+        "Bayonet connector with a quarter-turn twist lock",
+        "CCTV, video and test equipment, usually on RG59"
+       ],
+       [
+        "Screw terminal or terminal strip",
+        "A clamp tightened by a screw",
+        "Alarm, intercom and control cores"
+       ],
+       [
+        "IDC block (110-type and similar)",
+        "A block with slots that cut through the insulation as the core is punched in",
+        "Telephone and data cross-connects"
+       ]
+      ]
+     }
+    },
+    {
+     "p": "**IDC** means insulation displacement connector: the slot has two sharp blades that cut through the insulation and grip the copper as the conductor is pushed in. There is no stripping and no screw."
+    },
+    {
+     "h": "Tools"
+    },
+    {
+     "table": {
+      "head": [
+       "Tool",
+       "What it is for",
+       "Good practice"
+      ],
+      "rows": [
+       [
+        "Cable (jacket) stripper",
+        "Removing the outer jacket of twisted pair without nicking the pairs",
+        "Set the blade depth to the cable; score round once and pull the jacket off."
+       ],
+       [
+        "Side cutters (flush cutters)",
+        "Cutting cable and trimming conductors",
+        "Keep them sharp; cut away from you."
+       ],
+       [
+        "RJ45 crimp tool",
+        "Pressing the plug's contacts down into the conductors and locking the strain-relief clamp",
+        "Use the right die (nest) for the plug, so every contact is pushed down fully and evenly; squeeze until the ratchet releases."
+       ],
+       [
+        "Punch-down tool",
+        "Seating conductors in IDC slots on jacks and patch panels, and trimming the spare end",
+        "Use the right blade for the block; keep the cutting edge towards the spare end."
+       ],
+       [
+        "Coax stripper",
+        "Stripping coax in steps to the right lengths in one turn",
+        "Set or choose it for the cable (RG6 or RG59) and the connector."
+       ],
+       [
+        "Compression tool",
+        "Squeezing compression F, BNC or RCA connectors onto coax",
+        "Fit the right adaptor for the connector; squeeze fully."
+       ],
+       [
+        "Crimp tool with hex dies",
+        "Crimping the ferrule of crimp-on BNC connectors",
+        "Use the die size the connector maker gives."
+       ],
+       [
+        "Ferrule crimper",
+        "Crimping bootlace ferrules onto stranded cores",
+        "Match the ferrule size; check the crimp by pulling gently."
+       ],
+       [
+        "Cable tester (wire map)",
+        "Checking that every conductor reaches the right pin",
+        "Main unit at one end, remote unit at the other."
+       ],
+       [
+        "Tone generator and probe",
+        "Tracing which cable is which",
+        "Clip the tone onto the cable at one end; find it with the probe at the other."
+       ],
+       [
+        "Multimeter",
+        "Continuity and shorts on coax and signal cores",
+        "Test with the cable disconnected from all equipment."
+       ],
+       [
+        "Label printer",
+        "Printing lasting cable and outlet labels",
+        "Use self-laminating labels that wrap round the cable."
+       ]
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "title": "Colour codes: T568A and T568B",
+   "blocks": [
+    {
+     "p": "**T568A** and **T568B** are two standard orders for the eight conductors in an RJ45 plug or jack. Both give the same performance. What matters is that **one code is used throughout a job**, at every plug, jack and panel port, as the specification says. Many installers use T568B, but always follow the job's specification."
+    },
+    {
+     "table": {
+      "head": [
+       "Pin",
+       "T568A",
+       "T568B"
+      ],
+      "rows": [
+       [
+        "1",
+        "White-green",
+        "White-orange"
+       ],
+       [
+        "2",
+        "Green",
+        "Orange"
+       ],
+       [
+        "3",
+        "White-orange",
+        "White-green"
+       ],
+       [
+        "4",
+        "Blue",
+        "Blue"
+       ],
+       [
+        "5",
+        "White-blue",
+        "White-blue"
+       ],
+       [
+        "6",
+        "Orange",
+        "Green"
+       ],
+       [
+        "7",
+        "White-brown",
+        "White-brown"
+       ],
+       [
+        "8",
+        "Brown",
+        "Brown"
+       ]
+      ]
+     }
+    },
+    {
+     "ul": [
+      "The only difference is that the **orange and green pairs swap places**. The blue pair is always on pins 4 and 5, and the brown pair on pins 7 and 8.",
+      "Notice that pins 3 and 6 are one pair, split round the blue pair. That is why you cannot just lay the colours side by side.",
+      "To find pin 1 on a plug: hold it with the **gold contacts facing you, the clip on the back and the cable hanging down**. Pin 1 is on the left.",
+      "Keystone jacks and patch panels have colour labels for A and B beside the slots: follow the row for the code your job uses."
+     ]
+    },
+    {
+     "note": "The blue pair sits in the centre of the plug, on pins 4 and 5, where the two centre contacts of a telephone plug land. So an RJ11 telephone plug in an RJ45 outlet uses the blue pair.",
+     "label": "Tip"
+    },
+    {
+     "h": "Straight-through and crossover leads"
+    },
+    {
+     "table": {
+      "head": [
+       "Lead",
+       "Wiring",
+       "Used for"
+      ],
+      "rows": [
+       [
+        "Straight-through",
+        "The **same** code at both ends (A–A or B–B)",
+        "Almost everything: computers, phones, cameras and access points to outlets and switches; outlets to panels"
+       ],
+       [
+        "Crossover",
+        "T568A at one end and T568B at the other",
+        "Joining two computers or two switches directly on older equipment. Most modern equipment sorts this out by itself (auto MDI-X), so crossovers are now rare."
+       ]
+      ]
+     }
+    },
+    {
+     "h": "Colour order memory aid"
+    },
+    {
+     "p": "For T568B say: **white-orange, orange, white-green, blue, white-blue, green, white-brown, brown**. For T568A, swap every orange for green and every green for orange."
+    }
+   ]
+  },
+  {
+   "title": "Terminating twisted pair: plugs, jacks and patch panels",
+   "blocks": [
+    {
+     "h": "Rules for every twisted-pair termination"
+    },
+    {
+     "ul": [
+      "**Untwist as little as possible**: keep each pair twisted to within about **13 mm** of the contacts. Untwisting more raises crosstalk, and the link may fail a performance test.",
+      "Keep the **outer jacket** as close as possible to the termination: inside the plug, and right up to the back of a jack or panel.",
+      "Do not nick the conductors' insulation or the copper when you strip the jacket. If you do, cut back and start again.",
+      "Cut off the **ripcord** (the nylon thread inside the jacket) once it has done its job."
+     ]
+    },
+    {
+     "h": "Making an RJ45 patch lead (T568B, straight-through)"
+    },
+    {
+     "flow": [
+      "Cut the stranded cable to length and slide a boot onto each end if the plugs use them",
+      "Strip about 25 to 40 mm of jacket with the cable stripper, without nicking the pairs, and cut off the ripcord",
+      "Untwist the pairs and straighten the conductors, only as far as you need",
+      "Arrange them in T568B order and hold them flat and side by side",
+      "Trim the ends straight and even, about 12 to 14 mm from the jacket (or as the plug maker says)",
+      "Push them into the plug, keeping the order, until every conductor reaches the end and the jacket is inside the plug",
+      "Check the order and the ends by eye through the clear plug",
+      "Crimp with the correct die until the ratchet releases",
+      "Make the other end the same way, then slide the boots up, test and label"
+     ]
+    },
+    {
+     "table": {
+      "head": [
+       "Check after crimping",
+       "Why"
+      ],
+      "rows": [
+       [
+        "All eight conductors reach the end of the plug",
+        "A short conductor may not touch its contact, giving an open or an intermittent fault."
+       ],
+       [
+        "The colours are in the right order",
+        "A mistake gives a reversed, crossed or split pair."
+       ],
+       [
+        "The jacket is inside the plug, under the clamp",
+        "The clamp grips the jacket and takes the strain; if it grips bare conductors, they break when the lead is pulled."
+       ],
+       [
+        "The clip is not bent or broken; the boot covers it",
+        "A broken clip lets the plug fall out of the socket."
+       ]
+      ]
+     }
+    },
+    {
+     "h": "Punching down a keystone jack"
+    },
+    {
+     "flow": [
+      "Strip only as much jacket as you need, without nicking the pairs, and cut off the ripcord",
+      "Check which code the job uses and read the A or B colour labels on the jack",
+      "Lay each pair into its two slots, keeping the twists right up to the slots and the jacket close to the back of the jack",
+      "Support the jack in a holder or on a firm surface",
+      "Place the punch-down tool on each conductor with the **cutting edge towards the spare end**, and push until it clicks",
+      "Check that every conductor is fully seated and trimmed",
+      "Fit the cap if there is one, clip the jack into the faceplate, then test the link"
+     ]
+    },
+    {
+     "p": "The punch-down tool pushes the conductor down between the blades of the IDC slot, which cut through the insulation and grip the copper, and its blade trims off the spare end. If the cutting edge faces the wrong way, it cuts the conductor on the cable side instead."
+    },
+    {
+     "h": "Patch panels"
+    },
+    {
+     "ul": [
+      "Terminate the fixed cables at the back of the panel in port order, following the panel's colour labels and the job's code.",
+      "Dress the cables neatly to the back of the panel, support them with a cable manager or bar, and keep each jacket close to its port.",
+      "Leave a small service loop in the rack or ceiling, so that a port can be re-terminated later.",
+      "Connect the panel to the network switch with short **stranded** patch leads. Do not put plugs on the solid fixed cable to plug it straight into the switch."
+     ]
+    },
+    {
+     "note": "Leave a small, neat loop of spare cable behind each outlet, with no sharp bends, so that the jack can be pulled out and re-terminated later. Do not coil a lot of cable tightly in the back box.",
+     "label": "Tip"
+    }
+   ]
+  },
+  {
+   "title": "Terminating coaxial cable",
+   "blocks": [
+    {
+     "p": "A coax connector must keep the centre conductor and the screen apart, connect both firmly, and keep water out. The commonest faults are **braid strands touching the centre conductor** (a short), a **nicked or short centre conductor**, and a **loose screen connection**."
+    },
+    {
+     "h": "Fitting a compression F-type connector to RG6"
+    },
+    {
+     "flow": [
+      "Cut the end square with a cable cutter, not side cutters that crush it",
+      "Set the coax stripper for RG6 and your connector; turn it round the cable to strip in two steps",
+      "Check the result: bare centre conductor, then dielectric, then jacket (commonly about 6 mm of each, as the maker's guide says)",
+      "Check that the centre conductor is not nicked and that no foil or braid strand touches it",
+      "Fold the braid back neatly over the jacket, as the connector maker says",
+      "Push the connector on until the dielectric is level with the inside of the connector",
+      "Check that the centre conductor stands just past the front, commonly about 1 to 2 mm",
+      "Compress fully with the compression tool and check by eye, then test"
+     ]
+    },
+    {
+     "h": "BNC connectors"
+    },
+    {
+     "ul": [
+      "**Compression BNC** connectors are fitted much like compression F connectors, with the right adaptor in the tool.",
+      "**Crimp-on BNC** connectors have three parts: a crimp ferrule, a centre pin and the body. **Slide the ferrule onto the cable before you strip it**, as it cannot be fitted afterwards. Crimp the pin onto the centre conductor, push the body on so that the braid goes over its rear sleeve, slide the ferrule over the braid and crimp it with the right hex die.",
+      "A BNC locks with a quarter turn: push and twist until it clicks."
+     ]
+    },
+    {
+     "h": "Testing a coax lead"
+    },
+    {
+     "table": {
+      "head": [
+       "Test (multimeter, lead disconnected from all equipment)",
+       "A good lead reads"
+      ],
+      "rows": [
+       [
+        "Centre conductor at one end to centre at the other",
+        "Near 0 Ω (continuity)"
+       ],
+       [
+        "Screen at one end to screen at the other",
+        "Near 0 Ω (continuity)"
+       ],
+       [
+        "Centre to screen",
+        "Open circuit (no short)"
+       ]
+      ]
+     }
+    },
+    {
+     "h": "Outdoor coax"
+    },
+    {
+     "ul": [
+      "Use outdoor-rated cable and connectors with rubber seals (O-rings); tighten F connectors firmly by hand and then a little more with a spanner, as the maker says.",
+      "Weatherproof outdoor joints with a boot, a sealed box or self-amalgamating tape, and form a **drip loop** so that rain runs off below the connector, not into it.",
+      "Near the coast, salt air corrodes connectors quickly: green or white powder on a connector means water and salt got in, and it must be replaced.",
+      "Cable from a roof dish or outside camera is normally bonded to the building's grounding system where it enters, as the code and the maker require. Ask your supervisor how it is done on the job."
+     ]
+    },
+    {
+     "note": "Coax and its connectors are made for one impedance. Do not mix 50 Ω and 75 Ω parts, and do not use RG58 radio cable for TV or CCTV.",
+     "label": "Remember"
+    }
+   ]
+  },
+  {
+   "title": "Signal cables at screw terminals",
+   "blocks": [
+    {
+     "p": "Alarm, intercom, access-control and control cables are usually terminated at **screw terminals** on the equipment or on terminal strips. The drawing or the maker's instructions tell you which core goes where."
+    },
+    {
+     "flow": [
+      "Make sure the system is switched off or disconnected",
+      "Check the drawing for the terminal each core goes to, and where the screen connects",
+      "Strip the outer jacket only as far as you need, without cutting the cores or the screen",
+      "Trim or fold back the foil screen and gather the drain wire as the instructions say",
+      "Strip each core to the length the terminal or ferrule needs",
+      "Fit a **bootlace ferrule** of the right size on each stranded core and crimp it",
+      "Fit each core into its terminal, tighten the screw and give it a gentle tug",
+      "Connect the screen or drain only where the drawing says, and sleeve or insulate it elsewhere",
+      "Record the colour on each terminal, label the cable and test each core"
+     ]
+    },
+    {
+     "h": "Ferrules"
+    },
+    {
+     "p": "A **bootlace ferrule** is a thin metal tube, usually with a plastic collar, crimped over the end of a stranded core. It holds all the strands together, so none splay out to touch the next terminal, and the screw clamps evenly without cutting strands. Choose the ferrule to match the core's size: the size in mm² is printed on the box. Collar colours vary between makers, so go by the size, not the colour."
+    },
+    {
+     "h": "Screens and drain wires"
+    },
+    {
+     "ul": [
+      "The screen and its bare drain wire keep interference out of the signal cores. To work, the screen is connected to earth or to the equipment's screen terminal at the point the drawing shows.",
+      "On many signal cables the screen is connected at **one end only**, often at the control panel or master unit. Connecting it at both ends can let a current flow along the screen (a ground loop) and cause hum or false signals.",
+      "At the end where the screen is **not** connected, cut the drain wire back and sleeve or tape the end so that it cannot touch any terminal or metal.",
+      "Never twist the drain wire together with a signal core."
+     ]
+    },
+    {
+     "h": "Telephone lines and outlets"
+    },
+    {
+     "ul": [
+      "A telephone line uses one pair: its two wires are called **tip** and **ring**. On an RJ11 plug the line is on the two centre contacts.",
+      "Extension wiring must keep each line on its own pair, so that the two wires of a line stay twisted together.",
+      "Disconnect the line before you work on it: the ringing voltage can give you a shock."
+     ]
+    },
+    {
+     "note": "On a screw terminal never twist a stranded core round the outside of the screw, fold the bare end back to make it thicker, or leave long bare ends showing. Strip to the right length, fit a ferrule, and make sure no bare copper shows outside the terminal.",
+     "label": "Tip"
+    }
+   ]
+  },
+  {
+   "title": "Handling, testing, labelling and records",
+   "blocks": [
+    {
+     "h": "Handling and routing cable"
+    },
+    {
+     "table": {
+      "head": [
+       "Do",
+       "Why"
+      ],
+      "rows": [
+       [
+        "Pull gently, from a box or reel that turns freely",
+        "Stretching twisted pair loosens the twists; a common limit for 4-pair cable is about 110 N (roughly the pull of an 11 kg weight). Kinks form when cable is pulled off a still reel."
+       ],
+       [
+        "Keep bends gentle, at least about 4 times the cable's diameter (more for screened cable), or the maker's figure",
+        "Sharp bends and kinks damage the pairs and slow or stop the signal."
+       ],
+       [
+        "Support long runs on hooks, trays or in trunking",
+        "Cable hanging on its own weight stretches and sags onto ceiling tiles and lights."
+       ],
+       [
+        "Use hook-and-loop straps, or cable ties fitted only snugly",
+        "Ties pulled tight crush the jacket and spoil the pairs inside."
+       ],
+       [
+        "Keep data cables apart from power cables, and cross them at a right angle",
+        "Power cables running alongside can induce noise in the pairs. The NEC, on which Jamaica's code is based, generally asks for at least 50 mm between them unless a barrier or separate containment is used."
+       ],
+       [
+        "Keep cables away from heat and sharp edges; use grommets",
+        "Heat softens jackets and raises losses; sharp edges cut through them."
+       ],
+       [
+        "Fire-stop any hole through a fire-rated wall or floor as the specification says",
+        "Unsealed holes let fire and smoke spread."
+       ]
+      ]
+     }
+    },
+    {
+     "h": "Length limits"
+    },
+    {
+     "p": "An Ethernet **channel** on twisted pair is limited to **100 m** in total: up to 90 m of fixed cable (the permanent link) plus up to 10 m of patch leads at the two ends. A longer run needs a switch or a powered extender part-way, or a fibre link."
+    },
+    {
+     "h": "Testing"
+    },
+    {
+     "p": "Test every lead and every link before handing it over. A **wire-map tester** has a main unit and a remote unit: plug one into each end (for a patch lead, both ends can go into the same tester), run the test and read the screen or lights."
+    },
+    {
+     "table": {
+      "head": [
+       "Fault",
+       "What it is",
+       "Usual cause"
+      ],
+      "rows": [
+       [
+        "Open",
+        "A conductor does not reach the far end",
+        "Not pushed fully into the plug, not seated in an IDC slot, or broken"
+       ],
+       [
+        "Short",
+        "Two conductors are joined",
+        "Crushed cable, a stray strand, a bad crimp"
+       ],
+       [
+        "Reversed pair",
+        "The two wires of one pair swap, for example pin 1 to pin 2",
+        "Colours swapped within a pair at one end"
+       ],
+       [
+        "Crossed (transposed) pairs",
+        "A whole pair lands on the wrong pins, for example 1 and 2 with 3 and 6",
+        "T568A at one end and T568B at the other on a lead meant to be straight-through"
+       ],
+       [
+        "Split pair",
+        "Every pin connects to the same pin, but the two wires on one pair of pins come from different twisted pairs",
+        "Colours laid side by side instead of in the code's order; only testers that check crosstalk find it"
+       ]
+      ]
+     }
+    },
+    {
+     "ul": [
+      "A **tone generator and probe** help you trace which cable at the panel goes to which outlet.",
+      "A **certification tester** measures length, crosstalk and losses, and shows whether a link meets its category. Large jobs usually need one; your supervisor will tell you.",
+      "Coax and signal cores are tested with a multimeter for continuity and shorts, with all equipment disconnected.",
+      "Remake any lead or termination that fails, then test it again."
+     ]
+    },
+    {
+     "h": "Labelling"
+    },
+    {
+     "ul": [
+      "Give every cable a **unique number**, for example from the floor or room and the outlet, such as 2A-04.",
+      "Put the **same number at both ends** of the cable (within about 300 mm of the end), on the faceplate and on the patch panel port.",
+      "Use printed, self-laminating labels that will not rub off; not pencil or marker on the wall."
+     ]
+    },
+    {
+     "h": "Records"
+    },
+    {
+     "p": "Keep a **test record** for every link: its number, the date, the result, the tester used and who tested it, and write the numbers on the as-built drawing. Records show that each link worked at handover, and they help the next person find faults quickly."
+    },
+    {
+     "h": "Housekeeping"
+    },
+    {
+     "p": "Pick up off-cuts, braid strands, wire ends and plug waste as you go and put them in the bin. Do not leave them in ceilings, cabinets or back boxes, where they can short equipment. Put back ceiling tiles and covers you removed."
+    }
+   ]
+  },
+  {
+   "title": "Revision",
+   "blocks": [
+    {
+     "h": "Checklist"
+    },
+    {
+     "p": "Tick each statement only when you can do it without looking at the notes."
+    },
+    {
+     "ul": [
+      "I can name the hazards of terminating signal and data cables, including PoE, telephone ringing voltage, fibre and work at height, and control each one.",
+      "I can tell twisted pair, coax, telephone, screened multi-core, speaker and fibre cable apart and give a use for each.",
+      "I can explain why the pairs are twisted and what Cat 5e, Cat 6 and Cat 6A mean.",
+      "I can name RJ45, RJ11, F-type, BNC, keystone and IDC connectors and the tool for each.",
+      "I can give the T568B and T568A colour orders and explain the difference.",
+      "I can make and check a straight-through RJ45 patch lead.",
+      "I can punch down a keystone jack and a patch panel port with the twists and jacket kept close.",
+      "I can fit compression F-type and BNC connectors to coax without shorts.",
+      "I can terminate a screened multi-core cable at screw terminals with ferrules, connecting the screen only where the drawing says.",
+      "I can handle and route cable without stretching, kinking or crushing it, and keep it apart from power cables.",
+      "I can test a lead or link and name opens, shorts, reversed, crossed and split pairs.",
+      "I can label both ends of a cable with the same number and fill in a test record."
+     ]
+    },
+    {
+     "h": "Numbers to remember"
+    },
+    {
+     "table": {
+      "head": [
+       "Figure",
+       "What it is"
+      ],
+      "rows": [
+       [
+        "8 conductors, 4 pairs",
+        "A twisted-pair data cable"
+       ],
+       [
+        "About 13 mm",
+        "Most untwisting allowed at a twisted-pair termination"
+       ],
+       [
+        "100 m (90 m + 10 m)",
+        "Longest Ethernet channel on twisted pair: fixed cable plus patch leads"
+       ],
+       [
+        "Pins 4 and 5: blue pair; 7 and 8: brown pair",
+        "The same in T568A and T568B"
+       ],
+       [
+        "75 Ω / 50 Ω",
+        "TV, satellite and CCTV coax / radio and test coax"
+       ],
+       [
+        "About 4 × the cable diameter",
+        "A common smallest bend for twisted-pair cable (check the maker)"
+       ],
+       [
+        "At least 50 mm",
+        "A common separation between data and power cables (follow the specification)"
+       ]
+      ]
+     }
+    },
+    {
+     "h": "Key terms"
+    },
+    {
+     "terms": [
+      [
+       "Boot",
+       "The soft plastic cover that slides over an RJ45 plug to protect its clip and support the cable."
+      ],
+      [
+       "Category (Cat)",
+       "The performance grade of twisted-pair cable and its parts, such as Cat 5e, Cat 6 or Cat 6A."
+      ],
+      [
+       "Crosstalk",
+       "Signal leaking from one pair into another; twisting the pairs reduces it."
+      ],
+      [
+       "Dielectric",
+       "The insulating layer between the centre conductor and the screen of a coax cable."
+      ],
+      [
+       "Drain wire",
+       "A bare wire in contact with a foil screen, used to connect the screen to a terminal."
+      ],
+      [
+       "Ferrule (bootlace)",
+       "A thin metal tube crimped on the end of a stranded core so that it fits a screw terminal neatly."
+      ],
+      [
+       "IDC",
+       "Insulation displacement connector: a slot whose blades cut the insulation and grip the copper when a conductor is punched in."
+      ],
+      [
+       "LAN",
+       "Local area network: the network inside one building or site."
+      ],
+      [
+       "Patch panel",
+       "A panel of RJ45 ports in a rack where the fixed cables end; short patch leads connect it to the switch."
+      ],
+      [
+       "PoE",
+       "Power over Ethernet: DC power sent down a data cable to a camera, phone or access point."
+      ],
+      [
+       "Rack",
+       "The frame or cabinet in which patch panels and network switches are mounted."
+      ],
+      [
+       "Screen (shield)",
+       "Foil or braid round conductors that keeps interference out."
+      ],
+      [
+       "Split pair",
+       "A fault in which the pins connect through but the wires on one pair of pins come from different twisted pairs."
+      ],
+      [
+       "Straight-through lead",
+       "A patch lead with the same colour code at both ends."
+      ],
+      [
+       "T568A / T568B",
+       "The two standard colour orders for RJ45 terminations."
+      ],
+      [
+       "Tip and ring",
+       "The two wires of a telephone line."
+      ],
+      [
+       "Tone generator and probe",
+       "A pair of tools used to trace which cable is which."
+      ],
+      [
+       "UTP",
+       "Unshielded twisted pair."
+      ],
+      [
+       "Wire map",
+       "A test that shows whether each conductor reaches the right pin at the far end."
+      ]
+     ]
+    }
+   ]
+  }
+ ],
+ "cases": {
+  "c1": {
+   "title": "Network outlets in a New Kingston office",
+   "text": "Trainee Tevin is working with network installer Ms Kerry-Ann Campbell on the fourth floor of an office in New Kingston. They are running 24 solid-conductor Cat 6 cables from desk outlets to a patch panel in a wall-mounted rack, and Tevin is also making the short patch leads for the rack. The specification says T568B throughout, labels in the form floor-outlet (for example 4-07), and every link tested and recorded. Above the ceiling, the route runs beside a tray of 220 V power cables for the air-conditioning units."
+  },
+  "c2": {
+   "title": "CCTV at a hardware store in Savanna-la-Mar",
+   "text": "A hardware store in Savanna-la-Mar, Westmoreland, is upgrading its security cameras. Four older analogue cameras inside the store use RG59 coax with BNC connectors back to a recorder. Two new network cameras on the outside walls are powered by PoE from a switch in the office, over Cat 6 cable. Trainee Damion is working with technician Mr Barrington Lewis. One of the outside cameras is about 115 m of cable away from the switch."
+  },
+  "c3": {
+   "title": "A satellite dish at an Ocho Rios guest house",
+   "text": "A guest house in Ocho Rios, St Ann, about 30 m from the sea, has a satellite dish on its roof. RG6 coax runs from the dish's LNB down the outside wall to receivers in four rooms, and each receiver sends a DC voltage up its coax to power the LNB. Several of the outdoor F connectors are covered in green powder. Trainee Tishana and technician Mr Andre Thompson are replacing them with compression F connectors."
+  },
+  "c4": {
+   "title": "A gate intercom at a Spanish Town medical centre",
+   "text": "A medical centre in Spanish Town is fitting a gate intercom. A 4-core screened cable with a bare drain wire runs about 40 m from the door station at the gate to the master unit at reception. The cores are stranded. The maker's drawing shows the screen connected to the 'E' terminal at the master unit only. Trainee Sheldon is terminating both ends at screw terminals, supervised by Ms Latoya Williams."
+  }
+ },
+ "questions": [
+  {
+   "id": "P-01",
+   "c": "c1",
+   "q": "Which conductor does Tevin lay into the slot marked 6 on a jack wired to T568B?",
+   "o": [
+    "White-green",
+    "Orange",
+    "Green",
+    "Blue"
+   ],
+   "a": 2,
+   "why": "In T568B the green pair is split across pins 3 (white-green) and 6 (green), round the blue pair on 4 and 5. In T568A the orange and green pairs swap places, so pin 6 would be orange."
+  },
+  {
+   "id": "P-02",
+   "c": "c1",
+   "q": "One of Tevin's patch leads passes on the basic wire-map tester, but Ms Campbell's better tester reports a split pair. At both plugs the colours run white-orange, orange, white-green, green, white-blue, blue, white-brown, brown. What went wrong?",
+   "o": [
+    "He used T568A at one end and T568B at the other end of the lead",
+    "He laid the pairs side by side, so pins 3 and 6 are not one pair",
+    "He untwisted the pairs a little too far before he crimped the plugs",
+    "He left the outer jacket outside the plug, so the clamp did not grip"
+   ],
+   "a": 1,
+   "why": "Every pin still connects to the same pin, so a basic wire map passes. But pins 3 and 6 must be one twisted pair; laid side by side, the signal on them is carried by wires from two different pairs, which causes crosstalk and errors. Follow the code's order exactly."
+  },
+  {
+   "id": "P-03",
+   "c": "c1",
+   "q": "Tevin plans to strap the data cables to the side of the 220 V cable tray for support along an 8 m stretch. Ms Campbell says no. What is the main reason?",
+   "o": [
+    "The ties would trap heat from the data cables against the tray",
+    "Data cables must always run below power cables, never beside them",
+    "Power cables running alongside can induce noise in the data pairs",
+    "The weight of the data cables would overload the power cable tray"
+   ],
+   "a": 2,
+   "why": "A long parallel run beside power cables couples interference into the pairs. Keep data cables apart on their own supports (the NEC generally asks for at least 50 mm unless there is a barrier) and cross power cables at a right angle where they must cross."
+  },
+  {
+   "id": "P-04",
+   "c": "c1",
+   "q": "The wire map for outlet 4-07 shows pin 4 open; every other pin passes. What should Tevin do?",
+   "o": [
+    "Leave it, since a network can run on four of the eight conductors",
+    "Check and re-terminate the blue conductor at both ends, then retest",
+    "Rewire the jack to T568A, as an open on pin 4 shows the wrong code",
+    "Replace the whole cable run from the outlet back to the patch panel"
+   ],
+   "a": 1,
+   "why": "An open on one pin usually means a conductor not fully seated in its IDC slot, or cut by the punch-down tool. Re-terminate that conductor at the jack or panel and test again; replace the cable only if the fault is in the run. Every link must pass, because faster networks use all four pairs."
+  },
+  {
+   "id": "P-05",
+   "c": "c1",
+   "q": "To save time, Tevin wants to crimp RJ45 plugs straight onto the solid fixed cables at the rack and plug them into the switch. What should he do instead?",
+   "o": [
+    "Terminate them on the patch panel, and use stranded patch leads",
+    "Crimp them anyway, as long as he uses the right die in the tool",
+    "Crimp them, but leave 2 m of spare cable coiled in the rack",
+    "Fit plugs made for stranded wire, which grip solid wire better"
+   ],
+   "a": 0,
+   "why": "Solid conductors crack if they are flexed at a plug, and the fixed cable would be strained every time the switch is changed. The fixed cable ends on the patch panel; short stranded patch leads, which bend without breaking, connect the panel to the switch."
+  },
+  {
+   "id": "P-06",
+   "c": "c2",
+   "q": "Damion is fitting a crimp-on BNC connector to the RG59. Which part must go onto the cable before he strips it?",
+   "o": [
+    "The crimp ferrule, as it cannot go on afterwards",
+    "The centre pin, so that it is ready to be crimped on",
+    "The connector body, pushed on as far as it will go",
+    "No part; all three parts are fitted after stripping"
+   ],
+   "a": 0,
+   "why": "The ferrule must already be on the cable, because it slides over the braid at the end and cannot pass the connector body once that is on. Boots for RJ45 plugs work the same way: fit them before you terminate."
+  },
+  {
+   "id": "P-07",
+   "c": "c2",
+   "q": "The outside camera about 115 m from the switch keeps dropping its link. What is the right fix?",
+   "o": [
+    "Raise the PoE power at the switch so that the signal reaches the camera",
+    "Re-terminate both ends to T568A, which carries further than T568B",
+    "Use a thicker patch lead at the switch to strengthen the signal",
+    "Add a switch or PoE extender part-way, so no channel is over 100 m"
+   ],
+   "a": 3,
+   "why": "A twisted-pair Ethernet channel is limited to 100 m in total. Beyond that the signal is too weak and delayed to work reliably, and no colour code or lead changes that. A switch or powered extender part-way, or a fibre link, solves it."
+  },
+  {
+   "id": "P-08",
+   "c": "c2",
+   "q": "The PoE camera's cable ends under the eaves, where rain and sun reach it. Which is the best practice?",
+   "o": [
+    "Use ordinary indoor cable and wrap the plug in insulating tape",
+    "Point the connector upwards, so that rain runs off it quickly",
+    "Use outdoor-rated cable, a sealed connection and a drip loop",
+    "Leave the plug loose in the camera box, so that it dries out"
+   ],
+   "a": 2,
+   "why": "Jamaica's sun breaks down indoor jackets, and rain runs along a cable into any connector above it. Outdoor-rated cable, a weatherproof boot or sealed box, and a drip loop that sheds water below the connector keep the link working."
+  },
+  {
+   "id": "P-09",
+   "c": "c2",
+   "q": "Camera 3 shows a picture full of lines and noise. A test of its BNC lead shows centre to centre near 0 Ω and screen to screen open. What is the likely fault?",
+   "o": [
+    "A strand of braid is touching the centre pin inside one connector",
+    "The cable is RG59, which is too thin for a camera's video signal",
+    "The braid is not making contact in the connector at one end",
+    "The centre pin is too long and is pressing on the recorder"
+   ],
+   "a": 2,
+   "why": "With no screen connection, the signal has no proper return path and the cable picks up interference, so the picture is noisy. Remake that connector, making sure the braid sits over the rear sleeve and the ferrule is crimped. A braid strand on the centre pin would cause a short instead."
+  },
+  {
+   "id": "P-10",
+   "c": "c3",
+   "q": "Why should Tishana switch off and unplug each receiver before she disconnects its old connector?",
+   "o": [
+    "The receiver's 220 V mains supply is carried on the braid of the coax",
+    "The coax carries DC to the LNB, and a short can damage the receiver",
+    "The dish will lose its aim if the receiver is left on during the work",
+    "The new connector can be compressed only with the receiver off"
+   ],
+   "a": 1,
+   "why": "The receiver powers the LNB through the coax. While the cable is cut and stripped, a braid strand can short the centre to the screen and damage the receiver's LNB supply. Switch off and unplug first, then reconnect when the work is tested."
+  },
+  {
+   "id": "P-11",
+   "c": "c3",
+   "q": "What most likely caused the green powder on the old connectors, and how should the new outdoor joints be protected?",
+   "o": [
+    "The braid was too thin; use RG59 instead of RG6 for every outdoor run",
+    "The sun overheated them; paint the new connectors white to reflect it",
+    "Salt air and rain got in; use sealed connectors and weatherproof them",
+    "The LNB voltage was too high; fit a fuse in each coax line to the dish"
+   ],
+   "a": 2,
+   "why": "Green or white powder is corrosion from water and salt getting into the connector, which is common near the coast. Use outdoor connectors with seals, tighten them properly, weatherproof them with a boot or self-amalgamating tape, and add a drip loop."
+  },
+  {
+   "id": "P-12",
+   "c": "c3",
+   "q": "While stripping one cable, Tishana sees that the stripper has nicked the copper centre conductor. What should she do?",
+   "o": [
+    "Carry on, as the nick will be hidden inside the connector",
+    "Wrap the nick in tape before she pushes the connector on",
+    "Bend the centre conductor slightly so the nick is not seen",
+    "Cut the end off square and strip the cable again"
+   ],
+   "a": 3,
+   "why": "The centre conductor forms the pin of an F connector. A nicked conductor can snap when the connector is screwed on or moved, and it gives a poor contact. Cut back to undamaged cable and strip again, checking the stripper setting."
+  },
+  {
+   "id": "P-13",
+   "c": "c3",
+   "q": "Which set of multimeter readings shows that a finished RG6 lead is good?",
+   "o": [
+    "Centre to centre and screen to screen near 0 Ω; centre to screen open",
+    "Centre to centre open; screen to screen near 0 Ω; centre to screen 0 Ω",
+    "Centre to centre near 0 Ω; screen to screen open; centre to screen 75 Ω",
+    "All three readings at 75 Ω, which is the cable's impedance"
+   ],
+   "a": 0,
+   "why": "Both the centre conductor and the screen must be continuous, and they must not touch each other. The 75 Ω impedance is not a resistance you can measure with a multimeter; it describes how the cable behaves with a signal."
+  },
+  {
+   "id": "P-14",
+   "c": "c4",
+   "q": "What should Sheldon do with the screen and drain wire at the door station end?",
+   "o": [
+    "Connect the drain to the door station's 'E' terminal as well",
+    "Trim the foil, cut the drain back and sleeve the end",
+    "Connect the drain wire to the metal gate post to earth it",
+    "Twist the drain wire together with the white core for strength"
+   ],
+   "a": 1,
+   "why": "The drawing connects the screen at the master unit only. Connecting it at both ends can let current flow along the screen and cause hum. At the other end the foil is trimmed and the drain is cut back and insulated so that it cannot touch any terminal or metal."
+  },
+  {
+   "id": "P-15",
+   "c": "c4",
+   "q": "Sheldon has bootlace ferrules in three sizes. How should he choose which to use on the stranded cores?",
+   "o": [
+    "Use the largest size, as it is easiest to slide over the strands",
+    "Use the smallest and cut off any strands that will not fit in",
+    "Use any size, since the terminal screw clamps the ferrule anyway",
+    "Match the size printed on the box to the size of the cores"
+   ],
+   "a": 3,
+   "why": "A ferrule of the right size holds every strand and crimps tightly. Too big and the crimp is loose; too small and strands are cut off, which weakens the joint. Collar colours vary by maker, so go by the size marked on the box."
+  },
+  {
+   "id": "P-16",
+   "c": "c4",
+   "q": "The two ends of the intercom cable are 40 m apart. How can Sheldon test each core for continuity on his own?",
+   "o": [
+    "Link two cores at the gate, then measure across them at reception",
+    "Measure from each core to the screen at the reception end only",
+    "Switch the intercom on and measure the voltage on each core in turn",
+    "Clip a tone generator to the screen and listen for each core at the gate"
+   ],
+   "a": 0,
+   "why": "Linking two cores at the far end makes a loop that you can measure at the near end. Testing the cores in different pairs (1 and 2, then 2 and 3, and so on) shows which core is open if a loop fails. Test with the system disconnected."
+  },
+  {
+   "id": "P-17",
+   "c": null,
+   "q": "A trainee finds a broken fibre-optic patch lead in a rack. One end is still plugged into a switch, and the cut end glows faintly. What should he do?",
+   "o": [
+    "Look into the cut end to see whether the fibre still carries light",
+    "Cut it shorter with side cutters and fit a new RJ45 plug on it",
+    "Keep his eyes away from the end and report it to a trained person",
+    "Twist the broken glass fibres together and tape over the joint"
+   ],
+   "a": 2,
+   "why": "Fibres can carry laser light that harms the eyes, and much of it is invisible, so never look into a fibre end. Fibre is joined and terminated with special tools by trained technicians. Pick up any glass off-cuts with tape."
+  },
+  {
+   "id": "P-18",
+   "c": null,
+   "q": "A new 85 m link between two floors of a hotel must carry 10 Gb/s. Which cable category is the usual choice?",
+   "o": [
+    "Cat 5e",
+    "Cat 6",
+    "Cat 3",
+    "Cat 6A"
+   ],
+   "a": 3,
+   "why": "Cat 6A is rated for 10 Gb/s over the full 100 m channel. Cat 6 carries 10 Gb/s only on shorter runs, about 55 m, and Cat 5e is meant for 1 Gb/s. The connectors and jacks must be Cat 6A too, or the link is only as good as its weakest part."
+  },
+  {
+   "id": "P-19",
+   "c": null,
+   "q": "A trainee plans to use a spare reel of RG58 to replace a satellite TV lead. Why is this wrong?",
+   "o": [
+    "RG58 is a 50 Ω cable; TV and satellite use 75 Ω cable such as RG6",
+    "RG58 is twisted-pair cable and cannot take an F-type connector",
+    "RG58 has no screen, so it would pick up interference from outside",
+    "RG58 is too thick to fit the compression tool for F connectors"
+   ],
+   "a": 0,
+   "why": "Coax comes in different impedances. TV, satellite and CCTV equipment is made for 75 Ω; a 50 Ω radio cable mismatches it, reflects part of the signal and gives a weak or broken picture."
+  },
+  {
+   "id": "P-20",
+   "c": null,
+   "q": "When punching a conductor into a keystone jack, which way should the cutting edge of the punch-down tool face?",
+   "o": [
+    "Towards the cable, so that the conductor is held firmly",
+    "Either way, as the blade only seats the conductor in the slot",
+    "Upwards, away from the jack, so that nothing is cut at all",
+    "Towards the spare end, so that only the off-cut is trimmed"
+   ],
+   "a": 3,
+   "why": "The tool seats the conductor in the IDC slot and trims the spare end in one push. With the cutting edge facing the spare end, it trims the off-cut; turned the other way, it cuts the conductor that goes back to the cable."
+  }
+ ]
+}

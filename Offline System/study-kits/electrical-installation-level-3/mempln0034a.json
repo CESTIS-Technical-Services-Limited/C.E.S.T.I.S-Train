@@ -1,0 +1,1357 @@
+{
+  "format": "cestis-study-kit",
+  "version": 1,
+  "status": "to-check",
+  "written": "2026-11-07",
+  "programme": "Electrical Installation",
+  "qualification": {
+    "id": "QUAL-EIM-L3",
+    "title": "ELECTRICAL INSTALLATION AND MAINTENANCE LEVEL 3",
+    "code": "MEM32507"
+  },
+  "level": 3,
+  "unit": {
+    "code": "MEMPLN0034A",
+    "title": "Coordinate and manage commissioning processes"
+  },
+  "summary": "This unit teaches you to plan, coordinate and record the commissioning of an electrical installation: the dead checks before power is applied, the staged first energising, the functional and performance tests of boards, motors, generators, UPS units, emergency lighting, fire alarm interfaces and solar systems, and the handling of failed tests, snag lists and handover. You will learn the roles of the people involved, how to use an inspection and test plan with hold and witness points, how to keep everyone safe while parts of a building are live, and how to hand over a working, documented installation to the client.",
+  "sections": [
+    {
+      "title": "Unit overview",
+      "blocks": [
+        {
+          "p": "An installation is not finished when the last cable is pulled. It is finished when it has been **shown to be safe, correct and working as designed**, and the client has been given the records and training to run it. Commissioning is how that is done. It is also where many jobs go wrong: tests are rushed to meet a handover date, results are written as 'pass' without readings, a failed test is quietly repeated until it passes, or a building is energised in one go and a hidden fault trips everything. At Level 3 you coordinate and manage this process: you plan it, brief the people, control the sequence, keep the records and make sure nothing is signed off that has not been proved."
+        },
+        {
+          "h": "What you must be able to do"
+        },
+        {
+          "table": {
+            "head": [
+              "Task",
+              "What it looks like on the job"
+            ],
+            "rows": [
+              [
+                "Plan commissioning",
+                "Write a commissioning plan with the scope, sequence, roles, tests, acceptance criteria, records and programme."
+              ],
+              [
+                "Use an inspection and test plan (ITP)",
+                "List each check and test, who does it, the accepted result and who signs; mark hold points and witness points."
+              ],
+              [
+                "Prepare and manage pre-commissioning",
+                "Organise the visual inspection and the dead tests, and check the records are complete before anything is energised."
+              ],
+              [
+                "Manage safe energising",
+                "Control the staged first energising, with only the authorised person switching, and keep other trades safe in a part-live building."
+              ],
+              [
+                "Organise functional and performance tests",
+                "Plan tests of motors, generators and transfer switches, UPS units, emergency lighting, fire alarm interfaces and solar systems."
+              ],
+              [
+                "Handle failed tests and defects",
+                "Record failures honestly, raise non-conformance reports, find causes, retest with witnesses and keep a snag list."
+              ],
+              [
+                "Control instruments and records",
+                "Use calibrated instruments and write true readings, with limits, signatures and dates."
+              ],
+              [
+                "Coordinate the people",
+                "Work with the client, makers' engineers, other trades, the power company and the government inspector."
+              ],
+              [
+                "Hand over",
+                "Assemble the as-built drawings, test results, commissioning sheets and O&M manuals; train the client's staff; agree the snag list."
+              ],
+              [
+                "Lead the team",
+                "Brief the crew, set roles, supervise trainees and keep live work with the authorised person."
+              ]
+            ]
+          }
+        },
+        {
+          "h": "Commissioning in Jamaica: points to keep in mind"
+        },
+        {
+          "ul": [
+            "JPS supplies at **50 Hz**, 110/220 V single-phase or three-phase at larger sites. Check that all equipment, including generators, is set for 50 Hz.",
+            "A new or altered installation must be inspected and **certified by a licensed electrical inspector under the Government Electrical Regulator (GER)** before JPS will connect it. Plan for that date: it is not under your control.",
+            "Many Jamaican buildings have a standby generator, a UPS and increasingly a solar PV system. Their commissioning involves the makers' engineers and, for solar, the power company.",
+            "Hurricane season (June to November) and heavy rain stop outdoor work and can delay deliveries. Allow for them in the programme.",
+            "Occupied or part-occupied buildings such as hotels, clinics and supermarkets are common. A shutdown or a fault affects guests, patients and stock, so shutdowns are agreed out of hours."
+          ]
+        },
+        {
+          "note": "**Trainees never energise, switch or live-test.** Only the **authorised person** switches on a new supply, operates the main switchgear and takes live readings, as agreed in the commissioning plan. As a trainee, you take part in the planning, the dead checks, the recording and the review, and you stand clear, behind the barrier, when the authorised person energises.",
+          "label": "Safety"
+        }
+      ]
+    },
+    {
+      "title": "The commissioning process: stages, plan and roles",
+      "blocks": [
+        {
+          "h": "The stages"
+        },
+        {
+          "table": {
+            "head": [
+              "Stage",
+              "What happens",
+              "Power"
+            ],
+            "rows": [
+              [
+                "**Installation checks** (completion checks)",
+                "The work is finished; a visual inspection against the drawings and specification.",
+                "Off"
+              ],
+              [
+                "**Pre-commissioning** (static or 'cold' tests)",
+                "Dead checks and tests: inspection, continuity, insulation resistance, polarity, torque, settings. Proves the installation is complete, correct and safe to energise.",
+                "Off: isolated, locked off, proved dead"
+              ],
+              [
+                "**Commissioning** (energising and functional tests)",
+                "Power on, step by step: voltages, phase rotation, live tests, then the operation of each system as designed.",
+                "On, in stages"
+              ],
+              [
+                "**Performance testing**",
+                "Systems run under load for the time specified: generator load bank, UPS battery run time, emergency lighting duration.",
+                "On"
+              ],
+              [
+                "**Handover**",
+                "Documents, training, snag list, certificates, signed acceptance.",
+                "On"
+              ]
+            ]
+          }
+        },
+        {
+          "p": "Pre-commissioning must **pass first**. Energising an installation with a wiring fault, a missing earth or a short circuit can injure people and destroy equipment. The dead tests find those faults when they cost nothing."
+        },
+        {
+          "h": "The commissioning plan"
+        },
+        {
+          "p": "Written before commissioning starts, from the contract, the specification and the drawings. A good plan has these headings:"
+        },
+        {
+          "table": {
+            "head": [
+              "Heading",
+              "What it covers"
+            ],
+            "rows": [
+              [
+                "Scope",
+                "Every system to be commissioned: main board, sub-boards, final circuits, motors, standby generator and transfer switch, UPS, emergency lighting, fire alarm interface, solar PV, lighting controls."
+              ],
+              [
+                "Sequence",
+                "Inspection and dead tests first; then energising from the supply outward; then functional and performance tests."
+              ],
+              [
+                "Roles",
+                "Who plans, who tests, who records, who energises, who witnesses, and which makers' engineers must attend."
+              ],
+              [
+                "Tests and acceptance criteria",
+                "Each test, its method, and the limit that counts as a pass, from the specification."
+              ],
+              [
+                "Records",
+                "The test sheets, the commissioning sheets, the non-conformance and snag forms, and where they are kept."
+              ],
+              [
+                "Instruments",
+                "A list of the instruments to be used, with serial numbers and calibration dates."
+              ],
+              [
+                "Safety",
+                "Isolation, permits, barriers, notices, live-status drawing, who may switch."
+              ],
+              [
+                "Programme",
+                "Dates, durations, shutdowns, access, bookings of makers' engineers, the inspector and the power company."
+              ]
+            ]
+          }
+        },
+        {
+          "h": "Roles"
+        },
+        {
+          "table": {
+            "head": [
+              "Role",
+              "Main duty"
+            ],
+            "rows": [
+              [
+                "**Commissioning manager** (or commissioning coordinator)",
+                "Plans, coordinates and records the whole process; controls the sequence; keeps the schedule; confirms that each system meets its acceptance criteria. At Level 3 this is often you. The manager does not wire final circuits faster, design the system or choose protective devices; the manager makes sure the work is proved."
+              ],
+              [
+                "Authorised person",
+                "Appointed in writing to energise, switch, take live readings and operate the main equipment. The only person who switches on a new board."
+              ],
+              [
+                "Testers and inspectors",
+                "Competent people who carry out the checks and dead tests, in pairs where possible so that one reads and one records."
+              ],
+              [
+                "Recorder",
+                "Writes the readings as they are taken, with units and instrument numbers."
+              ],
+              [
+                "Safety lead",
+                "Controls isolation, locks, barriers and notices; briefs everybody."
+              ],
+              [
+                "Makers' engineers",
+                "Set up, test and commission the generator, UPS, drives, solar inverters and controls; their attendance is often required to keep the warranty valid."
+              ],
+              [
+                "Client's engineer or representative",
+                "Witnesses tests and accepts the work."
+              ],
+              [
+                "Designer",
+                "Answers queries, approves changes, confirms limits."
+              ],
+              [
+                "Other trades",
+                "Mechanical, fire alarm and controls contractors whose systems interface with the electrical work."
+              ],
+              [
+                "Power company and the government electrical inspector",
+                "Inspect, approve and connect; their dates are fixed by them, not by you."
+              ]
+            ]
+          }
+        },
+        {
+          "h": "The programme"
+        },
+        {
+          "p": "Commissioning needs its **own block of time** in the project programme, before the handover date. Testing, finding faults, fixing them and **retesting** all take real time. A programme that shows commissioning squeezed into the last two days has already failed."
+        },
+        {
+          "p": "**Example.** Twenty-four motor starters must be commissioned. Each needs 45 minutes for the dead checks, settings and a function test. That is 24 × 45 = 1,080 minutes = 18 hours. With two teams working in parallel, each team does 9 hours. If each team works 7.5 hours a day on this, that is 9 ÷ 7.5 = 1.2 days, so **2 working days** are planned, not 1. Always round up, and add time for the retests."
+        },
+        {
+          "ul": [
+            "Hold a short **daily commissioning meeting**: the day's tests, shutdowns, access and who does what.",
+            "Update the programme as soon as something slips, and tell everyone affected.",
+            "Book makers' engineers weeks ahead, and make sure the site is ready when they arrive.",
+            "Book the government inspection when the installation is complete and tested, not before."
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Inspection and test plans, instruments and records",
+      "blocks": [
+        {
+          "h": "The inspection and test plan (ITP)"
+        },
+        {
+          "p": "An ITP lists **each check and test, when it is done, who does it, the accepted result, and who signs**. Working through it is how you prove that nothing was missed. It is usually a table, with a column for each of these."
+        },
+        {
+          "table": {
+            "head": [
+              "Step",
+              "Check or test",
+              "Accepted result",
+              "Done by",
+              "Point",
+              "Signed"
+            ],
+            "rows": [
+              [
+                "1",
+                "Visual inspection of sub-board",
+                "As drawings; covers and labels fitted",
+                "Installer",
+                "–",
+                "(signature)"
+              ],
+              [
+                "2",
+                "Insulation resistance of the sub-main",
+                "At least the specified minimum",
+                "Tester",
+                "Witness",
+                "(signature)"
+              ],
+              [
+                "3",
+                "Cables in the trench, before backfilling",
+                "Depth, protection and marking as specified",
+                "Installer",
+                "Hold",
+                "(signature)"
+              ],
+              [
+                "4",
+                "First energising of the main board",
+                "Voltage and rotation correct",
+                "Authorised person",
+                "Hold",
+                "(signature)"
+              ]
+            ]
+          }
+        },
+        {
+          "h": "Hold points and witness points"
+        },
+        {
+          "table": {
+            "head": [
+              "Kind of point",
+              "What it means",
+              "If the named person does not come",
+              "Example"
+            ],
+            "rows": [
+              [
+                "**Hold point**",
+                "Work **stops** at that step until the named person (often the client's engineer) has inspected it and released it, in writing.",
+                "Work cannot go on. Re-plan, and rebook.",
+                "Cables in a trench: they must be inspected before the trench is backfilled, because once covered they cannot be checked. The first energising of the main board."
+              ],
+              [
+                "**Witness point**",
+                "The named person is **told in good time** and **may attend**. If they do not come, work goes on and the results are sent to them.",
+                "Work goes on; the results are recorded and sent.",
+                "The insulation resistance test of a sub-main."
+              ]
+            ]
+          }
+        },
+        {
+          "p": "These points matter because they give the client confidence, stop hidden work being covered before it is checked, and leave a clear record of who saw what and when."
+        },
+        {
+          "h": "Instruments"
+        },
+        {
+          "ul": [
+            "Use instruments that are in **calibration**: each has a serial number and a calibration date, and a sticker or certificate. Write them on the test sheet, so that every reading can be traced to an instrument known to be accurate.",
+            "Check instruments and leads before use (leads, probes, fuses, batteries); check the voltage tester on a proving unit before and after use.",
+            "An instrument whose calibration date has passed, or that has been dropped, is **taken out of use and tagged** until it is recalibrated. Readings taken with it are suspect and are repeated with a good instrument.",
+            "Typical instruments for commissioning: a two-pole voltage tester and proving unit, a low-resistance ohmmeter, an insulation resistance tester, a multifunction installation tester, an RCD tester, a phase rotation tester, a clamp meter, a thermal imaging camera, an earth electrode tester and a power quality meter."
+          ]
+        },
+        {
+          "h": "Test sheets and commissioning sheets"
+        },
+        {
+          "p": "Every test sheet carries: the **item**, the **date**, the **instrument** used, the **readings**, the **accepted limits** and the **signatures**. Write the actual reading, not just 'pass': a later test can then be compared with it, and a gradual change shows up before a failure."
+        },
+        {
+          "table": {
+            "head": [
+              "Written as",
+              "Why it is poor or good"
+            ],
+            "rows": [
+              [
+                "'Insulation: OK'",
+                "Poor. Nobody can compare it later, and nobody can tell what 'OK' meant."
+              ],
+              [
+                "'Insulation L–E 350 MΩ at 500 V DC, tester no. 4 (cal. due March), 14 Nov, K. Bailey'",
+                "Good. It can be traced, checked and compared."
+              ]
+            ]
+          }
+        },
+        {
+          "note": "**Never alter a result to match the specification.** If the reading is outside the limit, the sheet records the reading, the item fails, and the cause is found and fixed. A test sheet that shows only passes is a test sheet nobody will trust.",
+          "label": "Remember"
+        }
+      ]
+    },
+    {
+      "title": "Pre-commissioning: the dead checks",
+      "blocks": [
+        {
+          "p": "Pre-commissioning is done with the installation **dead**: isolated, locked off with each person's own padlock on a hasp, tagged, and proved dead with a tester checked before and after."
+        },
+        {
+          "h": "Checks and tests for every installation"
+        },
+        {
+          "flow": [
+            "Complete the visual inspection against the drawings and specification: the right parts, in the right place, labelled, covered and undamaged",
+            "Mechanical checks: fixings, torque on terminals, glands, blanking plugs, nothing left inside",
+            "Check protective device ratings and settings, such as breaker sizes, overload relays and timers",
+            "Continuity of protective conductors and bonding",
+            "Insulation resistance, with electronics, SPDs, drives and dimmers disconnected",
+            "Polarity",
+            "Check that CT circuits are complete or shorted, and that transformer tappings are on the right voltage",
+            "Record every result and sign the sheets",
+            "Confirm that the records for the whole installation are complete before any energising"
+          ]
+        },
+        {
+          "table": {
+            "head": [
+              "System",
+              "Specific dead checks"
+            ],
+            "rows": [
+              [
+                "Boards and circuits",
+                "Labels and circuit schedules; torque on large lugs; all outgoing breakers off before the incoming supply is first switched on; insulation resistance of each circuit."
+              ],
+              [
+                "Motors and starters",
+                "Overload relay set to the motor's **nameplate full-load current** (unless the maker says otherwise: a relay with a 10–16 A dial and a nameplate of 14.2 A is set to 14.2 A, not to 16 A or 28 A); correct contactor and cable; terminals tight; motor and starter earthed; guards fitted; motor insulation resistance."
+              ],
+              [
+                "Standby generator and transfer switch",
+                "Fuel, exhaust, coolant and oil levels; battery connected and charged; earthing; cabling checked; transfer switch interlock (it must never connect mains and generator together); control wiring checked point to point."
+              ],
+              [
+                "UPS",
+                "Maker's installation checks; battery connections, polarity and torque; ventilation; output circuits labelled; bypass wiring."
+              ],
+              [
+                "Emergency lighting",
+                "Every fitting installed, fed from the correct circuit, with its test switch or monitoring wiring; batteries connected and charging as the maker says."
+              ],
+              [
+                "Fire alarm interfaces",
+                "Relay and contact wiring to air handling units, door holders and lift or fan controls checked from the drawings, point to point."
+              ],
+              [
+                "PLCs and controls",
+                "Input wiring checked point to point with the I/O list; transmitter polarity; screens earthed as designed."
+              ],
+              [
+                "Solar PV",
+                "String polarity, string labelling and DC cable condition; earthing and bonding; insulation resistance of strings as the maker and specification say, by competent persons; AC isolator and protection."
+              ]
+            ]
+          }
+        },
+        {
+          "note": "Switching on 'to see whether anything trips' is not a test. A wiring error can start a motor, short-circuit a supply or destroy a controller in the first second. The dead tests find the same errors for nothing.",
+          "label": "Remember"
+        },
+        {
+          "h": "Stored energy: capacitors"
+        },
+        {
+          "p": "Power factor correction banks, motor capacitors and the capacitors inside drives and UPS units can hold a dangerous charge after isolation. Before touching a capacitor bank that has been isolated for a check, **wait the discharge time the maker marks on it, then prove dead**. Never short it with a screwdriver, and never 'switch it on and off to drain it'."
+        }
+      ]
+    },
+    {
+      "title": "Safe energising",
+      "blocks": [
+        {
+          "h": "Readiness to energise"
+        },
+        {
+          "p": "Before a board is first energised, these must be complete, checked and signed:"
+        },
+        {
+          "ul": [
+            "the **inspection and dead test results** for the board and its circuits;",
+            "the settings of protective devices checked against the design;",
+            "the government inspection passed and the certificate issued, and the power company's conditions met, where the supply comes from the grid;",
+            "all permits cancelled and all locks removed in the proper order, with every person accounted for and clear;",
+            "everyone on site briefed, and live notices and barriers in place;",
+            "the **energisation sequence** written down and agreed with the authorised person and the client."
+          ]
+        },
+        {
+          "h": "The sequence: from the supply outward"
+        },
+        {
+          "p": "A new building has a main board, sub-boards and many final circuits. They are energised **from the supply outward**, one level at a time, never all at once."
+        },
+        {
+          "flow": [
+            "Confirm the records, the approvals and the briefing",
+            "All outgoing breakers on the main board off; the authorised person closes the main incoming breaker",
+            "Check the voltages and the phase rotation at the main board",
+            "Close the outgoing way to the first sub-board, with all that board's outgoing ways off; check voltages there",
+            "Repeat for each sub-board",
+            "Switch final circuits on **one at a time**, checking each for correct operation and recording readings",
+            "Any circuit not ready stays off, locked and tagged",
+            "After each step, update the live-status drawing"
+          ]
+        },
+        {
+          "p": "Why are all the outgoing breakers off before the incoming supply is first switched on? So that **each circuit can be switched on and checked one at a time**. A fault on one circuit then trips only that circuit and shows exactly where the problem is, instead of a main breaker tripping on a dozen circuits at once."
+        },
+        {
+          "h": "Only the authorised person switches"
+        },
+        {
+          "p": "A keen trainee, or a visiting client, may ask to 'switch it on'. The answer is **no**: only the authorised person switches on a new supply, as agreed. The reason is not unkindness. First energising is the moment when hidden faults show themselves, sometimes violently. The authorised person has the training, the authority and the approved PPE, and the rest of the team stands behind the barrier."
+        },
+        {
+          "h": "Part-live buildings"
+        },
+        {
+          "p": "While commissioning goes on, other trades may still be working: painters, ceiling fitters, plumbers. Once a part of the building is energised it is **live**, and people who think it is dead can be hurt."
+        },
+        {
+          "table": {
+            "head": [
+              "Control",
+              "How it works"
+            ],
+            "rows": [
+              [
+                "Live-status drawing",
+                "A marked-up drawing, kept on the site office wall, showing which boards and cables are now live. Everyone can see at once what is energised before they plan any work."
+              ],
+              [
+                "Notices and barriers",
+                "'LIVE' notices on boards and doors; barriers or **locked rooms** round live equipment."
+              ],
+              [
+                "Briefing",
+                "Every trade is told which areas are live and what that means for them."
+              ],
+              [
+                "Locks and tags",
+                "Circuits that are not ready, or are being worked on, stay locked off and tagged."
+              ],
+              [
+                "Permit to work",
+                "Any later work on an energised board or cable goes under a permit, with isolation, lock-off and proving dead."
+              ]
+            ]
+          }
+        },
+        {
+          "note": "When a fault is found on a circuit after its board has been energised, it is **not** repaired live and **not** left until handover. It is isolated, locked off, tagged and proved dead, and the repair is done under a permit to work, then retested.",
+          "label": "Safety"
+        },
+        {
+          "h": "Shutdowns in occupied buildings"
+        },
+        {
+          "p": "A supermarket, clinic or hotel cannot simply lose power. A shutdown to connect a new board is agreed in advance, at a quiet **out-of-hours** time, with the client's staff told and cover arranged: a generator, a temporary supply, or moving frozen stock. Never do it without warning, or at the busiest time of day, and never connect a new board live to avoid the shutdown."
+        }
+      ]
+    },
+    {
+      "title": "Functional and performance testing",
+      "blocks": [
+        {
+          "h": "After energising: first readings"
+        },
+        {
+          "p": "Once a three-phase board has been energised by the authorised person, the first readings are the **voltages at the board** (line to line and line to neutral, within the limits in the specification) and the **phase rotation**, with a phase rotation (phase sequence) tester. Rotation is checked **before any three-phase motor is run**, because it decides which way the motor turns."
+        },
+        {
+          "table": {
+            "head": [
+              "Live test (authorised person)",
+              "What it shows"
+            ],
+            "rows": [
+              [
+                "Voltages and phase rotation",
+                "The supply is right and the phases are in the right order."
+              ],
+              [
+                "Earth fault loop impedance and prospective fault current",
+                "Protective devices will trip fast enough in a fault; devices can break the fault current."
+              ],
+              [
+                "RCD/GFCI trip time and trip current, and the test button",
+                "Each device protects as it should."
+              ],
+              [
+                "Running currents",
+                "Loads are as designed and not overloaded."
+              ],
+              [
+                "Thermal imaging, after some hours on load",
+                "Loose or high-resistance joints, which heat up only when current has flowed for a while."
+              ]
+            ]
+          }
+        },
+        {
+          "p": "A **thermal imaging survey** is done after the building has been on load for **some hours**, preferably with a good share of the design load, and not at the moment of switch-on: joints heat up only as current flows. A hot joint is remade with the board isolated, then rescanned."
+        },
+        {
+          "h": "Phase balance"
+        },
+        {
+          "p": "Once the building is on load, the **phase currents** on the sub-mains and mains are measured with a clamp meter. The unbalance is the largest difference between a phase current and the average, as a percentage of the average. Large unbalance overloads one phase and wastes capacity on the others; loads are moved to balance them, at a planned outage."
+        },
+        {
+          "h": "Motor circuits"
+        },
+        {
+          "ul": [
+            "Check the **direction of rotation** with a **brief start by the authorised person**, watching the shaft or the fan blades. Do not run the motor loaded for an hour and listen for noise, work it out from the pipe layout, or trust the colours of the cores at the terminal box. If it is wrong, the authorised person isolates it and two of the three motor leads are swapped, or, if every motor is wrong, the phase sequence of the supply is corrected.",
+            "Check that the overload is at the nameplate current and that the contactor and interlocks work.",
+            "Measure the running current and compare it with the nameplate.",
+            "Check for noise, vibration and temperature as the motor settles."
+          ]
+        },
+        {
+          "h": "Standby generators and automatic transfer switches"
+        },
+        {
+          "table": {
+            "head": [
+              "Test",
+              "How",
+              "What it proves"
+            ],
+            "rows": [
+              [
+                "Start off load",
+                "With the maker's engineer; check voltage and 50 Hz frequency, oil pressure, temperatures and alarms.",
+                "The set runs correctly."
+              ],
+              [
+                "**Load bank test**",
+                "A bank of resistors or other artificial load is connected, usually in steps up to the full rated load and held as the specification says.",
+                "The generator carries its full rated load steadily for the time specified. A new generator is load-bank tested because the building's real load may be small or may not be available during commissioning."
+              ],
+              [
+                "Simulated mains failure",
+                "An authorised person **opens the mains incoming breaker**, as agreed. Do not pull control wires, close the fuel valve or cut the street supply.",
+                "The ATS senses the failure, starts the generator and transfers the load. The times are recorded."
+              ],
+              [
+                "Retransfer",
+                "The mains is restored; the ATS waits a **set time** before switching back.",
+                "The ATS does not switch back to a mains that has only flickered. The delay is commonly a few minutes, as set by the specification."
+              ],
+              [
+                "Cool-down",
+                "The generator keeps running off load for a few minutes after the load has returned to mains.",
+                "The engine cools gradually, which protects it."
+              ]
+            ]
+          }
+        },
+        {
+          "p": "**Example of a timing check.** The specification says the load must be on the generator within **10 seconds** of the mains failing. Measured: failure sensed after 2.0 s, engine starts and reaches voltage and frequency at 6.5 s, and the transfer switch takes 2.5 s to move: total = 2.0 + 6.5 + 2.5 = 11.0 s. That is **over the limit: a fail**. It is recorded as a fail, a non-conformance report is raised, the cause is found (a start delay setting, a slow starter, a battery fault) and the test is repeated, with the witness present."
+        },
+        {
+          "h": "Emergency lighting"
+        },
+        {
+          "p": "The new system is proved by **cutting the normal supply** to the area (an authorised person does this at the board or with the test switches) and checking that **every fitting lights and stays lit for its full rated time**, often 1 or 3 hours. It is not enough to check each lamp on a bench or flip the wall switch. A fitting that goes out early has a weak or faulty battery and is replaced before handover. The batteries then need many hours to recharge, so the test is planned for a quiet time."
+        },
+        {
+          "h": "Fire alarm interfaces"
+        },
+        {
+          "p": "The fire alarm panel sends signals to other systems, which must act: air handling units shut down, held-open fire doors close, smoke or extract fans start, lifts go to a safe floor, and so on. The interface is tested by **operating a detector or alarm point** (by the fire alarm contractor) and checking that **each connected system does what the design says**. The panel merely showing the right time proves nothing about the interface. The fire alarm contractor, mechanical contractor and client's engineer are all booked."
+        },
+        {
+          "h": "UPS systems"
+        },
+        {
+          "ul": [
+            "The maker's engineer is often asked to attend: the maker's set-up and checks may be needed to keep the **warranty** valid.",
+            "A **battery autonomy test** proves that the UPS carries its load on **batteries alone for the time specified**, at the load specified. Record the load, the duration and the final battery voltage.",
+            "Check the bypass and the alarms."
+          ]
+        },
+        {
+          "h": "Solar PV systems"
+        },
+        {
+          "ul": [
+            "A grid-tied inverter's **anti-islanding** function is checked: when the mains is opened, the inverter must switch itself off, so that it cannot feed the dead lines and endanger line workers. A grid-tied system does not keep the building lit during an outage.",
+            "The commissioning plan includes the **power company's approval and checks before the system exports** to the grid. Exporting without approval is not allowed.",
+            "String voltages, polarity and insulation, and the inverter's settings, are checked and recorded by competent persons, following the maker's order of start-up. The DC side cannot be switched off while the panels see light."
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Failed tests, non-conformance reports and snag lists",
+      "blocks": [
+        {
+          "h": "When a test fails"
+        },
+        {
+          "flow": [
+            "Stop that test and make the plant safe",
+            "Record the failure on the test sheet straight away: the time, what happened, the reading, who saw it",
+            "Raise a non-conformance report (NCR)",
+            "Find the cause: with the circuit isolated and locked off where wiring has to be checked",
+            "Fix the cause; repeat the related dead checks",
+            "Agree a time and **repeat the full test with the witnesses present**, not just the one item, in case the repair affected others",
+            "Record the retest; sign off the NCR; update the drawings if any wiring changed; clear the snag list item"
+          ]
+        },
+        {
+          "p": "What you must **never** do: change the result on the sheet to match the specification, pass the item because it 'did start up in the end', or skip it and hand the building over as planned."
+        },
+        {
+          "h": "Non-conformance report (NCR)"
+        },
+        {
+          "p": "An **NCR** is raised when a test result or an item **does not meet the specification**. It states: what was found, where, what the specification says, who found it, the likely cause, the action to be taken, who will do it, the retest needed and the date closed. It is **not** raised for routine events such as a delivery arriving early or a request for a programme."
+        },
+        {
+          "h": "The snag list (punch list)"
+        },
+        {
+          "p": "The **snag list** records small defects and unfinished items, to be closed out before or after handover. Items on it are things like a light switch plate fitted crooked, a missing label, a cover plate scratched, a cable tie left uncut. It does not hold personal comments, prices or the date of the next project."
+        },
+        {
+          "table": {
+            "head": [
+              "Kind of item",
+              "Examples",
+              "When it is cleared"
+            ],
+            "rows": [
+              [
+                "**Must be cleared before handover**: affects safety, function or compliance",
+                "An emergency light that goes out after ten minutes; a missing earth connection; an interlock that does not work; a fire alarm interface failure; a wrongly set overload",
+                "Before the client takes over. Never carried as a snag."
+              ],
+              [
+                "**May be cleared after handover**, by an agreed date: cosmetic or minor",
+                "A scratched cover plate in a store room; a missing label on a spare way; an uncut cable tie in the ceiling void",
+                "By the date agreed with the client; the item is signed off when done."
+              ]
+            ]
+          }
+        },
+        {
+          "note": "A defect does not become minor because the handover date is close. If you would be unwilling to let the client's staff rely on it, it is not a snag: it is a failure.",
+          "label": "Remember"
+        }
+      ]
+    },
+    {
+      "title": "Handover and close-out",
+      "blocks": [
+        {
+          "h": "Practical completion"
+        },
+        {
+          "p": "**Practical completion** (handover) means the work is **finished and safe to use, with only small items left**. It does not mean every defect has been found and fixed, that the contract is fully closed, that every bill is paid, or that the team has left site. The client signs a **handover certificate** (completion certificate) that records the date they took over."
+        },
+        {
+          "h": "The defects liability period"
+        },
+        {
+          "p": "After handover there is a set time, often 12 months but fixed by the contract, called the **defects liability period**. During it the contractor must **put right defects that appear**. The client may use the building throughout. The period starts from the handover date on the certificate."
+        },
+        {
+          "h": "The handover pack"
+        },
+        {
+          "table": {
+            "head": [
+              "Document",
+              "Why the client needs it"
+            ],
+            "rows": [
+              [
+                "Electrical installation certificate and schedules of inspection and test results",
+                "They show the work was tested and met the specification."
+              ],
+              [
+                "Government inspection certificate",
+                "It shows the installation was approved for connection."
+              ],
+              [
+                "Commissioning sheets for each system",
+                "They prove each system works and record the settings."
+              ],
+              [
+                "**As-built drawings** and circuit charts",
+                "Several cable routes may have changed from the design. The drawings are updated to show **what was really installed**, so that later work can be done safely."
+              ],
+              [
+                "**O&M manual** (operation and maintenance manual)",
+                "How each system works and is looked after, with makers' data sheets, spares lists, warranties and test records."
+              ],
+              [
+                "Training record",
+                "Shows who has been trained, and in what."
+              ],
+              [
+                "Agreed snag list with dates",
+                "Shows what is outstanding."
+              ],
+              [
+                "Handover certificate",
+                "Records the date the client took over, which starts the defects liability period."
+              ]
+            ]
+          }
+        },
+        {
+          "h": "Training the client's staff"
+        },
+        {
+          "p": "Training the client's maintenance staff is part of commissioning, **so they can run, isolate and look after the systems safely**. It is not an optional extra or a way to charge for more hours."
+        },
+        {
+          "ul": [
+            "Agree who will be trained, and hold short sessions **at the equipment**, not just in a classroom.",
+            "Walk them round each board; show the circuit charts and labels.",
+            "Show them how to **isolate and lock off a circuit** and prove it dead with a tester checked before and after.",
+            "Show how the generator and transfer switch work, how to read the alarms, the routine checks the maker asks for (fuel, battery, test runs).",
+            "Show them how to use the RCD test buttons and the emergency lighting test.",
+            "Go through the O&M manual so that they know where to find information and who to call.",
+            "Record who was trained and on what."
+          ]
+        },
+        {
+          "h": "Handing over a live site safely"
+        },
+        {
+          "ul": [
+            "Hand over the **keys, spares and any special tools** and have the receipt signed.",
+            "Make sure the live-status drawing becomes the building's operating drawing.",
+            "Remove temporary supplies, jumpers and test links, and confirm that no CT circuit is left open.",
+            "Hand over the maintenance schedule, including the first emergency lighting and generator tests."
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Coordinating and leading the team",
+      "blocks": [
+        {
+          "h": "Who needs what, and when"
+        },
+        {
+          "table": {
+            "head": [
+              "Who",
+              "What to give them",
+              "When"
+            ],
+            "rows": [
+              [
+                "Client",
+                "The programme, notice of every witness point and hold point, notice of shutdowns",
+                "Early, then updated; days of notice for tests"
+              ],
+              [
+                "Your own team",
+                "A daily briefing: tests, roles, safety controls and the live-status drawing",
+                "Every morning"
+              ],
+              [
+                "Makers' engineers",
+                "A confirmed date and a site that is ready: access, safe working areas, drawings, temporary loads",
+                "Booked weeks ahead"
+              ],
+              [
+                "Other trades",
+                "Notice of which areas will become live, and a briefing",
+                "Before each energising step"
+              ],
+              [
+                "Government inspector",
+                "A completed, tested installation and its records",
+                "Booked when the dead tests are complete"
+              ],
+              [
+                "Power company",
+                "The certificate and the paperwork it needs before connection",
+                "As it requires: its dates are hard to change"
+              ]
+            ]
+          }
+        },
+        {
+          "ul": [
+            "Keep **minutes** of meetings and confirm decisions in writing, so everyone works from the same information.",
+            "When a test fails or a delivery is late, **tell everyone affected at once**, with a revised plan.",
+            "Agree the time and method of any shutdown with the client in writing."
+          ]
+        },
+        {
+          "h": "Leading and supervising a commissioning team"
+        },
+        {
+          "ul": [
+            "Give each member a **role** and swap roles, so that everyone learns to test and to record.",
+            "Work in pairs: one reads the instrument, one writes the result.",
+            "Brief on safety before each stage; make sure each person's own padlock is on the hasp before covers are opened, and that nobody removes another's lock.",
+            "Check the first readings of each trainee and correct errors at once.",
+            "Do not let trainees energise, switch or take live readings. Explain why.",
+            "Review the sheets at the end of each day: missing readings, missing signatures, unexplained results.",
+            "Keep the site tidy and the records in one place."
+          ]
+        },
+        {
+          "h": "Honesty"
+        },
+        {
+          "p": "Commissioning is the point where an installation's safety is proved. A false result, a test that was never done and signed as done, or a failure hidden from the client, can lead to a fire, an injury or a death months later, and to a loss of the client's trust and the contractor's licence. If you are pressed to sign something that has not been proved, say no, and give the reason in writing."
+        }
+      ]
+    },
+    {
+      "title": "Revision",
+      "blocks": [
+        {
+          "h": "Checklist"
+        },
+        {
+          "p": "Tick each statement only when you can do it without looking at the notes."
+        },
+        {
+          "ul": [
+            "I can explain the difference between pre-commissioning and commissioning, with examples of each.",
+            "I can write the headings of a commissioning plan and say what each one covers.",
+            "I can explain the commissioning manager's role and the authorised person's role.",
+            "I can plan commissioning time in a programme and work out the days needed.",
+            "I can explain an inspection and test plan, and a hold point and a witness point, with an example of each.",
+            "I can say why instruments are calibrated and recorded, and what to do with one that is out of date.",
+            "I can write a test sheet entry with a reading, limit, instrument and signature.",
+            "I can plan the dead checks for boards, motors, generators, UPS units, emergency lighting, PLCs and solar systems.",
+            "I can set an overload relay from the motor's nameplate.",
+            "I can describe the energising sequence and explain why outgoing breakers are off first.",
+            "I can control a part-live building with a live-status drawing, notices, barriers and briefings.",
+            "I can plan a shutdown in an occupied building.",
+            "I can explain the first live readings and a thermal survey after some hours on load.",
+            "I can check motor rotation correctly and plan a generator and transfer switch test, including a load bank test and the retransfer delay.",
+            "I can plan emergency lighting, fire alarm interface, UPS and solar system tests.",
+            "I can handle a failed test: record it, raise an NCR, find the cause, retest with witnesses.",
+            "I can separate snag items that must be cleared before handover from those that can follow.",
+            "I can explain practical completion, the defects liability period, as-built drawings and the O&M manual.",
+            "I can plan the training of the client's staff.",
+            "I can coordinate the client, makers' engineers, other trades, inspector and power company, and lead a team honestly."
+          ]
+        },
+        {
+          "h": "Numbers and ideas to remember"
+        },
+        {
+          "table": {
+            "head": [
+              "Figure or idea",
+              "What it is"
+            ],
+            "rows": [
+              [
+                "Dead checks → energise from the supply outward → functional tests",
+                "The order of commissioning"
+              ],
+              [
+                "Hold point = stop; witness point = told, may attend",
+                "The two kinds of ITP point"
+              ],
+              [
+                "Overload = nameplate full-load current",
+                "The usual setting"
+              ],
+              [
+                "Total time = (items × time each) ÷ teams, rounded up to whole days",
+                "Programme calculation"
+              ],
+              [
+                "Generator transfer time = detection + start + transfer",
+                "Add the parts and compare with the limit"
+              ],
+              [
+                "Autonomy test",
+                "Load on batteries alone for the time specified"
+              ],
+              [
+                "50 Hz",
+                "The JPS supply frequency"
+              ]
+            ]
+          }
+        },
+        {
+          "h": "Key terms"
+        },
+        {
+          "terms": [
+            [
+              "Acceptance criteria",
+              "The limits that decide whether a test or item passes."
+            ],
+            [
+              "Anti-islanding",
+              "A function that stops a grid-tied inverter feeding the grid when the grid fails."
+            ],
+            [
+              "As-built drawings",
+              "Drawings updated to show the installation exactly as it was finally installed."
+            ],
+            [
+              "Authorised person",
+              "The person appointed in writing to energise, switch and live-test."
+            ],
+            [
+              "Automatic transfer switch (ATS)",
+              "The device that moves a building's load from the mains to a standby generator, and back, by itself."
+            ],
+            [
+              "Autonomy test",
+              "A UPS test in which the load runs on the batteries alone for the specified time."
+            ],
+            [
+              "Commissioning",
+              "Proving with power on that an installation works as designed."
+            ],
+            [
+              "Defects liability period",
+              "The set time after handover when the contractor must put right defects that appear."
+            ],
+            [
+              "Hold point",
+              "A step in an ITP where work stops until a named person inspects and releases it."
+            ],
+            [
+              "Inspection and test plan (ITP)",
+              "The plan listing each check and test, when it is done, who does it, the accepted result and who signs."
+            ],
+            [
+              "Load bank test",
+              "A generator test with an artificial load, to prove it carries its rated load."
+            ],
+            [
+              "Non-conformance report (NCR)",
+              "The report raised when an item or result does not meet the specification."
+            ],
+            [
+              "O&M manual",
+              "The operation and maintenance manual: how the systems work and are looked after."
+            ],
+            [
+              "Phase rotation",
+              "The order of the three phases (L1, L2, L3); it sets a motor's direction."
+            ],
+            [
+              "Practical completion",
+              "The work is finished and safe to use, with only small items left."
+            ],
+            [
+              "Pre-commissioning",
+              "The dead checks and tests done before a system is first energised."
+            ],
+            [
+              "Snag list (punch list)",
+              "The list of small defects and unfinished items to be closed out."
+            ],
+            [
+              "Witness point",
+              "A step in an ITP where the named person is told and may attend; work goes on if they do not."
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "cases": {
+    "c1": {
+      "title": "Energising a new supermarket in Brown's Town",
+      "text": "Lorna, a Level 3 electrician, is commissioning the electrical installation of a new supermarket in Brown's Town, St Ann. It has a main board, three sub-boards (shop, bakery, cold room) and many final circuits. The dead tests are complete and signed, the government electrical inspection certificate has been issued, and JPS has connected the supply. Painters are still working in the shop, and a keen trainee, Delroy, offers to switch on the main board. At the first energising, the phase rotation indicator at the main board shows the phases in the wrong order."
+    },
+    "c2": {
+      "title": "A standby generator at an Albert Town clinic",
+      "text": "A new 100 kVA standby generator with an automatic transfer switch (ATS) serves a clinic in Albert Town, Trelawny, including its vaccine fridges. The specification says the load must be on the generator within 12 seconds of a mains failure. Dennis, a Level 3 electrician, plans the commissioning with the maker's engineer. The clinic is open from 8 a.m. to 5 p.m. On the test, the failure was sensed after 3.0 s, the engine took 6.0 s to reach voltage and frequency, and the ATS then took 2.5 s to move. The clinic's real load is only about 20% of the generator's rating."
+    },
+    "c3": {
+      "title": "A fire alarm interface at a Christiana guest house",
+      "text": "A guest house in Christiana, Manchester, has a new fire alarm, emergency lighting with 3-hour batteries, and two air handling units (AHUs). At the witnessed test, the fire alarm contractor operates a detector. AHU 1 shuts down and the door holders release, but AHU 2 keeps running. Separately, in the emergency lighting test, five of 30 fittings go out after about 90 minutes. The client's engineer is present, and handover is booked for Friday."
+    },
+    "c4": {
+      "title": "Handing over a bakery in Duncans",
+      "text": "Marcia, a Level 3 electrician, is handing over the electrical installation of a new bakery in Duncans, Trelawny. The snag list holds: a scratched cover plate in the office, an unlabelled spare way on the main board, and a cold-room alarm that does not sound when the temperature rises. Several cable routes were changed on site from the design. The owner, Mr Brown, is eager to take over and open on Monday. His staff have never used the generator and transfer switch."
+    },
+    "c5": {
+      "title": "Instruments and records at an Annotto Bay housing scheme",
+      "text": "A commissioning team is testing a housing scheme's boards in Annotto Bay, St Mary. Thirty motor starters for the water pumping station must be commissioned. Each takes 45 minutes, and two teams will work in parallel, 7 hours a day on this job. The team's insulation tester has a calibration sticker that expired last month; readings were taken with it all last week. The recorder has written 'pass' on several sheets with no readings, and an inspector's witness for next week's tests has not yet confirmed."
+    }
+  },
+  "questions": [
+    {
+      "id": "P-01",
+      "c": "c1",
+      "q": "Delroy offers to switch on the main board. What should Lorna tell him?",
+      "o": [
+        "Yes, as long as he wears insulated gloves and eye protection",
+        "Yes, but only once the painters have left the shop for lunch",
+        "No: only the authorised person switches on, and he stays behind the barrier",
+        "No: only JPS may ever operate a main breaker on the customer's premises"
+      ],
+      "a": 2,
+      "why": "First energising is when hidden faults show themselves, sometimes violently. Only the authorised person, appointed in writing and with the right training and PPE, switches on; the rest of the team stands clear. Gloves and goodwill do not make someone authorised."
+    },
+    {
+      "id": "P-02",
+      "c": "c1",
+      "q": "In what order should the supermarket's boards be energised?",
+      "o": [
+        "The final circuits first, then the sub-boards, then the main board",
+        "The main board, then each sub-board, then final circuits one by one",
+        "All the boards together, so that the whole shop comes on at once",
+        "The cold room first, since its stock is the most valuable"
+      ],
+      "a": 1,
+      "why": "Energising from the supply outward, one level at a time, with outgoing ways off at each board, means a fault shows up at the step where it occurs and trips only that circuit. Voltage and rotation are checked at each level before going on."
+    },
+    {
+      "id": "P-03",
+      "c": "c1",
+      "q": "The phase rotation indicator shows the wrong order at the main board. What is the right next step?",
+      "o": [
+        "Carry on, as the motors can be corrected one by one later",
+        "Isolate, correct the phase order, and recheck before any motor runs",
+        "Swap two phases at each motor, which saves time at the main board",
+        "Ignore it, since rotation matters only to the generator"
+      ],
+      "a": 1,
+      "why": "Phase rotation decides the direction of every three-phase motor, so if the supply order is wrong, every motor will run backwards. The authorised person isolates, locks off and proves dead, then two incoming conductors are swapped on the customer's side as the designer agrees, and the rotation is rechecked."
+    },
+    {
+      "id": "P-04",
+      "c": "c1",
+      "q": "Painters are still working in the shop now that the main board is live. What must Lorna arrange first?",
+      "o": [
+        "A live notice at the main gate, since the painters can see the lights",
+        "Nothing, as only electricians ever open distribution boards",
+        "A shorter painting programme, so that the painters finish before power is on",
+        "Notices, barriers and a briefing, and a live-status drawing in the site office"
+      ],
+      "a": 3,
+      "why": "Once a part of the building is energised, people who think it is dead can be hurt. The live-status drawing shows everyone at a glance what is live, notices and barriers or locked rooms mark the equipment, and each trade is briefed before work starts."
+    },
+    {
+      "id": "P-05",
+      "c": "c2",
+      "q": "What is the total time from the mains failing to the load being on the generator?",
+      "o": [
+        "11.5 s",
+        "8.5 s",
+        "9.0 s",
+        "12.0 s"
+      ],
+      "a": 0,
+      "why": "Add the parts: 3.0 + 6.0 + 2.5 = 11.5 s. The limit is 12 s, so the test passes. Always add the real readings, and record them on the sheet with the instrument used."
+    },
+    {
+      "id": "P-06",
+      "c": "c2",
+      "q": "How should Dennis arrange the simulated mains failure?",
+      "o": [
+        "The authorised person opens the mains incoming breaker, as agreed",
+        "A trainee pulls the ATS control wires while the set is running",
+        "The fuel valve is closed to see whether the mains takes over",
+        "JPS is asked to cut the street supply to the whole area"
+      ],
+      "a": 0,
+      "why": "Opening the incoming breaker is a controlled, repeatable way to copy a mains failure, done by the authorised person at an agreed time. Pulling wires or closing the fuel valve tests nothing useful and is hazardous, and the power company will not cut the supply to a neighbourhood for a test."
+    },
+    {
+      "id": "P-07",
+      "c": "c2",
+      "q": "The clinic's own load is only about 20% of the generator's rating. Why is a load bank test still needed?",
+      "o": [
+        "To show the clinic how much fuel the generator burns",
+        "To clean the radiator by blowing hot air through its fins",
+        "To prove it carries its full rated load for the specified time",
+        "To charge the starting battery faster than its charger can"
+      ],
+      "a": 2,
+      "why": "A generator lightly loaded for years can fail on the day the building's full load transfers to it. A load bank applies an artificial load, usually in steps up to the full rating, held for the time specified, which proves the set can do what it was bought to do."
+    },
+    {
+      "id": "P-08",
+      "c": "c2",
+      "q": "When the mains returns, the ATS waits a set time before moving the load back. Why?",
+      "o": [
+        "So that the generator's fuel tank can be refilled first",
+        "So that the clinic can pay for the fuel used during the test",
+        "So that the power company's meter reader can take a reading",
+        "To be sure the mains is steady, and has not just flickered back"
+      ],
+      "a": 3,
+      "why": "A mains supply that returns briefly and drops out again would otherwise make the load bounce between the supplies. The retransfer delay, set in the ATS, makes sure the mains is steady first. The generator then cools down, running off load for a few minutes."
+    },
+    {
+      "id": "P-09",
+      "c": "c3",
+      "q": "AHU 2 did not shut down. What is the right way to handle the failure?",
+      "o": [
+        "Record it, raise an NCR, find the cause and retest with the witness",
+        "Note it on the snag list and hand over on Friday as planned",
+        "Change the test sheet to show a pass, as AHU 1 did shut down",
+        "Test AHU 2 again at once and record only the result that passes"
+      ],
+      "a": 0,
+      "why": "A failed test is recorded honestly, tracked with an NCR, and its cause is found with the circuit safely isolated: it might be a wrong terminal, a broken cable or a controller setting. The test is then repeated with the client's engineer present."
+    },
+    {
+      "id": "P-10",
+      "c": "c3",
+      "q": "Once the AHU 2 fault is fixed, what should the retest cover?",
+      "o": [
+        "Only AHU 2, since the other items passed the first time round",
+        "Only the wiring, which can be checked with a meter on its own",
+        "The whole interface, in case the repair affected other items",
+        "Nothing: the contractor's word is enough to close the NCR now"
+      ],
+      "a": 2,
+      "why": "A repair to one relay or cable may have disturbed other connections. Repeating the full interface test, with the witnesses present, shows that every connected system still acts as designed, and gives a clear record for the NCR to be closed."
+    },
+    {
+      "id": "P-11",
+      "c": "c3",
+      "q": "Five of 30 emergency fittings go out after about 90 minutes of a 3-hour test. What should happen before handover?",
+      "o": [
+        "Mark them as cosmetic snags to be cleared after handover",
+        "Repair or replace them and retest, as they fail the duration",
+        "Reduce the specified duration, since most fittings passed",
+        "Ask the guest house to test them monthly and tell the contractor"
+      ],
+      "a": 1,
+      "why": "Emergency lighting must last its full rated time to light escape routes. A fitting that fails early has a weak battery, and the failure affects life safety, so it is cleared before handover, not carried as a snag. The batteries then need many hours to recharge before the retest."
+    },
+    {
+      "id": "P-12",
+      "c": "c4",
+      "q": "Which snag list item must be cleared before Mr Brown takes over?",
+      "o": [
+        "The scratched cover plate in the office",
+        "The unlabelled spare way on the main board",
+        "The uncut cable tie in the ceiling void",
+        "The cold-room alarm that does not sound"
+      ],
+      "a": 3,
+      "why": "A cold-room alarm that fails protects the owner's stock and is a function the installation is supposed to give, so it must work before handover. A scratched plate, a missing label on a spare way and a loose tie are minor and can be cleared by an agreed date."
+    },
+    {
+      "id": "P-13",
+      "c": "c4",
+      "q": "How should the cable route changes be recorded while the work goes on, so that the as-built drawings are right?",
+      "o": [
+        "Marked on a red-line set as each approved change is made",
+        "Memorised by the foreman and drawn up after the job is over",
+        "Written on the cable tray in marker pen for the next worker",
+        "Left out, because only the designer's changes are ever drawn"
+      ],
+      "a": 0,
+      "why": "A change is approved first, then marked on a red-line (mark-up) set as it is made. At the end those mark-ups are used to produce the as-built drawings. Memory and marks on site do not make a record, and every change counts, whoever made it."
+    },
+    {
+      "id": "P-14",
+      "c": "c4",
+      "q": "Which safety skill is the most important to teach Mr Brown's maintenance staff first?",
+      "o": [
+        "How to reset every protective device as soon as it trips",
+        "How to isolate, lock off and prove a circuit dead with a checked tester",
+        "How to bypass the transfer switch when the generator is slow to start",
+        "How to adjust the overload settings to stop nuisance trips"
+      ],
+      "a": 1,
+      "why": "Staff who can isolate, lock off, tag and prove dead, with a tester checked before and after, can work on the installation without being hurt. Resetting repeatedly, bypassing the ATS or raising settings defeats the protection the commissioning has just proved."
+    },
+    {
+      "id": "P-15",
+      "c": "c5",
+      "q": "How many working days should be planned for the 30 starters?",
+      "o": [
+        "1 day",
+        "2 days",
+        "3 days",
+        "4 days"
+      ],
+      "a": 1,
+      "why": "30 × 45 minutes = 1,350 minutes = 22.5 hours. Two teams share it: 11.25 hours each. At 7 hours a day, that is 1.6 days, so 2 working days are planned, rounding up. Retests need extra time."
+    },
+    {
+      "id": "P-16",
+      "c": "c5",
+      "q": "The insulation tester's calibration expired last month and it was used all last week. What should the team do?",
+      "o": [
+        "Carry on, as the readings looked reasonable to the team all week",
+        "Tag it out of use, then repeat the readings with a good tester",
+        "Write a note on the sheets and keep using it until the job ends",
+        "Raise the test voltage, to allow for any error in the instrument"
+      ],
+      "a": 1,
+      "why": "Readings must be traceable to an instrument known to be accurate. An out-of-date instrument is taken out of use, and readings taken with it are suspect, so they are repeated with a calibrated tester. The serial number and calibration date go on every sheet."
+    },
+    {
+      "id": "P-17",
+      "c": "c5",
+      "q": "Which entry belongs on the test sheet for an insulation resistance test?",
+      "o": [
+        "Insulation L–E: pass, as the specification requires, tested on 14 Nov",
+        "Insulation L–E: 350 MΩ at 500 V DC, tester no. 4, on 14 Nov, by K. Bailey",
+        "Insulation resistance is good, well above the minimum, so no reading was noted",
+        "Insulation: 350, tester no. 4, 14 Nov, K. Bailey (no unit or voltage given)"
+      ],
+      "a": 1,
+      "why": "A reading needs its unit, test voltage, instrument, date and name, so that it can be traced and compared with the next test. 'Pass' or 'good' cannot be checked, and a bare number does not say how it was measured."
+    },
+    {
+      "id": "P-18",
+      "c": "c5",
+      "q": "Next week's tests need the inspector's confirmation. How should the step be treated?",
+      "o": [
+        "Work stops at a hold point; at a witness point it goes on, with notice given",
+        "Skip it, because the inspector is busy and the work is almost finished",
+        "Leave it to the client, who alone may ever carry out the test himself",
+        "Repeat the test each week until the inspector finally turns up to watch"
+      ],
+      "a": 0,
+      "why": "The ITP says which kind of point it is. At a hold point, work stops until the named person releases it; at a witness point, the person is told in good time and may attend, and work goes on, with the results sent, if they do not. Either way the notice is given in writing."
+    },
+    {
+      "id": "P-19",
+      "c": null,
+      "q": "A UPS is specified to carry a 6 kW load for 20 minutes on batteries. In the autonomy test it carries that load for 14 minutes. What does this show?",
+      "o": [
+        "The UPS passes, since it carried the load for a good time",
+        "The UPS passes, since the load was only 6 kW",
+        "The UPS fails, as the batteries do not last the specified time",
+        "The test is invalid, since a UPS cannot be tested on batteries"
+      ],
+      "a": 2,
+      "why": "An autonomy test proves the UPS carries its load on batteries alone for the time specified. Fourteen minutes is less than twenty, so the test fails: the batteries may be too small, not fully charged or faulty. It is recorded, an NCR is raised and the maker's engineer is asked to correct it."
+    },
+    {
+      "id": "P-20",
+      "c": null,
+      "q": "The solar installer says the DC cables are safe to handle on a dull, cloudy day. What is wrong with that?",
+      "o": [
+        "Panels still make voltage in any daylight, so DC cables are treated as live",
+        "Cloudy light makes the DC voltage higher, which is why it is more dangerous",
+        "Panels make DC only in direct sun, so a dull day is safe if the AC is off",
+        "The inverter stores the DC, so the cables are dead once it is switched off"
+      ],
+      "a": 0,
+      "why": "Panels make voltage in any daylight, and a string adds the panels' voltages, so the DC cables stay live and cannot be switched off. They are treated as live whenever there is light, and the maker's isolation order is followed. Connectors are never pulled apart under load."
+    }
+  ]
+}

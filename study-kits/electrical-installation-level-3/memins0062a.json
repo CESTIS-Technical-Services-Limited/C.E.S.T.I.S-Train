@@ -1,0 +1,433 @@
+{
+  "format": "cestis-study-kit",
+  "version": 1,
+  "status": "to-check",
+  "written": "2026-11-07",
+  "programme": "Electrical Installation",
+  "qualification": { "id": "QUAL-EIM-L3", "title": "ELECTRICAL INSTALLATION AND MAINTENANCE LEVEL 3", "code": "MEM32507" },
+  "level": 3,
+  "unit": { "code": "MEMINS0062A", "title": "Terminate and connect specialist cables" },
+  "summary": "This unit covers the cables that need more than a screwdriver and a pair of strippers: armoured power cables, aluminium conductors, fire-resistant and mineral-insulated cables, control and instrument cables, data, coaxial and optical fibre cables. You will learn to plan terminations from a cable schedule, choose the right glands, lugs and connectors, make each termination to the maker's method, test it, record it and check the work of a team.",
+  "sections": [
+    {
+      "title": "Unit overview",
+      "blocks": [
+        { "p": "A specialist cable is one whose termination needs its own parts, tools and method: a gland that clamps armour, a lug crimped with a matched die, a screen that must be earthed at one end only, a connector polished to a thousandth of a millimetre. Most failures of these cables happen **at the ends**, not along the run. At Level 3 you plan the terminations, make them, test them, and check and record the work of others." },
+        { "h": "What you must be able to do" },
+        { "table": { "head": ["Task", "What it looks like on the job"], "rows": [
+          ["Plan from the job documents", "Use the cable schedule, wiring diagrams and makers' instructions to write a termination schedule, plan the panel layout, and check that cables, glands, lugs, tools and dies match."],
+          ["Work safely", "Isolate, lock off and prove dead; handle armour, resins, heat guns, fibre off-cuts and laser light safely; leave medium-voltage work to authorised people."],
+          ["Terminate armoured cables", "Fit the right gland with the armour clamped and earthed, keep the bend radius, and leave the bedding and insulation undamaged."],
+          ["Fit lugs and ferrules", "Choose the lug or ferrule for the conductor, crimp it with the right tool and die, bolt it to the maker's torque and mark it. Deal correctly with aluminium."],
+          ["Terminate special power cables", "Follow the maker's method for fire-resistant, mineral-insulated and high-temperature cables, and for joints and heat-shrink parts."],
+          ["Terminate control and instrument cables", "Mark every core, keep signal cables apart from power, and treat screens and thermocouple cables correctly."],
+          ["Terminate data and coaxial cables", "Keep the twist, the bend radius and the wiring scheme, and fit compression connectors on coax."],
+          ["Terminate and handle optical fibre", "Inspect and clean connectors, understand splicing, and work out a loss budget."],
+          ["Test and record", "Carry out continuity, insulation resistance, certification and loss tests, find the cause of a bad result, and hand over schedules and results."],
+          ["Lead and check", "Set hold points, inspect work against a checklist, give feedback and sign the records."]
+        ] } },
+        { "h": "Specialist cables in Jamaica" },
+        { "ul": [
+          "Supplies are **110 V and 220 V, 50 Hz**, with three-phase supplies in larger buildings and plants. The code is based on the US National Electrical Code, but much of the armoured cable, glands and data practice on Jamaican sites follows British and international standards. You will meet both sets of terms: protective conductor (CPC) and equipment grounding conductor; earth and ground; screen and shield.",
+          "Heat, humidity, salt air and heavy rain attack terminations: choose outdoor glands with seals, non-rusting parts and sealed enclosures, and keep cable ends capped until they are terminated.",
+          "Lightning is common. Screens, armour and surge protection must be bonded as the design shows.",
+          "Medium-voltage cables (thousands of volts) belong to JPS or to large sites with their own authorised staff. You must understand how they are terminated, but you do not work on them unless you are trained and authorised."
+        ] },
+        { "note": "The maker's instructions for the gland, lug, connector or kit in your hand come first. Where this kit gives a figure (a bend radius, a loss, a test voltage), it is a typical one.", "label": "Remember" }
+      ]
+    },
+    {
+      "title": "Planning, safety and supervising",
+      "blocks": [
+        { "h": "The documents" },
+        { "table": { "head": ["Document", "What it gives you"], "rows": [
+          ["Cable schedule", "Every cable on the job: its number, type, size, number of cores, route, length and where each end goes."],
+          ["Wiring and termination diagrams", "Where each core lands: terminal number, core number or colour, and the phase."],
+          ["Panel layout drawings", "Where cables enter, where the gland plate, terminal rails and earth bar are."],
+          ["Makers' instructions", "The method for each gland, lug, connector, joint or termination kit; crimp dies; torque values; test limits."],
+          ["Specification", "Standards to meet, labelling, segregation, tests and the records to hand over."]
+        ] } },
+        { "p": "From these you write a **termination schedule**: one line for every core, which becomes the as-built record when it is ticked off and signed." },
+        { "table": { "head": ["Cable", "Core", "From (terminal)", "To (terminal)", "Marker"], "rows": [
+          ["P-03 (4-core SWA)", "L1", "MCC-2 / Q5 / L1", "Pump 3 isolator / L1", "P03-L1"],
+          ["C-11 (12-core control)", "Core 4", "MCC-2 / X2 / 14", "Pump 3 local panel / X1 / 4", "C11-4"],
+          ["I-07 (screened pair)", "Screen", "PLC panel / earth bar", "Not connected: insulated at the transmitter", "I07-S"]
+        ] } },
+        { "h": "Before the first cable is stripped" },
+        { "flow": ["Get the latest drawings, diagrams and cable schedule", "Check the delivered cables and parts against the schedule", "Plan the layout: power in one area, signal cables in another", "Check glands, lugs, ferrules and markers for every cable", "Check crimp tools, dies and torque tools, with calibration in date", "Plan safe isolation and any permits", "Share out the work and set the hold points", "Brief the team"] },
+        { "h": "Safe working" },
+        { "table": { "head": ["Hazard", "Control"], "rows": [
+          ["Live parts in a panel that has other circuits", "Isolate the **whole panel** where you can, lock off, tag and prove dead with a tester checked before and after. Switching off only the new circuit's breaker leaves live busbars beside your hands."],
+          ["Sharp armour wires and knife cuts", "Cut-resistant gloves and safety glasses; cut away from the body; put armour and sheath off-cuts straight into the scrap bin."],
+          ["Insulation resistance testing", "Warn others; keep hands off the conductors; discharge the cable afterwards; disconnect electronic equipment first."],
+          ["Jointing resins, cleaners and solvents", "Read the kit instructions and the **safety data sheet (SDS)** first; gloves, glasses and good airflow."],
+          ["Heat guns and gas torches", "Keep away from flammables; heat only as the maker says; let parts cool before handling."],
+          ["Fibre: invisible laser light and glass off-cuts", "Never look into a fibre or connector; put every off-cut in a sealed, marked container; wear safety glasses; no food or drink at the bench."],
+          ["Medium-voltage cables", "Only trained, authorised people, with the cable isolated, earthed and proved dead under a permit."],
+          ["Stored energy: long cables, capacitors, UPS and solar supplies", "Find every source of supply; discharge and prove dead."]
+        ] } },
+        { "h": "Hold points and checking a team" },
+        { "p": "A **hold point** is a stage where work stops until someone has inspected it, because the next step will hide it. Typical hold points: after the armour is clamped in the gland; after lugs are crimped; before an enclosure is closed." },
+        { "ul": [
+          "Brief the team on the schedule, the safety rules and the standard for each type of termination, and show a good example of each.",
+          "At each hold point, check against a checklist: no damaged insulation, correct crimp, no bare conductor showing, correct torque, labels on both ends.",
+          "When you see a trainee using a wrong method, stop them at once, show the right way, and check their next one. Do not finish the job for them, and do not leave them to repeat the fault.",
+          "Record the checks, rework anything that fails, and note who needs more practice."
+        ] },
+        { "h": "Labelling" },
+        { "p": "Every cable carries the **same unique number at both ends**, taken from the cable schedule, and every core carries a marker. Then any cable can be traced end to end years later without pulling on it or guessing." }
+      ]
+    },
+    {
+      "title": "Armoured cables and glands",
+      "blocks": [
+        { "p": "Steel-wire armoured (**SWA**) cable is the usual choice for power feeds that run outdoors, underground or where they may be struck. From the inside out it has: conductors, insulation (PVC or XLPE), **bedding**, a layer of **steel armour wires**, and an outer sheath. Single-core armoured cables use aluminium wire armour instead, because steel round one conductor heats up from the magnetic field." },
+        { "h": "The armour as a protective conductor" },
+        { "p": "The armour may be used as the circuit protective conductor (**CPC**) only if two things are confirmed: that it is **big enough** for the fault current (the designer checks this from tables), and that it is **well bonded at both ends** through the gland, earth tag and a conductor to the earth bar. If the armour is not big enough, a separate protective conductor, or a spare core, is used as well. The armour is still bonded." },
+        { "h": "Glands" },
+        { "table": { "head": ["Gland", "Features", "Use"], "rows": [
+          ["Indoor gland", "Clamps the armour; no seals", "Dry indoor panels only"],
+          ["Outdoor (weatherproof) gland", "Clamps the armour; an **outer seal** on the sheath, often an **inner seal** on the bedding; a **shroud** over the gland", "Outdoor panels and damp places"],
+          ["Barrier gland", "Each core sealed in a setting compound", "Areas with explosive gas or dust, as the design requires"],
+          ["Plastic or nylon gland", "Grips and seals the sheath only", "Unarmoured cables; never for SWA"],
+          ["The cable maker's named gland", "Matched to a special cable", "Fire-resistant and mineral-insulated cables"]
+        ] } },
+        { "p": "Makers show the gland type by a code (for example BW for a basic indoor gland and CW for a weatherproof one) and the size by the cable's diameters. Choose from the maker's table using the cable's diameter under and over the armour. A gland that is too big cannot seal or grip." },
+        { "h": "Bending radius" },
+        { "p": "Every cable has a **minimum bending radius**, given by the maker as a multiple of its overall diameter (often 6 to 8 times for armoured power cables). Bending tighter can crack the insulation and bedding and open the armour, and the damage may not show until the cable fails under load. Plan the entry so the cable comes straight into the gland: **radius = multiple × overall diameter**." },
+        { "h": "Terminating an SWA cable" },
+        { "flow": ["Isolate, lock off, tag and prove dead", "Check the route and the bend at the entry", "Slide the shroud and the gland's outer parts onto the cable", "Mark and remove the outer sheath without cutting the armour", "Cut the armour wires to length without nicking the bedding", "Splay the wires over the cone and clamp them with the clamping ring", "Fit the earth tag and tighten the gland body and seals", "Strip the bedding; cut each core to length for its terminal", "Fit lugs or ferrules and connect each core to the right phase", "Bond the earth tag to the earth bar; fit the shroud; label"] },
+        { "ul": [
+          "To cut the armour, score it **part of the way through** with a fine hacksaw, then bend the wires back and forth until they snap. Sawing deep, all the way round, cuts into the bedding and insulation underneath.",
+          "Every armour wire must be under the clamping ring, evenly spread. Loose or missing wires weaken the earth path.",
+          "On a three-phase cable, connect the **same core to the same phase at both ends**. A swapped pair reverses the rotation of every motor it feeds.",
+          "Tighten the outer seal last, by hand and then as the maker says. Over-tightening damages the sheath."
+        ] },
+        { "table": { "head": ["Fault", "Result"], "rows": [
+          ["Bedding or insulation nicked when the armour was cut", "A hidden weak point: low insulation resistance now or a fault later"],
+          ["Armour not fully clamped, or earth tag left out", "High-resistance or missing earth path"],
+          ["Indoor gland used outdoors, or no shroud", "Water enters the gland; armour rusts; earth path fails"],
+          ["Bend too tight at the entry", "Cracked insulation and bedding"],
+          ["Cores crossed between the ends", "Wrong phase rotation; motors run backwards"]
+        ] } }
+      ]
+    },
+    {
+      "title": "Lugs, crimps, ferrules and aluminium conductors",
+      "blocks": [
+        { "h": "Choosing the lug" },
+        { "ul": [
+          "Match the lug to the **conductor size** (mm² or AWG), the **conductor material** (copper or aluminium) and the **stud size** of the terminal.",
+          "Use the **crimp tool and die that the lug maker's table gives** for that lug. The die sets how far the barrel is compressed; a die that merely fits the tool can leave the crimp loose or crack the barrel.",
+          "Large lugs are crimped with a hydraulic tool. Pump until the tool reaches full pressure (most tools release or click); stopping early leaves the crimp incomplete."
+        ] },
+        { "h": "Signs of a good and a bad crimp" },
+        { "table": { "head": ["Good crimp", "Bad crimp"], "rows": [
+          ["Conductor pushed fully into the barrel (visible at the inspection hole, if there is one)", "Conductor ending short inside the barrel"],
+          ["Even die marks in the right places; die number pressed into the barrel on many lugs", "Split or cracked barrel; flash squeezed out at the sides"],
+          ["No strands cut off or left outside", "Strands trimmed to make the conductor fit"],
+          ["Lug cannot be turned or pulled on the conductor", "Lug turns or slides"],
+          ["Insulation ends at the barrel, with no bare conductor showing", "Bare conductor between the insulation and the barrel"]
+        ] } },
+        { "h": "Ferrules on fine-stranded conductors" },
+        { "p": "A **ferrule** (bootlace ferrule) is a small tube crimped over the strands of a flexible conductor before it goes into a terminal, so no strand is left out and the clamp does not cut the strands. The ferrule must match the conductor's cross-section: one that is too large crimps loosely and the conductor can pull out. Ferrule colours differ between makers' systems, so go by the printed size, not the colour." },
+        { "h": "Bolted connections" },
+        { "ul": [
+          "Clean the contact faces; use the bolt, washers and spring washer the maker shows.",
+          "Tighten to the **maker's torque** with a torque wrench. Too loose and the joint heats; too tight and the stud stretches or the lug bends.",
+          "Then **mark the nut** with a line of paint or marker across the nut and the bar. The mark shows that the joint was torqued and, if the line later breaks, that the nut has moved."
+        ] },
+        { "h": "Aluminium conductors" },
+        { "p": "Aluminium is lighter and cheaper than copper, so it is used for large feeders. It needs special care for three reasons:" },
+        { "table": { "head": ["Problem", "What it does", "What you do"], "rows": [
+          ["**Oxide skin**: forms on bare aluminium within seconds; hard and high in resistance", "A hot, high-resistance joint", "Wire-brush the strands and apply the maker's **jointing compound** at once; many makers say brush through the compound, so air never reaches the clean metal"],
+          ["**Creep**: aluminium is soft and slowly flows away from pressure", "The joint loosens over months", "Use lugs and connectors made for aluminium; crimp with the right die; torque correctly; re-check the torque later if the maker advises"],
+          ["**Corrosion with copper**: where the two metals touch and moisture is present", "The aluminium is eaten away at the joint", "Use a **bimetal lug** (aluminium barrel, copper palm) to connect aluminium cable to a copper bar or terminal"]
+        ] } },
+        { "h": "Signs of an overheating termination" },
+        { "p": "A lug that is discoloured (blue, brown or black), insulation near it that has gone hard and brittle, a burnt smell, or melted markers all point to a joint that has been running hot. The usual cause is a **poor crimp or a loose bolt**: resistance at the joint turns current into heat. The cure is to isolate, cut back to sound conductor, fit a new lug correctly and torque it. Tightening a burnt joint is not a repair." }
+      ]
+    },
+    {
+      "title": "Fire-resistant, mineral-insulated, heat-resistant and medium-voltage cables",
+      "blocks": [
+        { "h": "Choosing a cable for the conditions" },
+        { "table": { "head": ["Need", "Cable", "Notes"], "rows": [
+          ["Circuits that must keep working in a fire: fire alarms, emergency lighting, smoke control", "Fire-resistant cable of the type the design names", "Often has a red sheath on fire alarm circuits"],
+          ["Places where people must escape through smoke: stairways, malls, hospitals, tunnels", "**LSZH** (low smoke zero halogen) sheath", "Gives off little smoke and no acid halogen gas when it burns; ordinary PVC gives off thick smoke and corrosive gas"],
+          ["Hot places: oven and heater connections, boiler rooms, light fittings that run hot", "Heat-resistant cable: silicone rubber, glass-fibre or mineral-insulated", "**Check the temperature rating first.** Ordinary PVC is rated about 70 °C and XLPE about 90 °C; silicone rubber about 180 °C"],
+          ["Very high temperature, fire survival, long life", "Mineral-insulated (MI) cable", "Copper conductors in compressed mineral powder inside a copper sheath"],
+          ["Outdoors in the sun", "Cable with a UV-resistant sheath", "Other sheaths crack after a few years of Jamaican sun"]
+        ] } },
+        { "h": "Fire-resistant cables" },
+        { "ul": [
+          "Support them with **metal clips, saddles or ties**. Plastic clips and trunking melt early in a fire, and the cable falls, breaks or blocks the escape route.",
+          "Use the **gland the cable maker specifies**, and prepare the end by the maker's method, so the fire-resistant layer is not damaged.",
+          "Keep them apart from other circuits as the design requires, and seal holes through fire walls with fire stopping.",
+          "Before an insulation resistance test, disconnect detectors, sounders and the control panel so the test voltage cannot damage them. The fire alarm specialist does the function test of the whole system."
+        ] },
+        { "h": "Mineral-insulated (MI) cable" },
+        { "p": "The mineral powder inside MI cable **soaks up moisture from the air** as soon as an end is opened, and damp powder has low insulation resistance. So each end is closed with a **seal**: a pot screwed onto the sheath, filled with sealing compound and closed with a disc and sleeves over the conductors." },
+        { "flow": ["Strip the sheath with the proper stripper", "Test the insulation resistance of the open end", "If it is low, drive the moisture out with gentle heat towards the open end, as the maker says", "Fit the pot, fill it with compound and close it", "Test the insulation resistance at once", "Test again after the time the maker advises, often 24 hours", "Fit the gland and terminate"] },
+        { "p": "The second reading is the proof that the seal is dry and sound. If it has fallen, moisture has got in: cut back past the damp part and make the seal again." },
+        { "h": "Heat-shrink parts" },
+        { "ul": [
+          "Clean and abrade the surfaces as the kit says; slide the sleeve on **before** you make the connection.",
+          "Heat **evenly with a heat gun**, moving all the time, usually from the middle outwards or from one end to the other so air is not trapped, until the sleeve has shrunk all round and any adhesive shows at the ends.",
+          "Never use a cigarette lighter or hold a flame on one spot: the sleeve scorches on one side and stays loose on the other.",
+          "Some large medium-voltage kits are made to be shrunk with a gas torch on a soft flame. That is done only as the kit instructions say, by people trained for it."
+        ] },
+        { "h": "Joints" },
+        { "p": "A cable joint, above all one underground, must be made with a **joint kit made for that cable's type and size**: usually connectors, then a resin-filled shell or heat-shrink tubes that restore the insulation, the armour continuity and the waterproof sheath. Tape, a plastic bag or an indoor junction box will let water in within weeks. Before mixing a resin, read the **kit instructions and the SDS**: mixing ratio, working time, curing time, gloves and airflow." },
+        { "h": "Medium-voltage cables: what you must understand" },
+        { "p": "A medium-voltage cable has a conductor, insulation, a **semiconducting screen** and a **metallic screen** over the insulation, then a sheath. The screens are earthed and keep the electric field even inside the insulation. At a termination the screens are cut back, and the field crowds together at the screen edge." },
+        { "table": { "head": ["Part of a heat-shrink termination kit", "What it does"], "rows": [
+          ["Stress-control tube, tape or mastic", "Spreads the electric stress at the end of the screen, so the insulation does not break down there"],
+          ["Outer insulating (anti-tracking) tube", "Protects the insulation from moisture and from surface tracking"],
+          ["Sheds (outdoor terminations)", "Lengthen the path over the surface, so rain and salt cannot bridge it"],
+          ["Screen earthing kit", "Connects the metallic screen to earth"],
+          ["Sealing mastic and the lug", "Keep water out and connect the conductor"]
+        ] } },
+        { "note": "The cut-back distances in the kit instructions are exact. A small error, a scratch in the insulation or a trace of semiconducting material left on it can cause a failure, or an explosion, when the cable is energised. **Only people trained and authorised for medium voltage** make these terminations, with the cable isolated, earthed and proved dead under the power company's or the site's permit system.", "label": "Safety" }
+      ]
+    },
+    {
+      "title": "Control and instrument cables",
+      "blocks": [
+        { "h": "Multicore control cables" },
+        { "ul": [
+          "Cores are numbered or colour-coded. Terminate each in order onto the terminal rail, with a **ferrule** on every flexible core and a **marker** that matches the termination schedule.",
+          "Leave a neat loop long enough to re-make an end once. Dress the cores in trunking or lace them; do not strain a terminal with a tight core.",
+          "Tighten terminal screws to the stated torque with a torque screwdriver, then tug each core gently."
+        ] },
+        { "h": "The 4–20 mA signal" },
+        { "p": "Many instruments send their reading as a current between **4 mA and 20 mA**. 4 mA stands for the bottom of the range (0%) and 20 mA for the top (100%). Current is used because it is not changed by the resistance of a long cable." },
+        { "p": "**Reading = bottom of range + (current − 4) ÷ 16 × span.** For a tank transmitter ranged 0 to 6 m, 12 mA means (12 − 4) ÷ 16 × 6 = **3 m**, half full. Because the bottom of the range is 4 mA and not zero, a reading of **0 mA means a fault**: a broken wire, a loose terminal or no supply. This is called a live zero." },
+        { "h": "Keeping noise out" },
+        { "p": "Instrument signals are small, so they pick up electrical noise easily. Four things protect them:" },
+        { "table": { "head": ["Measure", "Why it works"], "rows": [
+          ["**Twisted pair**", "Noise is picked up equally and in opposite directions in each twist, so most of it cancels."],
+          ["**Screen** (foil or braid, with a drain wire)", "Stops interference from outside reaching the pair."],
+          ["**Screen earthed at one end only**, usually the control panel end, as drawn", "If both ends are earthed at different earth points, current flows along the screen between them (an earth loop) and puts noise on the signal."],
+          ["**Separation** from power and motor-drive cables; crossing them at right angles", "Cables that run side by side couple noise into each other; drive cables are the worst."]
+        ] } },
+        { "ul": [
+          "At the earthed end, sleeve the drain wire and connect it to the screen earth bar. At the far end, cut the screen back and **insulate it** with sleeving or heat-shrink so it cannot touch a terminal or the enclosure.",
+          "Keep the unscreened tails as short as you can.",
+          "A loose or corroded terminal adds resistance that changes with vibration and makes a reading jump."
+        ] },
+        { "h": "Thermocouples and resistance thermometers" },
+        { "ul": [
+          "A **thermocouple** is two different metals joined at the hot end; it makes a tiny voltage that depends on temperature. It must be extended with **extension (or compensating) cable matched to the thermocouple type** (K, J, T and so on), connected the **right way round**. Ordinary copper cable, or reversed cores, makes a second unwanted junction and a wrong reading.",
+          "Colour codes for thermocouple cable differ between standards, so check the type printed on the cable and the + and − marks, not just the colour.",
+          "A resistance thermometer (such as a Pt100) is usually wired with three cores so that the instrument can cancel the resistance of the cable."
+        ] },
+        { "h": "Testing with electronics connected" },
+        { "p": "An insulation resistance tester puts out hundreds of volts. Before you test a control or instrument cable, **disconnect the cores from PLC cards, transmitters, drives and other electronics** at both ends, test, discharge the cable, then reconnect and check each core against the schedule." }
+      ]
+    },
+    {
+      "title": "Data and coaxial cables",
+      "blocks": [
+        { "h": "Twisted-pair data cable" },
+        { "table": { "head": ["Category", "Typical use"], "rows": [
+          ["Cat 5e", "1 gigabit Ethernet to 100 m"],
+          ["Cat 6", "1 gigabit to 100 m; 10 gigabit only over short distances (about 55 m at best)"],
+          ["**Cat 6A**", "**10 gigabit Ethernet over the full 100 m channel**"]
+        ] } },
+        { "p": "A data link works only if the pairs keep their exact twist from end to end. Everything in good practice protects the twist." },
+        { "table": { "head": ["Rule", "Typical figure", "Why"], "rows": [
+          ["Length", "**Permanent link** (fixed cable from patch panel to outlet) up to **90 m**; whole **channel** up to 100 m", "The other 10 m is for the patch leads at each end."],
+          ["Bend radius", "About **4 times the cable's outside diameter** for unscreened 4-pair cable; more for screened cable", "Tight bends change the spacing of the pairs."],
+          ["Pulling force", "No more than the maker allows (about 110 N for 4-pair cable)", "Over-pulling stretches the cable and untwists the pairs."],
+          ["Untwisting at terminations", "As little as possible: no more than about 13 mm", "Untwisted pairs pick up each other's signals (crosstalk)."],
+          ["Support", "Trays, hooks or trunking; loose hook-and-loop ties", "Tight cable ties crush the jacket and the pairs."],
+          ["Separation", "Apart from power cables and from ballasts and motors, as the design says", "Avoids interference."],
+          ["Wiring scheme", "**One scheme (T568A or T568B) chosen for the whole site** and used at both ends of every link", "Mixed schemes cross the pairs."],
+          ["Service loop", "A little spare cable coiled at each end", "So an end can be re-terminated or moved later."]
+        ] } },
+        { "ul": [
+          "Terminate on patch panels and outlets with the right **punch-down tool**, or the connector maker's tool; strip the jacket only as far as needed.",
+          "**Screened cable** (used in factories and other noisy places) works only if the screen is continuous: terminate it in screened connectors and bond the panel to the earthed rack. A screen that is cut off or left floating can make things worse.",
+          "**PoE** (power over Ethernet) sends power to cameras, phones and wireless access points along the data cable. The current warms the cable, so large bundles carrying PoE run hot and lose more signal; keep bundles to the size the design allows.",
+          "Label both ends of every link to match the layout."
+        ] },
+        { "h": "Certifying data links" },
+        { "p": "A simple continuity or wire-map tester shows only that each wire goes to the right pin. A **cable certification tester** measures wire map, length, signal loss, crosstalk and more, and gives a pass or fail against the category." },
+        { "table": { "head": ["Result", "Likely cause", "Cure"], "rows": [
+          ["Wire-map fault: open, short, crossed or reversed pair", "Termination error", "Re-terminate to the scheme"],
+          ["**Split pair**: every pin connects, but two wires from different pairs are used as a pair", "Wires punched down in the wrong order in the same way at both ends", "Re-terminate both ends. A simple continuity tester will not find this; the certifier does, as very poor crosstalk"],
+          ["Length failure", "Run too long", "Re-route, or move the switch or cabinet nearer; no termination fix exists"],
+          ["Crosstalk (NEXT) failure", "Too much untwisting or jacket removed at a termination; the tester often shows which end", "Re-terminate that end with the twist kept right up to the contacts"],
+          ["Insertion loss (attenuation) failure", "Damaged, kinked or crushed cable; poor patch lead; cable too hot; too long", "Find and replace the damaged section"]
+        ] } },
+        { "h": "Coaxial cable" },
+        { "ul": [
+          "Coax has a centre conductor, a thick insulating layer, a screen of foil and braid, and a jacket. TV, satellite and CCTV use **75 Ω** cable.",
+          "The maker's **attenuation** figure, in **dB per 100 m** at a given frequency, tells you how much signal is lost along the run. Loss rises with length and with frequency, so for a long run to a satellite dish choose the cable with the lower figure. **Loss of a run = figure × length ÷ 100.**",
+          "**Compression connectors** are preferred to twist-on types, above all outdoors: they grip all round and seal against water. Strip to the exact lengths with the stripping tool, fold back the braid, push the connector fully on and compress it with the tool.",
+          "Do not kink or crush coax or staple through it; keep bends gentle. Water in a connector ruins the signal: outdoors, use weatherproof connectors and form a drip loop."
+        ] }
+      ]
+    },
+    {
+      "title": "Optical fibre",
+      "blocks": [
+        { "p": "An optical fibre carries data as pulses of light in a thin glass **core** surrounded by glass **cladding** and a protective coating. It is not affected by electrical interference or lightning surges and can run for kilometres." },
+        { "table": { "head": ["Type", "Core", "Use"], "rows": [
+          ["**Single-mode**", "Very small (about 9 micrometres)", "Long links: between buildings on a large site, and anything measured in kilometres"],
+          ["Multimode", "Larger (50 micrometres)", "Short links inside buildings and data rooms, up to a few hundred metres at high speed"]
+        ] } },
+        { "h": "Connectors" },
+        { "ul": [
+          "The **LC** connector, small and push-pull with a 1.25 mm ferrule, is the most common in network racks. The SC is larger, with a 2.5 mm ferrule.",
+          "The ferrule end may be polished flat (UPC, usually a **blue** connector on single-mode) or at an angle (APC, **green**). **Never mate a green connector with a blue one**: the faces do not meet, the loss is high and both can be damaged.",
+          "**Inspect, clean, inspect again** before every connection. The core is far smaller than a speck of dust: dirt blocks the light, and when two ferrules are pressed together it scratches both faces for good. Keep dust caps on until the moment of connection."
+        ] },
+        { "h": "Splicing and terminating" },
+        { "p": "Fibre cables are usually terminated in a patch panel by **fusion splicing** factory-made pigtails (short fibres with a connector already fitted) onto the cable's fibres." },
+        { "flow": ["Strip the coating with a fibre stripper", "Clean the bare glass with a lint-free wipe and alcohol", "Cut the end square with a **cleaver**", "Place both fibres in the fusion splicer, which lines them up and welds them with an electric arc", "Check the splicer's loss estimate; re-make a poor splice", "Slide the protection sleeve over the splice and shrink it", "Coil the fibres in the splice tray without tight bends", "Label each fibre"] },
+        { "h": "Loss budget" },
+        { "p": "Loss in a fibre link is measured in **decibels (dB)**. Before testing, work out the loss the link should have:" },
+        { "p": "**Expected loss = (length in km × fibre loss per km) + (number of connector pairs × loss each) + (number of splices × loss each).**" },
+        { "p": "**Worked example.** A 1.2 km single-mode link at 0.4 dB per km, with two connector pairs at 0.5 dB each and four splices at 0.1 dB each: (1.2 × 0.4) + (2 × 0.5) + (4 × 0.1) = 0.48 + 1.0 + 0.4 = **1.88 dB**. If the equipment allows 5.0 dB, the margin is 5.0 − 1.88 = 3.12 dB. Typical design figures are 0.35 to 0.4 dB per km for single-mode at 1310 nm, 0.1 dB per fusion splice and 0.3 to 0.75 dB per connector pair; use the figures in the specification." },
+        { "h": "Testing" },
+        { "table": { "head": ["Instrument", "What it tells you"], "rows": [
+          ["Inspection scope (microscope)", "Whether a connector end face is clean and undamaged"],
+          ["Light source and power meter", "The **total loss** of the link, to compare with the loss budget"],
+          ["**OTDR** (optical time-domain reflectometer)", "Sends light pulses down the fibre and shows the **distance** to each splice, connector, tight bend and break, and the loss at each"],
+          ["Visual fault locator (red light)", "Finds breaks and tight bends close to the end, and identifies a fibre"]
+        ] } },
+        { "p": "If a fibre measures much worse than the others on the same cable, the first step is the cheapest: **inspect and clean the connectors at both ends and test again**. Dirty connectors are the most common cause. If it is still high, the OTDR shows where the loss is." },
+        { "note": "The light in a fibre is usually **invisible infrared laser light**. It can damage the eye without any pain or warning. Never look into a fibre end or connector. Use a direct-view inspection microscope only on a fibre you know is disconnected at the far end: the lens would focus any light straight into your eye. To find out whether a fibre is carrying light, use a power meter. Fibre off-cuts are glass needles that go through skin: put every one in a sealed, marked container, work on a dark mat, wear safety glasses, and never eat or drink at the bench.", "label": "Safety" }
+      ]
+    },
+    {
+      "title": "Testing and records",
+      "blocks": [
+        { "p": "Tests are done with the cable **isolated at both ends**, in an order that finds simple faults first." },
+        { "table": { "head": ["Test", "Instrument", "What it proves", "Notes"], "rows": [
+          ["Core continuity and identification", "Low-resistance ohmmeter", "Each core is unbroken and lands on the terminal the schedule shows", "Check the phase order on three-phase cables"],
+          ["Armour or screen continuity", "Low-resistance ohmmeter, earth tag to earth tag", "The armour is a complete earth path from gland to gland", "Looking along the sheath or pulling the cable proves nothing"],
+          ["Insulation resistance", "Insulation resistance tester (commonly 500 V DC for low-voltage power cables; lower for some signal cables, as the maker allows)", "The insulation between cores, and between cores and armour or screen, is sound and dry", "Disconnect electronics first; warn others; discharge afterwards"],
+          ["Data link certification", "Cable certifier", "The link meets its category", "Save every result"],
+          ["Fibre loss", "Light source and power meter; OTDR", "Loss is within the budget; where any loss is", "Record each fibre"]
+        ] } },
+        { "h": "Reading an insulation resistance result" },
+        { "ul": [
+          "New, dry cables normally read **hundreds of megohms** or more. The minimum that a standard accepts is far lower (often 1 MΩ), but a reading far below the other cables on the same job is a warning even when it is above the minimum.",
+          "A low reading on one cable means **find the cause first**: damage from pulling, a nicked core at the gland, water in an end that lay uncapped in a wet trench, or damp in an MI seal. Never raise the test voltage to 'improve' it, and never connect the cable to see what happens.",
+          "A cable end that has been under water lets water travel along inside the cable. Cut back to dry cable, or replace it."
+        ] },
+        { "h": "Records to hand over" },
+        { "ul": [
+          "The **cable schedule and termination schedule**, marked up as built and signed.",
+          "**Test results** for every cable: continuity, insulation resistance, certifier reports, fibre loss and OTDR traces, with the instrument, the date and the tester's name.",
+          "Inspection checklists with the hold points initialled.",
+          "Torque records for bolted joints, and any joint or splice records.",
+          "Makers' instructions for special terminations, and a list of anything still to be done."
+        ] },
+        { "note": "The client needs these records to trace a cable, to prove the work met the specification, and to compare later test results with the first ones. An invoice and a box of off-cuts are not a handover.", "label": "Tip" }
+      ]
+    },
+    {
+      "title": "Revision",
+      "blocks": [
+        { "h": "Checklist" },
+        { "p": "Tick each statement only when you can do it without looking at the notes." },
+        { "ul": [
+          "I can plan terminations from a cable schedule and wiring diagrams and write a termination schedule.",
+          "I can plan a panel layout that keeps power and signal cables apart.",
+          "I can explain why the whole panel is isolated, locked off and proved dead before a new cable is connected.",
+          "I can name the layers of an SWA cable and say when its armour can be the protective conductor.",
+          "I can choose an indoor, outdoor or barrier gland and fit it without damaging the bedding.",
+          "I can work out a minimum bending radius from the maker's multiple.",
+          "I can choose a lug and die from the maker's table and recognise a good crimp.",
+          "I can explain the three problems of aluminium conductors and how to terminate them.",
+          "I can tighten a bolted joint to torque and mark it, and recognise an overheated joint.",
+          "I can describe how fire-resistant cable is supported, glanded and tested.",
+          "I can explain why an MI cable end is sealed and tested twice.",
+          "I can choose a cable for heat, smoke or sun, and shrink a heat-shrink sleeve correctly.",
+          "I can describe the parts of a medium-voltage termination and say who may make one.",
+          "I can convert a 4–20 mA signal to a reading and say what 0 mA means.",
+          "I can explain why a screen is earthed at one end and how the other end is finished.",
+          "I can choose and connect thermocouple extension cable.",
+          "I can install and terminate Cat 6 and Cat 6A cable so that it passes certification, and read a certifier's failure.",
+          "I can fit a compression connector on coax and use an attenuation figure.",
+          "I can inspect and clean a fibre connector, describe fusion splicing and work out a loss budget.",
+          "I can state the fibre safety rules.",
+          "I can carry out and read continuity and insulation resistance tests and hand over proper records.",
+          "I can set hold points and check a team's terminations."
+        ] },
+        { "h": "Numbers to remember" },
+        { "table": { "head": ["Figure", "What it is"], "rows": [
+          ["90 m / 100 m", "Permanent link / whole channel for twisted-pair data cable"],
+          ["About 4 × outside diameter", "Rule-of-thumb bend radius for unscreened 4-pair data cable"],
+          ["About 13 mm", "Most untwisting allowed at a data termination"],
+          ["Cat 6A", "10 gigabit Ethernet to 100 m"],
+          ["4 mA / 20 mA", "Bottom / top of an instrument's range; 0 mA is a fault"],
+          ["dB", "Unit of loss in fibre and coax"],
+          ["About 0.4 dB per km, 0.5 dB per connector pair, 0.1 dB per splice", "Typical figures for a single-mode loss budget"],
+          ["1.25 mm", "Ferrule of an LC connector"],
+          ["500 V DC", "Common insulation test voltage for low-voltage power cables"],
+          ["Often 24 hours", "Time before the second test of an MI cable seal (follow the maker)"]
+        ] } },
+        { "h": "Key terms" },
+        { "terms": [
+          ["Attenuation", "Loss of signal along a cable, in dB; for coax it is given per 100 m."],
+          ["Barrier gland", "A gland that seals each core in a setting compound, for areas with explosive gas or dust."],
+          ["Bimetal lug", "A lug with an aluminium barrel and a copper palm, for joining aluminium cable to a copper terminal."],
+          ["Cable schedule", "The table listing every cable with its number, type, size, route and ends."],
+          ["Certification tester", "An instrument that tests a data link against its category and gives a pass or fail."],
+          ["Cleaver", "The tool that cuts a glass fibre end cleanly and squarely before splicing."],
+          ["CPC", "Circuit protective conductor: the earth conductor of a circuit (US: equipment grounding conductor)."],
+          ["Crosstalk (NEXT)", "Signal leaking from one pair into another, made worse by untwisting."],
+          ["Earth loop", "Unwanted current in a screen that is earthed at two points at different potentials."],
+          ["Ferrule", "A small tube crimped over the strands of a flexible conductor; also the ceramic tip of a fibre connector."],
+          ["Fusion splicing", "Joining two fibre ends permanently by melting them together with an electric arc."],
+          ["Hold point", "A stage where work stops until it has been inspected."],
+          ["LC connector", "The small push-pull fibre connector with a 1.25 mm ferrule."],
+          ["Loss budget", "The loss a fibre link is expected to have, worked out from its length, connectors and splices."],
+          ["LSZH", "Low smoke zero halogen: a sheath that gives off little smoke and no halogen gas in a fire."],
+          ["MI cable", "Mineral-insulated cable: copper conductors in mineral powder inside a copper sheath."],
+          ["OTDR", "Optical time-domain reflectometer: shows the distance to events and faults along a fibre."],
+          ["PoE", "Power over Ethernet: power sent to a device along its data cable."],
+          ["Screen (shield)", "A foil or braid round the cores that keeps interference out; on medium-voltage cable, the earthed layer that controls the electric field."],
+          ["SDS", "Safety data sheet: the maker's sheet on the hazards and safe use of a chemical product."],
+          ["Stress control", "The tube, tape or mastic that spreads electric stress at the screen end of a medium-voltage termination."],
+          ["SWA", "Steel-wire armoured cable."],
+          ["Termination schedule", "A list of every core with the terminal it lands on and its marker."]
+        ] }
+      ]
+    }
+  ],
+  "cases": {
+    "c1": { "title": "Feeders to a pumping station in Yallahs", "text": "Rohan Samuels, a Level 3 trainee, leads two trainees terminating new feeders at a water pumping station in Yallahs, St Thomas. A 4-core copper SWA cable with an overall diameter of 32 mm enters an outdoor kiosk; its maker gives a minimum bending radius of 8 times the overall diameter. The designer's notes say the armour of this cable is not large enough to be the only protective conductor. A second feeder has aluminium conductors, which must be connected to copper busbars with bimetal lugs, using a hydraulic crimping tool." },
+    "c2": { "title": "Cat 6A links in a Portmore call centre", "text": "Shauna-Kay Thompson, a Level 3 trainee, is certifying 48 new Cat 6A links in a call centre in Portmore, St Catherine. Link 23 fails: every pin connects to the right pin at the far end, but the certifier reports a split pair. Link 30 fails on length: its permanent link measures 96 m. The ceiling cameras will be powered over the data cables (PoE), and the designer has limited the number of cables in each bundle." },
+    "c3": { "title": "A fibre link on a college campus in Mona", "text": "A 12-fibre single-mode cable, 1.8 km long, has been installed between the administration building and the library of a college in Mona, St Andrew. At each end the fibres are fusion-spliced to pigtails in a patch panel, so each fibre has two splices and two connector pairs. The design figures are 0.35 dB per km for the fibre, 0.1 dB per splice and 0.5 dB per connector pair. Level 3 trainee Jermaine Wright tests the link with a light source and power meter: eleven fibres measure between 1.7 and 1.9 dB, but fibre 5 measures 3.1 dB. The library's patch panel has green connectors." },
+    "c4": { "title": "Instrument cables at a bottling plant in Spanish Town", "text": "At a bottling plant in Spanish Town, St Catherine, a level transmitter on a syrup tank sends a 4–20 mA signal 120 m to a PLC panel. The transmitter is ranged 0 to 4 m. Its screened twisted-pair cable was laid in the same tray as the cables from a variable speed drive to its motor, and the reading at the PLC is unsteady. A type K thermocouple on a pasteuriser is connected to its controller with type K extension cable. Level 3 trainee Nadia Campbell is asked to find and correct the problems." },
+    "c5": { "title": "Fire alarm and boiler-room cables at a Mandeville nursing home", "text": "Level 3 trainee Andrew Grant is installing cables at a nursing home in Mandeville, Manchester. Red fire-resistant cable runs to the fire alarm sounders, and a mineral-insulated (MI) cable feeds equipment in the hot boiler room. After sealing one MI cable end he measured its insulation resistance at over 200 MΩ; the next morning the same end reads 2 MΩ. A trainee asks whether the fire alarm cable can share a trunking compartment with the 110 V lighting cables to save time." }
+  },
+  "questions": [
+    { "id": "P-01", "c": "c1", "q": "What is the tightest radius the copper SWA cable may be bent to where it enters the kiosk?", "o": ["32 mm", "128 mm", "256 mm", "64 mm"], "a": 2, "why": "Minimum radius = the maker's multiple × the overall diameter: 8 × 32 = 256 mm. A tighter bend can crack the insulation and bedding, so plan the entry and the gland position to give the cable room." },
+    { "id": "P-02", "c": "c1", "q": "The armour is not large enough to be the only protective conductor. What should Rohan's team do?", "o": ["Use a plastic gland, so that the armour is left out of the circuit path", "Add a separate protective conductor, and still bond the armour", "Leave the armour unbonded and rely on the neutral core instead", "Fit a larger breaker, so that a fault clears more quickly"], "a": 1, "why": "If the armour cannot carry the fault current safely by itself, a separate protective conductor (or a spare core) is added as the design shows. The armour is still clamped in the gland and bonded at both ends, so it can never stay live." },
+    { "id": "P-03", "c": "c1", "q": "The lug maker says to wire-brush the aluminium strands and apply the jointing compound straight away. Why straight away?", "o": ["The compound sets hard within a minute of the tin being opened", "Brushed aluminium quickly gets too hot to push into the lug", "The compound must soak into the strands before they are crimped", "A resistive oxide skin re-forms on bare aluminium in seconds"], "a": 3, "why": "Aluminium oxide forms almost at once on clean metal and has a high resistance, which makes a hot joint. The compound keeps air and moisture off the freshly cleaned strands; many makers say to brush through the compound." },
+    { "id": "P-04", "c": "c1", "q": "A trainee stops pumping the hydraulic crimper before it reaches full pressure, because the lug 'looks squeezed enough'. What should Rohan do?", "o": ["Have the crimp remade with the tool at full pressure", "Accept it, as long as the lug cannot be pulled off by hand", "Accept it, but tighten the lug's bolt above the maker's torque", "Wrap the barrel in tape so that it cannot work loose later"], "a": 0, "why": "The tool and die are designed to compress the barrel by a set amount, reached only at full pressure. A part-made crimp can pass a hand pull and still have high resistance, so it overheats under load." },
+    { "id": "P-05", "c": "c2", "q": "What is a split pair, as found on link 23?", "o": ["A pair whose two wires are swapped over at one end of the link", "A pair that has been pulled so hard that one wire has broken", "Two wires from different pairs used as if they were a pair", "A pair that is connected to the wrong two pins at the far end"], "a": 2, "why": "In a split pair every pin still connects to the same pin at the other end, so a simple continuity test passes, but the signal runs on two wires that are not twisted together and crosstalk is very bad. Both ends must be re-terminated to the site's wiring scheme." },
+    { "id": "P-06", "c": "c2", "q": "What is the right way to deal with link 30?", "o": ["Shorten the route or move the cabinet, to get the link to 90 m", "Re-terminate both ends with less untwisting, then certify it again", "Accept it, because the 100 m limit for the channel has not been reached", "Use shorter patch leads at each end to bring the total under 100 m"], "a": 0, "why": "The permanent link is limited to 90 m so that about 10 m is left for patch leads inside the 100 m channel. No termination can fix a cable that is too long: it must be re-routed, or the switch or cabinet moved nearer." },
+    { "id": "P-07", "c": "c2", "q": "Why has the designer limited the size of the bundles that will carry PoE?", "o": ["Large bundles are too heavy for the ceiling grid's hangers", "PoE current heats bundled cables and raises their loss", "Cables in a large bundle untwist where they touch each other", "Cameras on one bundle would all fail if a single cable broke"], "a": 1, "why": "Power over Ethernet puts current through the data pairs, and that warms the cable. In the middle of a big bundle the heat cannot escape, the cable runs hot and its insertion loss rises, so links can fail." },
+    { "id": "P-08", "c": "c3", "q": "What loss should Jermaine expect for each fibre of this link?", "o": ["About 0.8 dB", "About 1.6 dB", "About 2.8 dB", "About 1.8 dB"], "a": 3, "why": "Fibre: 1.8 × 0.35 = 0.63 dB. Splices: 2 × 0.1 = 0.2 dB. Connector pairs: 2 × 0.5 = 1.0 dB. Total 1.83 dB, so readings of 1.7 to 1.9 dB are as expected. Forgetting to multiply the fibre loss by the length gives the wrong 1.55 dB." },
+    { "id": "P-09", "c": "c3", "q": "Fibre 5 measures 3.1 dB. What is the best first step?", "o": ["Cut out both splices on fibre 5 and fusion-splice them again", "Record 3.1 dB as a pass, since light still reaches the far end", "Inspect and clean its connectors at both ends, then test again", "Replace the whole 1.8 km cable, as one fibre must be broken"], "a": 2, "why": "Dirty or damaged connector end faces are the most common cause of high loss, and checking them is quick and cheap. If the loss stays high after cleaning, an OTDR will show where along the fibre it is." },
+    { "id": "P-10", "c": "c3", "q": "A trainee picks up a blue-connector patch lead to plug into the library's green connectors. Why must Jermaine stop him?", "o": ["Blue leads are multimode, so no light at all would pass", "Green connectors carry more power and would burn the lead", "The colours show different lengths, and this one is too short", "Angled and flat end faces do not mate: high loss and damage"], "a": 3, "why": "Green marks an angle-polished (APC) connector and blue a flat-polished (UPC) single-mode one. Pressed together, the faces touch only at an edge, giving high loss and reflection, and both ferrules can be damaged." },
+    { "id": "P-11", "c": "c3", "q": "A trainee wants to know whether fibre 5 is still connected to the light source in the other building. How should he find out?", "o": ["Connect it to the power meter and read the level", "Look into the connector from arm's length for a glow", "View the end face with a direct-view microscope", "Point the connector at his palm and feel for warmth"], "a": 0, "why": "The light is usually invisible infrared and can damage the eye with no warning, and a microscope would focus it into the eye. A power meter shows safely whether the fibre is lit." },
+    { "id": "P-12", "c": "c4", "q": "The PLC reads 14 mA from the level transmitter. What level is that in the tank?", "o": ["2.8 m", "2.5 m", "3.5 m", "1.0 m"], "a": 1, "why": "Take off the 4 mA live zero first: (14 − 4) ÷ 16 × 4 m = 10 ÷ 16 × 4 = 2.5 m. Dividing 14 by 20, or by 16 without subtracting 4, gives wrong answers." },
+    { "id": "P-13", "c": "c4", "q": "One morning the PLC shows 0 mA from the level transmitter. What does that most likely mean?", "o": ["The tank is completely empty", "The transmitter is reading in reverse", "The loop is broken or has no supply", "The screen has been earthed twice"], "a": 2, "why": "An empty tank gives 4 mA, the bottom of the range. Zero current can only mean that no current is flowing at all: a broken core, a loose terminal, a blown fuse or a failed supply." },
+    { "id": "P-14", "c": "c4", "q": "Which change is most likely to steady the level reading?", "o": ["Replace the screened pair with a larger unscreened cable", "Move the signal cable to a route away from the drive cables", "Earth the signal cable's screen at the transmitter end as well", "Tie the signal cable tightly to the drive cables along the tray"], "a": 1, "why": "Cables from a variable speed drive to its motor carry fast-switching currents that couple noise into anything laid beside them. Instrument cables are routed apart from them and cross them at right angles; earthing the screen at both ends would add an earth loop." },
+    { "id": "P-15", "c": "c4", "q": "The pasteuriser's controller shows the temperature falling when the product is clearly getting hotter. What is the most likely cause?", "o": ["The thermocouple extension cable's two cores are reversed", "The extension cable is longer than the maker's standard length", "The extension cable's screen is earthed at the controller end", "The thermocouple is the same type as the extension cable"], "a": 0, "why": "A thermocouple circuit has a polarity. With the cores reversed, the junctions work against each other and the reading moves the wrong way. Check the + and − marks and the type printed on the cable, since colour codes differ between standards." },
+    { "id": "P-16", "c": "c5", "q": "What should Andrew do about the MI cable end that now reads 2 MΩ?", "o": ["Accept it, since 2 MΩ is still above the usual minimum", "Raise the test voltage and test until the reading improves", "Connect it, since heat in the boiler room will dry it out", "Cut back past the damp part and make the seal again"], "a": 3, "why": "The mineral insulation soaks up moisture, and a reading that has fallen so far overnight shows that damp has got into the seal. It will keep falling. The end is cut back to dry cable, re-sealed and tested again at once and after the maker's set time." },
+    { "id": "P-17", "c": "c5", "q": "How should Andrew answer the trainee's question about the trunking compartment?", "o": ["Yes, as long as the fire alarm cable is laid in last, on top", "No: it is kept apart from other circuits, as the design requires", "Yes, since fire-resistant cable cannot be harmed by other cables", "No: it must always be buried in the plaster of the wall instead"], "a": 1, "why": "Fire alarm circuits are kept apart from other circuits so that a fault or fire in the lighting cables cannot disable the alarm, and so that nobody mistakes or disturbs them. The design says how they are separated." },
+    { "id": "P-18", "c": null, "q": "Two coax cables are offered for a 40 m run to a satellite dish. At the dish's frequency, cable A loses 21 dB per 100 m and cable B loses 33 dB per 100 m. How much more signal would cable B lose over this run?", "o": ["12 dB", "13.2 dB", "4.8 dB", "8.4 dB"], "a": 2, "why": "Loss of a run = figure × length ÷ 100. A: 21 × 0.4 = 8.4 dB. B: 33 × 0.4 = 13.2 dB. The difference is 4.8 dB, so cable A delivers about three times the signal power at the receiver." },
+    { "id": "P-19", "c": null, "q": "Cables are being chosen for the enclosed escape stairway of a five-storey office block in New Kingston. Which sheath is the best choice?", "o": ["A standard PVC sheath, since it resists knocks well", "A UV-resistant sheath, as used on outdoor cables", "A low smoke zero halogen (LSZH) sheath", "A thicker PVC sheath in a bright warning colour"], "a": 2, "why": "People must be able to see and breathe on an escape route. Burning PVC gives off thick smoke and corrosive acid gas; an LSZH sheath gives off little smoke and no halogen gas." },
+    { "id": "P-20", "c": null, "q": "During an inspection you find a line of paint across each busbar nut, and on one nut the two halves of the line no longer meet. What does this tell you?", "o": ["That nut has turned since it was torqued and must be checked", "That nut was tightened more than the others when it was fitted", "That nut belongs to a different phase from the others", "That nut was never tightened to its torque in the first place"], "a": 0, "why": "The paint line is put on after the joint is torqued. If the line is broken, the nut has moved: isolate, check the joint for heat damage and re-torque it to the maker's value." }
+  ]
+}

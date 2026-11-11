@@ -1,0 +1,290 @@
+{
+  "format": "cestis-study-kit",
+  "version": 1,
+  "status": "to-check",
+  "written": "2026-11-07",
+  "programme": "Electrical Installation",
+  "qualification": {"id": "QUAL-EIM-L2", "title": "ELECTRICAL INSTALLATION AND MAINTENANCE LEVEL 2", "code": "EEM20723"},
+  "level": 2,
+  "unit": {"code": "MEMINS0011E", "title": "Install, terminate and connect electrical wiring systems"},
+  "summary": "This unit teaches you to install, terminate and connect the wiring of buildings: lighting and outlet circuits, 220 V appliance circuits and their connections at the panel. You will learn to choose and run cables safely, strip and terminate conductors, connect switches, outlets and lamp holders with the right polarity, ground and bond metal parts, and check the work so that it is ready for testing and inspection.",
+  "sections": [
+    {
+      "title": "Unit overview",
+      "blocks": [
+        {"p": "This unit is the core of an electrician's daily work: running cables, making terminations and connecting circuits so that they are safe, tidy and work as designed. It is for Level 2 trainees, who do this work under supervision on circuits that are isolated and proved dead. The tests and the final connection to the supply are made by a competent, authorised person."},
+        {"h": "What you must be able to do"},
+        { "table": { "head": ["Task", "What it looks like on the job"], "rows": [
+          ["Work dead", "Isolate, lock off, tag and prove dead before touching any conductor, and know which parts of a panel stay live."],
+          ["Choose a wiring system", "Tell sheathed cable, cable in conduit, armoured cable and cable tray apart, and say where each is used."],
+          ["Choose cables", "Explain how the load current, the breaker, voltage drop, the way the cable is installed and the place decide the type and size."],
+          ["Install and support cables", "Run cables neatly, fix them at the right spacing, protect them where they pass through holes and boxes, and draw cables into conduit without damage."],
+          ["Strip and terminate", "Strip sheath and insulation without damage, to the right length, and make tight terminations with screws, connectors, lugs and ferrules."],
+          ["Connect circuits and accessories", "Connect outlets, one-way and two-way switching and lamp holders with correct polarity, and 220 V appliance circuits through a two-pole breaker and disconnect."],
+          ["Ground and bond", "Connect the grounding (earth) conductor at every box, accessory and fitting, and explain bonding."],
+          ["Connect at the panel", "Terminate new circuits at the breaker, the neutral bar and the ground bar, dress the conductors neatly and label the circuit."],
+          ["Check, inspect and finish", "Inspect the work, help with dead tests, record results, and leave the site clean."]
+        ] } },
+        {"h": "Electricity supply and the code in Jamaica"},
+        {"ul": ["JPS supplies homes and most businesses with a **single-phase, three-wire supply at 110/220 V, 50 Hz**: two line conductors and a neutral. Each line is about **110 V to neutral** and to ground; the two lines are about **220 V** to each other. Lighting and ordinary outlets are usually 110 V; water heaters, air-conditioners, cookers and some pumps are 220 V.", "The electrical code used in Jamaica is based on the US **National Electrical Code (NEC)**, so cables are often sized in **AWG** and you will meet US terms such as grounding conductor and panelboard. Equipment and training material made to British and IEC standards are also common, with sizes in **mm²** and terms such as earth, CPC and consumer unit. This kit gives both.", "New and altered installations are inspected and certified before JPS connects them; the **Government Electrical Regulator (GER)** oversees this. JPS owns the service drop and the meter: only JPS works on them."]},
+        { "table": { "head": ["British / IEC term", "US / NEC term"], "rows": [
+          ["Earth, earthing", "Ground, grounding"],
+          ["Circuit protective conductor (CPC), earth wire", "Equipment grounding conductor (EGC)"],
+          ["Line, live, phase", "Ungrounded (hot) conductor"],
+          ["Neutral", "Grounded conductor (neutral)"],
+          ["Consumer unit, distribution board", "Panelboard, panel, load centre"],
+          ["Socket outlet", "Receptacle"],
+          ["Two-way switch / intermediate switch", "Three-way switch / four-way switch"],
+          ["Strapper", "Traveller"]
+        ] } },
+        {"h": "How to use this kit"},
+        {"p": "Read the sections in the order of a job: safety, choosing the system and the cable, installing, terminating, connecting, grounding, the panel, then checking. Your instructor will show you the cables, accessories and panels used at the Centre, and the rules of the code that apply to each job."}
+      ]
+    },
+    {
+      "title": "Working dead: safe isolation",
+      "blocks": [
+        {"p": "Installation work often means connecting new cable into an existing circuit or panel. **You never work live.** Before you touch any conductor, the circuit is isolated, locked off, tagged and proved dead."},
+        {"flow": ["Find the circuit from the panel schedule and drawing; tell the people who will lose power", "Switch off the breaker (both poles on a 220 V circuit)", "Fit a lockout device and your own padlock; keep the key on you", "Fix a danger tag: your name, the date, the work, 'Do not switch on'", "Prove your two-pole voltage tester on its proving unit", "At the point of work, test between every pair of conductors", "Prove the tester again on the proving unit", "Only now start work"]},
+        { "table": { "head": ["Circuit", "Test between"], "rows": [
+          ["110 V: line, neutral, ground", ["Line and neutral", "Line and ground", "Neutral and ground"]],
+          ["220 V: two lines and ground (water heater, air-conditioner)", ["Line 1 and line 2", "Line 1 and ground", "Line 2 and ground"]],
+          ["110/220 V: two lines, neutral and ground (cooker, dryer)", ["Line 1 and line 2", "Each line and neutral", "Each line and ground", "Neutral and ground"]]
+        ] } },
+        {"note": "If the tester fails its check after the test, your 'no voltage' readings prove nothing. Treat the circuit as live, get a working tester and repeat every test. A room going dark, a co-worker's word or the customer saying 'it's off' is never proof.", "label": "Remember"},
+        {"h": "Parts that stay live"},
+        {"ul": ["When the **main breaker** of a panel is off, the **incoming supply conductors and the main lugs or terminals** they connect to are still live. They are fed from the JPS meter, before the main breaker. Keep your hands and tools away from them, and never remove the meter or work on the service conductors.", "A circuit can be fed from somewhere else: a generator through a transfer switch, a solar PV inverter, a UPS, or a mislabelled breaker. Find every source.", "A shared neutral (one neutral serving two circuits) can carry current from the other circuit even when yours is off."]},
+        {"h": "Restoring the supply"},
+        {"p": "A locked-off circuit is switched back on only when the work is finished and checked, everyone is clear, and the covers are on, and **only by the person who fitted the lock**. Nobody else removes your lock or switches on 'to see if it works'."},
+        {"note": "Use insulated screwdrivers and pliers in good condition, rated for 1000 V. Insulated tools are an extra safeguard in case something unexpected is live; they never make live work acceptable.", "label": "Safety"}
+      ]
+    },
+    {
+      "title": "Wiring systems and where they are used",
+      "blocks": [
+        {"p": "A **wiring system** is the cable together with the way it is installed, supported and protected. The right system depends on the building, the risk of damage, the environment and whether circuits may need changing later."},
+        { "table": { "head": ["System", "What it is", "Advantages", "Limits and typical use"], "rows": [
+          ["Sheathed cable (non-metallic sheathed, 'twin and earth')", "Insulated conductors plus a grounding conductor inside a tough outer sheath, clipped to the surface or run in hollow walls and roof spaces", ["Quick and cheap to install", "Light, needs few tools"], "Easily damaged; for dry, protected places such as roof spaces, timber partitions and ceilings. Not for wet places, direct sun or where it will be knocked."],
+          ["Single-core cables in conduit", "Single insulated conductors drawn into PVC or steel conduit fixed to the surface or cast in block walls and concrete", ["Well protected from damage", "Can be rewired or added to later by drawing in new cables, without breaking walls"], "Slower and dearer to install. The usual system in Jamaican block and concrete buildings, workshops and commercial buildings."],
+          ["Armoured cable (such as steel wire armoured, SWA, or metal-clad cable)", "Insulated conductors with a layer of steel wire or a metal sheath and an outer sheath", ["Strong protection from damage", "Can be buried or run outdoors where the type allows"], "Heavier and needs special glands or connectors. Used for buried supplies to outbuildings, pumps, gates and in industry."],
+          ["Cable tray, ladder and trunking", "Open trays or closed channels that carry many cables", ["Many cables in one route", "Easy to add cables later"], "Commercial and industrial buildings, plant rooms and above ceilings."],
+          ["Flexible cords", "Flexible stranded cables", ["Flexible for movable equipment"], "Only for connecting appliances and equipment, not as fixed wiring."]
+        ] } },
+        {"note": "Most Jamaican houses and offices are built of concrete block with concrete slab or timber roofs. Conduit is laid in the walls and slabs as the building goes up, with boxes set in the block, and the cables are drawn in later. Sheathed cable is mostly found in timber roof spaces, partitions and ceilings.", "label": "Jamaica"},
+        {"h": "Keeping systems apart"},
+        {"p": "Keep power cables apart from data, telephone, TV and alarm cables. Power cables cause **interference** in signal cables, and a fault could put mains voltage onto a system that people handle. Use separate conduits, trunking compartments or trays; where they must cross, cross at right angles. Never draw data cable into a conduit that carries power circuits."}
+      ]
+    },
+    {
+      "title": "Choosing cables",
+      "blocks": [
+        {"p": "The designer chooses the cable, and the drawing and specification tell you what to use. You must understand the reasons, so that you notice when something is wrong and never swap in a different cable."},
+        { "table": { "head": ["Factor", "Why it matters"], "rows": [
+          ["Load current", "The conductors must carry the full current of the load without overheating. Current = power ÷ voltage (I = P ÷ V)."],
+          ["The breaker (protective device)", "The breaker protects the cable, so the cable must be rated for at least the breaker's current. A bigger breaker on a small cable lets it overheat without tripping."],
+          ["Voltage drop", "Every conductor has resistance, so voltage is lost along it. On a long run a bigger cable may be needed to keep enough voltage at the far end. A common design target is no more than about 3% drop on a branch circuit."],
+          ["Installation method and grouping", "Cables in conduit, under thermal insulation or bunched with others cannot lose heat easily, so their current rating is reduced."],
+          ["Ambient temperature", "Hot places such as roof spaces under a concrete slab or zinc in the sun lower the current a cable can safely carry."],
+          ["Environment", "Wet places, sunlight, burial, oil, chemicals and risk of damage decide the cable type, insulation and sheath."],
+          ["Voltage", "The insulation must be rated for the voltage of the system."]
+        ] } },
+        {"h": "Conductor sizes"},
+        {"p": "In AWG (American Wire Gauge), **the smaller the number, the thicker the wire**: 10 AWG is thicker than 12 AWG, which is thicker than 14 AWG. Metric cable is sized by the cross-sectional area of the conductor in **square millimetres (mm²)**."},
+        { "table": { "head": ["AWG size", "Approximate metric area", "Common maximum breaker for copper under the NEC", "Typical use (the drawing decides)"], "rows": [
+          ["14 AWG", "2.1 mm²", "15 A", "Lighting circuits"],
+          ["12 AWG", "3.3 mm²", "20 A", "Outlet circuits; some 220 V appliance circuits"],
+          ["10 AWG", "5.3 mm²", "30 A", "Larger water heaters and air-conditioners"],
+          ["8 AWG", "8.4 mm²", "Depends on the insulation and installation", "Cookers and sub-panel feeds"]
+        ] } },
+        {"h": "Cable types you will meet"},
+        {"p": "The type is printed or embossed along the cable's sheath or insulation, with the size and voltage rating. Read it before you install a cable."},
+        { "table": { "head": ["Marking (NEC types)", "What it is", "Where it may be used"], "rows": [
+          ["NM (non-metallic sheathed)", "Two or three insulated conductors and a bare grounding conductor in a plastic sheath", "Dry places only: roof spaces, hollow walls and ceilings"],
+          ["UF (underground feeder)", "Like NM, but the conductors are moulded into a solid, water-resistant sheath", "Wet places and direct burial, where the code allows"],
+          ["THHN / THWN", "Single insulated conductors with a nylon outer layer; the W means rated for wet places", "Drawn into conduit; THWN where the conduit may be wet, such as underground or outdoors"],
+          ["SWA or MC (armoured or metal-clad)", "Conductors with steel wire armour or a metal sheath", "Where the cable needs strong protection, outdoors or buried if the type allows"]
+        ] } },
+        {"h": "Voltage drop: a worked example"},
+        {"p": "Voltage drop = current × the resistance of the conductors, out **and back**. Copper 12 AWG has a resistance of about **5.2 ohms per 1,000 m**. A 13.6 A load at the end of a 28 m run uses 56 m of conductor: R = 56 × 5.2 ÷ 1,000 ≈ 0.29 ohms. Drop = 13.6 × 0.29 ≈ **4 V**, which is about 1.8% of 220 V: inside the usual 3% limit. Double the length and the drop doubles; that is when a designer chooses a bigger cable."},
+        {"h": "Why big loads use 220 V"},
+        {"p": "**Worked example.** A 3,000 W water heater on 220 V draws I = 3,000 ÷ 220 ≈ **13.6 A**. The same heater made for 110 V would draw 3,000 ÷ 110 ≈ 27.3 A, twice the current, needing a much thicker cable and losing more voltage on the way. That is why water heaters, air-conditioners and cookers are fed at 220 V."},
+        {"p": "A 220 V appliance has **its own circuit** from a **two-pole breaker**, which switches and protects both line conductors together, so a fault on either line cuts off both. Near the appliance there is usually a **two-pole disconnect (isolator)** so it can be switched off and locked off where it is worked on. Never feed a 220 V appliance from two separate single-pole breakers, and never from a 110 V outlet or an extension cord."},
+        {"note": "Never use a different cable from the one specified, even 'just for a short run'. If the wrong size is delivered, report it.", "label": "Remember"}
+      ]
+    },
+    {
+      "title": "Installing and supporting cables",
+      "blocks": [
+        {"h": "Planning the route"},
+        {"ul": ["Follow the route on the drawing. Run cables straight, level and plumb, parallel to walls and ceilings, so that others can tell where they are.", "Check for hidden pipes and cables before you drill or chase, and keep cables away from places where screws and nails are likely to go.", "Keep cables away from heat: hot-water pipes, water-heater tanks, flues and lamps. Heat softens PVC insulation and lowers the cable's rating.", "Keep sheathed cable out of direct sunlight and wet places."]},
+        {"h": "Through timber and metal"},
+        {"ul": ["Drill holes through joists and studs near the **middle of their depth**, so floorboards, sheeting and nails will not reach the cable and the timber is not weakened. Under the NEC the edge of the hole should be at least **32 mm** from the nearest edge of the timber; if it cannot be, fit a steel plate over the cable.", "Where a cable passes through a hole in metal, such as a steel box, stud or panel, fit a **grommet** or **bush**, so the sharp edge cannot cut the sheath.", "Where a cable passes through a fire-resisting wall or floor, the hole must be sealed with a suitable fire-stopping material, as the specification says."]},
+        {"h": "Fixing and supporting"},
+        {"ul": ["Fix cables evenly at the spacing the code and drawing give, with the cable straight and the clips snug but not crushing it. Under the NEC, sheathed non-metallic cable is fixed within **300 mm** of every box and at intervals of not more than **1.4 m**; many electricians clip closer on surface runs for a neat finish.", "Use clips or staples made for the cable size. A staple hammered too hard can cut into the sheath and the insulation.", "Do not bend cables too sharply: a tight bend can crack the insulation and damage conductors. For sheathed non-metallic cable the NEC asks for a bend radius of at least **5 times the cable's diameter**.", "Bring the sheath just inside the box: for a non-metallic box, about **6 mm** of sheath inside. Fix the cable near the box so it cannot be pulled out."]},
+        {"h": "Drawing cables into conduit"},
+        {"flow": ["Check the conduit run is complete, with all bends, boxes and bushes fitted", "Check the inside is clean and dry, and the cut ends free of burrs", "Check the number and size of cables are within what the code allows for that conduit", "Set the cable reels on a stand so they turn freely", "Push a fish tape (draw wire) through from box to box", "Fix the cable ends to the tape, staggered, and tape them smooth", "One person feeds the cables in straight and untwisted; another pulls steadily", "Leave enough conductor at each box, and label the cables"]},
+        {"ul": ["Pull all the cables for a run in together. Adding a cable later into a full conduit can strip the insulation of those already there.", "A cable-pulling lubricant made for the job can help on long runs. Do not use grease, oil or soap that may damage the insulation.", "Pull from box to box, using the draw-in points. Do not force cables round too many bends: if the pull is hard, stop and find out why.", "Under the NEC, conduit holding three or more conductors may be filled to no more than **40%** of its inside area. An overfilled conduit damages cables as they are pulled and makes them run hot.", "Leave at least **150 mm** of free conductor at each box (NEC), enough to make the connections and fold the conductors back neatly."]}
+      ]
+    },
+    {
+      "title": "Stripping and terminating conductors",
+      "blocks": [
+        {"h": "Tools"},
+        { "table": { "head": ["Tool", "Use"], "rows": [
+          ["Cable stripper or sheath knife", "Removing the outer sheath without cutting the insulation of the cores inside"],
+          ["Wire strippers, set to the conductor size", "Removing insulation from a core without nicking or cutting the copper"],
+          ["Side cutters", "Cutting conductors cleanly to length"],
+          ["Insulated screwdrivers that fit the screw heads", "Tightening terminal screws without slipping or damaging the screw"],
+          ["Torque screwdriver", "Tightening terminals to the maker's torque (tightness) value"],
+          ["Crimping tool with the matching die", "Fixing lugs and ferrules onto conductors"],
+          ["Fish tape (draw wire)", "Pulling cables into conduit"]
+        ] } },
+        {"h": "Stripping"},
+        {"ul": ["Strip the sheath with a proper stripper, cutting away from your body. Do not run a knife along the cable in a way that can score the cores inside: nicked insulation can break down later.", "Strip each core to the length the terminal needs. Many accessories have a **strip gauge** moulded on the back.", "**No bare copper** should show outside the terminal, and no insulation should be trapped under the screw.", "A nicked or cut conductor is weakened and can overheat. Cut it off and strip again.", "Fit green (or green-and-yellow) sleeving over a bare grounding conductor where it is exposed in the box."]},
+        {"h": "Types of termination"},
+        { "table": { "head": ["Termination", "How to make it"], "rows": [
+          ["Binding screw (wire wrapped round a screw)", "Form a loop in the solid conductor and fit it **clockwise** round the screw, so tightening pulls the loop in, not out. One conductor per screw unless the device says more is allowed."],
+          ["Pillar or clamp terminal", "Insert the stripped conductor fully and tighten. For two conductors in one terminal, check that the terminal allows it."],
+          ["Twist-on connector (wire nut)", "Use the size the maker's chart allows for the number and size of conductors. Hold the stripped ends level, twist the connector on clockwise until tight, check no bare copper shows below it, and tug each conductor."],
+          ["Lever or push-in connector", "Strip to the length marked, push fully in and close the lever. Use only within the maker's ratings."],
+          ["Crimped bootlace ferrule", "Fitted on fine-stranded flexible conductors before they go into a screw terminal, so strands cannot splay or be cut."],
+          ["Crimped lug (cable lug)", "Ends a conductor so it can be bolted to a stud or busbar. Match the lug to the conductor size and the stud size, and use the crimp tool and die made for that lug, so the crimp grips fully."]
+        ] } },
+        {"p": "After tightening any terminal, give each conductor a **gentle tug**. A conductor that moves is not held."},
+        {"note": "Tighten terminals to the maker's torque, often printed on the device in newton metres (N·m). A loose terminal has a high resistance, gets hot and can start a fire; an over-tightened one can crush the conductor or crack the terminal.", "label": "Remember"},
+        {"h": "Where joints are made"},
+        {"p": "Joints and connections are made only inside a **box or enclosure** that can be reached later, with its cover fitted. Never bury a joint in plaster, wrap it in tape in the middle of a run, or leave it inside a conduit between boxes. The code also limits how many conductors a box may hold, so do not overcrowd boxes."}
+      ]
+    },
+    {
+      "title": "Connecting circuits and accessories",
+      "blocks": [
+        {"h": "Identifying conductors"},
+        { "table": { "head": ["Conductor", "NEC colours (common in Jamaica)", "IEC / British colours (since 2004)", "Older British colours"], "rows": [
+          ["Line (hot)", "Black, red, or another colour (not white, grey or green)", "Brown (and black, grey on three-phase)", "Red"],
+          ["Neutral", "White or grey", "Blue", "Black"],
+          ["Grounding (earth)", "Green, green with yellow stripes, or bare", "Green and yellow", "Green, or bare with sleeving"]
+        ] } },
+        {"p": "Older installations in Jamaica may use other colours, and some equipment made to British or IEC standards uses brown, blue and green-and-yellow even in an NEC installation. Follow the colours the drawing and specification give for the job, and keep them the same throughout each circuit."},
+        {"p": "Where a conductor's colour does not show what it is used for, mark it at each end with coloured tape or sleeving, so anyone can tell. For example, when the white conductor of a sheathed cable is used as a line conductor in a switch loop, it is re-marked with black or red tape. **Never trust colours alone** in existing wiring: test."},
+        {"h": "Correct polarity"},
+        {"p": "**Correct polarity** means the line, neutral and grounding conductors are connected to the right terminals everywhere. Every **switch, fuse and breaker must be in the line conductor**, never the neutral. If a switch is in the neutral, the light goes off but the lamp holder and fitting stay live, and a person changing a lamp can get a shock."},
+        { "table": { "head": ["Accessory", "Line", "Neutral", "Grounding"], "rows": [
+          ["Outlet (receptacle), US-style", "Brass (darker) screw; the shorter slot", "Silver (light) screw; the longer slot", "Green screw; the round or U-shaped hole"],
+          ["Edison screw (ES) lamp holder", "The **centre contact**, through the switch", "The **screw shell**", "The fitting's ground terminal"],
+          ["Switch", "Both terminals: the line in and the switched line out", "Not connected to the switch", "Green screw or the box's ground terminal"],
+          ["220 V outlet or appliance", "Line 1 and line 2 terminals", "Only if the appliance needs 110 V as well", "Green screw"]
+        ] } },
+        {"h": "One-way lighting"},
+        {"flow": ["Line from the breaker", "To one terminal of the one-way switch", "Switched line from the other switch terminal", "To the lamp holder's centre contact", "Through the lamp", "Neutral from the lamp holder's shell back to the neutral bar"]},
+        {"p": "The grounding conductor runs from the ground bar to every switch box, the switch's green screw and the light fitting."},
+        {"h": "Two-way lighting: one light, two switches"},
+        {"p": "Each two-way switch (a 'three-way' switch in North American catalogues) has a **common** terminal and two **strapper** (traveller) terminals. The switch joins its common to one strapper terminal or the other."},
+        {"flow": ["Line to the common terminal of switch 1", "Two strappers from switch 1's strapper terminals to switch 2's strapper terminals", "Switched line from the common terminal of switch 2", "To the lamp", "Neutral from the lamp straight back to the neutral"]},
+        {"p": "When both switches select the same strapper, the circuit is complete and the lamp is on. Turning either switch breaks the path, and turning either one again makes it. For a third or more switching points, **intermediate switches** ('four-way' switches) are fitted in the strappers between the two two-way switches."},
+        {"note": "The common terminal is usually marked COM or C, or has a darker screw. Identify it before you connect: a strapper on the common terminal gives switching that only works in some positions.", "label": "Tip"},
+        {"h": "Outlet circuits"},
+        {"p": "In Jamaican installations outlet circuits are **radial** circuits: the cable runs from the breaker to the first outlet, then on to the next, one after another, ending at the last outlet. (The British 'ring' circuit is not used under the NEC.) At each outlet, the incoming and outgoing conductors connect to the outlet's terminals or are joined with a short tail (pigtail) to the outlet, so that removing one outlet does not break the circuit beyond it."},
+        {"h": "GFCI outlets"},
+        {"p": "A GFCI outlet has two pairs of terminals. The **LINE** terminals take the supply from the panel. The **LOAD** terminals feed any outlets further along the circuit, which the GFCI then protects too. If the supply is connected to the LOAD terminals by mistake, the outlet may not protect anyone, and many types will not reset. A new GFCI often comes with tape over the LOAD terminals: leave it on if they are not used. After the supply is restored, the authorised person presses TEST to check that it trips, then RESET."},
+        {"h": "220 V appliance circuits"},
+        {"flow": ["Two-pole breaker in the panel", "Two line conductors and a grounding conductor", "Two-pole disconnect (isolator) near the appliance", "Appliance terminals: L1, L2 and ground"]},
+        {"h": "Fitting the accessory"},
+        {"ul": ["Fold the conductors neatly into the box, in a zigzag, without strain or sharp kinks. Do not pull them tight or wrap them round the fixing screws.", "Fix the accessory level, with the screws provided, so that it sits flat and firm.", "Check that no conductor is trapped between the accessory and the box.", "Fit the cover or plate."]}
+      ]
+    },
+    {
+      "title": "Grounding, bonding and the panel",
+      "blocks": [
+        {"h": "Why metal parts are grounded"},
+        {"p": "If a line conductor touches a metal box, a light fitting or an appliance case, the metal becomes live and could give a deadly shock. The **equipment grounding conductor (EGC)** gives the fault current a low-resistance path back to the supply, so a large current flows and the **breaker trips quickly**, cutting off the supply."},
+        {"ul": ["Connect the grounding conductor to the **green ground screw of every metal box**, as well as to the accessory's ground terminal. A short green or bare pigtail from the box screw to the accessory is common.", "Every light fitting, switch and outlet gets a ground connection, even in a plastic box.", "Sleeve bare grounding conductors where they are exposed in boxes and panels.", "Never use the neutral as a ground, and never leave a grounding conductor unconnected because 'it works without it'."]},
+        {"h": "Bonding"},
+        {"p": "**Bonding** joins metal parts such as metal water pipes, gas pipes and structural steel to the main grounding (earthing) terminal with a conductor. In a fault, every bonded metal part rises to nearly the same voltage, so there is no dangerous voltage between them for a person to touch. The **grounding electrode**, usually a ground rod driven into the earth at the service, connects the system to the earth itself."},
+        {"note": "In the main service panel, the neutral and the ground are joined by the **main bonding jumper**. This is the only place in the building's wiring where they are joined. In a sub-panel fed from it, neutrals go on an insulated neutral bar and grounds on a separate ground bar bonded to the enclosure. Your supervisor will show you which kind of panel you are working in.", "label": "Remember"},
+        {"h": "Inside the panel"},
+        { "table": { "head": ["Part", "What it does"], "rows": [
+          ["Main breaker or main lugs", "Where the incoming supply connects. The incoming side stays live when the main breaker is off."],
+          ["Busbars", "Carry the supply to the branch breakers."],
+          ["Branch circuit breakers", "Protect each circuit; single-pole for 110 V, two-pole for 220 V."],
+          ["Neutral bar", "Where the circuit neutrals connect."],
+          ["Ground bar", "Where the circuit grounding conductors connect."],
+          ["Dead front (inner cover) and door", "Cover the live parts; the circuit directory is fixed inside the door."]
+        ] } },
+        {"h": "Connecting a new circuit"},
+        {"flow": ["Panel isolated, locked off and proved dead, as your supervisor directs", "Bring the cable in through a knockout with a connector or grommet", "Line conductor to the **outgoing terminal of its breaker** (each line to one pole of a two-pole breaker)", "Neutral to the neutral bar", "Grounding conductor to the ground bar", "Tighten every terminal to the maker's torque and tug-test", "Dress the conductors neatly along the sides of the panel", "Label the breaker and update the circuit directory"]},
+        {"ul": ["One conductor per terminal on breakers and bars, unless the maker marks the terminal for two.", "**Dress** the conductors (lay them neatly) along the sides of the panel, not across the busbars, so each circuit can be traced, heat can escape and the cover fits without trapping anything.", "Before the cover is fitted, look for loose strands, bare copper, loose terminals, nicked insulation and tools or off-cuts left inside.", "Label each breaker with what it feeds, such as 'Outlets, reception, east wall', so the right circuit can be isolated quickly in an emergency or for maintenance."]}
+      ]
+    },
+    {
+      "title": "Inspection, testing and finishing",
+      "blocks": [
+        {"h": "Visual inspection"},
+        {"p": "Before any test, the work is inspected by eye against the drawing and the code. Use a checklist."},
+        {"ul": ["Correct cable types and sizes, as specified, with no damage", "Cables supported, protected through holes and boxes, and kept away from heat", "Accessories fixed firmly and level; covers and blanks fitted", "Terminals tight, no bare copper showing, no stray strands, ground sleeving fitted", "Joints only in accessible boxes, with covers on", "Switches and breakers in the line conductor; correct polarity at outlets and lamp holders", "Breakers of the right rating; circuits labelled and the directory filled in"]},
+        {"h": "Dead tests"},
+        {"p": "With the circuit isolated, a **competent person** using approved instruments carries out the dead tests, in this order. As a trainee you may assist and record results."},
+        { "table": { "head": ["Test", "What it proves", "Instrument"], "rows": [
+          ["Continuity of the grounding conductor", "That the ground is joined all the way from the ground bar to every box, accessory and fitting", "Low-resistance ohmmeter (continuity tester); a low reading is good"],
+          ["Polarity", "That every switch and breaker is in the line, ES centre contacts are on the line, and outlets are connected the right way round", "Continuity tester"],
+          ["Insulation resistance", "That there is no breakdown or short between conductors, or from any conductor to ground", "Insulation resistance tester, usually at **500 V DC** for 110/220 V circuits; reading in **megohms (MΩ)**"]
+        ] } },
+        {"ul": ["Before an insulation resistance test, **disconnect or switch off electronic equipment**, LED drivers, dimmers and anything with electronics, and remove lamps, because the test voltage can damage them or give a false low reading. Warn everyone, and do not touch the circuit during the test.", "A new circuit normally reads very high, often hundreds of megohms. Many standards set a minimum of **1 MΩ** for circuits of this voltage. A low reading means damaged insulation, moisture, or something still connected, and must be found before the circuit is switched on.", "Write every result on the test record."]},
+        {"p": "After the dead tests pass, the authorised person energises the circuit and makes live checks, such as GFCI tests and checking that every outlet and light works. New installations are then inspected and certified before JPS connects them."},
+        {"h": "Finishing"},
+        {"ul": ["Collect copper off-cuts for recycling and put stripped sheath, packaging and other waste in the right bins. Leave nothing in ceilings, boxes or panels.", "Return tools and unused materials, and report damaged tools.", "Hand over the circuit directory, test records and drawings marked with any changes, as your supervisor directs."]}
+      ]
+    },
+    {
+      "title": "Revision",
+      "blocks": [
+        {"h": "Checklist"},
+        {"p": "Tick each statement only when you can do it without looking at the notes."},
+        {"ul": ["I can carry out safe isolation before connecting into an existing circuit, and say which parts of a panel stay live.", "I can say who restores the supply after work, and when.", "I can compare sheathed cable, cable in conduit, armoured cable and cable tray, and say where each is used.", "I can explain how load current, the breaker, voltage drop, installation method, heat and environment affect cable choice.", "I can read AWG and mm² sizes and explain why 220 V is used for large loads.", "I can run and fix cables neatly, protect them through timber, metal and boxes, and keep them away from heat and data cables.", "I can draw cables into conduit without damaging them.", "I can strip sheath and cores without damage, to the right length.", "I can make screw, twist-on, ferrule and lug terminations, tighten them correctly and tug-test them.", "I can identify conductors by colour, re-mark them where needed, and explain correct polarity.", "I can connect outlets, one-way and two-way lighting and an ES lamp holder correctly.", "I can connect a 220 V appliance circuit through a two-pole breaker and disconnect.", "I can ground every box and accessory and explain grounding and bonding.", "I can connect a new circuit at the breaker, neutral bar and ground bar, dress the conductors and label the circuit.", "I can carry out a visual inspection and explain the continuity, polarity and insulation resistance tests.", "I can leave the work and the site clean and the records complete."]},
+        {"h": "Numbers to remember"},
+        { "table": { "head": ["Figure", "What it is"], "rows": [
+          ["110 V / 220 V, 50 Hz", "Line to neutral / line to line on a Jamaican single-phase supply"],
+          ["14 / 12 / 10 AWG", "Copper conductors usually protected at no more than 15 / 20 / 30 A under the NEC"],
+          ["About 3%", "A common design limit for voltage drop on a branch circuit"],
+          ["32 mm", "Least distance from the edge of a hole to the edge of a timber member (NEC)"],
+          ["300 mm and 1.4 m", "Fixing sheathed non-metallic cable: within 300 mm of a box and at least every 1.4 m (NEC)"],
+          ["5 × diameter", "Least bend radius for sheathed non-metallic cable (NEC)"],
+          ["40%", "Most of a conduit's area that three or more conductors may fill (NEC)"],
+          ["150 mm", "Least free conductor left at each box (NEC)"],
+          ["500 V DC, 1 MΩ", "Usual insulation test voltage and a common minimum reading for 110/220 V circuits"]
+        ] } },
+        {"h": "Key terms"},
+        {"terms": [["Bonding", "Joining metal parts to the main grounding terminal so they stay at nearly the same voltage."], ["Circuit breaker", "A device that switches a circuit off by itself on overload or short circuit, and can be reset."], ["Common terminal", "The terminal of a two-way switch that is joined to one strapper or the other."], ["Continuity test", "A test that proves a conductor is joined all the way from end to end."], ["Dressing", "Laying conductors neatly in a panel or box so they can be traced and heat can escape."], ["Equipment grounding conductor (EGC)", "The green, green-and-yellow or bare conductor that grounds metal parts; the CPC or earth wire in British terms."], ["Ferrule", "A small metal tube crimped on the end of a stranded conductor before it goes into a terminal."], ["Fish tape", "A long steel or nylon tape used to pull cables into conduit."], ["Grommet", "A rubber or plastic ring that protects a cable where it passes through a hole in metal."], ["Insulation resistance test", "A test, usually at 500 V DC, that checks for breakdown between conductors and to ground; results in megohms."], ["Intermediate switch", "A switch fitted between two two-way switches so one light can be controlled from three or more places."], ["Lug", "A fitting crimped on a conductor so it can be bolted to a terminal."], ["Neutral", "The grounded conductor that carries the current back to the supply."], ["Polarity", "Line, neutral and ground connected to the right terminals; switches and breakers in the line."], ["Radial circuit", "A circuit in which the outlets are connected one after another along a cable from the breaker."], ["Strapper (traveller)", "One of the two conductors that link two two-way switches."], ["Switched line", "The conductor from a switch to a lamp, live only when the switch is on."], ["Two-pole breaker", "A breaker that switches and protects both lines of a 220 V circuit together."], ["Visual inspection", "A careful check by eye of the installation before any tests."], ["Voltage drop", "The voltage lost along a cable because of its resistance."]]}
+      ]
+    }
+  ],
+  "cases": {
+    "c1": {"title": "A two-way veranda light in Stony Hill", "text": "Trainee Garfield Lindo and electrician Mr Neville Shaw are adding a veranda light to a house in Stony Hill, St Andrew. It will be switched from the front door and from the garage door with two two-way switches, fed from a 15 A lighting circuit. The new lamp holder has an Edison screw base. Sheathed cable runs across the timber ceiling joists in the roof space, and the switches are in plastic boxes in the block walls."},
+    "c2": {"title": "A water heater circuit in Red Hills", "text": "Electrician Mrs Paula Wright and trainee Dwight Simpson are installing a new circuit for a 3,000 W, 220 V water heater in a house in Red Hills, St Andrew. The panel is at the front of the house and the heater is in the roof space at the back, a cable run of about 28 m. The drawing calls for a two-pole 20 A breaker, a cable with two insulated conductors and a grounding conductor, and a two-pole disconnect beside the heater."},
+    "c3": {"title": "Drawing cables in at a Port Antonio school", "text": "Trainees Shamar Edwards and Nadine Clarke are drawing single-core cables into a new PVC conduit run for an outlet circuit in a classroom block at a high school in Port Antonio, Portland. The three cables come on three separate reels. When they open the first box, they find that the school's IT contractor has already pulled a data cable into the same conduit."},
+    "c4": {"title": "A new circuit at a Half Way Tree office panel", "text": "Electrician Mr Clive Henry and trainee Tanisha Gayle are connecting a new 110 V outlet circuit into the panel of a small office in Half Way Tree, St Andrew. The panel's main breaker is switched off, locked and tagged, and the panel has been proved dead below the main breaker. The new circuit is 12 AWG copper on a 20 A single-pole breaker. Tanisha notices a few loose copper strands sticking out of the neutral bar next to another circuit's neutral."},
+    "c5": {"title": "Before handover at a Santa Cruz hardware store", "text": "A new lighting and outlet installation in a hardware store in Santa Cruz, St Elizabeth, is ready for testing. The instructor, Mr Hopeton Reid, a qualified electrician, will do the tests with trainee Kadian Morris assisting. During the visual inspection Kadian finds one outlet with the white conductor on the brass screw and the black conductor on the silver screw, and a junction box in the ceiling with no cover. LED drivers and a computer are already connected to some circuits."}
+  },
+  "questions": [
+    {"id": "P-01", "c": "c1", "q": "At the first two-way switch, which terminal should the incoming line conductor go to?", "o": ["Either of the two strapper terminals", "The common terminal of the switch", "The green grounding screw of the switch", "The terminal joined to the neutral"], "a": 1, "why": "The line goes to the common terminal of the first switch, and the switched line leaves from the common of the second. The two strappers link the other terminals. A strapper on a common terminal gives switching that works only in some positions."},
+    {"id": "P-02", "c": "c1", "q": "After connecting, Garfield finds the lamp holder's screw shell is still live when the light is switched off. What is the most likely mistake?", "o": ["The switches were connected in the neutral", "The grounding conductor was left off the fitting", "The strappers were swapped between the switches", "The centre and shell connections were swapped"], "a": 0, "why": "The shell should be on the neutral, and the switches in the line. If the switches break the neutral instead, the lamp goes off but the holder stays live, and anyone changing the lamp can get a shock."},
+    {"id": "P-03", "c": "c1", "q": "How far should the cable's sheath go into the plastic switch box?", "o": ["It should stop at the outside of the box", "Up to the switch terminals themselves", "Just inside the box, about 6 mm", "About 50 mm, folded behind the switch"], "a": 2, "why": "The sheath protects the cores until they are safely inside the box, so it is brought just inside, about 6 mm in a non-metallic box. Sheath taken right up to the terminals leaves no room to make neat connections."},
+    {"id": "P-04", "c": "c1", "q": "Under the NEC, how should the sheathed cable be fixed along the ceiling joists?", "o": ["Only at each end of the run, close to the two boxes", "Within 300 mm of boxes, and every 1.4 m at most", "Every 3 m or so, with no fixings near the boxes", "Every 150 mm, pulled tight so it cannot sag"], "a": 1, "why": "Sheathed non-metallic cable is secured within 300 mm of every box and at intervals of no more than 1.4 m. Clips should be snug, not pulled so tight that they crush the cable."},
+    {"id": "P-05", "c": "c2", "q": "About how much current will the 3,000 W heater draw on 220 V?", "o": ["About 27 A", "About 6.8 A", "About 0.07 A", "About 13.6 A"], "a": 3, "why": "Current = power ÷ voltage: 3,000 ÷ 220 ≈ 13.6 A. Dividing by 110 (27 A) uses the wrong voltage, and 220 ÷ 3,000 turns the formula upside down."},
+    {"id": "P-06", "c": "c2", "q": "Why is the heater fed at 220 V and not at 110 V?", "o": ["A 220 V supply is safer to touch than a 110 V supply", "The same power needs only half the current at 220 V", "Two-pole breakers cannot be used on 110 V circuits", "A 110 V circuit cannot supply a load above 1,000 W"], "a": 1, "why": "Power = voltage × current, so doubling the voltage halves the current for the same power. Less current means a smaller cable, less heating and less voltage drop. 220 V is not safer to touch."},
+    {"id": "P-07", "c": "c2", "q": "How are the two line conductors connected at the panel?", "o": ["One to the two-pole breaker and one to the neutral bar", "To two single-pole breakers in any free spaces", "Each to one pole of the two-pole breaker", "Both to one terminal of a 40 A single-pole breaker"], "a": 2, "why": "A 220 V circuit uses both lines, each on one pole of a two-pole breaker. The poles are linked, so a fault on either line switches both off. Separate single-pole breakers could leave one line live."},
+    {"id": "P-08", "c": "c2", "q": "What is the two-pole disconnect beside the heater for?", "o": ["To lock off the heater where it is worked on", "To set the temperature of the water in the tank", "To protect the cable if the heater is overloaded", "To join the 28 m cable to a smaller cable"], "a": 0, "why": "The disconnect lets a worker switch off both lines at the heater, and lock it off, without relying on a breaker at the far end of the house. Overload protection is the breaker's job."},
+    {"id": "P-09", "c": "c3", "q": "What should Shamar and Nadine do about the data cable in the conduit?", "o": ["Pull the power cables in alongside it with care", "Cut the data cable at the box to make more room", "Stop and report it, as power and data must be apart", "Wrap the data cable in tape where it enters each box"], "a": 2, "why": "Power and data cables must not share a conduit: the power cables cause interference, and a fault could put mains voltage on the data system. Report it, so the supervisor and the IT contractor can agree separate routes."},
+    {"id": "P-10", "c": "c3", "q": "How should the three cable reels be set up for the pull?", "o": ["On a stand or spindle so that they turn freely", "Flat on the floor so the cable lifts off the top", "In the next room so the pull has a straight start", "Unwound first in loops along the corridor floor"], "a": 0, "why": "Reels that turn freely pay the cable out straight. Cable lifted off a flat reel or laid in loops twists and kinks, which makes the pull harder and can damage the insulation."},
+    {"id": "P-11", "c": "c3", "q": "How should the cable ends be fixed to the fish tape?", "o": ["All bunched together at the tip with one cable tie", "One at a time, pulling each cable through separately", "Twisted tightly round each other, then round the tape", "Staggered along the tape and taped into a smooth head"], "a": 3, "why": "Staggering the ends and taping them makes a slim, smooth head that passes through bends and couplings easily. A bulky head snags, and pulling cables in one at a time can damage those already in."},
+    {"id": "P-12", "c": "c3", "q": "How much conductor should they leave at each outlet box?", "o": ["None spare: cut each conductor flush with the box", "At least 150 mm of free conductor at each box", "Exactly 25 mm, so the box is not crowded at all", "About 2 m, coiled in the box for future changes"], "a": 1, "why": "The NEC asks for at least 150 mm of free conductor at each box: enough to strip, connect and fold back neatly. Too little makes a strained, poor connection; metres of coiled cable overcrowd the box."},
+    {"id": "P-13", "c": "c4", "q": "The main breaker is off, but Mr Henry tells Tanisha to keep her hands away from the top of the panel. Why?", "o": ["The busbars stay charged for some minutes after", "The ground bar carries current from other buildings", "The incoming lugs above the main breaker stay live", "The breakers are hot from the current they carried"], "a": 2, "why": "The supply conductors from the meter connect to the main lugs on the incoming side of the main breaker. Switching the main off does not make them dead, so they must not be touched."},
+    {"id": "P-14", "c": "c4", "q": "Where does the new circuit's grounding conductor connect in the panel?", "o": ["To the neutral bar, beside the circuit neutral", "To the ground (earth) bar", "To the second pole of the 20 A breaker", "To any screw on the panel's metal back"], "a": 1, "why": "Circuit grounding conductors go to the ground bar, neutrals to the neutral bar and line conductors to their breakers. A random screw in the enclosure is not a reliable ground connection."},
+    {"id": "P-15", "c": "c4", "q": "What should Tanisha do about the loose strands at the neutral bar?", "o": ["Show Mr Henry, so it is put right before the cover goes on", "Snip them off quickly herself, as the panel is dead anyway", "Leave them, since neutral conductors carry no current", "Push them behind the bar where they cannot be seen"], "a": 0, "why": "Loose strands can touch another terminal or the enclosure, and they show the conductor is not fully held. It is another circuit, so she reports it to her supervisor, who makes it right before the cover is fitted. Neutrals do carry current."},
+    {"id": "P-16", "c": "c4", "q": "What should the label for the new breaker say?", "o": ["The colour of the cable used for the circuit", "Tanisha's name and the date of the work", "Only the breaker's rating, which is 20 A", "What it feeds, such as 'Outlets, reception'"], "a": 3, "why": "A label that says what the breaker feeds lets anyone isolate the right circuit quickly, in an emergency or for maintenance. The circuit directory in the door is updated to match."},
+    {"id": "P-17", "c": "c5", "q": "What is wrong at the outlet Kadian found?", "o": ["Reversed polarity: line and neutral swapped", "Nothing: an AC outlet works either way round", "The ground is open, so the outlet is not grounded", "Line and neutral are shorted together in the box"], "a": 0, "why": "The black line conductor belongs on the brass screw and the white neutral on the silver screw. Swapped, the outlet still works, but parts meant to be at neutral, such as a lamp's shell, become live. The polarity check finds this."},
+    {"id": "P-18", "c": "c5", "q": "Before the insulation resistance test, what must be done about the LED drivers and the computer?", "o": ["Leave them on, so they are tested at the same time", "Switch on the computer, so it shows on the reading", "Nothing, as the test uses only a 9 V battery voltage", "Disconnect them, as the test can damage them"], "a": 3, "why": "An insulation resistance test applies about 500 V DC. Electronics can be damaged by it, and connected equipment can give a false low reading. Disconnect such equipment and remove lamps first."},
+    {"id": "P-19", "c": "c5", "q": "One circuit reads 0.3 MΩ while the others read over 200 MΩ. What does this suggest?", "o": ["A very good circuit, as a low reading means a good path", "A flat battery in the tester, so the reading can be ignored", "Nothing, since anything below 1,000 MΩ counts as a pass", "A fault, such as damaged insulation, to find first"], "a": 3, "why": "High insulation resistance is good. 0.3 MΩ is far below the others and below the common minimum of 1 MΩ, so there may be damaged insulation, moisture or something still connected. It must be found before the circuit is energised."},
+    {"id": "P-20", "c": "c5", "q": "What should be done about the ceiling junction box with no cover?", "o": ["Plaster over the box so nobody touches the joints", "Wrap the joints in tape and leave the box open", "Fit its cover, so the joints are enclosed but reachable", "Remove the box and leave the taped joints in the ceiling"], "a": 2, "why": "Joints must be in a box that can be reached later, with its cover fitted. A buried or open joint cannot be inspected, and loose joints can overheat or be touched."}
+  ]
+}

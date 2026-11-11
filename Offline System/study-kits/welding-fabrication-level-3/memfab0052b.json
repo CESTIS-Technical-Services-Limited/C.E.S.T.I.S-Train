@@ -1,0 +1,1588 @@
+{
+  "format": "cestis-study-kit",
+  "version": 1,
+  "status": "to-check",
+  "written": "2026-11-07",
+  "programme": "Welding & Fabrication",
+  "qualification": {
+    "id": "QUAL-WEL-L3",
+    "title": "WELDING LEVEL 3",
+    "code": "MEM30215"
+  },
+  "level": 3,
+  "unit": {
+    "code": "MEMFAB0052B",
+    "title": "Weld using gas metal arc welding process GMAW - (Metal inert gas MIG)"
+  },
+  "summary": "This unit teaches gas metal arc welding (GMAW), often called MIG welding, at Level 3: how the process and its equipment work, how to choose the metal transfer mode, wire and shielding gas, set and record the parameters from a trial piece, weld steel in all positions, and weld aluminium, stainless steel and coated steel. It also covers defects and fault finding, inspection and testing, costing, and leading a production team safely.",
+  "sections": [
+    {
+      "title": "Unit overview",
+      "blocks": [
+        {
+          "p": "This unit is part of the Welding Level 3 qualification (MEM30215). It covers **gas metal arc welding (GMAW)**, the wire-fed process most fabrication shops in Jamaica use for gates, grills, trailers, frames, truck bodies, tanks, stainless kitchen and hotel work, and aluminium boat and building fittings."
+        },
+        {
+          "p": "In GMAW a wire is fed continuously from a spool through a gun, and a shielding gas from a cylinder protects the arc and the weld pool. Strictly, **MIG** (metal inert gas) means the gas is inert, such as argon for aluminium; with active gases such as CO2 or argon/CO2 on steel it is **MAG** (metal active gas). In the trade both are usually called MIG, and AWS calls them all GMAW."
+        },
+        {
+          "p": "At Level 3 you choose the transfer mode, wire and gas for the job, develop and record settings that every welder can repeat, weld in all positions and on several metals, find faults in the welds and the machine, cost the work, and run a safe, productive bay."
+        },
+        {
+          "p": "**Who it is for:** trainees on the Welding Level 3 programme at HEART/NSTA Trust and other training centres, and welders who lead GMAW production. You should already be able to make sound flat and horizontal GMAW fillets on mild steel."
+        },
+        {
+          "table": {
+            "head": [
+              "What you must be able to do",
+              "What this means in the shop"
+            ],
+            "rows": [
+              [
+                "Work safely and lead a safe bay",
+                "Control fume, gases, arc radiation, fire, cylinders and heat, using the hierarchy of controls."
+              ],
+              [
+                "Know and set up the equipment",
+                "Check and set up the power source, feeder, rolls, liner, gun, gas supply and controls, including inductance, synergic, pulse and trigger modes."
+              ],
+              [
+                "Choose transfer mode, wire and gas",
+                "Pick short-circuit, spray or pulsed transfer, the right wire and the right gas for the metal, thickness and position."
+              ],
+              [
+                "Develop and record parameters",
+                "Set voltage, wire speed, stick-out, gas flow and travel from a trial piece, test it, and record the approved settings."
+              ],
+              [
+                "Weld in all positions",
+                "Make fillet and butt welds in the flat, horizontal, vertical and overhead positions (1F–4F, 1G–4G)."
+              ],
+              [
+                "Weld aluminium, stainless and coated steel",
+                "Change the set over, prepare the joint and use the right technique for each."
+              ],
+              [
+                "Find faults",
+                "Name weld defects and machine faults, find the cause and put it right."
+              ],
+              [
+                "Inspect, test, cost and record",
+                "Inspect with gauges, choose tests, work out wire, gas, time and cost, and keep weld records."
+              ]
+            ]
+          }
+        },
+        {
+          "h": "How you will be assessed"
+        },
+        {
+          "ul": [
+            "A **multiple-choice theory paper** on procedures, safety, equipment and settings, wire and gas, metal transfer, technique, positional welding, defects, inspection, distortion, maintenance, supervision, records and costing.",
+            "A **written paper** with short answers (terms such as CTWD, FCAW, diffuser, flowmeter, silicon islands, operating factor, inert, and small sums) and longer answers on transfer modes, aluminium, gases, stainless, fault finding, safety, positional welding and costing.",
+            "**Practical tasks**: setting parameters on a trial piece, then welding vertical-up (3F) and overhead (4F) fillets on 10 mm steel with break tests and a weld record; and changing a set over to aluminium, then welding and inspecting butt and fillet joints."
+          ]
+        },
+        {
+          "note": "In the practicals the assessor marks the trial, the record and the checks as well as the welds. Write down every setting you use, and change only one setting at a time.",
+          "label": "Tip"
+        }
+      ]
+    },
+    {
+      "title": "Safety in GMAW work",
+      "blocks": [
+        {
+          "table": {
+            "head": [
+              "Hazard",
+              "Where it comes from",
+              "Controls"
+            ],
+            "rows": [
+              [
+                "Welding fume",
+                "Fine metal particles from the wire and plate; more at high current and with spray; worse from coatings (zinc, paint, primer) and stainless (chromium)",
+                [
+                  "Extraction at the arc (on-gun extraction or a hood) first",
+                  "Coatings removed from the weld area",
+                  "Head kept out of the plume",
+                  "Respirator where the risk assessment says"
+                ]
+              ],
+              [
+                "Ozone",
+                "Formed from the oxygen in the air by the arc's ultraviolet light; worst with argon-rich gases, aluminium and stainless",
+                [
+                  "Extraction and ventilation",
+                  "Dry throat, cough or chest tightness are warning signs: report them"
+                ]
+              ],
+              [
+                "Carbon monoxide",
+                "Formed when the arc breaks down CO2 shielding gas",
+                "Ventilation; extra care in small rooms, tanks and pits"
+              ],
+              [
+                "Shielding gas build-up",
+                "Argon and CO2 are heavier than air and collect in pits, tanks, trenches and low rooms, pushing out the oxygen",
+                [
+                  "Ventilate low and confined spaces; close cylinder valves when not welding",
+                  "Confined space permit and gas testing where needed",
+                  "There is no warning: a person can collapse in seconds"
+                ]
+              ],
+              [
+                "Arc radiation",
+                "GMAW gives more ultraviolet than MMAW (no smoke to absorb it), most with spray, argon-rich gas and aluminium",
+                [
+                  "Filter shade matched to the current (see below)",
+                  "All skin covered; screens round the bay",
+                  "UV reflects off aluminium and stainless and burns skin quickly"
+                ]
+              ],
+              [
+                "Fire",
+                "Spatter and hot metal falling through gaps, onto rags, cardboard, wood, mezzanine floors",
+                [
+                  "Hot work permit where needed; area cleared or covered",
+                  "Fire watch during and after the work",
+                  "Extinguisher at hand"
+                ]
+              ],
+              [
+                "Electric shock",
+                "Wire, contact tip and gun are live when the trigger is pressed; damaged cables",
+                [
+                  "Dry gloves; check cables and the work lead",
+                  "Switch off before changing rolls, liners or tips"
+                ]
+              ],
+              [
+                "Gas cylinders",
+                "Falling cylinders; damaged valves; heat",
+                [
+                  "Upright and chained, valve caps on when not in use",
+                  "Stored in the shade, away from heat and electrical cables",
+                  "Moved on a trolley; carried in a vehicle upright, strapped, regulator off, with ventilation, never in a closed car"
+                ]
+              ],
+              [
+                "Noise and heat",
+                "Grinding; hot bays; leathers in Jamaican heat",
+                [
+                  "Hearing protection",
+                  "Water, rest breaks in the shade, work rotation on long jobs"
+                ]
+              ]
+            ]
+          }
+        },
+        {
+          "h": "Filter shades for GMAW"
+        },
+        {
+          "table": {
+            "head": [
+              "Welding current",
+              "Typical shade"
+            ],
+            "rows": [
+              [
+                "Below about 150 A (short-circuit)",
+                "10–11"
+              ],
+              [
+                "About 150–250 A",
+                "12"
+              ],
+              [
+                "Above about 250 A (spray and pulsed spray)",
+                "13–14"
+              ]
+            ]
+          }
+        },
+        {
+          "note": "These are typical figures from shade charts; aluminium and argon-rich spray arcs are brighter, so use one shade darker if the chart says. Follow the chart for your helmet and your instructor.",
+          "label": "Remember"
+        },
+        {
+          "h": "The hierarchy of controls"
+        },
+        {
+          "flow": [
+            "**Eliminate or substitute**: buy steel without paint or galvanising where you can; choose lower-fume settings and processes",
+            "**Engineering controls**: on-gun extraction or hoods at each bay, screens between bays, cylinders chained, general ventilation",
+            "**Administrative controls**: hot work procedure and fire watch, training, rotation, rest and water breaks",
+            "**PPE**: helmet with the right shade, flame-resistant clothing, gloves, boots, hearing protection, respirator where fume is still high"
+          ]
+        },
+        {
+          "p": "PPE comes **last** because it protects only the wearer and only when worn properly. A paper dust mask is not a fume respirator, and an open door or a fan is not extraction: a fan blowing across the bay also blows the shielding gas away from the arcs."
+        },
+        {
+          "h": "Leading a safe bay"
+        },
+        {
+          "ul": [
+            "Check extraction, screens, cylinders and fire precautions at the start of each shift.",
+            "Check every welder's PPE, especially shades for spray work and leathers for overhead work.",
+            "Stop unsafe acts at once; report injuries, near misses and damaged equipment.",
+            "Keep a fire watch where spatter can reach anything that burns, including floors below."
+          ]
+        }
+      ]
+    },
+    {
+      "title": "The process and the equipment",
+      "blocks": [
+        {
+          "h": "How GMAW works"
+        },
+        {
+          "p": "A motor feeds wire from a spool through a liner in the gun cable to a copper **contact tip**, which passes the welding current into the wire. The arc melts the wire and the joint edges; the drops of wire cross into the weld pool. Shielding gas flows through the gun and out of the nozzle round the arc to keep the air away. Solid steel wire is welded on **DC electrode positive (DCEP)**."
+        },
+        {
+          "p": "GMAW uses a **constant-voltage (CV)** power source. You set the **voltage**, which sets the **arc length**, and the **wire feed speed (WFS)**, which sets the **current**. The arc corrects itself: if your hand moves away and the arc gets longer, the current drops, the wire melts more slowly and the arc shortens back."
+        },
+        {
+          "table": {
+            "head": [
+              "Part",
+              "Its job",
+              "Check"
+            ],
+            "rows": [
+              [
+                "Power source",
+                "Gives a steady voltage on DC",
+                "Duty cycle for the current; cables and work clamp sound"
+              ],
+              [
+                "Wire feeder and drive rolls",
+                "Pulls wire off the spool and pushes it through the liner",
+                [
+                  "Rolls the right size and groove for the wire",
+                  "Pressure just enough to feed without slipping",
+                  "Spool brake set so the spool stops without over-running"
+                ]
+              ],
+              [
+                "Drive roll grooves",
+                "V-groove for solid steel and stainless wire; **U-groove** for soft aluminium; knurled for flux-cored wire",
+                "Groove matches the wire size"
+              ],
+              [
+                "Liner",
+                "The tube inside the gun cable that guides the wire",
+                "Steel spiral for steel; **plastic** (such as PTFE or nylon) for aluminium; clean, not kinked or worn"
+              ],
+              [
+                "Contact tip",
+                "Passes current to the wire",
+                "Marked for the wire size (aluminium tips slightly larger); not worn oval or burnt"
+              ],
+              [
+                "Gas diffuser",
+                "Spreads the gas evenly round the tip, behind the nozzle",
+                "Holes clear; not cracked"
+              ],
+              [
+                "Nozzle",
+                "Directs the gas over the pool",
+                "Free of spatter (anti-spatter spray or nozzle gel helps); right size; tip flush or set back as the mode needs"
+              ],
+              [
+                "Gun cable",
+                "Carries wire, gas, current (and coolant on water-cooled guns)",
+                "Laid out as straight as possible; tight loops drag the wire"
+              ],
+              [
+                "Gas supply",
+                "Cylinder, regulator and **flowmeter** (gas flow in litres per minute, often a ball in a clear tube)",
+                "Leak-tested; flow set; cylinder chained"
+              ]
+            ]
+          }
+        },
+        {
+          "table": {
+            "head": [
+              "Special guns",
+              "Why"
+            ],
+            "rows": [
+              [
+                "Spool gun",
+                "A small spool on the gun itself, so soft wire travels only a short way. Used for aluminium."
+              ],
+              [
+                "Push-pull gun",
+                "A motor in the gun pulls the wire while the feeder pushes, so soft aluminium wire does not buckle in a long liner."
+              ],
+              [
+                "Water-cooled gun",
+                "For high currents and long runs. Check the coolant is flowing before welding, or the gun can burn out."
+              ]
+            ]
+          }
+        },
+        {
+          "h": "Machine controls"
+        },
+        {
+          "table": {
+            "head": [
+              "Control",
+              "What it does"
+            ],
+            "rows": [
+              [
+                "Voltage",
+                "Sets arc length: higher voltage gives a longer arc and a wider, flatter bead"
+              ],
+              [
+                "Wire feed speed",
+                "Sets the current and the amount of metal laid down"
+              ],
+              [
+                "Inductance (arc control)",
+                "In short-circuit, changes how fast the current rises during each short: more inductance gives a hotter, wetter, flatter bead with less spatter; less gives a colder, crisper arc with more spatter, useful on thin sheet and out of position"
+              ],
+              [
+                "Synergic mode",
+                "You choose the wire, gas and wire speed (or thickness); the machine sets a matching voltage, which you can trim"
+              ],
+              [
+                "Pulse",
+                "Switches the current between a high **peak** that sends one drop across, and a low **background** that keeps the arc alight. Gives spray-type fusion at a lower average heat, in all positions"
+              ],
+              [
+                "2-step / 4-step trigger",
+                "2-step: weld while the trigger is held. 4-step (latch): press and release to start, press and release to stop, so long runs need no holding, and a crater-fill stage can be added"
+              ],
+              [
+                "Pre-flow and post-flow",
+                "Gas before the arc starts (purges air from the gun) and after it stops (protects the cooling crater and the hot tip)"
+              ],
+              [
+                "Burnback",
+                "Keeps the arc on for a moment after the wire stops so the wire burns clear of the pool. Too short: the wire freezes in the crater. Too long: it burns back and fuses to the tip"
+              ],
+              [
+                "Crater fill",
+                "Drops the current at the end of the run to fill the crater"
+              ]
+            ]
+          }
+        },
+        {
+          "note": "Pure CO2 cools sharply as it leaves the cylinder. On long runs at high flow, the regulator can ice up and the gas flow stop. A regulator heater, or a lower flow where the WPS allows, prevents it.",
+          "label": "Tip"
+        }
+      ]
+    },
+    {
+      "title": "Metal transfer, wires and gases",
+      "blocks": [
+        {
+          "h": "Metal transfer modes"
+        },
+        {
+          "table": {
+            "head": [
+              "Mode",
+              "How the metal crosses",
+              "Current and gas",
+              "Suits",
+              "Watch for"
+            ],
+            "rows": [
+              [
+                "Short-circuit (dip)",
+                "The wire touches the pool and shorts many times a second (often 20–200); each short pinches off a drop",
+                "Low current and voltage; CO2 or argon/CO2",
+                "Thin sheet, root runs, vertical and overhead work, poor fit-up",
+                "Runs cold: on thick plate the weld can look neat but sit on the plate without fusing (cold lap)"
+              ],
+              [
+                "Globular",
+                "Large, uneven drops, bigger than the wire, fall across the arc",
+                "Medium current, mostly with CO2",
+                "Usually avoided",
+                "Heavy spatter, poor bead"
+              ],
+              [
+                "Spray",
+                "A fine stream of small drops crosses the arc without shorting",
+                "High current, above the **transition current** for the wire, and an argon-rich gas (at least about 80% argon)",
+                "Thicker plate, **flat and horizontal** fillets and butts",
+                "Large, fluid pool that cannot be held in vertical or overhead positions; bright arc; high heat"
+              ],
+              [
+                "Pulsed spray",
+                "One drop sent across on each current peak; low background current between",
+                "Pulsed machine; argon-rich gas",
+                "All positions, thinner metal, aluminium and stainless; full fusion with less heat",
+                "Needs the right programme for the wire and gas"
+              ]
+            ]
+          }
+        },
+        {
+          "note": "The transition current depends on the wire size and gas: often roughly 180–220 A for 1.0 mm steel wire and 220–260 A for 1.2 mm in an argon-rich mix. In spray the arc sounds like a steady hiss or hum; in short-circuit it crackles like frying bacon.",
+          "label": "Remember"
+        },
+        {
+          "h": "Wires"
+        },
+        {
+          "table": {
+            "head": [
+              "Wire",
+              "What it is",
+              "Use"
+            ],
+            "rows": [
+              [
+                "ER70S-6",
+                "Carbon steel wire with **more deoxidisers** (manganese and **silicon**)",
+                "General steel, and steel with light mill scale or rust; wets well; leaves more silicon islands"
+              ],
+              [
+                "ER70S-3",
+                "Carbon steel wire with fewer deoxidisers",
+                "Clean steel"
+              ],
+              [
+                "ER308LSi, ER316LSi",
+                "Stainless wires; L = low carbon, Si = extra silicon for better wetting",
+                "304 and 316 stainless; 316 near the sea and with chemicals"
+              ],
+              [
+                "ER309LSi",
+                "Stainless with extra chromium and nickel",
+                "Stainless to carbon steel"
+              ],
+              [
+                "ER4043",
+                "Aluminium with about 5% silicon",
+                "Flows well, resists cracking on 6000-series alloys; lower strength; darker colour if anodised; **not** for high-magnesium alloys"
+              ],
+              [
+                "ER5356",
+                "Aluminium with about 5% magnesium",
+                "Stronger; stiffer, so it feeds better; better colour match after anodising; the wire for 5000-series marine alloys such as 5083"
+              ]
+            ]
+          }
+        },
+        {
+          "p": "Steel wire is usually copper-coated. Keep all wire in its sealed bag in a dry store, cover the spool on the machine, and return part-used spools to the store. In humid air, steel wire rusts and aluminium wire picks up moisture in its oxide, and both give porosity and poor feeding."
+        },
+        {
+          "h": "Shielding gases"
+        },
+        {
+          "table": {
+            "head": [
+              "Gas",
+              "Used for",
+              "Effect"
+            ],
+            "rows": [
+              [
+                "CO2 (pure)",
+                "Carbon steel, short-circuit",
+                "Cheap; deep, broad penetration; more spatter; cannot give spray transfer"
+              ],
+              [
+                "Argon + about 5–25% CO2 (for example 82/18, 90/10)",
+                "Carbon steel",
+                "Smoother arc, less spatter, better bead; mixes with less CO2 allow spray and pulse. More CO2 gives deeper, broader penetration but more spatter"
+              ],
+              [
+                "Argon + 1–2% oxygen, or + about 2% CO2",
+                "Stainless spray and pulse; some steel spray",
+                "Steady arc while adding very little carbon or oxide"
+              ],
+              [
+                "Helium/argon/CO2 three-part mixes",
+                "Stainless short-circuit",
+                "Better wetting with little carbon pick-up"
+              ],
+              [
+                "Argon (pure)",
+                "Aluminium",
+                "Inert; never use oxygen or CO2 on aluminium: they oxidise the pool"
+              ],
+              [
+                "Argon + helium",
+                "Thick aluminium",
+                "Hotter arc, deeper penetration"
+              ]
+            ]
+          }
+        },
+        {
+          "ul": [
+            "Typical flow: about 12–18 litres per minute for steel indoors, more for spray and for aluminium (often 15–25 L/min). Set it on the flowmeter and follow the WPS.",
+            "**Too little** gas lets air in. **Too much** makes the flow turbulent, which also draws air in: both cause porosity.",
+            "Cylinder life = litres in the cylinder ÷ flow: a cylinder of about 9 000 litres at 18 L/min gives 9 000 ÷ 18 = 500 minutes, about **8.3 hours of arc time**."
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Setting up and finding the right parameters",
+      "blocks": [
+        {
+          "h": "Before you weld"
+        },
+        {
+          "flow": [
+            "Read the WPS: wire type and size, gas and flow, transfer mode, voltage and wire speed ranges, stick-out, position, technique",
+            "Check the wire and rolls match, the roll pressure and spool brake are right, and the liner is clean and the right type",
+            "Fit the right contact tip, a clean diffuser and nozzle; set the tip flush or recessed for the mode",
+            "Connect the gas, leak-test, and set the flow on the flowmeter with the trigger pressed (or the purge button)",
+            "Check the polarity (DCEP for solid wire) and that the work clamp is on clean metal near the joint",
+            "Lay the gun cable out straight; check extraction and screens"
+          ]
+        },
+        {
+          "h": "What each setting does"
+        },
+        {
+          "table": {
+            "head": [
+              "Change",
+              "Effect on the weld"
+            ],
+            "rows": [
+              [
+                "More wire feed speed",
+                "More current, more metal, deeper penetration (raise the voltage with it)"
+              ],
+              [
+                "More voltage",
+                "Longer arc, wider and flatter bead; too much: spatter, undercut, porosity; too little: stubbing, narrow, ropey bead"
+              ],
+              [
+                "Longer contact-tip-to-work distance (CTWD)",
+                "On a CV machine, **less current** and less penetration for the same wire speed; poorer gas cover"
+              ],
+              [
+                "Shorter CTWD",
+                "More current; risk of spatter building up on the tip and nozzle"
+              ],
+              [
+                "Faster travel",
+                "Smaller, narrower bead, less fusion, risk of undercut"
+              ],
+              [
+                "Slower travel",
+                "Bigger bead; the pool can roll ahead of the arc and cause cold lap"
+              ],
+              [
+                "Push (forehand) gun angle",
+                "Flatter, wider bead, a little less penetration, a better view of the joint and better gas cover ahead"
+              ],
+              [
+                "Pull (drag) gun angle",
+                "Deeper, narrower, more rounded bead"
+              ]
+            ]
+          }
+        },
+        {
+          "table": {
+            "head": [
+              "Typical starting settings (follow the WPS and the wire maker's chart)",
+              "Short-circuit, 1.0 mm steel wire, argon/CO2",
+              "Spray, 1.2 mm steel wire, argon/CO2"
+            ],
+            "rows": [
+              [
+                "Wire feed speed",
+                "About 3–7 m/min (about 90–170 A)",
+                "About 8–12 m/min (about 240–320 A)"
+              ],
+              [
+                "Voltage",
+                "About 16–20 V",
+                "About 27–32 V"
+              ],
+              [
+                "CTWD",
+                "About 10–15 mm; tip flush or slightly out",
+                "About 18–25 mm; tip set back inside the nozzle"
+              ],
+              [
+                "Gas flow",
+                "About 12–15 L/min",
+                "About 15–20 L/min"
+              ]
+            ]
+          }
+        },
+        {
+          "p": "For spray, the contact tip is set **back inside the nozzle** so it is protected from the greater heat and the longer stick-out is kept. For short-circuit it is flush or just out, so the welder can see the joint and hold a short stick-out."
+        },
+        {
+          "h": "Developing settings on a trial piece"
+        },
+        {
+          "flow": [
+            "Start from the WPS, or the wire maker's data if there is no WPS yet: wire size, gas, transfer mode, starting voltage and wire speed",
+            "Make a trial joint in the **same steel, thickness and position** as the job",
+            "Listen and look while welding: steady sound, even bead, good wetting at the toes",
+            "Check the leg sizes with a fillet gauge, and the shape and toes",
+            "Break or cut and etch the trial to see the fusion at the root and both plates",
+            "If it fails, change **one setting at a time** and try again",
+            "Record the wire, gas and flow, voltage, wire speed, CTWD, gun angles, travel speed and position on the **trial record**",
+            "Get the settings approved, post them at the welding station, and make sure every welder uses them"
+          ]
+        },
+        {
+          "note": "The meter on the machine and the actual arc can differ. Check the voltage and wire speed with the meters during the trial and record what you actually used. If a welder's reading is outside the WPS range (for example 29 V when the WPS says 21–25 V, which is 4 V over the top of the range), stop and correct it.",
+          "label": "Remember"
+        }
+      ]
+    },
+    {
+      "title": "Technique in all positions",
+      "blocks": [
+        {
+          "table": {
+            "head": [
+              "Position",
+              "Gun angle (work angle and travel angle)",
+              "Mode and technique",
+              "Faults to watch for"
+            ],
+            "rows": [
+              [
+                "1F / 2F fillet",
+                "About 45° between the plates (aim a little more at the bottom plate in 2F); about 10–15° push or drag",
+                "Short-circuit on thin plate; spray or pulse on thick plate",
+                "Undercut on the upright plate; overlap on the bottom plate; unequal legs"
+              ],
+              [
+                "1G flat butt",
+                "Square to the joint across it; about 10–15° travel angle",
+                "Root in short-circuit or pulse; fill and cap in spray or pulse on thick plate",
+                "Lack of side-wall fusion; excess cap"
+              ],
+              [
+                "2G horizontal butt",
+                "Pointed **slightly upwards** (about 5–15°) to hold the pool against sagging",
+                "Stringer beads from the bottom up, each overlapping the last",
+                "Sagging; undercut on the top plate"
+              ],
+              [
+                "3F / 3G vertical-up",
+                "Square to the joint, pointed slightly upwards (about 5–10°)",
+                "Short-circuit with care, or **pulsed spray**; triangle or side-to-side weave, pausing at each toe",
+                "Undercut at the edges; peaked bead; cold lap if the arc falls behind the pool"
+              ],
+              [
+                "Vertical-down",
+                "Pointed slightly down, arc kept on the leading edge of the pool",
+                "Short-circuit, fast travel: **thin sheet only**",
+                "On thicker plate the pool runs ahead of the arc and lies on cold metal: cold lap"
+              ],
+              [
+                "4F / 4G overhead",
+                "Square, with a slight push",
+                "Short-circuit or pulse; small stringers; short CTWD",
+                "Sagging and dripping; convex beads; spatter falling on the welder"
+              ]
+            ]
+          }
+        },
+        {
+          "h": "Vertical-up"
+        },
+        {
+          "ul": [
+            "Keep the arc at the **front of the pool**, on the metal you are fusing into, not on the pool itself.",
+            "Move quickly across the middle and **pause at each toe** so the edges fill and fuse: this prevents undercut and a peaked bead.",
+            "Keep the stick-out steady; a long stick-out drops the current just where you need fusion."
+          ]
+        },
+        {
+          "h": "Overhead"
+        },
+        {
+          "ul": [
+            "Full leathers, cap, collar buttoned; stand to the side of falling spatter.",
+            "Lower settings than flat, a short CTWD, small stringers and a steady push. Keep the nozzle clean: spatter builds up fast and blocks the gas."
+          ]
+        },
+        {
+          "h": "Starts, stops and multi-run welds"
+        },
+        {
+          "ul": [
+            "Start the arc a little ahead and run back over the start, or use the machine's hot start, to avoid a cold start.",
+            "At the end of a run, fill the crater (crater-fill setting, or a short pause or back-step), then keep the gun over the crater for the **post-flow**.",
+            "Clean between runs: remove spatter and the glassy **silicon islands**, which can be trapped under the next run.",
+            "Stagger the stops and starts of each layer."
+          ]
+        },
+        {
+          "h": "Fillet weld size"
+        },
+        {
+          "p": "A fillet is specified by its **leg length** (or sometimes its throat). The **throat** of an even, flat-faced fillet is about 0.7 × the leg: a 6 mm leg gives about a 4.2 mm throat. Both legs must reach the size on the drawing: a 6 mm fillet with one 4 mm leg is undersized, however neat it looks."
+        },
+        {
+          "note": "Over-welding costs money and adds distortion. The weld metal in a fillet grows with the **square** of the leg: an 8 mm fillet holds (8 × 8) ÷ (6 × 6) = 1.78 times the metal of a 6 mm fillet, about 78% more wire, gas and time.",
+          "label": "Tip"
+        }
+      ]
+    },
+    {
+      "title": "Aluminium, stainless steel and coated steel",
+      "blocks": [
+        {
+          "h": "Aluminium: what is different"
+        },
+        {
+          "ul": [
+            "Aluminium is covered by a tough **oxide** skin that melts at about 2 050 °C, while the metal melts at about 660 °C. The oxide must be removed just before welding, and DCEP helps break it up.",
+            "It conducts heat away very fast, so it needs a lot of heat at the start and welds faster as the job warms up.",
+            "Its weld pool picks up **hydrogen** easily, from moisture, grease or hydrated oxide on the wire and plate, which gives **porosity**.",
+            "It is prone to **crater cracks** and hot cracking, so the filler and the crater fill matter.",
+            "Heat-treated alloys such as **6061-T6** lose much of their strength (often a third or more) in the heat-affected zone. Designers allow for this; do not add extra heat or extra weld to 'make it stronger'.",
+            "There is no colour change before it melts, and it reflects ultraviolet light strongly."
+          ]
+        },
+        {
+          "h": "Changing a set from steel to aluminium"
+        },
+        {
+          "flow": [
+            "Switch off; remove the steel wire and blow out the steel dust",
+            "Fit a spool gun or push-pull gun, or a short gun with a **plastic liner**",
+            "Fit **U-groove rolls** and set **light** pressure: just enough to feed. Too much pressure flattens and shaves soft wire and causes bird-nesting",
+            "Fit the aluminium contact tip for the wire size (slightly oversize, as aluminium expands) and a clean nozzle",
+            "Load ER4043 or ER5356 wire as the WPS says; set a light spool brake",
+            "Connect **pure argon** (or argon/helium) and set the flow, often higher than for steel",
+            "Record each step on the change-over checklist"
+          ]
+        },
+        {
+          "h": "Welding aluminium"
+        },
+        {
+          "ul": [
+            "Choose the wire: **ER5356** for strength and for 5000-series marine alloys such as 5083; **ER4043** for good flow and crack resistance on 6000-series alloys where strength is less critical. ER4043 is not used on high-magnesium alloys, which it makes crack-prone.",
+            "Clean just before welding: **degrease first** with a clean solvent, let it dry, then brush with a **stainless steel brush kept only for aluminium** (a brush used on steel leaves steel particles in the joint).",
+            "Use spray or pulsed transfer with enough current to wet in at the start. Short-circuit on aluminium gives cold, unfused welds.",
+            "**Push** the gun at about 10–15°: the gas covers and cleans ahead of the pool. Travel fairly fast and steadily.",
+            "**Fill the crater** at the end of each run (crater-fill setting or a short back-step), or run off onto a tab.",
+            "Use extraction: aluminium welding makes ozone and fume. Keep solvents closed and away from the arc."
+          ]
+        },
+        {
+          "h": "Stainless steel"
+        },
+        {
+          "ul": [
+            "Use the WPS wire (ER308LSi for 304, ER316LSi for 316, ER309LSi to join stainless to carbon steel) and the stainless gas mix, such as argon with about 2% CO2 or 1–2% oxygen for pulse and spray, or a three-part mix for short-circuit. A steel gas with much more CO2 adds carbon and oxide and spoils corrosion resistance.",
+            "Keep stainless apart from carbon steel: stainless-only brushes, discs and clamps; benches covered.",
+            "Stainless holds heat and distorts. **Pulsed** or short-circuit transfer, close tacks, short runs and cooling time keep the heat down.",
+            "On full-penetration butt welds in tube and pipe, the inside of the root oxidises into a dark, crusty **'sugared'** surface unless the inside is **back purged**: the tube is sealed with dams or tape and filled with argon before and during welding.",
+            "Remove the coloured **heat tint** after welding (stainless-only abrasives, or pickling paste used by a trained person with full PPE), then blend the weld smooth. Heat tint left on rusts and pits, especially in salty air by the sea."
+          ]
+        },
+        {
+          "h": "Galvanised and painted steel"
+        },
+        {
+          "ul": [
+            "Remove zinc, paint and primer from the weld area before welding where you can: coatings cause porosity and spatter, and zinc fume causes metal fume fever.",
+            "Use extraction, and the respirator your instructor or the risk assessment names.",
+            "After welding, **restore the corrosion protection** on the weld area, for example with zinc-rich paint.",
+            "Remove the glassy brown or black **silicon islands** from steel welds before painting, or the paint will flake off them."
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Defects, inspection and fault finding",
+      "blocks": [
+        {
+          "h": "Weld defects"
+        },
+        {
+          "table": {
+            "head": [
+              "Defect",
+              "Main causes",
+              "Prevention"
+            ],
+            "rows": [
+              [
+                "Porosity",
+                [
+                  "No gas, leaks, empty cylinder, blocked nozzle or diffuser",
+                  "Draughts, fans, wind",
+                  "Flow too low or too high",
+                  "Dirty, wet, painted or galvanised plate; damp or rusty wire",
+                  "Long CTWD; too little pre-flow or post-flow"
+                ],
+                [
+                  "Check the gas path and flow",
+                  "Shelter the arc; turn fans away",
+                  "Clean plate and dry wire",
+                  "Correct CTWD; pre-flow and post-flow"
+                ]
+              ],
+              [
+                "Lack of fusion and cold lap",
+                [
+                  "Short-circuit on thick plate",
+                  "Arc behind the pool, pool rolling ahead",
+                  "Voltage or current too low; travel too fast or too slow"
+                ],
+                [
+                  "Right mode for the thickness (spray or pulse)",
+                  "Arc on the leading edge",
+                  "Correct settings and travel"
+                ]
+              ],
+              [
+                "Undercut",
+                [
+                  "Voltage too high",
+                  "Travel too fast",
+                  "Wrong gun angle; no pause at the toes"
+                ],
+                [
+                  "Lower voltage; steady speed; correct angle; pause at the edges"
+                ]
+              ],
+              [
+                "Burn-through",
+                "Too much heat for the thickness; gap too wide; travel too slow",
+                "Lower settings; pulse; faster travel; correct gap"
+              ],
+              [
+                "Heavy spatter",
+                [
+                  "Voltage wrong for the wire speed",
+                  "Inductance too low",
+                  "Wrong polarity",
+                  "Pure CO2; dirty plate; long CTWD"
+                ],
+                [
+                  "Tune voltage; adjust inductance",
+                  "DCEP for solid wire",
+                  "Argon-rich mix; clean plate"
+                ]
+              ],
+              [
+                "Crater cracks (especially aluminium)",
+                "Arc stopped suddenly, leaving a hollow crater",
+                "Crater fill, back-step, run-off tab"
+              ],
+              [
+                "Centreline cracking",
+                "Deep, narrow spray beads; high restraint",
+                "Wider, shallower runs; correct settings"
+              ],
+              [
+                "Silica inclusions",
+                "Silicon islands not removed between runs",
+                "Clean every run"
+              ]
+            ]
+          }
+        },
+        {
+          "h": "Machine faults"
+        },
+        {
+          "table": {
+            "head": [
+              "Symptom",
+              "Likely causes",
+              "What to check and do"
+            ],
+            "rows": [
+              [
+                "Bird-nesting (wire tangles at the rolls)",
+                [
+                  "Contact tip blocked or burned back",
+                  "Roll pressure too high or wrong rolls",
+                  "Liner kinked, dirty or wrong",
+                  "Gun cable coiled"
+                ],
+                [
+                  "Clear or change the tip",
+                  "Correct rolls and pressure",
+                  "Blow out or replace the liner",
+                  "Lay the cable straight"
+                ]
+              ],
+              [
+                "Wire stutters, arc keeps changing",
+                [
+                  "Liner dirty, worn or kinked",
+                  "Roll pressure too low",
+                  "Spool brake too tight",
+                  "Worn tip"
+                ],
+                [
+                  "Liner and roll tension first if the tip looks fine",
+                  "Set the brake",
+                  "Change the tip"
+                ]
+              ],
+              [
+                "Wire burns back and fuses to the tip",
+                [
+                  "Wire speed too slow for the voltage",
+                  "Worn or wrong-size tip",
+                  "Burnback time too long",
+                  "Feed hesitating"
+                ],
+                [
+                  "Correct settings",
+                  "Right tip",
+                  "Shorten the burnback",
+                  "Check the feed path"
+                ]
+              ],
+              [
+                "Erratic arc, wire wandering",
+                [
+                  "Contact tip too big for the wire (for example a 1.2 mm tip on 1.0 mm wire) or worn",
+                  "Poor work connection"
+                ],
+                [
+                  "Fit the right tip",
+                  "Clamp on clean metal near the joint"
+                ]
+              ],
+              [
+                "Porosity only at the start of each run",
+                "Air in the gun lead; too little pre-flow",
+                "Purge the line; set the pre-flow"
+              ],
+              [
+                "Porosity in the crater",
+                "Post-flow off or too short",
+                "Set the post-flow and hold the gun over the crater"
+              ],
+              [
+                "Gun overheating",
+                "Water-cooled gun with no coolant flow; duty cycle exceeded; loose tip",
+                "Check the coolant; keep within the duty cycle"
+              ]
+            ]
+          }
+        },
+        {
+          "h": "Finding a fault step by step"
+        },
+        {
+          "flow": [
+            "Make it safe: switch off before opening covers or changing parts",
+            "Gas: cylinder contents, flow at the flowmeter, leaks (leak-test solution), draughts",
+            "Gun: nozzle, contact tip (size and wear), diffuser",
+            "Feed: spool brake, drive roll size and pressure, liner",
+            "Circuit: work clamp, cables, polarity",
+            "Materials: clean, dry wire and plate",
+            "Change **one thing at a time**, test on scrap, then record the fault and the fix in the maintenance log"
+          ]
+        },
+        {
+          "h": "Inspection and testing"
+        },
+        {
+          "table": {
+            "head": [
+              "Method",
+              "What it shows"
+            ],
+            "rows": [
+              [
+                "Visual with a fillet gauge",
+                "Leg lengths (both legs to size), throat, convexity, undercut, porosity, cracks, spatter"
+              ],
+              [
+                "Fillet break test",
+                "The upright of a tee is hammered over so the fillet breaks open and shows root fusion: GMAW cold lap shows up clearly"
+              ],
+              [
+                "Macro-etch",
+                "A cut section, polished and etched, shows the fusion and penetration inside the weld"
+              ],
+              [
+                "Bend tests",
+                "Butt welds bent round a former; lack of fusion opens up"
+              ],
+              [
+                "Radiography (RT)",
+                "Porosity and slag inside butt welds"
+              ],
+              [
+                "Ultrasonic testing (UT)",
+                "Lack of fusion and cracks inside thicker welds"
+              ],
+              [
+                "Dye penetrant (PT)",
+                "Surface cracks on aluminium and stainless"
+              ]
+            ]
+          }
+        },
+        {
+          "note": "Short-circuit cold lap can pass a visual check: the weld looks smooth but is lying on the plate. That is why trial pieces are broken or etched, and why sample break tests are made during production.",
+          "label": "Remember"
+        }
+      ]
+    },
+    {
+      "title": "Planning, costing and leading the team",
+      "blocks": [
+        {
+          "h": "Working out weld metal, wire and gas"
+        },
+        {
+          "table": {
+            "head": [
+              "Step",
+              "How",
+              "Example: 40 m of 6 mm fillet"
+            ],
+            "rows": [
+              [
+                "Weld metal per metre",
+                "Area of a flat-faced fillet ≈ leg × leg ÷ 2 (mm²); add about 10% for convexity; × 1 000 mm gives mm³ per metre; ÷ 1 000 gives cm³; × 7.85 gives grams",
+                "6 × 6 ÷ 2 = 18 mm²; + 10% ≈ 20 mm²; 20 000 mm³ = 20 cm³ × 7.85 ≈ 157 g per metre"
+              ],
+              [
+                "Total weld metal",
+                "Per metre × metres",
+                "0.157 × 40 ≈ 6.3 kg"
+              ],
+              [
+                "Wire",
+                "Weld metal ÷ deposit efficiency (solid wire puts about 90–98% into the weld; the rest is spatter)",
+                "6.3 ÷ 0.95 ≈ 6.6 kg"
+              ],
+              [
+                "Arc time",
+                "Length ÷ travel speed",
+                "40 m at 0.3 m/min ≈ 133 minutes"
+              ],
+              [
+                "Gas",
+                "Arc minutes × flow; add some for purging and pre- and post-flow",
+                "133 × 15 ≈ 2 000 L"
+              ],
+              [
+                "Welder's time",
+                "Arc time ÷ **operating factor** (the share of working time the arc is actually on, often about 20–40% for manual GMAW)",
+                "133 ÷ 0.30 ≈ 444 minutes, about 7.4 hours"
+              ]
+            ]
+          }
+        },
+        {
+          "ul": [
+            "Wire from the wire feed speed: metres of wire = wire speed × arc minutes, × the wire's mass per metre (1.2 mm steel wire is about 8.9 g per metre). Example: 6 m/min for 20 minutes = 120 m × 8.9 g ≈ 1.07 kg.",
+            "Arc time from a deposit rate: weld metal ÷ kg per hour of arc time. Example: 9 kg at 3 kg/h = 3 hours.",
+            "Operating factor = arc-on time ÷ total time × 100. A welder whose arc is on for 15 minutes in an hour has an operating factor of 25%.",
+            "Cost each item in J$: wire (kg × price per kg), gas (litres ÷ litres per cylinder × cylinder price), labour (hours × rate).",
+            "A real estimate also includes fit-up, tacking, cleaning and inspection labour, contact tips, nozzles, grinding discs, power, machine costs, testing, a contingency for problems, and GCT shown separately at the current rate."
+          ]
+        },
+        {
+          "h": "Controlling distortion"
+        },
+        {
+          "ul": [
+            "Do not over-weld: weld to the size on the drawing.",
+            "Tack and clamp first; check square before full welding.",
+            "Balance the welds: on a box section, weld opposite seams in turn in short lengths; on a beam, weld opposite fillets in turn from the middle outwards.",
+            "Use back-step or skip welding on long seams; pulsed transfer keeps heat down on thin and stainless work."
+          ]
+        },
+        {
+          "h": "Procedures and records"
+        },
+        {
+          "table": {
+            "head": [
+              "Record",
+              "What it holds",
+              "Why"
+            ],
+            "rows": [
+              [
+                "WPS",
+                "Approved process, wire, gas, mode, settings, positions, technique",
+                "Every welder makes the weld the same proven way"
+              ],
+              [
+                "Trial record",
+                "Settings tried, results of gauge, break or etch checks, approved settings",
+                "The settings that passed can be repeated"
+              ],
+              [
+                "Weld map and weld record",
+                "Each weld's number and place, the welder, settings used and inspection results",
+                "Traceability"
+              ],
+              [
+                "Maintenance log",
+                "Faults, fixes, parts changed (liners, rolls, tips)",
+                "Plans maintenance; shows repeat faults"
+              ]
+            ]
+          }
+        },
+        {
+          "h": "Leading a GMAW team"
+        },
+        {
+          "ul": [
+            "Make sure every welder works to the WPS. If a welder wants another mode (for example spray on a vertical joint, or short-circuit where the WPS says pulse), the answer is no unless the WPS covers it.",
+            "If the store runs out of the WPS gas and welders start using different mixes, stop and check the WPS allows them; if not, get the right gas.",
+            "Watch for draughts and fans across the bay; set up screens and keep the cooling air away from the arcs.",
+            "For site work in wind, plan shelters, or use a process that does not rely on a gas shield, such as **FCAW** with self-shielded wire or MMAW, if the WPS allows.",
+            "Coach welders whose break tests or inspection results show a repeated fault, and record it.",
+            "Keep machines in good order: liners, rolls, tips and nozzles checked, and faults logged."
+          ]
+        },
+        {
+          "note": "Many Jamaican shops buy gas by the cylinder from a supplier some distance away. Plan the gas for a big job before it starts, and keep a spare cylinder of the WPS gas, so nobody is tempted to 'make do' with the wrong mix.",
+          "label": "Jamaica"
+        }
+      ]
+    },
+    {
+      "title": "Revision",
+      "blocks": [
+        {
+          "p": "Use this checklist to test yourself. If you cannot honestly say \"I can\" to a line, go back to that section and work on it with your instructor."
+        },
+        {
+          "h": "I can ..."
+        },
+        {
+          "ul": [
+            "I can explain GMAW, MIG and MAG, and how a constant-voltage set controls the arc.",
+            "I can name the fume, gas, radiation, fire and cylinder hazards and control them with the hierarchy of controls.",
+            "I can choose a filter shade for the current and mode.",
+            "I can set up the feeder, rolls, liner, gun and gas, and explain inductance, synergic, pulse, 2T/4T, pre-flow, post-flow and burnback.",
+            "I can describe short-circuit, globular, spray and pulsed transfer and choose one for a job.",
+            "I can choose steel, stainless and aluminium wires and the right shielding gas.",
+            "I can say what wire speed, voltage, CTWD, travel speed and gun angle do to the weld.",
+            "I can develop settings on a trial piece, test it and record approved settings.",
+            "I can weld fillets and butts in all positions with the right angles and technique.",
+            "I can change a set over to aluminium and weld aluminium with the push technique and crater fill.",
+            "I can weld stainless steel with low heat, back purging and heat-tint removal.",
+            "I can weld coated steel safely and restore its protection.",
+            "I can name GMAW defects and machine faults and find their causes step by step.",
+            "I can inspect fillets with a gauge and choose break, etch, bend, RT, UT and PT tests.",
+            "I can work out weld metal, wire, gas, arc time, welder time and cost, and lead a safe, productive bay."
+          ]
+        },
+        {
+          "h": "Key terms"
+        },
+        {
+          "terms": [
+            [
+              "Back purge",
+              "Filling the inside of a tube or pipe with argon so the root does not oxidise"
+            ],
+            [
+              "Bird-nesting",
+              "Wire tangling at the drive rolls when it cannot pass through the gun"
+            ],
+            [
+              "Burnback",
+              "The wire burning back after the trigger is released; the setting that controls it"
+            ],
+            [
+              "Cold lap",
+              "Weld metal lying on the plate without fusing to it"
+            ],
+            [
+              "Constant voltage (CV)",
+              "A power source that holds the voltage steady; the wire speed sets the current"
+            ],
+            [
+              "Contact tip",
+              "The copper part that passes current to the wire"
+            ],
+            [
+              "CTWD",
+              "Contact tip to work distance"
+            ],
+            [
+              "Diffuser",
+              "The part behind the nozzle that spreads the gas evenly round the tip"
+            ],
+            [
+              "FCAW",
+              "Flux cored arc welding, often used instead of GMAW outdoors"
+            ],
+            [
+              "Flowmeter",
+              "The device that shows gas flow in litres per minute"
+            ],
+            [
+              "GMAW",
+              "Gas metal arc welding"
+            ],
+            [
+              "Inductance",
+              "A control that changes how fast the current rises in short-circuit transfer"
+            ],
+            [
+              "Inert gas",
+              "A gas such as argon that does not react with the weld pool"
+            ],
+            [
+              "Liner",
+              "The tube in the gun cable that guides the wire"
+            ],
+            [
+              "MIG / MAG",
+              "Metal inert gas / metal active gas: GMAW with an inert or an active shielding gas"
+            ],
+            [
+              "Operating factor",
+              "The percentage of working time the arc is actually on"
+            ],
+            [
+              "Post-flow",
+              "Gas flow after the arc stops, protecting the crater and the tip"
+            ],
+            [
+              "Pulsed transfer",
+              "Current switching between peaks and a low background, giving spray-type fusion with less heat"
+            ],
+            [
+              "Short-circuit transfer",
+              "Metal transfer by the wire touching the pool many times a second"
+            ],
+            [
+              "Silicon islands",
+              "Glassy deposits on steel GMAW welds that must be removed before painting"
+            ],
+            [
+              "Spray transfer",
+              "A fine stream of drops crossing the arc, at high current with argon-rich gas"
+            ],
+            [
+              "Synergic",
+              "A mode in which the machine sets the voltage to suit the wire speed chosen"
+            ],
+            [
+              "Transition current",
+              "The current above which transfer changes to spray"
+            ],
+            [
+              "Wire feed speed (WFS)",
+              "The speed the wire is fed, which sets the current on a CV machine"
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "cases": {
+    "c1": {
+      "title": "Trailer chassis production in Ewarton",
+      "text": "A shop in Ewarton, St Catherine, builds farm trailer chassis from 8 mm and 10 mm steel channel and plate. Four welders share one bay, using 1.2 mm ER70S-6 wire and argon with 18% CO2. The drawings ask for 6 mm fillets, but inspection finds most fillets are 8 mm. A pedestal fan at the end of the bay blows across the benches to keep the welders cool, and porosity has appeared on the welds nearest it. The welders use low short-circuit settings on every fillet 'because the welds look neater'."
+    },
+    "c2": {
+      "title": "Aluminium boat fittings in Port Royal",
+      "text": "Kadeem repairs aluminium boat fittings at a boatyard in Port Royal, Kingston: a T-top frame of 6061-T6 tube and some hull plate of 5083, a marine aluminium-magnesium alloy. The yard's ER4043 wire has been kept on the machine in the open shed for months, the plate is wiped but not brushed, and his first welds are porous. To stop the soft wire slipping, he has wound the drive roll pressure right up, and the wire now keeps bird-nesting. The T-top's designer warns him that the frame will be weaker next to the welds."
+    },
+    "c3": {
+      "title": "Stainless handrails in Discovery Bay",
+      "text": "A shop in Discovery Bay, St Ann, is making grade 316 stainless steel handrails for a seaside hotel from 50 mm tube with a 1.5 mm wall. Lengths of tube are butt welded end to end with pulsed GMAW, then fillet welded to the posts. Inside some of the tube butt welds the root is dark grey and crusty. On the outside, the welds and the tube beside them are coloured blue and brown."
+    },
+    "c4": {
+      "title": "A troublesome machine in Constant Spring",
+      "text": "At a shop in Constant Spring, St Andrew, a welder reports trouble with a GMAW set running 1.0 mm steel wire and argon/CO2. The arc is erratic and the wire wanders; the contact tip fitted is marked 1.2 mm, left from yesterday's job. The craters at the end of each run are porous, and the post-flow has been set to zero. To see the joint better, he has also started holding the gun with about 30 mm between the tip and the work, where the WPS says 12–15 mm. In the next bay, the regulator on a pure CO2 cylinder ices up on long runs."
+    },
+    "c5": {
+      "title": "Pricing school gates in Frankfield",
+      "text": "Tamara is pricing gates and railings for a school in Frankfield, Clarendon. The job has 120 m of 5 mm fillet weld. Each metre of this fillet holds about 0.1 kg of weld metal, and the solid wire puts about 95% of its weight into the weld. Each metre takes about 3 minutes of arc time, and the shop's welders have an operating factor of about 25%."
+    }
+  },
+  "questions": [
+    {
+      "id": "P-01",
+      "c": "c1",
+      "q": "How much more weld metal does an 8 mm fillet hold than the 6 mm fillet on the drawing?",
+      "o": [
+        "About 33% more",
+        "About 50% more",
+        "About 78% more",
+        "About twice as much"
+      ],
+      "a": 2,
+      "why": "Fillet area grows with the square of the leg: (8 × 8) ÷ (6 × 6) = 64 ÷ 36 = 1.78, so about 78% more wire, gas, time and distortion. Comparing the legs alone (8 ÷ 6) gives the wrong answer of 33%."
+    },
+    {
+      "id": "P-02",
+      "c": "c1",
+      "q": "What should be done about the fan and the porosity?",
+      "o": [
+        "Turn the gas flow right up so the fan cannot blow the shield away",
+        "Move the fan so it does not blow across the arcs, and screen the bay",
+        "Keep the fan running and change all four welders to pure CO2 gas",
+        "Switch the fan off for good and tell the welders to drink more water"
+      ],
+      "a": 1,
+      "why": "A fan across the bay blows the shielding gas away, and turning the flow up only makes it turbulent. Keep the cooling air away from the arcs and screen them; plan water and rest breaks for the heat too."
+    },
+    {
+      "id": "P-03",
+      "c": "c1",
+      "q": "Which transfer mode best suits the flat and horizontal fillets on the 10 mm plate, with this wire and gas?",
+      "o": [
+        "Short-circuit, at the lowest settings that look neat",
+        "Globular, at a medium current with plenty of spatter",
+        "Short-circuit with the inductance turned right down",
+        "Spray transfer, at a current above the transition"
+      ],
+      "a": 3,
+      "why": "Argon with 18% CO2 and 1.2 mm wire can give spray transfer, which fuses deeply into thick plate in the flat and horizontal positions. Low short-circuit settings can leave neat-looking welds that are not fused."
+    },
+    {
+      "id": "P-04",
+      "c": "c1",
+      "q": "Once the welders are in spray transfer, how should a correctly set arc sound?",
+      "o": [
+        "A loud, irregular crackle and pop",
+        "A steady hiss or hum",
+        "A slow, regular thump",
+        "Silent, with no sound at all"
+      ],
+      "a": 1,
+      "why": "In spray, fine drops cross without shorting, so the arc hisses or hums steadily. The crackle like frying bacon belongs to short-circuit; irregular popping and heavy spatter suggest globular transfer or wrong settings."
+    },
+    {
+      "id": "P-05",
+      "c": "c2",
+      "q": "Which wire should Kadeem use on the 5083 hull plate?",
+      "o": [
+        "ER4043, as it flows best and cracks the least on any alloy",
+        "ER5356, as it suits aluminium-magnesium alloys like 5083",
+        "ER70S-6, as it carries the most deoxidisers to fight oxide",
+        "Either one, as all aluminium wires give the same weld"
+      ],
+      "a": 1,
+      "why": "5083 is a high-magnesium marine alloy. ER5356 (aluminium-magnesium) matches it and gives a strong weld; ER4043 (aluminium-silicon) mixed with high-magnesium alloys makes a crack-prone weld."
+    },
+    {
+      "id": "P-06",
+      "c": "c2",
+      "q": "What is the likely effect of the drive roll pressure being wound right up?",
+      "o": [
+        "The soft wire is crushed and shaved, so it jams and bird-nests",
+        "The wire feeds more smoothly and the arc becomes much steadier",
+        "The wire is pulled so tight that it stretches and runs too thin",
+        "The rolls grip so well that the spool brake is no longer needed"
+      ],
+      "a": 0,
+      "why": "Aluminium wire is soft. Too much roll pressure flattens it and shaves metal off, so it drags in the liner and tip and tangles at the rolls. Use U-groove rolls at light pressure, a plastic liner, and a spool or push-pull gun."
+    },
+    {
+      "id": "P-07",
+      "c": "c2",
+      "q": "What is the most likely main source of Kadeem's porosity?",
+      "o": [
+        "Argon shielding gas, which is too heavy to protect aluminium",
+        "Too much current, which boils the aluminium in the weld pool",
+        "The push gun angle, which blows the surrounding air down into the pool",
+        "Hydrogen from moisture and oxide on the old wire and the plate"
+      ],
+      "a": 3,
+      "why": "Aluminium porosity comes mainly from hydrogen. Wire left in humid air and plate that is not cleaned carry moisture and hydrated oxide. Store wire sealed and dry; degrease, then brush with an aluminium-only stainless brush just before welding."
+    },
+    {
+      "id": "P-08",
+      "c": "c2",
+      "q": "Why will the 6061-T6 frame be weaker next to the welds?",
+      "o": [
+        "The filler wire is always far weaker than any aluminium alloy",
+        "The arc burns away some of the magnesium in the tube walls",
+        "Welding heat undoes the alloy's heat treatment near the weld",
+        "The tube walls are thinned by the cleaning with a steel brush"
+      ],
+      "a": 2,
+      "why": "6061-T6 gets much of its strength from heat treatment. The welding heat undoes it in the heat-affected zone, which can lose a third or more of its strength. Designers allow for this; adding more weld or heat does not help."
+    },
+    {
+      "id": "P-09",
+      "c": "c3",
+      "q": "What should be done to stop the dark, crusty roots inside the tube butt welds?",
+      "o": [
+        "Weld the root faster with a much higher wire feed speed",
+        "Turn the outside gas flow up so that some reaches inside",
+        "Seal the tube ends and purge the inside with argon",
+        "Grind out the inside of the root after each weld"
+      ],
+      "a": 2,
+      "why": "The inside of the root is unshielded and oxidises ('sugars'). Sealing the tube with dams or tape and filling it with argon before and during welding protects it. Grinding inside 50 mm tube is not practical."
+    },
+    {
+      "id": "P-10",
+      "c": "c3",
+      "q": "Why is pulsed GMAW a good choice for this 1.5 mm stainless tube?",
+      "o": [
+        "It needs no shielding gas on stainless, which saves the cost",
+        "It fuses well at a low average heat, with little spatter",
+        "It is the only mode that can weld a fillet to a round post",
+        "It adds carbon to the weld, which helps stainless resist rust"
+      ],
+      "a": 1,
+      "why": "Pulse gives spray-type fusion at a lower average heat, so thin stainless suffers less burn-through, distortion and heat tint, with very little spatter. Extra carbon would harm, not help, corrosion resistance."
+    },
+    {
+      "id": "P-11",
+      "c": "c3",
+      "q": "What should be done about the blue and brown heat tint on the outside?",
+      "o": [
+        "Leave it, as it shows the weld was made at the right heat",
+        "Paint over it with clear lacquer to seal it from the salt air",
+        "Wipe it with a damp rag, then rub a little oil over the weld",
+        "Remove it with stainless-only abrasives or pickling paste"
+      ],
+      "a": 3,
+      "why": "Heat tint is a thick oxide that lowers stainless steel's corrosion resistance; by the sea it soon rusts and pits. Remove it with stainless-only abrasives, or pickling paste applied by a trained person with full PPE, then blend the weld."
+    },
+    {
+      "id": "P-12",
+      "c": "c4",
+      "q": "What is the most likely cause of the erratic arc and wandering wire?",
+      "o": [
+        "The 1.2 mm tip is too big for the 1.0 mm wire",
+        "The gas flow is set too low for the 1.0 mm wire",
+        "The post-flow time has been set at zero seconds",
+        "The voltage is too high for the wire feed speed"
+      ],
+      "a": 0,
+      "why": "In an oversize tip the wire touches the bore at different points, so the current pick-up and the wire's direction keep changing. Fit a tip marked for the wire size, and replace tips that are worn oval."
+    },
+    {
+      "id": "P-13",
+      "c": "c4",
+      "q": "Why are the craters porous with the post-flow set to zero?",
+      "o": [
+        "The wire burns back into the tip and blocks the gas",
+        "The crater cools with no gas to keep the air away",
+        "The pre-flow is cut short, so air is left in the gun",
+        "The voltage rises at the end of the run and boils it"
+      ],
+      "a": 1,
+      "why": "Post-flow keeps gas over the crater while it freezes, and over the hot tip. With none, air reaches the cooling crater and causes porosity. Set a post-flow and hold the gun over the crater until it stops."
+    },
+    {
+      "id": "P-14",
+      "c": "c4",
+      "q": "What happens when the welder holds a 30 mm CTWD instead of the 12–15 mm in the WPS?",
+      "o": [
+        "The current rises, giving deeper penetration and more spatter",
+        "The current and penetration drop, and the gas cover is poorer",
+        "Nothing changes, as the machine holds the current constant",
+        "The voltage drops, so the bead becomes taller and narrower"
+      ],
+      "a": 1,
+      "why": "On a constant-voltage machine, more wire stick-out adds resistance, so the current falls for the same wire speed and penetration drops; the gas also has further to travel. He should keep the WPS distance and use a better view or position."
+    },
+    {
+      "id": "P-15",
+      "c": "c4",
+      "q": "What is the best fix for the CO2 regulator icing up on long runs?",
+      "o": [
+        "Lay the cylinder down on its side so the gas comes out a little warmer",
+        "Pour hot water over the regulator whenever it freezes",
+        "Turn the flow right up so the gas pushes through the ice",
+        "Fit a regulator heater, or lower the flow if the WPS allows"
+      ],
+      "a": 3,
+      "why": "CO2 cools sharply as it expands through the regulator, and on long, high-flow runs it can freeze and stop the gas. A regulator heater prevents it; cylinders stay upright and chained."
+    },
+    {
+      "id": "P-16",
+      "c": "c5",
+      "q": "With an operating factor of 25%, about how much welder time will the 120 m of weld take?",
+      "o": [
+        "About 6 hours",
+        "About 1.5 hours",
+        "About 24 hours",
+        "About 12 hours"
+      ],
+      "a": 2,
+      "why": "Arc time = 120 × 3 = 360 minutes = 6 hours. With the arc on for only 25% of the working time, welder time = 6 ÷ 0.25 = 24 hours. Multiplying by 0.25 instead (1.5 hours) is a common slip."
+    },
+    {
+      "id": "P-17",
+      "c": "c5",
+      "q": "About how much wire should Tamara allow for the 120 m of fillet?",
+      "o": [
+        "About 11.4 kg",
+        "About 12.0 kg",
+        "About 15.0 kg",
+        "About 12.6 kg"
+      ],
+      "a": 3,
+      "why": "Weld metal = 120 × 0.1 = 12 kg. Only 95% of the wire ends up in the weld, so wire = 12 ÷ 0.95 ≈ 12.6 kg. Multiplying by 0.95 (11.4 kg) gets the direction wrong."
+    },
+    {
+      "id": "P-18",
+      "c": null,
+      "q": "Jermaine must GMAW weld a bracket at the bottom of a 2 m deep pit using argon mix. What is the special gas hazard?",
+      "o": [
+        "Argon is flammable and can easily be set alight by the arc's sparks",
+        "Argon turns into carbon monoxide when it passes through an arc",
+        "Argon is heavier than air and can fill the pit and push out oxygen",
+        "Argon makes the welding fume heavier, so it settles on the welder"
+      ],
+      "a": 2,
+      "why": "Argon and CO2 are heavier than air and collect in pits, tanks and trenches, displacing oxygen without any warning. Ventilate the space, close the cylinder valve when not welding, and follow the confined space rules."
+    },
+    {
+      "id": "P-19",
+      "c": null,
+      "q": "On 3 mm steel, a welder changes from pulling (dragging) the gun to pushing it. What mainly changes in the bead?",
+      "o": [
+        "It becomes flatter and wider, with a little less penetration",
+        "It becomes deeper, narrower and more rounded",
+        "It becomes porous, as pushing the gun always lets more air in",
+        "Nothing changes, since only the machine settings affect the bead"
+      ],
+      "a": 0,
+      "why": "Pushing points the arc ahead onto cooler metal, giving a flatter, wider bead with a little less penetration and a better view of the joint. Dragging gives a deeper, narrower, more rounded bead."
+    },
+    {
+      "id": "P-20",
+      "c": null,
+      "q": "After an afternoon of GMAW on aluminium with pure argon in a booth with no extraction, a welder has a dry throat and a tight chest. Which gas is the most likely cause?",
+      "o": [
+        "Ozone, made from the air's oxygen by the arc's ultraviolet",
+        "Carbon monoxide, made when the arc breaks down the argon shield",
+        "Phosgene, given off by the aluminium oxide on the plate",
+        "Hydrogen, given off by the moisture in the aluminium wire"
+      ],
+      "a": 0,
+      "why": "The bright ultraviolet from an argon-shielded aluminium arc turns oxygen in the air into ozone, which irritates the throat and lungs. Carbon monoxide comes from CO2, not argon. Use extraction and report the symptoms."
+    }
+  ]
+}

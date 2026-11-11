@@ -1,0 +1,1270 @@
+{
+ "format": "cestis-study-kit",
+ "version": 1,
+ "status": "to-check",
+ "written": "2026-11-07",
+ "programme": "Electrical Installation",
+ "qualification": {
+  "id": "QUAL-EIM-L3",
+  "title": "ELECTRICAL INSTALLATION AND MAINTENANCE LEVEL 3",
+  "code": "MEM32507"
+ },
+ "level": 3,
+ "unit": {
+  "code": "MEMPLN0104A",
+  "title": "Interpret and carry out electrical design"
+ },
+ "summary": "This unit teaches you to read an electrical design and to carry out the design calculations for a small or medium installation: loads and balance on a 110/220 V board, protective device and cable selection, volt drop, fault level and discrimination, RCDs, earthing and surge protection, lighting by the lumen method, power factor, motor circuits and standby supply sizing. You will also learn to interpret drawings, schedules and specifications, to query and record changes, and to check and document a design.",
+ "sections": [
+  {
+   "title": "Unit overview",
+   "blocks": [
+    {
+     "p": "A design turns the client's requirements into drawings, schedules and calculations that an installer can follow. At Level 3 you do two jobs. You **carry out** design work, using given data and methods for a small installation. And you **interpret** other people's designs on site: you read them, spot conflicts, ask the right questions and make sure what is built is what was designed. Neither job lets you guess."
+    },
+    {
+     "h": "What you must be able to do"
+    },
+    {
+     "table": {
+      "head": [
+       "Task",
+       "What it looks like on the job"
+      ],
+      "rows": [
+       [
+        "Follow the design process",
+        "Work in order: brief and drawings, loads and supply, circuits, protection and cables, checks, drawings and schedules, checking and issue."
+       ],
+       [
+        "Read drawings and schedules",
+        "Tell a layout drawing from a single-line diagram and a schematic; use scale, symbols, heights and notes; read board schedules and equipment nameplates."
+       ],
+       [
+        "Balance a split-phase board",
+        "Share the 110 V circuits between the two lines and work out the neutral current."
+       ],
+       [
+        "Choose protective devices and cables",
+        "Find the design current, pick the device, correct the cable rating, and check volt drop, fault level and discrimination."
+       ],
+       [
+        "Design RCD, earthing and surge protection",
+        "Choose RCD types and ratings, understand the earthing system, size protective conductors and place SPDs."
+       ],
+       [
+        "Design lighting",
+        "Use the lumen method, choose fittings and controls, and place emergency lighting."
+       ],
+       [
+        "Handle power factor and motors",
+        "Calculate real, apparent and reactive power, size a capacitor bank, and design motor circuits with overload protection."
+       ],
+       [
+        "Size transformers and generators",
+        "Allow for power factor, motor starting and growth."
+       ],
+       [
+        "Interpret and query the design",
+        "Work to the latest revision, read documents together, raise a written query, and record changes."
+       ],
+       [
+        "Check and document a design",
+        "Check calculations, have them independently checked, and issue a complete, consistent package."
+       ]
+      ]
+     }
+    },
+    {
+     "h": "Two sets of words"
+    },
+    {
+     "p": "Jamaica's electrical code is based on the US National Electrical Code (NEC), but you will also meet British and IEC terms in books, nameplates, drawings and the exam. This kit uses both and says which is which. For the sums, use the data your instructor or the specification gives (tables, correction factors, volt-drop limits): they vary with the code edition and the cable type."
+    },
+    {
+     "table": {
+      "head": [
+       "IEC / British",
+       "NEC / US"
+      ],
+      "rows": [
+       [
+        "Earth, protective conductor (CPC)",
+        "Ground, equipment grounding conductor (EGC)"
+       ],
+       [
+        "RCD, RCBO (breaker and RCD in one)",
+        "GFCI breaker, ground-fault protection"
+       ],
+       [
+        "Distribution board, consumer unit",
+        "Panelboard, load centre"
+       ],
+       [
+        "Design current Ib, device rating In, cable rating Iz",
+        "Load current, overcurrent device rating, cable ampacity"
+       ],
+       [
+        "Prospective fault current, breaking capacity",
+        "Available fault current, interrupting rating (AIC)"
+       ]
+      ]
+     }
+    },
+    {
+     "note": "Design calculations are **checked** work. Show every step, use units, round **up** for quantities of things you must buy or fit, and never use a figure you did not get from a table, a nameplate or a calculation.",
+     "label": "Remember"
+    }
+   ]
+  },
+  {
+   "title": "The design process and the drawings",
+   "blocks": [
+    {
+     "h": "The steps"
+    },
+    {
+     "flow": [
+      "Take the agreed brief and the architect's drawings; confirm the supply on site",
+      "List the loads and work out the maximum demand; agree the supply with JPS",
+      "Lay out the lights, outlets, data points and equipment on the floor plan",
+      "Group the points into circuits and share them between the lines",
+      "For each circuit: design current, protective device, cable size with correction factors",
+      "Check volt drop, earth fault loop impedance (or fault clearing), fault level and discrimination",
+      "Design the earthing, bonding and surge protection",
+      "Draw the single-line diagram and board schedules; write the specification",
+      "Have the design checked by a second competent person",
+      "Issue it with a revision letter and date"
+     ]
+    },
+    {
+     "note": "Order matters. Choosing cables before finding the loads, or breakers to fill a board before knowing the loads, is the classic design mistake: the loads decide the circuits, the circuits decide the protection, and the protection decides the cable.",
+     "label": "Remember"
+    },
+    {
+     "h": "The drawings and what each shows"
+    },
+    {
+     "table": {
+      "head": [
+       "Drawing",
+       "Shows",
+       "Use it to"
+      ],
+      "rows": [
+       [
+        "Layout (plan) drawing",
+        "Positions of lights, switches, outlets, boards and equipment on the building plan, dimensioned and to scale.",
+        "Fix each item in its place on site."
+       ],
+       [
+        "Single-line (one-line) diagram",
+        "The supply, main switch, boards, sub-mains and protective devices as simple lines, with ratings and cable sizes.",
+        "See how the whole installation is arranged and protected."
+       ],
+       [
+        "Schematic (circuit) diagram",
+        "How control devices, coils, contacts and loads are connected, not where they are fixed.",
+        "Understand and wire a control circuit."
+       ],
+       [
+        "Wiring diagram",
+        "Terminal-to-terminal connections inside a panel or machine, with numbers and colours.",
+        "Make and check connections."
+       ],
+       [
+        "Board schedule (circuit schedule)",
+        "For each circuit: number, load, line, device type and rating, cable size, RCD, notes.",
+        "Fit the right device and cable to each way."
+       ],
+       [
+        "Cable and containment drawings",
+        "Routes, trays, trunking, conduit sizes.",
+        "Install containment."
+       ]
+      ]
+     }
+    },
+    {
+     "h": "Reading a drawing"
+    },
+    {
+     "ul": [
+      "**Scale**: on a 1:50 drawing, 1 mm on paper is 50 mm real. A run of 120 mm on paper is 120 × 50 = 6 000 mm = 6 m.",
+      "**Heights**: a note such as 'all heights to finished floor level (FFL) unless noted' means an outlet marked 450 is 450 mm above the **finished** floor, not the slab.",
+      "**Symbols and key**: use the drawing's own key; do not assume.",
+      "**Revision and date**: check that you have the latest revision.",
+      "**Notes and the title block**: they often carry the conditions that change what you do.",
+      "**Cross-references**: a note may send you to a schedule or to the specification."
+     ]
+    },
+    {
+     "h": "Reading a board schedule entry"
+    },
+    {
+     "p": "A line such as 'Circuit 7: 20 A, 2.5 mm², 30 mA RCBO, kitchen outlets' tells the installer: fit a **20 A** breaker, run **2.5 mm²** cable, and use a combined breaker and RCD that trips at **30 mA of earth leakage**, on the kitchen outlet circuit. The 30 mA is the leakage that trips it, not the load current and not the cable's rating."
+    },
+    {
+     "h": "Reading equipment nameplates"
+    },
+    {
+     "p": "An A/C unit nameplate may read 'MCA 15 A, MOP 25 A'. **MCA** is the minimum circuit ampacity: the cable must be rated at least this. **MOP** (maximum overcurrent protection) is the **largest** breaker or fuse the maker allows. The designer picks a cable for at least the MCA and a breaker no larger than the MOP."
+    }
+   ]
+  },
+  {
+   "title": "Loads, split-phase balance, power factor and sizing",
+   "blocks": [
+    {
+     "h": "Maximum demand with diversity"
+    },
+    {
+     "p": "Add the loads, then apply the diversity or demand factors given in the design data. Some data gives a rule such as 'take the first circuit at 100% and the rest at 40%'. Example: ten 20 A outlet circuits: 20 + (9 × 20 × 0.4) = 20 + 72 = **92 A**."
+    },
+    {
+     "h": "Split-phase: balance and the neutral"
+    },
+    {
+     "p": "On a 110/220 V board, **110 V circuits** use one line and the neutral. **220 V circuits** use both lines (through a **2-pole breaker**, so both live conductors are switched and protected together) and draw the same current from each line. With resistive 110 V loads, the shared **neutral carries the difference** between the two line currents."
+    },
+    {
+     "table": {
+      "head": [
+       "Line 1",
+       "Line 2",
+       "Neutral current",
+       "Comment"
+      ],
+      "rows": [
+       [
+        "40 A",
+        "25 A",
+        "15 A",
+        "Out of balance"
+       ],
+       [
+        "38 A",
+        "37 A",
+        "1 A",
+        "Well balanced: moved a 7 A circuit from line 1 to line 2"
+       ],
+       [
+        "32 A (22 A of 220 V heater + 10 A of 110 V lights)",
+        "22 A",
+        "10 A",
+        "A 220 V load adds equally to both lines and cancels in the neutral; only the 110 V lights count"
+       ]
+      ]
+     }
+    },
+    {
+     "p": "**Why balance?** Lower line currents and neutral current, less volt drop and loss, and the main switch can carry more useful load. List each 110 V circuit with its current and place them in turn on line 1 and line 2 so the totals are about equal. Never put all 110 V loads on one line."
+    },
+    {
+     "h": "Power, power factor and capacitors"
+    },
+    {
+     "table": {
+      "head": [
+       "Quantity",
+       "Unit",
+       "Meaning"
+      ],
+      "rows": [
+       [
+        "Real (active) power P",
+        "kW",
+        "The power that does useful work (heat, light, shaft power)."
+       ],
+       [
+        "Apparent power S",
+        "kVA",
+        "Voltage × current. What the supply, cables and transformers must carry."
+       ],
+       [
+        "Reactive power Q",
+        "kVAR",
+        "Power that moves to and fro to build magnetic fields in motors and transformers. Does no useful work but adds current."
+       ],
+       [
+        "Power factor",
+        "no unit",
+        "P ÷ S. 1.0 is perfect; motor-heavy loads are often 0.7 to 0.85."
+       ]
+      ]
+     }
+    },
+    {
+     "table": {
+      "head": [
+       "Sum",
+       "Method",
+       "Example"
+      ],
+      "rows": [
+       [
+        "Real power, single-phase",
+        "V × I × power factor",
+        "220 × 50 × 0.9 = 9 900 W = 9.9 kW"
+       ],
+       [
+        "Power factor",
+        "kW ÷ kVA",
+        "40 kW ÷ 50 kVA = 0.8"
+       ],
+       [
+        "Reactive power",
+        "√(S² − P²)",
+        "S = 50, P = 40: √(2 500 − 1 600) = 30 kVAR"
+       ],
+       [
+        "Capacitor needed",
+        "Q before − Q after",
+        "37.5 − 16.4 = 21.1 kVAR"
+       ],
+       [
+        "Q at a target power factor",
+        "P × tan(arccos pf)",
+        "60 kW at 0.95: 60 × 0.329 = 19.7 kVAR"
+       ]
+      ]
+     }
+    },
+    {
+     "p": "**Why a low power factor is a problem**: for the same useful power the current is higher, so cables, switchgear and transformers must be bigger, losses are higher, and the power company may charge extra. **Capacitors** supply the reactive power locally and bring the power factor up. Use automatic stepped banks so a lightly loaded factory is not over-corrected, and make sure the bank has discharge resistors, because capacitors hold charge."
+    },
+    {
+     "p": "**Worked example.** A factory takes 80 kW at 0.75. S = 80 ÷ 0.75 = 106.7 kVA; Q = √(106.7² − 80²) = 70.6 kVAR. At 0.95: S = 84.2 kVA; Q = 26.3 kVAR. Capacitor bank = 70.6 − 26.3 = about **44 kVAR**; choose the next standard size."
+    },
+    {
+     "h": "Transformers and generators"
+    },
+    {
+     "ul": [
+      "Transformers are rated in **kVA**. kVA needed = kW ÷ power factor. A 120 kW demand at 0.9 needs 120 ÷ 0.9 = 133 kVA, so the next standard size (150 kVA in a list of 100, 150, 200) before any allowance for growth.",
+      "A standby **generator** must also be sized for **starting current**: a large motor starting can dip the voltage and stall the set. Start large motors one at a time, or use soft starters, and add a margin for growth.",
+      "The essential loads go on their own board through a changeover or automatic transfer switch that is **interlocked**, so the generator can never feed back into JPS's lines.",
+      "Check that cables and protection still work when fed from the generator, whose fault current is much lower than the mains; and plan fuel, exhaust and ventilation."
+     ]
+    },
+    {
+     "h": "Where the neutral is larger"
+    },
+    {
+     "p": "In three-phase systems with many LED drivers, computers and other electronic loads, **harmonic currents** (at multiples of 50 Hz) add up in the neutral instead of cancelling. The neutral can carry as much as, or more than, a line, so the designer may specify a neutral the same size as, or larger than, the lines."
+    }
+   ]
+  },
+  {
+   "title": "Protective devices and cable selection",
+   "blocks": [
+    {
+     "p": "Every final circuit is designed in the same order: **load, then device, then cable, then checks**. The cable must survive whatever the device lets through."
+    },
+    {
+     "flow": [
+      "Find the **design current** Ib: the current the circuit carries in normal use (power ÷ voltage, or the nameplate current)",
+      "Choose the **protective device** rating In: not less than Ib, and not more than the maker allows (MOP) or the cable can carry",
+      "Find the **corrected cable rating**: table rating × correction factors",
+      "Check that the corrected rating is **at least In** (the cable can carry what the device allows)",
+      "Check **volt drop** against the limit",
+      "Check **fault protection**: the device trips fast enough on an earth fault, and the breaking capacity suits the fault level",
+      "If any check fails, choose a larger cable (or a different device) and repeat"
+     ]
+    },
+    {
+     "note": "In many designs the three ratings run in order: Ib ≤ In ≤ Iz (design current, device rating, corrected cable rating). Follow the data and the code edition the Centre uses; where the code treats continuous loads or motors differently, the specification says so.",
+     "label": "Remember"
+    },
+    {
+     "h": "Correction factors"
+    },
+    {
+     "p": "Tables give a cable's rating under standard conditions. Real conditions are usually worse, so the rating is **corrected** (derated) by multiplying by factors from the data:"
+    },
+    {
+     "table": {
+      "head": [
+       "Condition",
+       "Factor",
+       "Effect"
+      ],
+      "rows": [
+       [
+        "Air temperature above the table's reference (a hot roof space in Jamaica)",
+        "Ambient factor, for example 0.87 or 0.94",
+        "Hot cable cannot lose heat; lower rating"
+       ],
+       [
+        "Several cables grouped together",
+        "Grouping factor, for example 0.7",
+        "Cables heat each other"
+       ],
+       [
+        "Cable buried in thermal insulation",
+        "Insulation factor, much lower",
+        "Heat is trapped"
+       ],
+       [
+        "Cable in the ground, depth and soil",
+        "Burial factors",
+        "Depends on the soil's ability to carry heat away"
+       ]
+      ]
+     }
+    },
+    {
+     "p": "**Example.** Table rating 40 A; ambient factor 0.94; grouping factor 0.7. Corrected rating = 40 × 0.94 × 0.7 = **26.3 A**."
+    },
+    {
+     "h": "Worked example: choosing a breaker and cable"
+    },
+    {
+     "p": "A 220 V sub-main has a design current of 48 A and is 40 m long. Breakers come in 50 A and 63 A. Cable X has a table rating of 57 A and 4.4 mV/A/m; cable Y has 76 A and 2.8 mV/A/m. The correction factor is 0.87 and the volt-drop limit is 3%."
+    },
+    {
+     "table": {
+      "head": [
+       "Step",
+       "Working",
+       "Result"
+      ],
+      "rows": [
+       [
+        "Breaker",
+        "At least 48 A: choose 50 A",
+        "50 A"
+       ],
+       [
+        "Cable X corrected",
+        "57 × 0.87 = 49.6 A, less than 50 A",
+        "Fails on current"
+       ],
+       [
+        "Cable Y corrected",
+        "76 × 0.87 = 66.1 A, more than 50 A",
+        "Passes on current"
+       ],
+       [
+        "Volt-drop limit",
+        "3% of 220 V = 6.6 V",
+        "6.6 V"
+       ],
+       [
+        "Cable Y volt drop",
+        "2.8 × 48 × 40 ÷ 1000 = 5.38 V",
+        "Passes"
+       ],
+       [
+        "Cable X volt drop (for interest)",
+        "4.4 × 48 × 40 ÷ 1000 = 8.45 V",
+        "Would also fail"
+       ],
+       [
+        "Choice",
+        "50 A breaker with cable Y",
+        "Then check fault level, discrimination, loop impedance"
+       ]
+      ]
+     }
+    },
+    {
+     "h": "Volt drop"
+    },
+    {
+     "p": "**Volt drop (V) = mV/A/m × current (A) × length (m) ÷ 1000.** The limit is set by the specification or code, often 3% on a branch circuit and 5% overall from the supply to the furthest point; the sub-main and final circuit share the total. Example: total 5% of 220 V = 11 V; if the sub-main drops 4.4 V, the final circuit may drop 6.6 V. A long run may need a larger cable even when current rating is fine, and that is why a sub-board is often placed near a distant wing: shorter final circuits keep volt drop and loop impedance down."
+    },
+    {
+     "table": {
+      "head": [
+       "Check",
+       "Example"
+      ],
+      "rows": [
+       [
+        "Limit as volts",
+        "3% of 220 V = 6.6 V; 3% of 110 V = 3.3 V"
+       ],
+       [
+        "Circuit drop",
+        "7.3 mV/A/m × 25 A × 30 m ÷ 1000 = 5.5 V: acceptable against 6.6 V"
+       ],
+       [
+        "Percentage drop",
+        "(110 − 101) ÷ 110 = 8.2%: far too high for a 110 V circuit"
+       ]
+      ]
+     }
+    },
+    {
+     "h": "Fault level and breaking capacity"
+    },
+    {
+     "p": "The **prospective fault current (PFC)** is the largest current that would flow in a short circuit at a point, and it is greatest near the transformer. Every protective device has a **breaking capacity** (kA, also called interrupting rating): the largest fault current it can safely break. It must be **not less than** the PFC at its position. With a PFC of 12 kA, a 15 kA device suits; a 10 kA or 6 kA device could explode. Get the figure from JPS or the supply data."
+    },
+    {
+     "h": "Discrimination (selectivity)"
+    },
+    {
+     "p": "**Discrimination** means that on a fault only the device **nearest the fault** opens, and the devices upstream stay closed. In a hotel, a fault on one guest room's outlet must not black out a floor or the kitchen. Make each upstream device larger and slower than those below it, and **confirm it from the makers' time-current curves or discrimination tables**, not from rules of thumb: a 63 A sub-main breaker over 32 A outgoing breakers may discriminate only up to a certain fault current. Record the chosen devices and settings so nobody swaps them on site."
+    },
+    {
+     "h": "Cable types for special jobs"
+    },
+    {
+     "table": {
+      "head": [
+       "Job",
+       "Choice",
+       "Why"
+      ],
+      "rows": [
+       [
+        "Underground to a pump or gate",
+        "Armoured cable, or cable in a duct, as specified",
+        "Protected from digging and damp; flat unprotected PVC cable is not for burial"
+       ],
+       [
+        "Hot plant room or high ambient",
+        "XLPE insulation instead of PVC",
+        "XLPE can run at a higher conductor temperature"
+       ],
+       [
+        "Fire alarm, fire pump, emergency lighting, smoke extraction",
+        "Fire-resistant cable",
+        "Must keep working during a fire"
+       ],
+       [
+        "Outdoor, in sun",
+        "Sun-resistant cable or conduit",
+        "Ultraviolet light cracks ordinary PVC"
+       ],
+       [
+        "Flexible connection to a machine",
+        "Flexible cord of suitable rating",
+        "Appliance-type flex is not for fixed wiring or burial"
+       ]
+      ]
+     }
+    },
+    {
+     "p": "Cable choice depends on the design current, ambient temperature, grouping, installation method, volt drop and fault protection. **The colour of the sheath is not a factor.** A cable on the drawing is not swapped for one left in the van: it was sized for load, volt drop and fault current."
+    }
+   ]
+  },
+  {
+   "title": "RCDs, earthing and surge protection",
+   "blocks": [
+    {
+     "h": "RCD and GFCI protection"
+    },
+    {
+     "table": {
+      "head": [
+       "Device",
+       "Trip level",
+       "Purpose in a design"
+      ],
+      "rows": [
+       [
+        "GFCI (US) for people",
+        "About 5 mA",
+        "NEC requirement for outlets in bathrooms, kitchens, outdoors, garages and similar places."
+       ],
+       [
+        "RCD, 30 mA (IEC)",
+        "30 mA",
+        "Additional protection of people on outlet circuits, bathrooms, outdoor and portable equipment."
+       ],
+       [
+        "RCD, 100 to 300 mA, often time-delayed",
+        "100 to 300 mA",
+        "Protects against fire from leakage, and sits upstream of 30 mA devices (discrimination)."
+       ]
+      ]
+     }
+    },
+    {
+     "p": "Example: a farm building has a **300 mA** time-delayed RCD at its origin against fire, with **30 mA** RCDs on its outlet circuits to protect people. A fault on an outlet circuit trips the 30 mA device first. Remember that computers leak a little current to earth, so many on one RCD can trip it: split them across circuits."
+    },
+    {
+     "h": "Earthing systems"
+    },
+    {
+     "table": {
+      "head": [
+       "System",
+       "How the earth connection is made",
+       "Design consequence"
+      ],
+      "rows": [
+       [
+        "TN-C-S",
+        "The supplier provides a combined neutral and earth conductor, split at the installation",
+        "Earth fault current returns through a low-resistance metal path, so ordinary breakers usually trip fast."
+       ],
+       [
+        "TT",
+        "The installation uses its own earth electrode; there is no earth from the supplier",
+        "Electrode resistance is often too high for a breaker to trip fast, so **RCD protection is designed in**."
+       ],
+       [
+        "TN-S",
+        "The supplier provides a separate earth",
+        "As TN-C-S."
+       ]
+      ]
+     }
+    },
+    {
+     "p": "Find out how JPS earths its supply first: it decides which system the design uses and whether the installation's own electrode is the main earth path or a backup. In an NEC-based installation the neutral is grounded at the service and the equipment grounding conductor carries fault current back to it."
+    },
+    {
+     "h": "Protective conductors and bonding"
+    },
+    {
+     "ul": [
+      "The protective (earth, grounding) conductor must be big enough to carry the fault current **until the protective device opens**, so that it is not damaged and stays intact.",
+      "Bond incoming metal water pipes and other metal services to the main earthing terminal, so they stay at the same voltage.",
+      "On rocky ground a low resistance is hard to get: allow for more or deeper rods, set a target value and test it."
+     ]
+    },
+    {
+     "h": "Surge protective devices"
+    },
+    {
+     "p": "Lightning is common in Jamaica's hills. A design puts an SPD at the **main board** to take the big surge and another **near sensitive equipment**, such as computers and TVs, to limit what is left. Use short, straight connections to earth, and choose types and ratings that coordinate, as the makers say. SPDs need good earthing and bonding to work."
+    }
+   ]
+  },
+  {
+   "title": "Lighting design and motor circuits",
+   "blocks": [
+    {
+     "h": "The lumen method"
+    },
+    {
+     "p": "The lumen method finds how many fittings give an average light level (illuminance, in **lux**) on the working plane."
+    },
+    {
+     "p": "**N = (E × A) ÷ (F × UF × MF)**, where E is the lux required, A the floor area in m², F the lumens from one fitting, **UF** the **utilisation factor** (the share of the light that reaches the working plane, depending on the room shape and surface colours) and **MF** the **maintenance factor** (allowing for dirt and the fall in light output over time). Round N **up**, then adjust to an even layout."
+    },
+    {
+     "table": {
+      "head": [
+       "Change",
+       "Fittings needed"
+      ],
+      "rows": [
+       [
+        "Higher lux required",
+        "More"
+       ],
+       [
+        "Larger room",
+        "More"
+       ],
+       [
+        "More lumens per fitting",
+        "Fewer"
+       ],
+       [
+        "Higher utilisation or maintenance factor",
+        "Fewer"
+       ]
+      ]
+     }
+    },
+    {
+     "p": "**Example.** A classroom 12 m × 6 m needs 400 lux. Each fitting gives 3 600 lm; UF 0.55; MF 0.8. Area 72 m²; light needed 400 × 72 = 28 800 lm; usable per fitting 3 600 × 0.55 × 0.8 = 1 584 lm; N = 28 800 ÷ 1 584 = 18.2, so 19; use **20** in four rows of five, and check the spacing against the maker's spacing-to-height ratio."
+    },
+    {
+     "h": "Other lighting design points"
+    },
+    {
+     "ul": [
+      "Put the row of lights nearest the windows on its own switch or sensor, so they can be dimmed or switched off when daylight is enough.",
+      "LED fittings with daylight and occupancy sensors cut running costs most.",
+      "A warehouse with high racks needs the lux level and mounting height stated, so the light reaches the aisles.",
+      "**Emergency lighting** goes at exits, changes of direction, stairs, fire points and first-aid points along escape routes, not only in one room.",
+      "Circuit current: a lighting load of 21 fittings of 36 W on a 110 V circuit draws 21 × 36 ÷ 110 = 6.9 A."
+     ]
+    },
+    {
+     "h": "Motor circuits"
+    },
+    {
+     "table": {
+      "head": [
+       "Part",
+       "Job"
+      ],
+      "rows": [
+       [
+        "Short-circuit protective device (breaker or fuse)",
+        "Rated above the motor's full-load current so it **rides through starting**, but it protects the cable against short circuits and earth faults."
+       ],
+       [
+        "Contactor",
+        "Switches the motor on and off from the control circuit."
+       ],
+       [
+        "Overload relay",
+        "Set to the motor's **full-load current** (nameplate); protects the motor against too much current for too long."
+       ],
+       [
+        "Local isolator",
+        "Lets the motor be isolated and locked off at the machine."
+       ]
+      ]
+     }
+    },
+    {
+     "p": "**Control circuit (start-stop with hold-in).** The contactor coil is in series with a normally closed stop button. The start button is a normally open push button, with a normally open **auxiliary contact of the same contactor in parallel across it**. When start is pressed the coil pulls in and that contact closes, so the coil stays on after the start button is let go (it is a **hold-in** or **seal-in** contact). Pressing stop, or an overload relay opening, breaks the coil circuit."
+    },
+    {
+     "p": "A circuit with a motor design needs: supply voltage, full-load current, starting current, starting method (direct, star-delta, soft starter), the overload setting and the isolator position."
+    }
+   ]
+  },
+  {
+   "title": "Interpreting the design and carrying it out on site",
+   "blocks": [
+    {
+     "p": "When you carry out someone else's design, you are responsible for reading it correctly and for what you build. Read, query, record."
+    },
+    {
+     "flow": [
+      "Check that you have the **latest revision** of every drawing, schedule and the specification",
+      "Read them together: layout for positions, single-line and schedules for devices and cables, specification for materials and workmanship",
+      "List anything unclear or in conflict",
+      "Raise a **written query (request for information, RFI)** to the designer; do not guess",
+      "Work to the **written answer** and file it",
+      "If a site problem forces a change, ask the designer to check its effect before work goes ahead",
+      "Brief the team; mark every agreed change on a site copy of the drawings",
+      "Use those marks to produce the **as-built** drawings at the end"
+     ]
+    },
+    {
+     "h": "When documents disagree"
+    },
+    {
+     "p": "Example: the specification says all outlet circuits must have RCD protection of 30 mA or less, but a drawing shows a plain breaker. Do **not** follow the drawing because 'drawings always win', do not fit a different RCD in between, and do not leave the circuit unprotected. Raise a query and follow the written answer."
+    },
+    {
+     "h": "Changes on site"
+    },
+    {
+     "p": "A beam blocks a cable route and the new route is 15 m longer. That changes the cable's volt drop and loop impedance, and maybe its rating. The supervisor checks with the designer, records the change, and marks the drawing. Fitting the longer route 'because it is the same cable' is how a circuit ends up failing its tests, or overheating."
+    },
+    {
+     "h": "Answering the trainee"
+    },
+    {
+     "p": "A trainee asks why he cannot use the 6 mm² cable in the van in place of the 10 mm² sub-main on the design. The reply: **no**; the 10 mm² was chosen for the load, the volt drop and the fault current, and the cable and breaker were designed together. A smaller cable with a smaller breaker would not carry the load; with the original breaker it would be unprotected."
+    },
+    {
+     "h": "Special locations in design"
+    },
+    {
+     "p": "A fuel station design has pumps in a hazardous area. The specification must call for equipment **certified for that zone**. Ordinary outlets higher up the wall are not an answer. Get the zone classification from the client's hazard study."
+    }
+   ]
+  },
+  {
+   "title": "Checking and documenting the design",
+   "blocks": [
+    {
+     "p": "Mistakes on paper cost little to fix. After installation they cost money, delay the job and can make the installation unsafe. So every design is checked and documented before it is issued."
+    },
+    {
+     "flow": [
+      "Designer checks the work against the brief and the specification: every room has the points agreed",
+      "Check loads and maximum demand",
+      "Check each circuit: Ib, device rating, corrected cable rating, volt drop, loop impedance, fault level, discrimination",
+      "A second, **competent person checks the design independently**, because it is easy to miss your own mistakes",
+      "Assemble the package with the same revision letter and date on every page",
+      "Write down assumptions (cable routes, demand factors) so they can be checked later",
+      "The responsible person signs; a drawing register records what has been issued"
+     ]
+    },
+    {
+     "table": {
+      "head": [
+       "Document",
+       "Contents"
+      ],
+      "rows": [
+       [
+        "Layout drawings",
+        "Positions of every point and board"
+       ],
+       [
+        "Single-line diagram",
+        "The supply, boards, devices and cables"
+       ],
+       [
+        "Board schedules",
+        "Each circuit's device, cable, RCD and load"
+       ],
+       [
+        "Calculations",
+        "Loads, cable and device selection, volt drop, fault level, lighting, power factor"
+       ],
+       [
+        "Specification",
+        "Materials, workmanship, tests"
+       ],
+       [
+        "Register of drawings",
+        "What has been issued and its revision"
+       ]
+      ]
+     }
+    },
+    {
+     "p": "A package of brochures, timesheets, wage slips or bank details is not a design package. **Never issue unchecked calculations**, and never approve a design in place of the government inspector: the inspection is a separate legal step."
+    },
+    {
+     "note": "A design is not finished at issue. Revisions (A, B, C) keep a record of every change, so the site, the installer and the inspector all work from the same version.",
+     "label": "Tip"
+    }
+   ]
+  },
+  {
+   "title": "Revision",
+   "blocks": [
+    {
+     "h": "Checklist"
+    },
+    {
+     "p": "Tick each statement only when you can do it without looking at the notes."
+    },
+    {
+     "ul": [
+      "I can put the design steps in the right order.",
+      "I can tell a layout drawing, a single-line diagram, a schematic and a schedule apart and use each.",
+      "I can use scale, FFL heights and a board schedule entry correctly.",
+      "I can read MCA and MOP on a nameplate.",
+      "I can apply demand factors and find a maximum demand.",
+      "I can balance a split-phase board and work out the neutral current.",
+      "I can explain why a 220 V circuit has a 2-pole breaker.",
+      "I can work out real power, power factor, kVAR and a capacitor bank size.",
+      "I can size a transformer in kVA and explain the extra margin for a generator.",
+      "I can choose a breaker and cable with correction factors and check volt drop.",
+      "I can check breaking capacity against the fault level.",
+      "I can explain discrimination and how to confirm it.",
+      "I can choose RCD ratings and explain why TT systems need them.",
+      "I can place SPDs and design earthing and bonding for rocky, lightning-prone ground.",
+      "I can use the lumen method and explain UF and MF.",
+      "I can place emergency lighting and choose fire-resistant, armoured and XLPE cable correctly.",
+      "I can design a motor circuit with an overload relay and read a hold-in control circuit.",
+      "I can query a conflict in the documents in writing and work to the answer.",
+      "I can handle a site change and record it for the as-builts.",
+      "I can check and document a design so that it can be issued."
+     ]
+    },
+    {
+     "h": "Formulas"
+    },
+    {
+     "table": {
+      "head": [
+       "Quantity",
+       "Formula"
+      ],
+      "rows": [
+       [
+        "Single-phase power",
+        "P = V × I × power factor"
+       ],
+       [
+        "Volt drop",
+        "mV/A/m × I × length ÷ 1000"
+       ],
+       [
+        "Corrected cable rating",
+        "Table rating × correction factors"
+       ],
+       [
+        "Power factor",
+        "kW ÷ kVA"
+       ],
+       [
+        "Reactive power",
+        "√(kVA² − kW²)"
+       ],
+       [
+        "Lumen method",
+        "N = (E × A) ÷ (F × UF × MF)"
+       ],
+       [
+        "Neutral current (resistive 110 V loads)",
+        "Difference between line currents"
+       ]
+      ]
+     }
+    },
+    {
+     "h": "Key terms"
+    },
+    {
+     "terms": [
+      [
+       "As-built drawing",
+       "A drawing marked up to show the installation as finally built."
+      ],
+      [
+       "Breaking capacity",
+       "The largest fault current a protective device can safely break, in kA."
+      ],
+      [
+       "Correction factor",
+       "A number that lowers a cable's table rating for heat, grouping or insulation."
+      ],
+      [
+       "Design current (Ib)",
+       "The current a circuit is expected to carry in normal use."
+      ],
+      [
+       "Discrimination (selectivity)",
+       "Only the device nearest the fault opens; the others stay closed."
+      ],
+      [
+       "Illuminance",
+       "The light falling on a surface, in lux."
+      ],
+      [
+       "Maintenance factor (MF)",
+       "Allowance for dirt and the fall in light output over time."
+      ],
+      [
+       "MCA / MOP",
+       "Minimum circuit ampacity / maximum overcurrent protection: a maker's limits on cable and breaker."
+      ],
+      [
+       "Power factor",
+       "Real power ÷ apparent power."
+      ],
+      [
+       "Prospective fault current (PFC)",
+       "The largest short-circuit current that could flow at a point."
+      ],
+      [
+       "Reactive power (kVAR)",
+       "Power that builds magnetic fields and does no useful work but adds current."
+      ],
+      [
+       "RFI (request for information)",
+       "A written query to the designer about an unclear or conflicting document."
+      ],
+      [
+       "Schematic",
+       "A diagram of how control devices are connected, not where they are fixed."
+      ],
+      [
+       "Single-line diagram",
+       "A diagram of the supply, boards and devices as simple lines."
+      ],
+      [
+       "Surge protective device (SPD)",
+       "A device that limits voltage spikes, for example from lightning."
+      ],
+      [
+       "Utilisation factor (UF)",
+       "The share of a fitting's light that reaches the working plane."
+      ],
+      [
+       "Volt drop",
+       "The voltage lost along a cable when current flows."
+      ]
+     ]
+    }
+   ]
+  }
+ ],
+ "cases": {
+  "c1": {
+   "title": "Lighting a supermarket in Savanna-la-Mar",
+   "text": "A new supermarket in Savanna-la-Mar, Westmoreland, has a sales floor of 20 m by 15 m. The design needs an average of 300 lux. The chosen LED fitting gives 4 500 lm and uses 40 W. The designer's data gives a utilisation factor of 0.6 and a maintenance factor of 0.8. The fittings will run on 110 V circuits, and the client's brief says no lighting circuit may carry more than 10 A. The shop's cleaning contract is only for floors."
+  },
+  "c2": {
+   "title": "A pump house at Bog Walk",
+   "text": "A water pump house at Bog Walk, St Catherine, is 80 m from the supply board across open ground. The pump motor is rated 220 V, with a full-load current of 12 A and a starting current of about six times that. The cable will run underground. The specification allows 3% volt drop on this circuit, and the chosen cable is rated at 3.8 mV/A/m. The motor is controlled by a start button, a stop button and a contactor."
+  },
+  "c3": {
+   "title": "A new wing at a Runaway Bay hotel",
+   "text": "A hotel at Runaway Bay, St Ann, is adding a 20-room wing a long way from its main board, fed from a new sub-board. The sub-board's prospective fault current has been calculated at 8 kA. Breakers are available with breaking capacities of 6 kA, 10 kA and 25 kA. The 110 V circuits on the sub-board currently carry 52 A on line 1 and 41 A on line 2. The designer plans a time-delayed 300 mA RCD at the sub-board, with 30 mA devices on the guest-room outlets."
+  },
+  "c4": {
+   "title": "A bottling plant in Spanish Town",
+   "text": "A bottling plant in Spanish Town takes 60 kW at a power factor of 0.8. The plant's total maximum demand, including the new line, will be 180 kW at a power factor of 0.85. The engineer is checking the capacitor bank for the existing load, and the transformer for the new demand. Standard transformer sizes are 150, 200 and 250 kVA."
+  },
+  "c5": {
+   "title": "A shop fit-out in Mandeville",
+   "text": "Mr Anderson supervises the electrical fit-out of a shop in Mandeville from a designer's package. The layout drawing is to 1:100, with the note 'all heights to finished floor level (FFL) unless noted'. A socket is marked 300. On the layout drawing, the cable to the cold room is shown as 6 mm², but the board schedule, issued at the same revision, shows 4 mm² for the same circuit. Later a new beam forces a 20 A circuit, originally 30 m long, to take a route 10 m longer. The cable is rated at 7.3 mV/A/m and the circuit is at 220 V."
+  }
+ },
+ "questions": [
+  {
+   "id": "P-01",
+   "c": "c1",
+   "q": "How many lumens must the fittings supply to the supermarket's working plane, before the utilisation and maintenance factors are applied?",
+   "o": [
+    "90 000 lm",
+    "2 160 lm",
+    "300 lm",
+    "30 000 lm"
+   ],
+   "a": 0,
+   "why": "Lumens needed = lux × area = 300 × (20 × 15) = 300 × 300 = 90 000 lm. The utilisation and maintenance factors then reduce what each fitting actually delivers."
+  },
+  {
+   "id": "P-02",
+   "c": "c1",
+   "q": "Using the lumen method, how many fittings does the sales floor need?",
+   "o": [
+    "34",
+    "41",
+    "42",
+    "25"
+   ],
+   "a": 2,
+   "why": "N = 90 000 ÷ (4 500 × 0.6 × 0.8) = 90 000 ÷ 2 160 = 41.7, which is rounded up to 42. Forgetting the maintenance factor gives 34, forgetting the utilisation factor gives 25, and rounding down to 41 leaves the floor under-lit."
+  },
+  {
+   "id": "P-03",
+   "c": "c1",
+   "q": "Because the fittings will rarely be cleaned, the designer lowers the maintenance factor from 0.8 to 0.7. What happens to the number of fittings needed?",
+   "o": [
+    "It falls, because less light is expected from each fitting",
+    "It stays the same, because the lumen output is unchanged",
+    "It rises, because each fitting will deliver less useful light",
+    "It falls, because the fittings can be spaced further apart"
+   ],
+   "a": 2,
+   "why": "A lower maintenance factor means each fitting is expected to give less usable light over time, so more are needed: 90 000 ÷ (4 500 × 0.6 × 0.7) = 47.6, so 48. Designing for dirt and ageing keeps the floor above 300 lux between cleanings."
+  },
+  {
+   "id": "P-04",
+   "c": "c1",
+   "q": "The 42 fittings of 40 W run at 110 V, and no circuit may carry more than 10 A. What is the least number of lighting circuits?",
+   "o": [
+    "1",
+    "2",
+    "4",
+    "15"
+   ],
+   "a": 1,
+   "why": "Total load = 42 × 40 = 1 680 W; current = 1 680 ÷ 110 = 15.3 A. Dividing by the 10 A limit gives 1.53, rounded up to 2. In practice the designer would also group circuits by area and switching."
+  },
+  {
+   "id": "P-05",
+   "c": "c2",
+   "q": "To what current should the motor's overload relay be set?",
+   "o": [
+    "72 A, the starting current",
+    "12 A, the nameplate full-load current",
+    "25 A, a standard breaker size",
+    "6 A, half the full-load current"
+   ],
+   "a": 1,
+   "why": "The overload relay protects the motor against too much current for too long, so it is set to the motor's full-load current from the nameplate. Setting it to the starting current would leave the motor unprotected, and a low setting would trip it in normal running."
+  },
+  {
+   "id": "P-06",
+   "c": "c2",
+   "q": "With a cable of 3.8 mV/A/m, is the volt drop to the pump house acceptable at full load?",
+   "o": [
+    "No: about 36 V, far over the limit",
+    "Yes: about 3.6 V, under the 6.6 V allowed",
+    "No: about 3.6 V, over the 3.3 V allowed",
+    "Yes: about 0.36 V, well under the limit"
+   ],
+   "a": 1,
+   "why": "Volt drop = 3.8 × 12 × 80 ÷ 1 000 = 3.65 V. The limit is 3% of 220 V = 6.6 V, so it passes. The 3.3 V limit belongs to a 110 V circuit."
+  },
+  {
+   "id": "P-07",
+   "c": "c2",
+   "q": "The motor draws about 72 A for a moment each time it starts. How does this affect the choice of its short-circuit protective device?",
+   "o": [
+    "The device must be rated at 72 A or more so that the cable can carry it",
+    "The device may be any rating, since starting current lasts only a moment",
+    "The device must ride through the starting surge but still protect the cable",
+    "The device is left out, since the overload relay covers the cable too"
+   ],
+   "a": 2,
+   "why": "A motor breaker must not trip on the brief starting surge, so a motor-rated type is chosen, but it must still open on a short circuit or earth fault to protect the cable. The overload relay protects only the motor against sustained overload."
+  },
+  {
+   "id": "P-08",
+   "c": "c2",
+   "q": "On test, the motor starts when the start button is pressed but stops again as soon as the button is released. What is the most likely cause?",
+   "o": [
+    "The overload relay is set well above the motor's full-load current",
+    "The auxiliary contact across the start button is open or not wired",
+    "The stop button has been wired in parallel with the start button",
+    "The motor's breaker is rated above the full-load current of the pump"
+   ],
+   "a": 1,
+   "why": "The hold-in (seal-in) contact of the contactor, wired across the start button, keeps the coil energised once the button is released. If it is open or not connected, the coil drops out as soon as the start button is released."
+  },
+  {
+   "id": "P-09",
+   "c": "c3",
+   "q": "The sub-board's prospective fault current is 8 kA. What is the smallest breaking capacity listed that its breakers may have?",
+   "o": [
+    "6 kA",
+    "8 kA",
+    "25 kA",
+    "10 kA"
+   ],
+   "a": 3,
+   "why": "A device's breaking capacity must be not less than the prospective fault current where it is fitted. 6 kA is too low, 8 kA is not among the choices, and 25 kA would work but is not the smallest."
+  },
+  {
+   "id": "P-10",
+   "c": "c3",
+   "q": "The designer moves a 5 A circuit from line 1 to line 2 of the sub-board. What current now flows in the shared neutral, with resistive 110 V loads?",
+   "o": [
+    "11 A",
+    "10 A",
+    "93 A",
+    "1 A"
+   ],
+   "a": 3,
+   "why": "Before: 52 − 41 = 11 A in the neutral. After moving 5 A, the lines carry 47 A and 46 A, and the neutral carries the difference, 1 A. Balanced lines mean less neutral current, less volt drop and more usable capacity."
+  },
+  {
+   "id": "P-11",
+   "c": "c3",
+   "q": "During commissioning, a fault in one guest room trips the main breaker and blacks out the whole wing and part of the hotel. What is the most likely design fault?",
+   "o": [
+    "The 110 V circuits are shared between the two lines of the board",
+    "The sub-main cable is much thicker than its breaker really needs",
+    "The main and final breakers do not discriminate at that fault level",
+    "The guest-room outlets are protected by 30 mA RCDs as planned"
+   ],
+   "a": 2,
+   "why": "Discrimination means only the device nearest the fault opens. If the main and final devices' curves overlap at the fault current, both trip. The designer checks the makers' time-current curves or tables and records the chosen devices."
+  },
+  {
+   "id": "P-12",
+   "c": "c3",
+   "q": "Why is the upstream 300 mA RCD time-delayed?",
+   "o": [
+    "So the 30 mA device nearest the fault trips first and the rest stay on",
+    "So that it trips faster than the 30 mA devices that sit below it",
+    "So that it can carry a larger load current than those 30 mA devices",
+    "So that the guest-room outlets can run without an earth conductor"
+   ],
+   "a": 0,
+   "why": "A short time delay lets the 30 mA RCD on the faulty circuit open first, so only that circuit goes off. The 300 mA device remains as back-up protection against fire from leakage, and can still clear a fault the 30 mA device fails to."
+  },
+  {
+   "id": "P-13",
+   "c": "c4",
+   "q": "What apparent power does the bottling plant's existing load of 60 kW at 0.8 power factor take?",
+   "o": [
+    "48 kVA",
+    "75 kVA",
+    "60 kVA",
+    "100 kVA"
+   ],
+   "a": 1,
+   "why": "Apparent power S = P ÷ power factor = 60 ÷ 0.8 = 75 kVA. Multiplying instead (60 × 0.8 = 48) is a common slip."
+  },
+  {
+   "id": "P-14",
+   "c": "c4",
+   "q": "The engineer wants the existing load corrected from 0.8 to 0.95. About what capacitor bank is needed?",
+   "o": [
+    "About 20 kVAR",
+    "About 25 kVAR",
+    "About 45 kVAR",
+    "About 65 kVAR"
+   ],
+   "a": 1,
+   "why": "At 0.8: Q = √(75² − 60²) = 45 kVAR. At 0.95: Q = 60 × 0.329 = 19.7 kVAR. The bank supplies the difference: 45 − 19.7 = about 25 kVAR, then the next standard size, with stepped control."
+  },
+  {
+   "id": "P-15",
+   "c": "c4",
+   "q": "Which is the smallest standard transformer for the new demand of 180 kW at 0.85, before any allowance for growth?",
+   "o": [
+    "150 kVA",
+    "180 kVA",
+    "250 kVA",
+    "200 kVA"
+   ],
+   "a": 2,
+   "why": "kVA = kW ÷ power factor = 180 ÷ 0.85 = 212 kVA. A 200 kVA transformer would be overloaded, so the next standard size, 250 kVA, is chosen. kVA, not kW, decides what a transformer carries."
+  },
+  {
+   "id": "P-16",
+   "c": "c5",
+   "q": "Where must Mr Anderson fix the socket marked 300?",
+   "o": [
+    "300 mm above the finished floor level",
+    "300 mm above the bare concrete slab",
+    "300 mm below the finished ceiling",
+    "300 mm from the nearest wall corner"
+   ],
+   "a": 0,
+   "why": "The drawing's note says all heights are to finished floor level unless noted, so the socket goes 300 mm above the finished floor, allowing for tiles or screed laid later."
+  },
+  {
+   "id": "P-17",
+   "c": "c5",
+   "q": "The layout drawing shows 6 mm² and the board schedule 4 mm² for the cold-room cable, both at the same revision. What should he do?",
+   "o": [
+    "Fit the 4 mm² cable, since schedules overrule drawings",
+    "Fit the 6 mm² cable, since it is the larger and so safer",
+    "Fit the cable he has most of on site and note it on the drawing",
+    "Raise a written query with the designer and work to the written reply"
+   ],
+   "a": 3,
+   "why": "When documents conflict, no one document wins automatically. A written request for information to the designer settles it, and the written answer is filed. The cable was sized for load, volt drop and fault current, so the choice is the designer's to confirm."
+  },
+  {
+   "id": "P-18",
+   "c": "c5",
+   "q": "The 20 A circuit's route becomes 40 m. What is its new volt drop at 7.3 mV/A/m, and what should happen next?",
+   "o": [
+    "About 4.4 V; fit the route without telling anyone about it",
+    "About 0.58 V; no further checks are needed on the circuit",
+    "About 8.8 V; refuse the new route and leave the circuit out",
+    "About 5.8 V; confirm with the designer and record the change"
+   ],
+   "a": 3,
+   "why": "7.3 × 20 × 40 ÷ 1 000 = 5.84 V, under the 6.6 V limit (3% of 220 V), so it may pass. But the longer run also changes loop impedance and possibly the rating, so the designer confirms it and the change is marked on the as-built drawings."
+  },
+  {
+   "id": "P-19",
+   "c": null,
+   "q": "A cable has a table rating of 32 A. The ambient factor is 0.91 and the grouping factor is 0.8. Can it be used with a 25 A breaker?",
+   "o": [
+    "Yes: its corrected rating is 29.1 A, above 25 A",
+    "No: its corrected rating is 23.3 A, below the 25 A breaker",
+    "Yes: the breaker only protects against overloads, not the cable",
+    "No: the cable's rating is 32 A, which is above the breaker"
+   ],
+   "a": 1,
+   "why": "Corrected rating = 32 × 0.91 × 0.8 = 23.3 A. The cable must be able to carry at least what its breaker allows, and 23.3 A is below 25 A. Either choose a larger cable or a smaller breaker, if the design current allows."
+  },
+  {
+   "id": "P-20",
+   "c": null,
+   "q": "A hall's dark walls and ceiling are repainted in light colours before the lighting design is finalised. How does this change the lumen method calculation?",
+   "o": [
+    "The utilisation factor rises, so fewer fittings are needed",
+    "The maintenance factor rises, so fewer fittings are needed",
+    "The utilisation factor falls, so more fittings are needed",
+    "Nothing changes, since colour does not affect light"
+   ],
+   "a": 0,
+   "why": "Light surfaces reflect more light onto the working plane, so a larger share of each fitting's output reaches it: the utilisation factor goes up and N goes down. The maintenance factor concerns dirt and ageing, not wall colour."
+  }
+ ]
+}

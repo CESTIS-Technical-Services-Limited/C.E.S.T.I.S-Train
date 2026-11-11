@@ -1,0 +1,386 @@
+{
+  "format": "cestis-study-kit",
+  "version": 1,
+  "status": "to-check",
+  "written": "2026-11-07",
+  "programme": "Electrical Installation",
+  "qualification": { "id": "QUAL-EIM-L3", "title": "ELECTRICAL INSTALLATION AND MAINTENANCE LEVEL 3", "code": "MEM32507" },
+  "level": 3,
+  "unit": { "code": "MEMINS0122A", "title": "Install below ground communication cables" },
+  "summary": "This unit covers the planning and installation of buried communication cables: copper multi-pair, data and optical fibre links in ducts between buildings and across sites. You will learn to locate existing services, plan a safe route, dig and support a trench, lay ducts, bedding and marker tape, pull cable without damaging it, joint and terminate it, protect it from lightning and water, test it and hand over proper records, while leading a crew safely on a site that other people use.",
+  "sections": [
+    {
+      "title": "Unit overview",
+      "blocks": [
+        { "p": "Buried communication cables link buildings on a campus, a hospital, a hotel, a factory or a housing scheme. Once the trench is filled, nobody can see the cable: it must be in the right place, at the right depth, in a duct that will let it be replaced, with records that will keep the next digger away from it. At Level 3 you plan the route, lead the crew, protect the public and other services, and hand over the tests and drawings." },
+        { "h": "What you must be able to do" },
+        { "table": { "head": ["Task", "What it looks like on the job"], "rows": [
+          ["Plan the route", "Get service records, survey and scan the route, choose a route that avoids obstacles and keeps separation from power, place the draw pits, get permits and have the plan approved."],
+          ["Locate and protect existing services", "Use a cable locator and signal generator, mark every service, hand dig near it, and stop for anything unknown."],
+          ["Work safely in excavations", "Keep trench sides from collapsing, keep spoil and plant back, control water, test the air in manholes, and protect the public with barriers, signs, lights and walkways."],
+          ["Lay ducts", "Bed, joint and align ducts, leave draw ropes, fit marker tape, backfill in compacted layers and prove the duct with a mandrel."],
+          ["Choose and pull cable", "Choose a cable made for burial, plan the pull from the maker's tension and bend-radius limits, use the right grip, swivel, lubricant and crew, and leave slack."],
+          ["Joint, terminate and protect", "Make joints in sealed closures, bond screens and armour, fit surge protection, and keep water out."],
+          ["Test", "Mandrel-test ducts; test copper for continuity, wire map and insulation resistance; test fibre against a loss budget and with an OTDR."],
+          ["Record and reinstate", "Label every cable and duct, draw the as-built route with offsets and depths, hand over test results, and restore the surface."],
+          ["Lead the crew", "Brief the roles, keep access open, work in short sections and keep everyone safe."]
+        ] } },
+        { "h": "Underground work in Jamaica" },
+        { "ul": [
+          "Other buried services are everywhere: JPS power cables (overhead lines may go underground at buildings and in newer schemes), National Water Commission mains, sewers, telephone and cable-TV ducts, fuel lines at stations, and private cables of unknown age. Records are often missing or wrong.",
+          "Opening a public road or footpath needs the **road authority's permission**: the National Works Agency for main roads, and the municipal corporation for parish roads. The permit sets the conditions, the traffic control and the reinstatement.",
+          "Heavy rain floods trenches and softens their sides; the hurricane season runs from June to November. Lightning is frequent, which is why copper links between buildings need bonding and surge protection, and why fibre is often preferred.",
+          "Limestone, marl and clay soils behave differently when wet; rock may need breaking; coastal ground may be sandy and loose.",
+          "Everyone on a site that the public passes wears a hard hat, safety boots, gloves and a **high-visibility vest**."
+        ] },
+        { "note": "The depths, separations and duct sizes in a real job come from the specification, the utility's requirements and the cable maker's data. The figures here are typical ones for learning the method.", "label": "Remember" }
+      ]
+    },
+    {
+      "title": "Planning the route and the job",
+      "blocks": [
+        { "h": "Gathering information" },
+        { "flow": ["Get the client's drawings and the records of existing services from the client and the utilities", "Walk the route and look for clues on the surface", "Scan the route with a locator and signal generator and mark every service", "Choose the route and the pit positions", "Decide ducts, depth, cable type and building entries", "Check permits and site access", "Draw the route; write the method statement and risk assessment", "Get the plan approved before any digging"] },
+        { "ul": [
+          "Surface clues: manhole and valve covers, meters, poles with cables going down them, street lights, patched trenches, changes in the grass, marker posts, building entry points.",
+          "Choose the **shortest practical route** that avoids roads, foundations, drains, tree roots and areas that will be built on, and that keeps the specified **separation from power cables**.",
+          "On a hospital, school or hotel, plan how access, emergency routes and deliveries stay open while the trench is open."
+        ] },
+        { "h": "Why ducts" },
+        { "p": "Communication cables are nearly always laid in **ducts** rather than buried direct. A duct protects the cable from stones, spades and settlement; it lets a damaged cable be replaced without digging; and **spare ducts** let more cables be added later. Direct burial is used only where the specification allows it, with armoured cable." },
+        { "h": "Ducts, depth and pits" },
+        { "table": { "head": ["Item", "Typical practice"], "rows": [
+          ["Duct material", "**Smooth-bore HDPE** (high-density polyethylene) or PVC duct made for burial, with sealed couplers; corrugated twin-wall duct where the specification allows. Indoor conduit and garden hose have no place underground."],
+          ["Number of ducts", "As the design says: at least one spare duct is usual; separate ducts for copper and fibre."],
+          ["Depth", "From the specification: often about 450 to 600 mm of cover under footpaths and verges and more under roads; deeper where the utility requires."],
+          ["Draw pits (chambers)", "At each end, at every change of direction, at building entries, and along straight runs at the longest pull the design allows (often every 50 to 100 m). Spacing comes **from the design**, worked out from pull length and bends, not from the soil."],
+          ["Bends", "Long-radius sweeps, as few as possible; sharp bends make the pull hard and damage the cable."],
+          ["Building entry", "Through a sealed sleeve, rising to an entry box or frame, with the cable's screen or armour bonded as designed."]
+        ] } },
+        { "p": "**Worked example.** A route is 240 m long and the design requires a pit at each end and at least one every 80 m. 240 ÷ 80 = 3 sections, so pits at 0, 80, 160 and 240 m: **4 pits**. If the route also turns a corner at 130 m, a pit goes there too, and the sections are re-planned so that none is longer than 80 m." },
+        { "h": "Quantities" },
+        { "ul": [
+          "**Duct lengths:** route length ÷ length per piece, rounded up, plus waste. A 150 m run in 6 m lengths needs 25 lengths before waste.",
+          "**Cable length:** the duct route length, plus the slack left in every pit, plus the tails into each building, plus waste. A 120 m route with 3 m of slack at each end pit and 2 m at each of two middle pits needs 120 + 3 + 3 + 2 + 2 = 130 m before the building tails.",
+          "**Spoil:** length × width × depth. A trench 30 m long, 0.4 m wide and 0.6 m deep holds 30 × 0.4 × 0.6 = 7.2 m³ of soil, and it will take up more space on the surface once dug.",
+          "**Bedding sand:** the volume of the bedding layer under and over the ducts, worked out the same way."
+        ] },
+        { "h": "Method statement and risk assessment" },
+        { "p": "The **method statement** sets out the sequence: scan, barrier, dig in short sections, lay, backfill, pull, test, reinstate; the crew roles; the traffic and pedestrian plan; and the permits. The **risk assessment** covers striking services, collapse, falls, flooding, confined spaces, handling, heat, lightning and the public. Both are approved before work starts and briefed to the crew." }
+      ]
+    },
+    {
+      "title": "Locating services and digging safely",
+      "blocks": [
+        { "note": "Striking a buried power cable with a pick, a breaker or an excavator bucket causes an arc flash, severe burns and often death. Every unknown cable is **live until proved otherwise** by its owner. Locate, mark, hand dig.", "label": "Safety" },
+        { "h": "The locator and the signal generator" },
+        { "table": { "head": ["Mode", "What it finds", "Limits"], "rows": [
+          ["Power mode", "Cables carrying mains current, from the field they give off", "A cable with no load, a street light cable in daytime, or a dead cable gives little or no signal"],
+          ["Radio mode", "Long metal lines that pick up radio signals", "Patchy; misses short lines"],
+          ["**Signal generator** (transmitter) clipped to a known cable or pipe, or used in induction mode over the ground", "Puts a signal onto a line that gives off none of its own, so the locator can trace it and estimate its depth", "Needs access to the line or a good guess of its position; the signal can jump to nearby lines"]
+        ] } },
+        { "ul": [
+          "Sweep the whole route and some distance each side, in each mode, crossing the line of the trench at right angles. Mark each find on the ground with paint or pegs and on the drawing.",
+          "A locator cannot find **plastic water pipes, fibre ducts without a tracer wire, or dead cables**. Use the records and the surface clues as well, and treat a drawn service as real even when the locator shows nothing.",
+          "Scan again as the trench goes deeper: a service may be below the first sweep's reach.",
+          "Where the locator gives a strong signal across the line of the trench, **mark it and hand dig to expose it**: do not dig on with the machine, and do not move the trench 'a little' and hope."
+        ] },
+        { "h": "Near a located service" },
+        { "ul": [
+          "Hand dig within the distance the method statement gives (often about 500 mm either side of the marked line), with spades and shovels, not picks or forks. Insulated tools are used near power cables.",
+          "Expose the service carefully, support it across the trench, protect it from falling spoil and tools, and never move, stand on or cut it.",
+          "Any cable that is not on any record, or that is damaged, stops the work: cordon it, keep everyone back, treat it as live and report it so its owner can identify it and make it safe.",
+          "Excavator buckets stay well clear of located cables; the last part is always dug by hand."
+        ] },
+        { "h": "Trench safety" },
+        { "table": { "head": ["Hazard", "Controls"], "rows": [
+          ["Collapse of the sides", "Where a trench is deep enough to bury or crush a worker (around 1.2 m is a common trigger, and less in loose, wet or sandy ground), **shore** the sides (timber, steel or hydraulic supports, or a trench box) or **batter** them back to a safe slope. Never enter an unsupported deep trench, even 'for a minute'."],
+          ["Spoil and plant", "Keep spoil **back from the edge** (at least about 1 m) so it cannot fall in or load the sides; keep vehicles and the excavator back from the edge."],
+          ["Falls", "Barriers round every open trench and pit; ladders for getting in and out of deeper trenches; covers on pits and over the trench where it is left."],
+          ["Water", "After rain, **pump the trench out and check the sides** before anyone goes in; do not lay duct into water; stop work in heavy rain or lightning."],
+          ["Confined space: deep pits and manholes", "**Test the air** for low oxygen and for gas before entry (fresh air is about 21% oxygen); ventilate; a person stays at the top; a rescue plan and equipment are ready."],
+          ["Manual handling and heat", "Team lifts and trolleys for ducts and drums; water, shade and rest breaks; work early in the day."],
+          ["Underground power cables", "As above: locate, hand dig, treat as live."]
+        ] } },
+        { "h": "Protecting the public" },
+        { "ul": [
+          "While a trench is open across a footpath or a car park: **barriers, signs, lights at night and a safe walkway** (a bridge or a fenced path) for pedestrians, including wheelchairs and prams. A couple of cones are not enough.",
+          "On a road: the traffic management the permit requires, with signs, cones, and a person controlling traffic where needed.",
+          "Work in **short sections**: open, lay, backfill and make safe each section before the next is opened, so access is kept and no long trench is left open overnight.",
+          "Nothing is left open at the end of the day without covers, barriers and lights."
+        ] }
+      ]
+    },
+    {
+      "title": "Laying ducts and backfilling",
+      "blocks": [
+        { "flow": ["Dig the trench to the specified depth and width, with an even fall where needed", "Clear stones and roots from the bottom", "Spread and level a layer of fine, stone-free bedding (sand)", "Lay the ducts straight on the bedding, with spacers between them", "Make each joint with the maker's coupler, fully pushed home and sealed", "Form long, gentle bends; keep the number of bends low", "Bring the ducts cleanly into each pit at the right level", "Pull a draw rope through every duct, including spares, and tie it off", "Place cover bedding over and around the ducts", "Lay the marker (warning) tape at the specified depth above the ducts", "Backfill in layers, compacting each layer", "Pull a mandrel through each duct and seal the duct ends"] },
+        { "table": { "head": ["Step", "Why it matters"], "rows": [
+          ["Bedding of fine, stone-free material", "Sharp stones under or against the duct crush or hole it as the ground settles and traffic passes over."],
+          ["Sealed joints and spacers", "Silt and water cannot get in; ducts stay apart and straight, so cables pull in easily."],
+          ["Draw rope in every duct", "Without it, a rod or a vacuum line must be used to get a rope through later, which may fail in a long or bent duct. A rope left in the spare ducts makes future cables easy to add."],
+          ["Marker tape above the ducts", "Warns a future digger **before** the spade or bucket reaches the duct. It is a coloured plastic tape printed with a warning; some tape has a metal strip so that a locator can trace plastic ducts."],
+          ["Backfill in compacted layers", "Backfill tipped in all at once settles later: the surface sinks, paving breaks and ducts can be loaded unevenly. Layers of about 150 to 300 mm, each compacted, hold their shape."],
+          ["Mandrel test", "A **mandrel** (a test plug slightly smaller than the duct bore) pulled through on the draw rope proves that the duct is clear, round and not crushed by the backfilling. A duct that fails is found and repaired before any cable is pulled."],
+          ["Duct end seals", "Keep out water, silt and rodents, which gnaw cables and nest in open ducts."]
+        ] } },
+        { "h": "Rodding" },
+        { "p": "Where a duct has no draw rope, a **duct rod** (a long flexible rod, often called a rodder or cobra) is pushed through from one pit to the next and used to pull a rope back. A rope can also be blown through with compressed air using a piston, or sucked through with a vacuum." },
+        { "h": "Separation from power cables" },
+        { "table": { "head": ["Reason", "What it protects"], "rows": [
+          ["**Interference**: the magnetic field of a power cable induces noise into copper pairs", "Data and voice quality"],
+          ["**Faults**: a failing power cable can put dangerous voltage and heat onto a nearby communication cable", "People working on the communication cable far away, and the equipment at its ends"],
+          ["**Future digging**: a crew repairing one cable must not damage the other", "Both services"]
+        ] } },
+        { "ul": [
+          "Keep the separation the specification or the utility gives, usually in a separate trench or at a set distance in a shared trench, with power usually the deeper.",
+          "Where the routes must **cross**, cross at **right angles**, never run alongside, with the required gap and, where specified, a concrete slab, tile or other barrier between them.",
+          "Each system has its own marker tape and its own pits, and both are shown on the as-built drawing.",
+          "All-dielectric fibre is not affected by interference, but the separation is still kept for safety and for future work."
+        ] }
+      ]
+    },
+    {
+      "title": "Choosing and pulling the cable",
+      "blocks": [
+        { "h": "Cables made for burial" },
+        { "table": { "head": ["Feature", "What it does"], "rows": [
+          ["**Water-blocking**: gel-filled cores or water-swellable tapes and yarns", "Stops water that gets in at a damaged point from travelling along the cable"],
+          ["Tough polyethylene outer sheath, UV-stable", "Resists abrasion, damp and sun at the ends"],
+          ["Metal screen or moisture barrier (on copper and some fibre cables)", "Keeps moisture out; on copper it also keeps interference out; it must be bonded at the building"],
+          ["Armour (steel wire or tape) or rodent protection (glass yarns or a metal tape)", "Resists crushing and gnawing; needed for direct burial and in rodent-prone areas"],
+          ["**Loose-tube** construction (fibre)", "The fibres lie loosely in gel-filled **buffer tubes**, so pulling, bending and temperature changes stress the tube, not the glass"],
+          ["All-dielectric (fibre with no metal parts)", "Carries no current, so lightning surges and earth-potential differences cannot travel along it; no bonding or surge protection is needed on the link"]
+        ] } },
+        { "p": "An indoor cable (a PVC-sheathed Cat 6, an indoor tight-buffered fibre) is not suitable for a duct: it soaks up water, its sheath breaks down, and it cannot stand the pulling forces. Use the outdoor or outdoor/indoor grade the design names." },
+        { "h": "Copper or fibre between buildings?" },
+        { "table": { "head": ["Copper multi-pair or data cable", "Optical fibre (all-dielectric)"], "rows": [
+          ["Carries power (PoE) and plain telephone; cheap to terminate", "Carries no power; needs splicing and connector tools"],
+          ["Limited reach: 90 m for a data link; longer for telephone pairs", "Reach of hundreds of metres to many kilometres, with far more capacity"],
+          ["Picks up interference; links two buildings' earths; carries lightning surges, so it needs bonding and surge protection", "Immune to interference and surges; no earth connection between buildings"],
+          ["Use for short links and where power must be carried", "The usual choice for links between buildings"]
+        ] } },
+        { "h": "Planning the pull" },
+        { "ul": [
+          "Read the cable maker's **maximum pulling tension** and **minimum bend radius during installation**. The bend radius while pulling is larger than the radius once the cable is fixed, because the cable is under **tension** while it is pulled, which adds to the stress at a bend: typically 20 times the diameter while pulling and 10 times after, for fibre.",
+          "**Worked example.** A fibre cable 18 mm in diameter with a pulling radius of 20 times its diameter may not be bent tighter than 20 × 18 = **360 mm** radius during the pull, and 10 × 18 = 180 mm once it is laid.",
+          "Check the **duct fill** against the design (often no more than about 40% of the duct area for several cables). Example: a duct with an inside area of 2,800 mm² at 40% fill allows 1,120 mm² of cable.",
+          "Prove the duct with the mandrel first.",
+          "Decide the direction of the pull: set the drum at the end that makes the bends come **early in the pull** (near the feeding end), where the tension is still low.",
+          "Plan the crew: one at the drum, one in each pit along the route, one on the winch or rope, all with radios or a clear signal system so the pull can **stop at once**."
+        ] },
+        { "h": "Pulling equipment" },
+        { "table": { "head": ["Item", "What it does"], "rows": [
+          ["Drum stand or jacks", "Lets the drum turn freely so the cable pays off straight without kinks"],
+          ["**Pulling grip** (cable sock) or pulling eye", "Grips the cable end evenly over its length; a cable is never pulled by its sheath with tape or by its fibres"],
+          ["**Swivel**", "Fitted between the rope and the grip; it turns, so twist in the rope does not pass into the cable"],
+          ["**Dynamometer** (tension meter), or a **breakaway link** rated at the maximum tension", "Shows or limits the pulling force; a winch or a vehicle can easily pull harder than a cable can stand"],
+          ["Rollers, bell-mouths and feeding tubes", "Guide the cable round the pit edge and into the duct without rubbing on sharp edges"],
+          ["**Cable lubricant** made for the cable's sheath", "Cuts friction and the pulling force, above all on long runs and at bends; petroleum grease and soap damage sheaths"],
+          ["Winch, or a pulling rope by hand for short runs", "Provides the pull, steadily, without jerks"]
+        ] } },
+        { "h": "During the pull" },
+        { "ul": [
+          "Pull **steadily and slowly**, without snatching. Stop at once if the tension rises sharply or the cable jams; **find the cause** (a blocked or crushed duct, a kink at the drum, the grip snagged on a joint) and clear it. Pulling harder, or pushing from the far end with a bar, damages the cable; cutting and rejoining it adds a joint for the whole life of the link.",
+          "Over-pulling stretches the conductors or fibres, untwists copper pairs, and can break fibres inside a cable that looks undamaged.",
+          "Watch the cable as it enters the duct; stop for any damage to the sheath.",
+          "Fibre cable with a **central strength member** may not be bent sharply at the pit edge; use a bell-mouth and keep the radius.",
+          "At the far end, leave the planned **slack** in each pit (coiled, not kinked) for later joints, repairs or moves, and **seal the cable ends** at once so water cannot get in while the cable waits for termination.",
+          "Inspect the cable along the pit for damage and **label** it."
+        ] }
+      ]
+    },
+    {
+      "title": "Joints, terminations, bonding and surge protection",
+      "blocks": [
+        { "h": "Joints underground" },
+        { "ul": [
+          "Avoid joints where you can: plan the pull so that the cable runs whole from building to building.",
+          "Where a joint is needed, it is made **inside a sealed joint closure in a pit**, never taped and buried. A closure restores the sheath and the water-blocking; tape lets water in within weeks, and water in a copper cable travels along it and ruins pair after pair.",
+          "Copper pairs are joined with the right connectors (gel-filled crimp connectors are common), in the right order, by the colour code. Fibres are **fusion spliced**: cleaned, cleaved and welded with an electric arc in a fusion splicer, protected with a sleeve and laid in a splice tray.",
+          "Every closure is labelled and recorded."
+        ] },
+        { "h": "Building entries" },
+        { "ul": [
+          "The cable rises from the pit through a sealed sleeve into an **entry box** (copper) or a **fibre patch panel or termination box** (also called an optical distribution frame), where it is terminated onto blocks or connectors for the inside cabling.",
+          "Prepare the end so that the **water-blocking stays intact** up to the closure or box; strip only what the termination needs.",
+          "Copper pairs are punched down on termination blocks in order, by the colour code, with the records updated.",
+          "Fibre is spliced to pigtails in the panel; each fibre is labelled and its connector capped."
+        ] },
+        { "h": "Lightning and earth potential" },
+        { "p": "A lightning strike on or near a building raises the earth around it to a very high voltage for a moment, while the earth at the other building stays near zero. A copper cable joining the two buildings connects these two 'earths' together, so a surge current flows along it and into the equipment at each end: switches, phones, alarm panels and the people using them. Even without lightning, small differences between the two buildings' earths put hum and noise onto copper links." },
+        { "table": { "head": ["Protection", "What it does"], "rows": [
+          ["**Bonding the screen or armour** to the building's main earth where the cable enters, as the design shows", "Gives surge current a short path to earth before it reaches the equipment, and keeps the cable's metal at the building's earth potential"],
+          ["**Surge protection modules** on every copper pair at each building entry", "Clamp the surge voltage on the pairs and divert it to earth; must be bonded with short, straight conductors"],
+          ["Keeping bonding conductors short and straight", "A long or looped conductor has enough inductance to let the surge voltage rise before it is diverted"],
+          ["**All-dielectric fibre** between buildings", "No metal, so no current and no path for a surge: the simplest protection of all, which is why fibre is normally chosen between buildings"]
+        ] } },
+        { "note": "An armoured or screened fibre cable still has metal in it: its armour or screen must be bonded at the entry just like a copper cable's, even though the fibres themselves carry nothing.", "label": "Tip" },
+        { "h": "Fibre safety" },
+        { "p": "A fibre in an entry box may be connected to working equipment in the other building, carrying **invisible infrared laser light** that can damage the eye without any pain or warning. **Never look into a fibre end or connector.** Keep caps on connectors, use a power meter to find out whether a fibre is lit, keep fibre off-cuts in a marked, sealed container, and wear safety glasses when cutting armour and screen wires." }
+      ]
+    },
+    {
+      "title": "Testing, records and reinstatement",
+      "blocks": [
+        { "h": "Tests and what each shows" },
+        { "table": { "head": ["Test", "On", "What it shows"], "rows": [
+          ["**Mandrel** pulled through", "Every duct, after backfilling and before cable", "The duct is clear, round and not crushed"],
+          ["Continuity and **wire map**", "Every copper pair", "No breaks; pairs not crossed, reversed or split; the right pair on the right terminal"],
+          ["**Insulation resistance** between pairs and from pairs to the screen, at the voltage the cable maker allows", "Copper cable", "No water in the cable and no damage to the sheath during pulling. A **low or falling reading points to water** at a joint or a damaged point: find it and fix it, do not energise"],
+          ["Loop resistance", "Copper pairs", "Compared with the expected value for the length; shows a poor joint or wrong length"],
+          ["**Light source and power meter**", "Every fibre", "The total loss of the link, compared with the **loss budget**"],
+          ["**OTDR** trace", "Fibre", "The length, the loss of each splice and connector, and the **position** of any break, tight bend or bad splice"]
+        ] } },
+        { "h": "The loss budget" },
+        { "p": "**Expected loss = (fibre length in km × loss per km) + (number of splices × loss per splice) + (number of connector pairs × loss per connector pair).** The link passes if the measured loss is no more than the budget, with the margin the design requires." },
+        { "p": "**Worked example.** A 2.5 km buried single-mode link with four splices and two connector pairs, using 0.35 dB per km, 0.1 dB per splice and 0.5 dB per connector pair: (2.5 × 0.35) + (4 × 0.1) + (2 × 0.5) = 0.875 + 0.4 + 1.0 = **about 2.28 dB**. A fibre measuring 2.1 dB passes; one measuring 4.5 dB has a problem, and the OTDR shows where." },
+        { "h": "Insulation testing safely" },
+        { "ul": [
+          "The cable is disconnected from all equipment at both ends.",
+          "Warn everyone at both ends; nobody touches the conductors during the test.",
+          "Use only the test voltage the cable maker allows (data and telephone cables take a lower voltage than power cables).",
+          "**Discharge the cable** after the test: a long cable holds a charge."
+        ] },
+        { "h": "Labels and records" },
+        { "table": { "head": ["Record", "Contents"], "rows": [
+          ["Labels", "Every cable labelled at each end and in every pit with its reference, type and destination; every duct, including spares, labelled with its number; closures labelled; pit covers marked where the specification requires"],
+          ["**As-built drawing**", "The route as actually laid, **measured from fixed points** (building corners, kerbs, walls), with the **depth** at intervals, every pit, bend, road crossing and crossing with other services, the duct numbers and what is in each"],
+          ["Cable records", "Cable type, drum number, length, the slack left in each pit, joint and splice records"],
+          ["Test results", "Mandrel, copper and fibre results for every pair and fibre, with instrument, date and tester"],
+          ["Photographs", "Of the open trench with ducts, bedding and tape in place, before backfilling"]
+        ] } },
+        { "p": "These records are what lets a future digger avoid the cable, a technician find a fault quickly, a new cable be pulled into a spare duct without digging, and the client prove the work meets the specification. A delivery note or an invoice tells a digger nothing." },
+        { "h": "Reinstatement and leaving the site" },
+        { "ul": [
+          "**Reinstatement** is putting the surface back: lawn, paving, asphalt or concrete, to the standard the owner or the road permit requires, usually to match what was there.",
+          "Do not leave the surface low 'to settle': compacted backfill does not need it, and a low strip holds water and trips people.",
+          "Remove spoil, barriers and signs, clean the site, and return unused materials.",
+          "Hand over the records and walk the route with the client."
+        ] }
+      ]
+    },
+    {
+      "title": "Leading the crew",
+      "blocks": [
+        { "h": "Before the day" },
+        { "ul": [
+          "Agree the timing with the site owner or manager: early starts, quiet days, or outside opening hours for a shopping plaza, school or hospital.",
+          "Get every permit: road opening, the client's permit to work, confined-space entry where pits are deep.",
+          "Have the route scanned and marked; materials, plant, pump, barriers, signs and lights on site; the method statement and risk assessment approved."
+        ] },
+        { "h": "On the day" },
+        { "table": { "head": ["Role", "Duties"], "rows": [
+          ["Team leader", "Briefs the crew; checks depths, bedding, joints and tape as the work goes; keeps the records and photographs; talks to the client"],
+          ["Traffic and pedestrian control", "Sets up and keeps the barriers, signs, walkway and traffic control; watches the public"],
+          ["Diggers (two)", "Excavate in short sections, hand dig near marked services, keep spoil back from the edge"],
+          ["Layer", "Follows behind: bedding, ducts, draw ropes, cover bedding, marker tape, backfill and compaction"],
+          ["Pulling crew (afternoon)", "Drum, pits and winch, with radios"]
+        ] } },
+        { "flow": ["Brief: route, services found, hand-dig zones, traffic plan, each person's role, emergency actions", "Open the first short section", "Lay, backfill and make safe", "Open the next section", "Pull, test and label the cable", "Reinstate and clear", "Complete the as-built sketch and records"] },
+        { "ul": [
+          "A trench is opened only as far as can be ducted and backfilled the same day, so access across the site is never blocked and no trench is left open overnight.",
+          "Stop work for heavy rain, lightning, an unknown cable, a strong unexplained locator signal, or any sign that the trench sides are moving.",
+          "A worker who finds an unrecorded cable stops and reports; the leader cordons it, treats it as live and gets its owner to identify it.",
+          "At the end of the day: nothing open without covers, barriers and lights; tools and materials secured; the client told what was done."
+        ] }
+      ]
+    },
+    {
+      "title": "Revision",
+      "blocks": [
+        { "h": "Checklist" },
+        { "p": "Tick each statement only when you can do it without looking at the notes." },
+        { "ul": [
+          "I can gather service records, walk a route for clues and scan it with a locator and signal generator.",
+          "I can explain what a locator cannot find, and what to do about a strong signal across the trench line.",
+          "I can choose a route, place draw pits from the design and work out the number of pits, duct lengths, cable length and spoil.",
+          "I can explain why ducts are used and why spare ducts and draw ropes are left.",
+          "I can say when a trench must be shored or battered, and where spoil and plant must stay.",
+          "I can describe the air test, ventilation and top person needed for a manhole.",
+          "I can set up barriers, signs, lights and a walkway, and say which permit a road opening needs.",
+          "I can lay bedding, ducts, draw ropes, cover bedding and marker tape, and backfill in compacted layers.",
+          "I can explain the mandrel test and the sealing of duct ends.",
+          "I can explain the separation from power cables and how crossings are made.",
+          "I can describe the features of a cable made for burial and choose between copper and fibre.",
+          "I can plan a pull from the maker's tension and bend-radius figures, work out a minimum radius, and say what each piece of pulling equipment does.",
+          "I can say what to do when a pull jams and why over-pulling damages a cable.",
+          "I can explain why joints go in sealed closures and how a building entry is made.",
+          "I can explain the lightning and earth-potential risks of copper links and how bonding, surge protection and fibre deal with them.",
+          "I can carry out the mandrel, copper and fibre tests safely and read the results.",
+          "I can work out a loss budget.",
+          "I can produce labels, an as-built drawing and the test records, and explain why they matter.",
+          "I can reinstate a surface and leave a site clean.",
+          "I can organise a crew of five with clear roles and work in short sections."
+        ] },
+        { "h": "Numbers to remember" },
+        { "table": { "head": ["Figure", "What it is"], "rows": [
+          ["About 21%", "Oxygen in normal fresh air"],
+          ["About 1 m", "Keep spoil at least this far back from the trench edge"],
+          ["Typically 20 × diameter pulling, 10 × diameter fixed", "Minimum bend radius of a fibre cable (check the maker)"],
+          ["About 40%", "A common duct fill limit for several cables"],
+          ["0.35 to 0.4 dB per km, 0.1 dB per splice, 0.5 dB per connector pair", "Typical single-mode loss budget figures"],
+          ["Pits at each end, every bend and every maximum pull length", "Where draw pits go"],
+          ["Length × width × depth", "Spoil volume"],
+          ["Route + slack in every pit + tails", "Cable length to order"]
+        ] } },
+        { "h": "Key terms" },
+        { "terms": [
+          ["All-dielectric cable", "A fibre cable with no metal parts, so it carries no current."],
+          ["As-built drawing", "A drawing of the route as actually installed, with offsets from fixed points and depths."],
+          ["Backfill", "The material put back into the trench over the ducts, in compacted layers."],
+          ["Bedding", "The layer of fine, stone-free material laid under and over ducts."],
+          ["Breakaway link", "A link in the pulling line that parts at a set force, so the cable cannot be over-pulled."],
+          ["Buffer tube (loose tube)", "The gel-filled plastic tube inside an outdoor fibre cable that holds the fibres loosely."],
+          ["Core (fibre)", "The thin glass centre of an optical fibre that carries the light."],
+          ["Draw pit (chamber)", "A pit along a duct route from which cables are pulled and in which slack and joints are kept."],
+          ["Draw rope", "A rope left in a duct so that a cable can be pulled in later."],
+          ["Duct rod (rodder)", "A long flexible rod pushed through a duct to clear it or to carry a rope."],
+          ["Dynamometer", "An instrument in the pulling line that shows the force on the cable."],
+          ["Fusion splicing", "Joining two optical fibres by melting their ends together with an electric arc."],
+          ["HDPE", "High-density polyethylene: the usual material of buried communication ducts."],
+          ["Joint closure", "A sealed enclosure in which an underground cable joint is made."],
+          ["Mandrel", "A test plug pulled through a duct to prove that it is clear and round."],
+          ["Marker tape", "The warning tape laid in the trench above the ducts."],
+          ["OTDR", "Optical time-domain reflectometer: shows the distance to splices, connectors, bends and breaks along a fibre."],
+          ["Patch panel (termination box, ODF)", "The unit in a building where an outside fibre cable is terminated onto connectors."],
+          ["Reinstatement", "Putting back the road, paving or lawn surface after a trench is filled."],
+          ["Services (utilities)", "All the buried pipes and cables: water, power, sewer, telephone, gas, fuel."],
+          ["Shoring", "Timber, metal or hydraulic supports that hold up the sides of a trench."],
+          ["Single-mode fibre", "Fibre with a very small core, used for long links."],
+          ["Spoil", "The soil dug out of a trench."],
+          ["Swivel", "A fitting between the rope and the cable grip that stops twist passing into the cable."]
+        ] }
+      ]
+    }
+  ],
+  "cases": {
+    "c1": { "title": "A fibre link at a hotel in Runaway Bay", "text": "Level 3 trainee Davian Ellis is planning a buried single-mode fibre link between the main building and the new spa block of a hotel in Runaway Bay, St Ann. The route is 320 m long, with one change of direction at 140 m; the design requires a pit at each end, at every bend, and no section longer than 100 m. The ducts will be 6 m lengths of HDPE. The fibre cable is 16 mm in diameter; its maker gives a minimum bend radius of 20 times the diameter during pulling and 10 times when fixed. The hotel asks that guests can still walk between the buildings every day." },
+    "c2": { "title": "A trench at a Clarendon sugar estate office", "text": "A crew led by Level 3 trainee Camille Barrett is digging a 1.5 m deep trench for a copper and fibre route beside the office block of a sugar estate near Lionel Town, Clarendon. The ground is wet clay. The excavator operator has piled the spoil along the trench edge. A locator sweep in power mode showed nothing across the line of the trench, but the estate's old drawing shows a power cable to a pump house crossing the route. Overnight rain has left 300 mm of water in the trench. A deep manhole at the end of the route must be entered to seal the ducts." },
+    "c3": { "title": "Pulling a copper cable at a Mandeville school", "text": "At a high school in Mandeville, Manchester, Level 3 trainee Oshane Grant is in charge of pulling a 50-pair outdoor copper cable through a 180 m duct route with two bends and three pits. A truck is available to pull the rope. Halfway through the pull, the cable stops and the rope goes tight. The cable will join the admin block, which has its own earth electrode, to the science block, which has another, and the school has lost two telephone systems to lightning in the last five years." },
+    "c4": { "title": "Testing and handover at a Montego Bay call centre", "text": "Level 3 trainee Latoya Campbell is finishing a buried link at a call centre campus in Montego Bay, St James: a 1.6 km single-mode fibre with two splices and two connector pairs per fibre, and a short copper cable in a separate duct. The design figures are 0.4 dB per km, 0.1 dB per splice and 0.5 dB per connector pair. Fibre 7 measures 1.6 dB and fibre 8 measures 5.9 dB. The copper cable's insulation resistance reads 400 MΩ on the day it is pulled and 3 MΩ a week later, after heavy rain; one of its ends lay uncapped in a flooded pit for two days. The client's facilities manager asks what records he will receive." },
+    "c5": { "title": "A short duct across a church car park in Linstead", "text": "Level 3 trainee Kevon Dawkins leads a crew of five laying 60 m of duct and cable across the car park of a church in Linstead, St Catherine, on a weekday when the church office is open and cars come and go. The trench is to be 0.4 m wide and 0.6 m deep. A worker exposes a plastic-sheathed cable that is on no drawing and was not found by the locator. At the end of the job the church secretary asks whether the surface can be left a little low 'so that it settles level'." }
+  },
+  "questions": [
+    { "id": "P-01", "c": "c1", "q": "What is the smallest number of pits Davian's design needs?", "o": ["4", "6", "3", "5"], "a": 3, "why": "Pits are needed at 0 m, at the bend at 140 m and at 320 m. The section from 0 to 140 m needs one more pit to keep it under 100 m, and the section from 140 to 320 m (180 m) needs one more too: five pits in all. Spacing comes from the design, not from the soil." },
+    { "id": "P-02", "c": "c1", "q": "How many 6 m duct lengths does the route need, with no allowance for waste?", "o": ["53", "60", "48", "54"], "a": 3, "why": "320 ÷ 6 = 53.3, so 54 lengths: always round up, because 53 lengths would leave the route 2 m short. Waste and the rises into the pits are added on top." },
+    { "id": "P-03", "c": "c1", "q": "What is the tightest radius the fibre cable may be bent to while it is being pulled from a pit?", "o": ["160 mm", "32 mm", "320 mm", "200 mm"], "a": 2, "why": "During pulling the radius is 20 × 16 mm = 320 mm; once the cable is laid and the tension is off it may be 10 × 16 = 160 mm. The pulling figure is larger because tension adds to the stress at a bend." },
+    { "id": "P-04", "c": "c1", "q": "How can the crew keep the walkway between the buildings open for guests?", "o": ["Work in short sections, backfilling each before opening the next", "Open the whole route at once, so the job is done in one day", "Leave the trench open but ask reception to warn each guest", "Dig at night only, leaving the open trench covered with tarpaulin"], "a": 0, "why": "Opening, ducting and backfilling a section at a time keeps the path open, with a barriered crossing where needed, and leaves no long trench open overnight. Tarpaulin and verbal warnings do not protect anyone." },
+    { "id": "P-05", "c": "c2", "q": "The crew is ready to go into the 1.5 m trench in wet clay. What must happen first?", "o": ["Only the lightest member goes in, and stays near the ladder", "The sides are wetted down so that the clay holds together", "The sides are shored, or battered back to a safe slope", "The trench is dug 300 mm wider so that the sides are further away"], "a": 2, "why": "Wet clay can slide without warning, and a collapse buries a person in seconds. A trench this deep is supported or sloped back before anyone enters; nobody goes into an unsupported deep trench, however briefly." },
+    { "id": "P-06", "c": "c2", "q": "What should Camille tell the excavator operator about the spoil?", "o": ["Spread it thinly along the edge so that it is easy to put back", "Move it well back from the edge, at least about a metre", "Leave it, but put a board along the edge to hold it in place", "Push it into the trench as the work moves on, to save handling"], "a": 1, "why": "Spoil along the edge can fall onto the people below and its weight loads the trench sides, which makes a collapse more likely. It is kept back from the edge, and vehicles and plant are kept back too." },
+    { "id": "P-07", "c": "c2", "q": "The locator showed nothing, but the estate's drawing shows a pump-house power cable crossing the route. What should the crew do?", "o": ["Trust the locator, as it is more up to date than an old drawing", "Dig through with the excavator, but slowly and with a watcher", "Use the signal generator in induction mode, then dig by machine", "Hand dig across the drawn line to find it, treating it as live"], "a": 3, "why": "A locator in power mode cannot find a cable carrying no current, and a dead or unloaded cable is still dangerous when it is energised. A drawn service is treated as real: the crew hand digs to expose it and treats it as live." },
+    { "id": "P-08", "c": "c2", "q": "What must be done before anyone enters the deep manhole to seal the ducts?", "o": ["Test the air, ventilate, and post a person at the top", "Light a candle first, to show whether there is enough air", "Send one worker in quickly while the others wait at the truck", "Pump out any water, then let the first worker climb straight down"], "a": 0, "why": "A manhole is a confined space where gas can collect and oxygen can be low, and a worker can be overcome without warning. The air is tested, the space ventilated, a person stays at the top and rescue equipment is ready before entry." },
+    { "id": "P-09", "c": "c3", "q": "Why is pulling the rope with the truck a poor plan?", "o": ["A truck cannot pull a rope in a straight line", "A truck pulls too slowly for a 180 m route", "The exhaust fumes will collect in the pits", "It can pull harder than the cable can stand"], "a": 3, "why": "A vehicle gives no feel for the tension and can apply many times the cable's maximum pulling force before anyone notices. A winch with a dynamometer or a breakaway link, or a hand pull on a short run, keeps the force within the maker's limit." },
+    { "id": "P-10", "c": "c3", "q": "The cable has stopped halfway and the rope is tight. What should Oshane do?", "o": ["Stop, find and clear the cause, then carry on steadily", "Keep the pull on and add more lubricant at the drum", "Have two people push the cable from the drum end with a bar", "Cut the cable at the pit and pull the two halves separately"], "a": 0, "why": "A sudden rise in tension means the cable has snagged or the duct is blocked or crushed. Pulling on stretches the conductors and untwists the pairs; pushing with a bar kinks the cable; cutting adds a joint for life. Find the cause first." },
+    { "id": "P-11", "c": "c3", "q": "The pull is finished, but the splicer cannot come for a fortnight. What should Oshane do with the cable end in the far pit?", "o": ["Leave the end open so that any moisture can dry out", "Seal the end at once and coil the slack neatly in the pit", "Pull the end tight against the duct mouth and tape it", "Cut a metre off the end each morning to keep it clean"], "a": 1, "why": "A cable end left open takes in water, which travels along a copper cable and spoils the insulation pair by pair. Seal the end as soon as the pull is done, and coil the planned slack in the pit without kinks, so it can be joined or moved later." },
+    { "id": "P-12", "c": "c3", "q": "Given the two earth electrodes and the lightning history, what should the design include at each building entry for this copper cable?", "o": ["A surge module on every pair, with the screen bonded to earth", "An extra earth electrode beside the duct, not linked to the building", "The screen left unconnected at both ends, so it carries no surge", "A fuse in each pair, rated just above the line current"], "a": 0, "why": "A copper cable between two buildings joins two different earths, so lightning raises one and drives a surge along the cable into the equipment. Bonding the screen at each entry and fitting surge protection on every pair, with short bonding conductors, diverts the surge. An unbonded screen gives no protection." },
+    { "id": "P-13", "c": "c3", "q": "The school's IT manager asks whether the link could have avoided the lightning problem altogether. What is the best answer?", "o": ["Yes, if the copper cable had been buried deeper than the design asked", "Yes, if an all-dielectric fibre cable had been used between the blocks", "No, since every cable between two buildings carries lightning surges", "Yes, if the copper cable had been laid in a steel duct for the whole route"], "a": 1, "why": "A fibre cable with no metal parts carries no current, so a surge or an earth-potential difference has no path along it. That is why fibre is the usual choice between buildings; depth and steel ducts do nothing about the surge." },
+    { "id": "P-14", "c": "c4", "q": "What loss should each fibre of the Montego Bay link be expected to have?", "o": ["About 1.1 dB", "About 2.2 dB", "About 1.8 dB", "About 3.0 dB"], "a": 2, "why": "(1.6 × 0.4) + (2 × 0.1) + (2 × 0.5) = 0.64 + 0.2 + 1.0 = 1.84 dB. Fibre 7 at 1.6 dB is within budget; fibre 8 at 5.9 dB has a fault." },
+    { "id": "P-15", "c": "c4", "q": "Which instrument will show Latoya where along fibre 8 the extra loss is?", "o": ["A light source and power meter", "A cable locator in radio mode", "An insulation resistance tester", "An OTDR"], "a": 3, "why": "A light source and power meter give only the total loss. An OTDR sends pulses down the fibre and shows the distance to each splice, connector, bend and break with the loss at each, so the bad splice or tight bend can be found." },
+    { "id": "P-16", "c": "c4", "q": "What is the most likely reason for the copper cable's insulation resistance falling from 400 MΩ to 3 MΩ?", "o": ["Water got into the uncapped end and is travelling along the cable", "The cable has stretched during the pull and the pairs have untwisted", "The screen has been bonded at both ends, forming an earth loop", "The tester was set to a higher test voltage the second time"], "a": 0, "why": "An open cable end lying in a flooded pit lets water in, and water travels along a copper cable and lowers the insulation pair by pair. The wet section is cut back to dry cable, or the cable replaced, and every end is sealed as soon as it is pulled." },
+    { "id": "P-17", "c": "c4", "q": "Which set of records should the facilities manager receive?", "o": ["The invoice, the delivery notes and the crew's time sheets", "The as-built drawing, the test results and the labels list", "A photograph of the finished surface and the supplier's catalogue", "The original quotation and a list of the tools that were used"], "a": 1, "why": "The as-built drawing keeps future diggers away from the route and lets spare ducts be used, the test results let faults be found and the work be proved, and the labels tie it all together. Commercial papers tell nobody where the cable is." },
+    { "id": "P-18", "c": "c5", "q": "About how much soil will the car-park trench produce?", "o": ["About 24 m³", "About 1.44 m³", "About 14.4 m³", "About 36 m³"], "a": 2, "why": "60 m × 0.4 m × 0.6 m = 14.4 m³. Dug soil takes up more room than this on the surface, which matters when planning where it goes in a busy car park." },
+    { "id": "P-19", "c": "c5", "q": "What should Kevon do about the unrecorded plastic-sheathed cable?", "o": ["Cut it with insulated cutters to find out whether it is dead", "Stop, cordon it, treat it as live and report it to the church", "Lever it to one side with a spade and lay the duct beneath it", "Cover it back over and route the trench round where it was"], "a": 1, "why": "A cable that is on no record and that the locator missed may be a live power cable with no load. Work stops, the cable is protected and treated as live, and its owner identifies it and makes it safe before anything goes on." },
+    { "id": "P-20", "c": "c5", "q": "How should Kevon answer the secretary about leaving the surface low?", "o": ["Agree, since backfill always settles over the first few months", "Agree, but mark the low strip with cones until it has settled", "Explain that properly compacted backfill is finished level now", "Explain that the surface should be left high, to settle down level"], "a": 2, "why": "Backfill placed in compacted layers does not need to settle. A low strip holds water, trips people and damages cars, and leaving it high is as bad. The surface is reinstated level, to match what was there, before handover." }
+  ]
+}

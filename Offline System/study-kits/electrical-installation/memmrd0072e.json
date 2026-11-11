@@ -1,0 +1,1312 @@
+{
+ "format": "cestis-study-kit",
+ "version": 1,
+ "status": "to-check",
+ "written": "2026-11-07",
+ "programme": "Electrical Installation",
+ "qualification": {
+  "id": "QUAL-EIM-L2",
+  "title": "ELECTRICAL INSTALLATION AND MAINTENANCE LEVEL 2",
+  "code": "EEM20723"
+ },
+ "level": 2,
+ "unit": {
+  "code": "MEMMRD0072E",
+  "title": "Shut down/isolate machines/equipment"
+ },
+ "summary": "This unit teaches you to shut down and isolate machines and equipment safely before cleaning, maintenance or repair. You will learn to find every energy source a machine has, including stored energy, to stop it in the right order, and to isolate, lock off, tag and prove it dead. You will also learn to release or block stored energy, to manage isolation when several people work on one machine, and to return the machine to service and record what was done.",
+ "sections": [
+  {
+   "title": "Unit overview",
+   "blocks": [
+    {
+     "p": "Machines hurt people most often not while they run normally, but while someone is cleaning, clearing a jam, adjusting or repairing them. The machine starts without warning, or energy stored inside it is let go: a raised part falls, a spring snaps back, air or oil under pressure bursts out. This unit teaches you to stop that happening. It is for Level 2 trainees in Electrical Installation and Maintenance, who shut down and isolate machines and equipment under supervision as part of maintenance and fault-finding work."
+    },
+    {
+     "h": "What you must be able to do"
+    },
+    {
+     "table": {
+      "head": [
+       "Task",
+       "What it looks like on the job"
+      ],
+      "rows": [
+       [
+        "Plan the shutdown",
+        "Read the machine's isolation procedure, manual and drawings; list every energy source and isolation point; tell the supervisor and operators; collect locks, tags, a tester and blocks."
+       ],
+       [
+        "Stop the machine safely",
+        "Use the normal stop in the right order and let moving parts run down and stop by themselves."
+       ],
+       [
+        "Isolate every energy source",
+        "Switch off at the correct isolator, and close the valves for air, oil, water, steam or gas."
+       ],
+       [
+        "Lock off and tag",
+        "Fit your own padlock and a completed tag at every isolation point, using a hasp or lockbox when several people work."
+       ],
+       [
+        "Prove dead and prove zero energy",
+        "Prove the electrical supply dead with an approved tester checked before and after, do the try step, and check that gauges read zero."
+       ],
+       [
+        "Release or block stored energy",
+        "Let capacitors discharge, release pressure, lower or block raised parts, restrain springs, and wait for parts to stop and cool."
+       ],
+       [
+        "Work safely with others",
+        "Use permits to work, group isolation, the isolation log and shift handover correctly."
+       ],
+       [
+        "Return the machine to service",
+        "Remove tools and blocks, refit guards, clear the area, remove only your own lock, restore energy in order and watch the test run."
+       ],
+       [
+        "Record and report",
+        "Fill in the isolation log, and report defects, near misses and anything that stopped the procedure being followed."
+       ]
+      ]
+     }
+    },
+    {
+     "h": "Words you will meet"
+    },
+    {
+     "ul": [
+      "**Shut down**: stop the machine with its normal controls, in the right order.",
+      "**Isolate**: cut the machine off from every source of energy at a device that gives a safe break, such as an isolator or a valve.",
+      "**Lock off (lock out)**: fit a personal padlock so that the isolator or valve cannot be turned back on.",
+      "**Tag (tag out)**: fix a tag that says who isolated the machine, when and why.",
+      "**Stored energy**: energy that stays in a machine after its supplies are cut, such as a charged capacitor, a raised part or air under pressure.",
+      "**Zero energy state**: every energy source isolated and all stored energy released or blocked, so that nothing can move, shock, burn or burst."
+     ]
+    },
+    {
+     "h": "Machines in Jamaican workplaces"
+    },
+    {
+     "p": "You will meet machines in factories, agro-processing plants, bakeries, joineries, garages, hotel laundries, hospitals and on the Centre's own training benches. Small machines run from the JPS supply at 110 V or 220 V single-phase, 50 Hz; larger machines are often fed from a three-phase supply. Read the voltage on the drawings and the nameplate: never guess it."
+    },
+    {
+     "note": "**A JPS outage is not an isolation.** The JPS supply can come back at any moment without warning, and many Jamaican workplaces have standby generators that start by themselves when the JPS supply fails. A machine that stopped in a power cut must still be isolated, locked off and proved dead before anyone works on it.",
+     "label": "Jamaica"
+    },
+    {
+     "h": "How to use this kit"
+    },
+    {
+     "p": "The sections follow a real job: finding the energy, planning, stopping, isolating, dealing with stored energy, working with others, and handing the machine back. Then try the practice test and read every explanation. Your instructor will show you the Centre's own isolation procedure, locks, tags and forms. Where they differ from this kit, follow the Centre's procedure."
+    }
+   ]
+  },
+  {
+   "title": "Energy sources and stored energy",
+   "blocks": [
+    {
+     "p": "A machine can hurt you with any energy it has, not only electricity. Before you isolate anything you must know **every energy source that feeds the machine** and **every place where energy is stored in it**. Isolating the main supply alone never makes a machine safe."
+    },
+    {
+     "table": {
+      "head": [
+       "Energy",
+       "Where you find it",
+       "How it can hurt you"
+      ],
+      "rows": [
+       [
+        "Electrical (supply)",
+        [
+         "Main supply to motors and heaters",
+         "Separate control supplies, often 24 V or 110 V from another panel or a control transformer",
+         "Backup batteries, UPS units, standby generators and solar systems"
+        ],
+        "Shock, burns and arc flash; the machine starting."
+       ],
+       [
+        "Electrical (stored)",
+        [
+         "Capacitors in speed drives (VFDs) and power supplies",
+         "Motor start and run capacitors, power-factor capacitors",
+         "Long cables just after an insulation test"
+        ],
+        "A shock from a part that has no supply."
+       ],
+       [
+        "Kinetic (movement)",
+        "Flywheels, saw blades, fans, spindles, rollers and conveyors that keep moving after the power is off",
+        "Cuts, crushing and entanglement."
+       ],
+       [
+        "Gravitational (potential)",
+        "Raised press rams and platens, lifted loads, tipped-up bins and hoppers, counterweights, roll-up doors",
+        "A part falling or sliding down onto you."
+       ],
+       [
+        "Elastic (springs and tension)",
+        "Compressed or stretched springs, tensioned belts and chains",
+        "A part springing out or snapping back."
+       ],
+       [
+        "Pneumatic (air)",
+        "Compressors, air receivers (tanks), pipes and hoses, air cylinders",
+        "A whipping hose, flying parts, air or dirt blown into the eyes or skin, a cylinder moving."
+       ],
+       [
+        "Hydraulic (oil)",
+        "Pumps, accumulators, cylinders holding up loads, hoses",
+        "A part moving or falling; oil injected through the skin."
+       ],
+       [
+        "Thermal (heat)",
+        "Ovens, heating platens, steam pipes, hot water, hot motors and hot oil",
+        "Burns and scalds."
+       ],
+       [
+        "Chemical and process",
+        "Pipes and tanks of chemicals, fuel, gas such as LPG, syrup or hot water",
+        "Burns, poisoning and fire."
+       ]
+      ]
+     }
+    },
+    {
+     "note": "**A quiet machine is not a safe machine.** A machine that has stopped can still be live, still be under pressure and still have a raised part waiting to fall. Treat it as dangerous until you have proved every energy source isolated and every stored energy released or blocked.",
+     "label": "Remember"
+    },
+    {
+     "h": "The energy map (isolation sheet)"
+    },
+    {
+     "p": "Before the job, list each energy source on an **isolation sheet**, or draw a simple **energy map**: a sketch of the machine showing each source, where it is isolated, and how its stored energy will be dealt with. For each source, answer these questions:"
+    },
+    {
+     "table": {
+      "head": [
+       "Question",
+       "Example: an air-operated press"
+      ],
+      "rows": [
+       [
+        "Where does the energy come from?",
+        "Compressed air from the workshop line; the electrical supply to the press's control panel."
+       ],
+       [
+        "Where is it isolated?",
+        "Ball valve V3 on the air drop to the press; isolator Q1 beside the press."
+       ],
+       [
+        "Can it be locked?",
+        "V3 takes a valve lockout; Q1 takes padlocks through its handle."
+       ],
+       [
+        "Is any energy stored?",
+        "Air in the press's own small receiver and its cylinder; the raised platen."
+       ],
+       [
+        "How will the stored energy be released or blocked?",
+        "Bleed valve V4; platen lowered onto its stops."
+       ],
+       [
+        "How will I check it has gone?",
+        "Gauge P2 reads zero; the try step shows that the press will not cycle."
+       ]
+      ]
+     }
+    },
+    {
+     "note": "Number every isolation point on the sheet and on a label at the point itself (for example Q1, V3). Then the sheet, the tags and the log all use the same names, and nobody locks the wrong valve.",
+     "label": "Tip"
+    }
+   ]
+  },
+  {
+   "title": "Planning the shutdown",
+   "blocks": [
+    {
+     "p": "Many isolation accidents start with poor planning: a supply that nobody knew about, the wrong isolator, or a rushed job. Plan before you touch anything."
+    },
+    {
+     "h": "Where to find the information"
+    },
+    {
+     "table": {
+      "head": [
+       "Source",
+       "What it tells you"
+      ],
+      "rows": [
+       [
+        "The machine's isolation procedure (lockout procedure)",
+        "The energy sources, the isolation points and the steps in order, written for that machine. This is your main guide."
+       ],
+       [
+        "The maker's manual",
+        "How to deal with stored energy: how long a drive's capacitors take to discharge, how to release springs and hydraulic pressure, and which safety blocks or pins are supplied."
+       ],
+       [
+        "Electrical and piping drawings",
+        "Where each supply comes from, including control supplies from other panels and links to other machines."
+       ],
+       [
+        "Labels at the isolation points",
+        "The number of each isolator or valve and what it feeds. Check them against the drawings: labels can be wrong."
+       ],
+       [
+        "The operator and the supervisor",
+        "What the machine is doing now, recent faults, and how to stop production in an orderly way."
+       ],
+       [
+        "The isolation log and the machine's history",
+        "Past isolations and faults on this machine, and changes that may not be on the drawings yet."
+       ]
+      ]
+     }
+    },
+    {
+     "h": "Tell people and agree the time"
+    },
+    {
+     "ul": [
+      "Tell the **supervisor** and the **operators** before the machine is shut down. Agree a time so that production stops in an orderly way: a line is emptied, a batch is finished, and product is not spoiled.",
+      "Tell other trades working nearby, and anyone whose work depends on the machine or on a shared supply, such as the compressed air or the steam.",
+      "Put up **barriers and warning signs** round the work area."
+     ]
+    },
+    {
+     "h": "Permit to work"
+    },
+    {
+     "p": "A **permit to work** is a written document that gives permission for high-risk work. It lists the work, the hazards, the isolations made, the precautions, who may do the work and for how long. An authorised person signs it before work starts, and it is signed off and closed when the work is finished. Workplaces use permits for jobs such as entering a tank or other confined space, hot work, work on high-voltage equipment and isolations with many points. Your supervisor tells you when one is needed: read it, follow it, and sign on and off as it says."
+    },
+    {
+     "h": "Who may isolate"
+    },
+    {
+     "p": "Only a **trained person who is authorised** by the workplace may isolate a machine for maintenance. At Level 2 you isolate under supervision, following the written procedure. Never isolate a machine you have not been trained on, and never let someone else's lock stand in for yours: everyone who works on the machine fits their own."
+    },
+    {
+     "h": "What to collect"
+    },
+    {
+     "table": {
+      "head": [
+       "Item",
+       "Why you need it"
+      ],
+      "rows": [
+       [
+        "Your personal padlock and its only key",
+        "So that only you can remove your lock."
+       ],
+       [
+        "Danger tags",
+        "To show who isolated the machine, when and why."
+       ],
+       [
+        "Lockout devices to suit each point",
+        "Breaker lockout clips, plug lockout boxes, valve lockouts and covers, fuse-holder locks."
+       ],
+       [
+        "A multi-lock hasp or a group lockbox",
+        "So that several people can each fit their own lock."
+       ],
+       [
+        "An approved two-pole voltage tester and its proving unit",
+        "To prove the electrical supply dead."
+       ],
+       [
+        "Safety blocks, props, pins or chocks",
+        "To hold raised parts, restrain springs and stop parts turning."
+       ],
+       [
+        "Barrier tape and signs",
+        "To keep other people away."
+       ],
+       [
+        "The PPE the procedure asks for",
+        "See the section on records and safe working."
+       ],
+       [
+        "The isolation sheet, the permit (if needed) and the isolation log",
+        "To plan, authorise and record the work."
+       ]
+      ]
+     }
+    },
+    {
+     "h": "Plan the order"
+    },
+    {
+     "flow": [
+      "Find out what work is to be done and how long it will take",
+      "Read the procedure, manual and drawings, and list every energy source",
+      "Find each isolation point and check that it can be locked",
+      "Agree the time and tell the supervisor and operators",
+      "Check whether a permit is needed and collect the equipment",
+      "Plan the order of shutdown, isolation and release of stored energy",
+      "Plan how the machine will be restored and tested"
+     ]
+    }
+   ]
+  },
+  {
+   "title": "Stopping the machine",
+   "blocks": [
+    {
+     "p": "Stop the machine before you isolate it, using its **normal stop control** as the procedure says. Do not just open the isolator or pull the plug while the machine is running."
+    },
+    {
+     "ul": [
+      "**The isolator is not opened under load.** Many isolators are made to be opened only when little or no current is flowing (off-load isolators). Breaking full motor current can draw an arc that burns the contacts and can injure the person at the handle.",
+      "**The machine stops in a controlled way.** A speed drive slows the motor smoothly, a line stops in sequence, and work inside the machine is finished or made safe.",
+      "**Other machines are not upset.** Machines linked to it, before and after it on a line, can be stopped in the right order."
+     ]
+    },
+    {
+     "h": "Run-down"
+    },
+    {
+     "p": "Heavy parts such as flywheels, saw blades, fans, grinding wheels and large rollers keep turning after the power is off. This is **run-down**. Wait until every moving part has **stopped by itself**, and look and listen to check. Never slow a part with your hand, a glove, a rag, a piece of wood or a bar: you can be dragged in, or the object can be thrown out. Where the maker fits a brake, use it as the manual says."
+    },
+    {
+     "h": "Stop controls are not isolation"
+    },
+    {
+     "table": {
+      "head": [
+       "Control",
+       "What it does",
+       "Is it isolation?"
+      ],
+      "rows": [
+       [
+        "Stop button",
+        "Opens the control circuit so that the contactor drops out.",
+        "**No.** The main supply is still on. A fault, a stuck contactor or someone pressing start can start the machine."
+       ],
+       [
+        "Emergency stop",
+        "Stops the machine quickly in an emergency, usually through the control circuit.",
+        "**No.** It is for emergencies. Parts stay live, and anyone can reset it."
+       ],
+       [
+        "Guard interlock",
+        "Stops the machine when a guard is opened during normal use.",
+        "**No.** It protects the operator during production. Interlocks can fail or be defeated."
+       ],
+       [
+        "Selector switch (Hand–Off–Auto, Run–Stop)",
+        "Chooses how the machine is controlled.",
+        "**No.** It switches the control circuit only."
+       ],
+       [
+        "Touch-screen or controller stop",
+        "Stops the machine through its programmable controller.",
+        "**No.** Software can be changed or fail."
+       ],
+       [
+        "A JPS outage",
+        "The supply is lost.",
+        "**No.** The supply or a generator can come back at any time."
+       ],
+       [
+        "Isolator, switch-disconnector or breaker, locked OFF",
+        "Cuts **all** the live conductors and is locked in the OFF position.",
+        "**Yes**, once it is locked, tagged and proved dead."
+       ],
+       [
+        "Plug removed and kept under your control",
+        "The plug is out of the outlet and in a plug lockout box, or where only you can reach it.",
+        "**Yes**, for plug-connected equipment."
+       ]
+      ]
+     }
+    },
+    {
+     "p": "Many motor starters have a **no-volt release**: if the supply fails, the contactor drops out, so the machine does not restart by itself when the supply returns. Do not rely on it. Some equipment, such as compressors and pumps with pressure switches, is designed to restart on its own."
+    },
+    {
+     "note": "**Never put any part of your body into a machine just because it has stopped.** A machine stopped by a stop button, an emergency stop, a guard interlock or a power cut can start again. Isolate, lock, tag, prove dead and deal with the stored energy first.",
+     "label": "Safety"
+    }
+   ]
+  },
+  {
+   "title": "Electrical isolation, lock-off and proving dead",
+   "blocks": [
+    {
+     "p": "The electrical isolation point must **cut every live conductor** that feeds the machine, give a safe break, and be **lockable in the OFF position**. Usually it is a local isolator (disconnect switch) beside the machine, or a circuit breaker in the panel fitted with a lockout device."
+    },
+    {
+     "h": "Securing each kind of isolation point"
+    },
+    {
+     "table": {
+      "head": [
+       "Isolation point",
+       "How it is secured"
+      ],
+      "rows": [
+       [
+        "Local isolator (disconnect)",
+        "Switch fully OFF; padlock through the locking holes in the handle, with a hasp if several people will lock it."
+       ],
+       [
+        "Circuit breaker in a panel",
+        "Switch OFF; fit a breaker lockout device that holds the handle, then your padlock."
+       ],
+       [
+        "Fuse-switch or fuse holder",
+        "Remove the fuses and keep them with you; fit a lockable cap or holder lock so that nobody can fit other fuses."
+       ],
+       [
+        "Plug and outlet",
+        "Unplug; lock the plug in a plug lockout box with your padlock, or keep it where only you can reach it."
+       ],
+       [
+        "Valve (air, oil, water, steam, gas)",
+        "Close fully; fit a valve lockout or cover with your padlock; bleed the line beyond it."
+       ]
+      ]
+     }
+    },
+    {
+     "ul": [
+      "Check that the handle is **fully OFF** and cannot be moved. On some isolators you can see the open contacts through a window: look.",
+      "Check that it is the **right** isolator. Compare its label with the drawing and the procedure, and prove dead at the machine.",
+      "Isolate every supply: the main supply, any separate **control supply** from another panel, heaters and lights inside the machine, and any backup battery, UPS or generator feed.",
+      "If an isolator will not lock, or your lock will not fit, **stop and tell your supervisor**. Another lockable point must be used, or the isolator repaired, before work starts."
+     ]
+    },
+    {
+     "h": "The tag"
+    },
+    {
+     "p": "Fix a danger tag with your lock. Fill it in clearly: **your name, the date, why the machine is isolated and how to contact you**. A tag warns and informs, but it cannot stop anyone, which is why a lock is always fitted as well."
+    },
+    {
+     "h": "Locks and keys"
+    },
+    {
+     "ul": [
+      "Use your **own** padlock, with its only key kept on you. Never lend your lock or your key.",
+      "Everyone who works on the machine fits **their own** lock. A lock fitted by someone else does not protect you.",
+      "Leave your lock on during breaks, lunch and overnight. Remove it only when your own work is finished.",
+      "**Only the person who fitted a lock removes it.**"
+     ]
+    },
+    {
+     "h": "Proving dead"
+    },
+    {
+     "p": "Locking off does not prove the machine is dead. The wrong isolator may have been chosen, a label may be wrong, the isolator may have failed, or there may be another supply. So you **prove dead at the point of work**."
+    },
+    {
+     "flow": [
+      "Prove your approved two-pole tester on its proving unit or a known live source",
+      "Test at the machine's supply terminals between every pair of conductors",
+      "Check that every test shows no voltage",
+      "Prove the tester again on the proving unit",
+      "With everyone clear, do the try step",
+      "Return every control to OFF or STOP"
+     ]
+    },
+    {
+     "table": {
+      "head": [
+       "Supply",
+       "Test between"
+      ],
+      "rows": [
+       [
+        "Single-phase 110 V: line, neutral and earth",
+        [
+         "Line and neutral",
+         "Line and earth",
+         "Neutral and earth"
+        ]
+       ],
+       [
+        "220 V with two lines and earth (no neutral)",
+        [
+         "Line 1 and line 2",
+         "Each line and earth"
+        ]
+       ],
+       [
+        "Three-phase: three lines and earth",
+        [
+         "L1–L2, L2–L3 and L1–L3",
+         "Each line and earth"
+        ]
+       ],
+       [
+        "Three-phase with a neutral",
+        [
+         "All the tests above",
+         "Each line and neutral",
+         "Neutral and earth"
+        ]
+       ]
+      ]
+     }
+    },
+    {
+     "ul": [
+      "Use an **approved two-pole voltage tester** made for proving dead, with fused leads, finger guards and short probe tips, rated for the voltage and the measurement category (CAT rating) of the supply. Industrial panels need a higher category, such as CAT III or CAT IV.",
+      "Do **not** use a neon screwdriver, a non-contact 'volt stick', a continuity buzzer or a clamp meter. They can show 'dead' on a live circuit, and a meter on the wrong range can cause an arc.",
+      "If the tester fails when you check it afterwards, **the test does not count**. Get a working tester, prove it, and test again."
+     ]
+    },
+    {
+     "h": "The try step"
+    },
+    {
+     "p": "With everyone clear of the machine, press the start button or turn the run switch to show that the machine **will not start**. This catches an isolation made at the wrong point. Then **return every control to OFF or STOP**, so that the machine cannot start by itself when the energy is restored later."
+    },
+    {
+     "note": "**Never work live.** If someone asks you to 'just check it quickly with the power on', say no and ask for a safe way. At Level 2 you never test or work on live equipment; that is done only by authorised people with the right equipment and PPE.",
+     "label": "Safety"
+    }
+   ]
+  },
+  {
+   "title": "Releasing or blocking stored energy",
+   "blocks": [
+    {
+     "p": "When the supplies are isolated, deal with the energy stored in the machine. Each kind is released or blocked in its own way. Follow the maker's manual and the procedure; the table gives the usual methods."
+    },
+    {
+     "table": {
+      "head": [
+       "Stored energy",
+       "Make it safe by",
+       "Never"
+      ],
+      "rows": [
+       [
+        "Capacitors (speed drives, power supplies, motor capacitors)",
+        "Waiting at least the time on the warning label, then proving dead at the terminals the maker shows. Discharge with the maker's discharge tool or resistor only if the manual says so.",
+        "Short them out with a screwdriver or touch them to 'see'."
+       ],
+       [
+        "Moving parts (flywheels, blades, fans)",
+        "Waiting until they stop by themselves; applying the brake; fitting the maker's lock pin or a chock.",
+        "Slow them by hand or jam a bar in."
+       ],
+       [
+        "Raised parts (rams, platens, loads, hoppers)",
+        "Lowering them to rest on their stops; if they cannot be lowered, fitting the machine's own safety block, prop or pin, rated for the weight.",
+        "Rely on a hydraulic cylinder, a jack, a rope or a person watching."
+       ],
+       [
+        "Springs and tensioned belts",
+        "Releasing the tension as the manual says, or holding the part with a mechanical block.",
+        "Unbolt a spring housing without knowing the spring is slack."
+       ],
+       [
+        "Compressed air",
+        "Isolating the compressor first, then closing and locking the valve and bleeding the trapped air slowly until the gauges read zero.",
+        "Loosen a fitting to let the air out."
+       ],
+       [
+        "Hydraulic oil",
+        "Lowering loads, stopping and isolating the pump, releasing pressure with the valves the manual shows, bleeding any accumulator, and checking the gauges read zero.",
+        "Feel for a leak with your hand."
+       ],
+       [
+        "Heat",
+        "Letting the part cool, isolating the heating supply, and checking the temperature with a thermometer or the machine's gauge.",
+        "Pour water on a hot part or touch it to test it."
+       ],
+       [
+        "Pipes of hot water, steam or chemicals",
+        "Closing and locking the valves, draining and venting the line, and fitting a blank where the procedure says.",
+        "Bend, clamp or tape a pipe to stop the flow."
+       ]
+      ]
+     }
+    },
+    {
+     "h": "Speed drives (VFDs)"
+    },
+    {
+     "p": "A **variable frequency drive (VFD)**, also called an inverter drive, controls the speed of a motor. Inside it, large capacitors hold a DC voltage of several hundred volts. When the supply is switched off they **stay charged for some minutes**, and a blank display does not mean they are safe. The warning label gives the waiting time; it is often between 5 and 15 minutes, but read the label on the drive in front of you."
+    },
+    {
+     "flow": [
+      "Stop the motor with the normal stop",
+      "Isolate, lock and tag the drive's supply and any separate control supply",
+      "Wait at least the time on the drive's warning label",
+      "Prove dead at the input terminals and at the DC terminals the manual shows, with a tester proved before and after",
+      "If voltage remains, wait longer or discharge it as the maker says",
+      "Stop the motor from being turned by its load"
+     ]
+    },
+    {
+     "p": "A motor that is turned by its load, such as a fan turning in the wind or a conveyor running back under its load, works as a **generator** and can push voltage back into the drive. Secure it with its brake, a lock pin or a chock before you work."
+    },
+    {
+     "h": "Compressed air"
+    },
+    {
+     "flow": [
+      "Tell people: stopping the air may stop other machines",
+      "Isolate, lock and tag the compressor's electrical supply first, because its pressure switch can start it by itself",
+      "Close and lock the valve that feeds the part you will work on",
+      "Lower or block anything held up by air cylinders",
+      "Open the bleed valve slowly, with your face and body away from the outlet",
+      "Check that the gauge reads zero, and bleed any section the gauge cannot see"
+     ]
+    },
+    {
+     "ul": [
+      "Valves and non-return valves can **trap air** between them. A gauge reading zero in one place does not prove that the whole circuit is empty.",
+      "An **air receiver** (tank) has a **safety valve** that opens by itself if the pressure gets too high: never adjust, block or remove it. It also has a **drain valve** at the bottom to let out the water that collects inside.",
+      "Workshop air is commonly about 6 to 10 bar (roughly 90 to 145 psi). That is enough to make a loose hose whip violently and to blow a fitting off.",
+      "Never point compressed air at anyone, or use it to blow dust off your clothes or skin."
+     ]
+    },
+    {
+     "note": "Jamaica's warm, humid air holds a lot of water. When it is compressed and cools in the receiver, much of that water drops out, so receivers here need draining often. Isolate the compressor before you drain or work on the receiver, as the procedure says.",
+     "label": "Jamaica"
+    },
+    {
+     "h": "Hydraulics"
+    },
+    {
+     "ul": [
+      "Hydraulic systems work at high pressure, often well over 100 bar. An **accumulator** stores oil under pressure, so a gauge can stay high after the pump has stopped.",
+      "A cylinder holding up a load can **creep down** as oil leaks past seals and valves. Lower a raised part, or block it mechanically: never leave it 'held' by the oil.",
+      "A pinhole leak can inject oil through the skin. To find a leak, pass a piece of card or wood along the hose, never your hand. **An injection injury needs hospital treatment at once**, even if it looks like a small cut and hardly hurts."
+     ]
+    },
+    {
+     "note": "Before you start work, check every item on the isolation sheet: locks and tags on, tester proved, dead tests done, try step done, gauges at zero, raised parts down or blocked, springs slack, moving parts stopped, hot parts cool. **If you are not sure that all the stored energy has gone, stop and ask your supervisor.**",
+     "label": "Safety"
+    }
+   ]
+  },
+  {
+   "title": "Working with others: group isolation, permits and handover",
+   "blocks": [
+    {
+     "p": "When several people work on one machine, every one of them must be protected for the whole time they are working. Nobody may depend on someone else's lock."
+    },
+    {
+     "h": "Multi-lock hasp"
+    },
+    {
+     "p": "A **multi-lock hasp** is a hinged steel clip with several holes, fitted through the isolator's locking point. Each worker adds their own padlock and tag. The isolator cannot be switched on until **the last lock is removed**, so when one person finishes early, the others are still protected."
+    },
+    {
+     "h": "Group lockbox"
+    },
+    {
+     "p": "When a machine or plant has many isolation points, a **group lockbox** saves fitting dozens of locks:"
+    },
+    {
+     "flow": [
+      "The authorised person isolates and locks every point with isolation locks",
+      "The isolations are proved and listed on the permit or the log",
+      "Every isolation-lock key goes into the lockbox",
+      "Each worker fits their own padlock to the lockbox and signs on",
+      "Each worker removes their own lock from the box when they finish",
+      "Only when no personal locks are left can the keys be taken out to restore the machine"
+     ]
+    },
+    {
+     "note": "A worker who joins the job may ask to see that the machine is dead, or watch the try step, before fitting their lock to the box. Ask whenever you are not sure.",
+     "label": "Tip"
+    },
+    {
+     "h": "The isolation log"
+    },
+    {
+     "p": "The **isolation log** (isolation register) records every isolation: the machine, each isolation point, who isolated it, the date and time, the reason and any permit number, and later when and by whom it was removed and the machine restored. It lets everyone see at a glance what is isolated, by whom and why."
+    },
+    {
+     "h": "Shift changes and handover"
+    },
+    {
+     "ul": [
+      "When work carries on into the next shift, the **oncoming** worker fits their lock **before** the outgoing worker removes theirs, so the machine is never left unprotected.",
+      "Hand over in person: what has been done, what is still isolated and anything unusual. Write it in the log."
+     ]
+    },
+    {
+     "h": "When a lock-holder has gone"
+    },
+    {
+     "p": "If a lock is left on and its owner has gone home, never cut it off or remove it yourself. Tell the supervisor, who follows the workplace's formal procedure. That usually means trying hard to contact the person, checking that they are not on site, checking that the machine is safe and nobody is working on it, removing the lock with management's authority, recording it, and telling the person before they start work again."
+    },
+    {
+     "h": "Contractors and other trades"
+    },
+    {
+     "p": "Contractors who work on a client's or the Centre's machines follow the same rules: they fit their own locks and sign on to the permit or the log. When a fitter and an electrician both work on a machine, it is isolated for both of them, with a lock from each."
+    }
+   ]
+  },
+  {
+   "title": "Returning the machine to service",
+   "blocks": [
+    {
+     "p": "Restoring a machine is as dangerous as isolating it: someone may still be inside, a guard may be off, or a tool may be left among the moving parts. Follow the steps in order."
+    },
+    {
+     "flow": [
+      "Check that the work is finished and correct",
+      "Remove tools, parts, rags and offcuts, and clean up spills",
+      "Refit and secure all guards and covers",
+      "Remove blocks, pins, chocks and blanks, with everyone clear",
+      "Account for everyone and warn people that the machine will start",
+      "Each person removes only their own lock and tag",
+      "Set the controls to OFF and restore energy in the order the procedure gives",
+      "A competent person carries out the test run",
+      "Hand the machine back and record it"
+     ]
+    },
+    {
+     "ul": [
+      "Never do a test run with the guards off. If a check needs a guard off, that is a special procedure controlled by your supervisor.",
+      "Restore energy slowly and in the procedure's order. For example, close the bleed and drain valves before the air goes back on, and open the air valve slowly.",
+      "The test run checks that the machine works correctly and safely: normal running, the stop button, the **emergency stop**, the guard interlocks, and no leaks, odd noises, smells or heat."
+     ]
+    },
+    {
+     "table": {
+      "head": [
+       "At the test run you find",
+       "What to do"
+      ],
+      "rows": [
+       [
+        "The emergency stop does not stop the machine",
+        "Stop it with the normal stop, isolate and lock off again, and report it. The machine is not handed back."
+       ],
+       [
+        "A raised part drifts down when it should hold",
+        "Stop, isolate, lower or block the part, and report it. Do not hand back."
+       ],
+       [
+        "An oil or air leak",
+        "Stop, isolate, release the pressure and repair, then test again."
+       ],
+       [
+        "A strange noise, smell or vibration",
+        "Stop at once and investigate under a new isolation."
+       ],
+       [
+        "Everything works correctly",
+        "Hand back to the operator or supervisor, and record it."
+       ]
+      ]
+     }
+    },
+    {
+     "h": "Handing back"
+    },
+    {
+     "p": "Tell the operator or supervisor **what was done**, what was tested, and **anything still to be fixed**, such as a part on order or a worn component you noticed. Record the time the machine was restored, who restored it and the result of the test run."
+    }
+   ]
+  },
+  {
+   "title": "Records, reporting and safe working",
+   "blocks": [
+    {
+     "h": "What to record"
+    },
+    {
+     "table": {
+      "head": [
+       "Record",
+       "What goes in it"
+      ],
+      "rows": [
+       [
+        "Isolation sheet or energy map",
+        "Each energy source, its isolation point, how its stored energy is dealt with, and a box to tick for each."
+       ],
+       [
+        "Isolation log",
+        "The machine, the points isolated, who, the date and time, the reason and permit number; later, the removal and restoration details."
+       ],
+       [
+        "Permit to work",
+        "The work, hazards, isolations and precautions, with signatures to issue, accept, sign on, sign off and close."
+       ],
+       [
+        "Machine history card",
+        "The work done, parts used, faults found and test results."
+       ]
+      ]
+     }
+    },
+    {
+     "h": "Report problems"
+    },
+    {
+     "ul": [
+      "Report any defect you notice while the machine is shut down, such as a damaged cable, a worn belt, a cracked guard or a missing label, so that it is recorded and repaired. Do not tape over it or leave it for someone else.",
+      "Report every time the procedure could not be followed: an isolator that would not lock, a supply that was not on the drawings, a tester that failed. The procedure and drawings must then be corrected.",
+      "Report near misses, such as someone trying to start a locked-off machine, or a valve found unlocked."
+     ]
+    },
+    {
+     "h": "PPE and safe working"
+    },
+    {
+     "p": "**PPE** means **personal protective equipment**: the equipment you wear to protect yourself when the hazards cannot be removed completely. It is the last line of defence, never a replacement for isolation."
+    },
+    {
+     "table": {
+      "head": [
+       "PPE",
+       "Why"
+      ],
+      "rows": [
+       [
+        "Safety glasses; a face shield when bleeding hydraulics or high-pressure air",
+        "Springs, air, oil, dirt and broken parts can fly out."
+       ],
+       [
+        "Safety boots",
+        "Dropped tools and heavy parts."
+       ],
+       [
+        "Gloves suited to the job: cut-resistant, heat-resistant or chemical",
+        "Sharp edges, hot parts, oil and chemicals. Do not wear loose gloves near parts that could move."
+       ],
+       [
+        "Hearing protection",
+        "Compressors, air being released and noisy plant."
+       ],
+       [
+        "The electrical PPE the procedure lists for testing",
+        "Protection against an arc while proving dead."
+       ]
+      ]
+     }
+    },
+    {
+     "ul": [
+      "Tie back long hair, and remove rings, watches, chains and loose clothing.",
+      "Keep the area clean, dry and well lit, with barriers and signs in place until the machine is handed back.",
+      "Know where the first-aid kit, the fire extinguisher and the exits are. Do not work alone on a dangerous isolation."
+     ]
+    },
+    {
+     "note": "In Jamaica, workplace safety in factories is checked by inspectors of the Ministry of Labour and Social Security. Day to day, you follow the workplace's own isolation procedure and the Centre's rules. Where they differ from this kit, follow them and ask your instructor.",
+     "label": "Jamaica"
+    }
+   ]
+  },
+  {
+   "title": "Revision",
+   "blocks": [
+    {
+     "h": "Checklist"
+    },
+    {
+     "p": "Tick each statement only when you can do it without looking at the notes."
+    },
+    {
+     "ul": [
+      "I can name the kinds of energy a machine can hold and give an example of each.",
+      "I can explain why a stopped or quiet machine may still be dangerous.",
+      "I can make an isolation sheet or energy map listing every energy source and isolation point.",
+      "I can find the information I need in the isolation procedure, the manual and the drawings.",
+      "I can explain what a permit to work is and when one is used.",
+      "I can stop a machine with its normal stop and wait for run-down.",
+      "I can explain why a stop button, an emergency stop, a guard interlock or a power cut is not an isolation.",
+      "I can isolate at the right point, lock off with my own lock and fill in a tag.",
+      "I can prove dead between every pair of conductors on single-phase and three-phase supplies, with a tester proved before and after.",
+      "I can carry out the try step and return the controls to OFF.",
+      "I can release or block stored energy in capacitors, springs, raised parts, air, oil, heat and moving parts.",
+      "I can isolate a compressed-air system in the right order, starting with the compressor.",
+      "I can use a multi-lock hasp and a group lockbox, and hand over an isolation at a shift change.",
+      "I can say what to do when an isolator will not lock, a tester fails or an unknown supply is found.",
+      "I can return a machine to service in the right order and judge the test run.",
+      "I can fill in the isolation log and report defects and near misses."
+     ]
+    },
+    {
+     "h": "Key terms"
+    },
+    {
+     "terms": [
+      [
+       "Accumulator",
+       "A vessel in a hydraulic system that stores oil under pressure, even after the pump has stopped."
+      ],
+      [
+       "Air receiver",
+       "The tank that stores compressed air from a compressor; it has a safety valve and a drain valve."
+      ],
+      [
+       "Bleed valve",
+       "A valve opened to let trapped air, oil or steam out of a line after it has been isolated."
+      ],
+      [
+       "Blank (blind)",
+       "A solid plate fitted between pipe flanges to stop all flow in a line."
+      ],
+      [
+       "Capacitor",
+       "A component that stores electrical charge; it can stay charged after the supply is off."
+      ],
+      [
+       "Energy map (isolation sheet)",
+       "A list or sketch of every energy source on a machine, how each is isolated and how its stored energy is dealt with."
+      ],
+      [
+       "Group lockbox",
+       "A box that holds the keys of the isolation locks; each worker fits their own lock to the box."
+      ],
+      [
+       "Isolation log",
+       "The record of every isolation: what, where, who, when, why, and when it was removed."
+      ],
+      [
+       "Isolator",
+       "A switch that cuts every live conductor to a machine and can be locked OFF."
+      ],
+      [
+       "Kinetic energy",
+       "The energy of movement, as in a spinning flywheel or a moving conveyor."
+      ],
+      [
+       "LOTO",
+       "Lockout tagout: locking an isolation point off with a personal padlock and fixing a danger tag."
+      ],
+      [
+       "Multi-lock hasp",
+       "A hinged steel clip with several holes, so that several workers can each lock one isolator."
+      ],
+      [
+       "Permit to work",
+       "A written permission for high-risk work, listing the work, hazards, isolations and precautions."
+      ],
+      [
+       "Potential (gravitational) energy",
+       "The energy of a raised part or load, which can fall under its own weight."
+      ],
+      [
+       "Proving unit",
+       "A small device that gives a known voltage, to show that a voltage tester works."
+      ],
+      [
+       "Run-down",
+       "The time a moving part keeps turning after the power is switched off."
+      ],
+      [
+       "Safety valve",
+       "A valve on an air receiver or boiler that opens by itself if the pressure gets too high."
+      ],
+      [
+       "Try step",
+       "Pressing start, with everyone clear, to show that an isolated machine will not run."
+      ],
+      [
+       "VFD",
+       "Variable frequency drive: an electronic drive that controls a motor's speed; its capacitors stay charged after switch-off."
+      ],
+      [
+       "Zero energy state",
+       "Every energy source isolated and all stored energy released or blocked."
+      ]
+     ]
+    }
+   ]
+  }
+ ],
+ "cases": {
+  "c1": {
+   "title": "A conveyor belt change on a juice line in Bog Walk",
+   "text": "At a juice-bottling plant in Bog Walk, St Catherine, maintenance technician Mr Clive Reid and trainee Ashley must change the worn belt on a conveyor that carries bottles from the filler to the capper. The conveyor motor is fed from Panel 2 through a lockable isolator beside the conveyor. Its 24 V control circuit, which also links it to the filler, comes from a separate control panel. The belt is kept tight by a spring tensioner. A fitter, Kemar, will work on the conveyor at the same time, and the line supervisor wants it running again by 2 p.m."
+  },
+  "c2": {
+   "title": "A jammed hydraulic press in May Pen",
+   "text": "A small metal shop in May Pen, Clarendon, has a hydraulic press that punches holes in steel brackets. It has stopped with its ram part-way down and a bent bracket jammed in the die. Trainee Rushane and fitter Mr Everton Brown are asked to clear it. The press has a hydraulic accumulator. After the pump motor is isolated and locked off, the pressure gauge still reads 90 bar, and a fine mist of oil is coming from a pinhole near one hose fitting."
+  },
+  "c3": {
+   "title": "Air clamps on a gluing jig in Lucea",
+   "text": "A joinery in Lucea, Hanover, uses air cylinders to clamp timber on a gluing jig. The air comes from a compressor with a receiver tank; the compressor's pressure switch starts the motor whenever the pressure falls below its set level. Trainee Shantel and her supervisor Mr Delroy Campbell must replace a leaking cylinder on the jig. When the jig is open, one of the cylinders holds up a heavy hinged frame."
+  },
+  "c4": {
+   "title": "A roof extract fan at a Kingston hotel laundry",
+   "text": "The laundry of a hotel in Kingston has a large roof extract fan driven by a motor and a variable frequency drive (VFD). The label on the drive says: 'Wait 10 minutes after disconnecting the supply before removing the cover.' Electrician Ms Nadine Powell and trainee Odane must replace the fan belt and check the drive's terminals. It is a windy afternoon, and the fan blades turn slowly in the wind even when the motor is stopped."
+  },
+  "c5": {
+   "title": "Cleaning a dough mixer in a Mandeville bakery",
+   "text": "A bakery in Mandeville, Manchester, has a large spiral dough mixer. It is plugged into a 220 V twist-lock outlet and has an ON/OFF selector switch on its control panel. Its bowl guard has an interlock that stops the mixer when the guard is lifted. Baker Mr Fitzroy Gordon asks trainee Jhanelle to help him scrape dried dough off the spiral hook and replace a worn drive belt under the bowl."
+  }
+ },
+ "questions": [
+  {
+   "id": "P-01",
+   "c": "c1",
+   "q": "Ashley starts the isolation sheet for the conveyor. Which list of energy sources is complete enough to work from?",
+   "o": [
+    "The motor supply from Panel 2, because that is what drives the belt",
+    "The motor supply, the 24 V control supply and the spring tensioner",
+    "The 24 V control supply, because it is what starts and stops the motor",
+    "The motor supply and the filler's supply, as they share one control link"
+   ],
+   "a": 1,
+   "why": "The motor supply and the separate control supply are both electrical sources, and the spring tensioner stores energy that can snap the belt or a part back. An isolation sheet lists every source, including stored energy, and how each is isolated or released."
+  },
+  {
+   "id": "P-02",
+   "c": "c1",
+   "q": "The line supervisor suggests pressing the conveyor's emergency stop and leaving it pressed in while they work, so the line can restart quickly. Why is that not acceptable?",
+   "o": [
+    "It is a control device, not an isolator, so the motor supply is still on",
+    "Only the operator may press it; maintenance staff must use the isolator",
+    "Leaving it pressed wears its contacts, so it may fail in a real emergency",
+    "It works only while the conveyor is running at its normal working speed"
+   ],
+   "a": 0,
+   "why": "An emergency stop usually acts through the control circuit. The main supply stays connected, and anyone can pull or twist the button to reset it. Isolation needs a lockable isolator, locked off, tagged and proved dead."
+  },
+  {
+   "id": "P-03",
+   "c": "c1",
+   "q": "Mr Reid and Kemar will both work on the conveyor. How should its isolator be locked?",
+   "o": [
+    "Mr Reid fits his lock, and Kemar works under it because they are together",
+    "Kemar fits his lock as the fitter, and Mr Reid fixes a tag beside it",
+    "One shared lock is fitted, and the key hangs on the panel for both men",
+    "A multi-lock hasp is fitted, and each man fits his own lock and tag"
+   ],
+   "a": 3,
+   "why": "Each worker must be protected by a lock only they can remove. With a hasp, the isolator stays off until the last lock comes off, so if one man finishes early the other is still protected."
+  },
+  {
+   "id": "P-04",
+   "c": "c1",
+   "q": "At 11 a.m. the JPS supply fails across Bog Walk. Ashley says they could take their locks off, since the whole plant is dead anyway. What is the right answer?",
+   "o": [
+    "Take them off, as a power cut isolates the plant more surely than a switch",
+    "Take them off, but put them back on as soon as the JPS supply comes back",
+    "Keep them on, as the supply or a generator can come back without warning",
+    "Keep them on only if the plant's standby generator has failed to start"
+   ],
+   "a": 2,
+   "why": "A power cut is not an isolation. The JPS supply can return at any moment, and a standby generator can start by itself. The locks stay on until the work is finished."
+  },
+  {
+   "id": "P-05",
+   "c": "c2",
+   "q": "The pump motor is isolated and locked off, yet the press gauge still reads 90 bar. What is the most likely reason?",
+   "o": [
+    "The gauge needle is stuck, so it still shows the working pressure",
+    "The pump keeps turning slowly for some time after it is isolated",
+    "The accumulator is still holding oil under pressure in the system",
+    "The oil is expanding as it cools down, which raises the pressure"
+   ],
+   "a": 2,
+   "why": "An accumulator stores oil under pressure so that it is ready for the next stroke. It keeps that pressure after the pump stops, so it must be bled down as the manual says, and the gauge must read zero before work starts."
+  },
+  {
+   "id": "P-06",
+   "c": "c2",
+   "q": "Rushane says that with the pump locked off and the valves closed, the ram cannot move, so he can reach into the die. Why is he wrong?",
+   "o": [
+    "Oil can leak past the seals and valves, so the ram can creep down",
+    "The closed valves let the ram rise again slowly as the oil warms up",
+    "The ram can move only if the pump starts, which a lock prevents",
+    "The ram moves only when the gauge reads below 50 bar of pressure"
+   ],
+   "a": 0,
+   "why": "Hydraulic oil leaks slowly past seals and valves, so a ram held only by oil can creep or drop. Before anyone reaches in, the ram is lowered to rest or held by the press's own rated safety block or pin."
+  },
+  {
+   "id": "P-07",
+   "c": "c2",
+   "q": "While Rushane checks the hose, the oil mist grazes his finger. It leaves only a small puncture and hardly hurts. What should happen?",
+   "o": [
+    "Wash it with soap and water, cover it with a plaster and carry on",
+    "Squeeze the oil out of the mark, then report it at the end of the day",
+    "Watch it for a day, and see a doctor only if the finger starts to swell",
+    "Go to hospital at once, as oil may have been injected under the skin"
+   ],
+   "a": 3,
+   "why": "Oil under high pressure can be injected through the skin from a pinhole. The wound looks small, but the oil spreads and damages tissue, and it needs surgery quickly. Find leaks with a piece of card, never with your hand."
+  },
+  {
+   "id": "P-08",
+   "c": "c2",
+   "q": "The bracket is cleared and the press is restored. In the test run the ram slowly drifts down when it is stopped at the top. What should Mr Brown do?",
+   "o": [
+    "Hand it back, telling the operator to keep his hands clear of the die",
+    "Hand it back, since the two-hand control keeps the operator safe",
+    "Stop it, isolate it again and report the fault; do not hand it back",
+    "Hang a sign on the press saying the ram drifts, then hand it back"
+   ],
+   "a": 2,
+   "why": "A test run is there to find faults before the machine goes back into use. A ram that drifts can fall on a hand or a part, so the press is isolated again, the fault is reported and fixed, and it is tested again before hand-back."
+  },
+  {
+   "id": "P-09",
+   "c": "c3",
+   "q": "Which order of steps is right for isolating the air to the jig?",
+   "o": [
+    "Lock off the compressor, lock the jig's valve closed, prop the frame, bleed the line",
+    "Bleed the line, prop the frame, lock the jig's valve closed, lock off the compressor",
+    "Lock the jig's valve closed, bleed the line, prop the frame, lock off the compressor",
+    "Prop the frame, bleed the line, lock off the compressor, leave the valve open to vent"
+   ],
+   "a": 0,
+   "why": "The compressor goes first, because its pressure switch can start it as soon as the pressure falls. Then the valve to the jig is locked closed, the frame is supported, and only then is the trapped air bled off."
+  },
+  {
+   "id": "P-10",
+   "c": "c3",
+   "q": "Why must the hinged frame be propped before any air is let out of the jig?",
+   "o": [
+    "Propping it stops air leaking out past the cylinder's piston seals",
+    "Its cylinder holds it up, so it could fall as the pressure drops",
+    "The frame will spring upwards once the cylinder has no air in it",
+    "A prop is needed only while the compressor is still able to run"
+   ],
+   "a": 1,
+   "why": "When the air goes, anything held up by an air cylinder can drop. Lower it to rest or block it before releasing the pressure, so that it cannot fall on hands or heads."
+  },
+  {
+   "id": "P-11",
+   "c": "c3",
+   "q": "The gauge on the jig reads zero, but when Shantel loosens the cylinder's fitting, air hisses out. What does this show?",
+   "o": [
+    "The compressor has restarted, even though it is locked off",
+    "The hiss is only air from the room, as the gauge is working fine",
+    "The cylinder is faulty, which is why it is being replaced",
+    "Air is trapped in a part of the circuit the gauge cannot read"
+   ],
+   "a": 3,
+   "why": "Valves and non-return valves can trap air between them and a cylinder. Tighten the fitting again, bleed that section at the point the manual shows, and check before going on. Never use a fitting as a bleed valve."
+  },
+  {
+   "id": "P-12",
+   "c": "c3",
+   "q": "Shantel must also let the water out of the receiver tank, which has a safety valve on top and a drain valve underneath. Which statement is right?",
+   "o": [
+    "The safety valve is the one opened by hand to let the water out of the tank",
+    "The drain valve lets out water; the safety valve opens on high pressure",
+    "The drain valve opens by itself if the pressure in the tank gets too high",
+    "Both valves are for emergencies only and must never be opened"
+   ],
+   "a": 1,
+   "why": "The drain valve at the bottom lets out the water that collects as compressed air cools, which happens a lot in Jamaica's humid air. The safety valve opens by itself to stop the tank bursting: never adjust, block or remove it."
+  },
+  {
+   "id": "P-13",
+   "c": "c4",
+   "q": "Odane isolates and locks off the drive's supply. Three minutes later the drive's display has gone blank. May he take the cover off now?",
+   "o": [
+    "Yes; a blank display shows that the capacitors have fully discharged",
+    "Yes, as long as he touches only the input terminals, not the output",
+    "No; he must wait the full 10 minutes, then prove the terminals dead",
+    "No; he must wait until the drive feels cool, and then he may start"
+   ],
+   "a": 2,
+   "why": "The capacitors inside a drive can hold several hundred volts for minutes after the display goes out. Wait at least the time on the label, then prove dead at the input and DC terminals with a tester proved before and after."
+  },
+  {
+   "id": "P-14",
+   "c": "c4",
+   "q": "Why does it matter that the fan blades are turning in the wind while they work?",
+   "o": [
+    "The blades will cool the motor too fast and crack its windings",
+    "It shows the isolator has failed, since a dead fan cannot turn",
+    "It affects only the belt change; the electrical side is not affected",
+    "The turning motor acts as a generator and can feed the drive"
+   ],
+   "a": 3,
+   "why": "A motor turned by its load generates a voltage, which can appear at the drive's terminals even with the supply locked off. The turning pulleys can also trap hands. Secure the fan with a brake, lock pin or chock before work."
+  },
+  {
+   "id": "P-15",
+   "c": "c4",
+   "q": "Where should Odane prove the drive dead before he touches its terminals?",
+   "o": [
+    "At the input terminals and at the DC terminals the manual shows",
+    "At the motor output terminals only, as the drive feeds the motor",
+    "At the isolator's outgoing side only, where the supply was cut",
+    "At the display's connector, because it shows whether power is there"
+   ],
+   "a": 0,
+   "why": "The input terminals show whether the supply is really off, and the DC terminals show whether the capacitors have discharged. Use an approved tester proved before and after, at the points the maker's manual gives."
+  },
+  {
+   "id": "P-16",
+   "c": "c5",
+   "q": "The mixer is plug-connected. Which is a proper isolation for the belt change?",
+   "o": [
+    "Turn the selector to OFF and remove the key from the control panel",
+    "Turn the selector to OFF and hang a 'Do not use' sign on the panel",
+    "Unplug it and lock the plug in a plug lockout box with her padlock",
+    "Switch its breaker off and ask the other bakers not to touch it"
+   ],
+   "a": 2,
+   "why": "For plug-connected equipment, unplugging gives a safe break, and a plug lockout box under your own padlock stops anyone plugging it back in. A selector, a sign or a breaker without a lock can all be switched back on."
+  },
+  {
+   "id": "P-17",
+   "c": "c5",
+   "q": "Mr Gordon says lifting the bowl guard is enough for scraping the hook, because the interlock stops the mixer. Why is that not safe for this job?",
+   "o": [
+    "An interlock is for normal use; it can fail or be defeated",
+    "The interlock works only when the mixer is running at full speed",
+    "Lifting the guard drains the mixer's capacitors, which can shock",
+    "The interlock must be tested by an inspector before each use"
+   ],
+   "a": 0,
+   "why": "A guard interlock protects the operator during production. A worn switch, a fault or a taped-down actuator can let the machine start with the guard up, so maintenance and cleaning inside the bowl need a proper isolation."
+  },
+  {
+   "id": "P-18",
+   "c": "c5",
+   "q": "After isolating, Jhanelle turns the selector to ON as the try step, and nothing happens. What must she do before starting work?",
+   "o": [
+    "Leave it at ON, so she will know at once if the power comes back",
+    "Leave it at ON, because the try step must stay set until the job ends",
+    "Lift and lower the guard to reset the interlock, then start cleaning",
+    "Turn it back to OFF, so it cannot start when the plug goes back in"
+   ],
+   "a": 3,
+   "why": "The try step proves the isolation; afterwards every control goes back to OFF. Otherwise the mixer would start the moment the plug was put back in, perhaps with someone's hand in the bowl."
+  },
+  {
+   "id": "P-19",
+   "c": null,
+   "q": "A trainee lists the energy in a shop's roll-up steel door: the motor's supply, the door's weight and the big coiled spring that balances it. Which of these are still there after the motor's supply is locked off?",
+   "o": [
+    "None of them, because the motor is now locked off",
+    "Only the spring, since a stopped door holds no energy",
+    "The door's weight and the spring's tension",
+    "Only the door's weight, as a spring goes slack when stopped"
+   ],
+   "a": 2,
+   "why": "Locking off removes the electrical supply only. A raised door can fall under its own weight, and the counterbalance spring stays wound up. The door is lowered or secured, and the spring is dealt with only by a trained person."
+  },
+  {
+   "id": "P-20",
+   "c": null,
+   "q": "A sugar factory's shutdown has 14 isolation points, and 8 workers will be on the job. Which method lets each worker protect themselves without fitting 112 locks?",
+   "o": [
+    "Lock each point once, and give all the keys to the supervisor to hold",
+    "Lock each point once, put the keys in a lockbox, and each worker locks the box",
+    "Have the supervisor sign a permit, so that no personal locks are needed at all",
+    "Tag every point, and lock only the main switch at the factory's main board"
+   ],
+   "a": 1,
+   "why": "With a group lockbox, the isolation locks stay on every point and their keys are locked away until the last worker removes their own lock from the box. Each worker is protected by a lock only they can remove."
+  }
+ ]
+}

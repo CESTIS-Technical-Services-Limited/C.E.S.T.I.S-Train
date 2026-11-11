@@ -1,0 +1,302 @@
+{
+  "format": "cestis-study-kit",
+  "version": 1,
+  "status": "to-check",
+  "written": "2026-11-07",
+  "programme": "Electrical Installation",
+  "qualification": {"id": "QUAL-EIM-L2", "title": "ELECTRICAL INSTALLATION AND MAINTENANCE LEVEL 2", "code": "EEM20723"},
+  "level": 2,
+  "unit": {"code": "MEMFAB0011D", "title": "Perform manual soldering/de-soldering of electrical/electronic components"},
+  "summary": "This unit teaches you to solder and de-solder electronic components and wires by hand, safely and to a good standard. You will learn to set up a safe bench, protect parts from static and heat, identify components and fit them the right way round, make sound joints on circuit boards and wires, inspect and correct faulty joints, and remove and replace components without damaging the board.",
+  "sections": [
+    {
+      "title": "Unit overview",
+      "blocks": [
+        {"p": "**Soldering** joins metal parts with a molten filler metal, the **solder**, that melts at a much lower temperature than the parts themselves. The parts are heated, the solder flows over them and, as it cools, it makes an electrical and mechanical joint. **De-soldering** is the reverse: melting and removing the solder so that a part can be taken out."},
+        {"p": "Electricians and maintenance technicians solder when they repair control boards in gate motors, alarm panels, inverters and air-conditioning controls, replace LEDs and drivers, join wires in low-voltage systems and fit connectors. This unit is for Level 2 trainees. You will work on low-voltage boards, kits and wires, never on equipment connected to the mains."},
+        {"h": "What you must be able to do"},
+        { "table": { "head": ["Task", "What it looks like on the job"], "rows": [
+          ["Work safely at the soldering bench", "Set up a clear, well-lit bench with a stand, fume extraction and safety glasses; control burns, fumes, lead and flying clippings."],
+          ["Protect parts from static", "Use a wrist strap and mat, keep sensitive parts in their packaging, and handle boards by the edges."],
+          ["Choose and prepare the iron, tip, solder and flux", "Pick a temperature-controlled iron, a tip that suits the joint and the right solder; tin and clean the tip."],
+          ["Identify components and fit them correctly", "Read resistor colour codes and capacitor markings; fit diodes, LEDs, electrolytic capacitors and ICs the right way round."],
+          ["Make sound joints on boards", "Heat the pad and lead together, feed in the solder, remove solder then iron, hold still, trim the lead."],
+          ["Solder wires and terminals", "Strip, twist and tin wires, make a firm joint, solder it without melting the insulation, and cover it with heat-shrink."],
+          ["Inspect, correct and test", "Check every joint with a magnifier, correct faults such as dry joints and bridges, clean the board and check for shorts with a meter."],
+          ["De-solder and replace parts", "Remove parts with a desoldering pump or braid without lifting pads, clear the holes and fit a new part."],
+          ["Finish safely", "Switch off and store the iron, dispose of solder waste correctly and wash your hands."]
+        ] } },
+        {"note": "At Level 2 you solder only on boards and wires that are disconnected from any supply, or on kits powered by a battery or a low-voltage supply your instructor approves. Never open or repair mains-powered equipment unless you are trained and authorised: parts such as large capacitors in power supplies can stay charged after the plug is pulled.", "label": "Safety"},
+        {"h": "How to use this kit"},
+        {"p": "Read the sections in order: they follow the job from setting up the bench to cleaning it at the end. Then try the practice test. Your instructor will show you the irons, tips and solder the Centre uses, and the standard of joint the Centre expects."}
+      ]
+    },
+    {
+      "title": "Safety at the soldering bench",
+      "blocks": [
+        {"p": "Soldering looks gentle, but the tip of the iron is usually hotter than 300 °C, flux gives off irritating fumes, and many solders contain lead. Control each hazard every time."},
+        { "table": { "head": ["Hazard", "What can happen", "Control"], "rows": [
+          ["Hot iron, tip and joints", "Burns to fingers and arms; a hot iron rolling off the bench; fire if the tip touches paper or plastic", "Always return the iron to its **stand**. Never touch the tip or the metal near it. Let joints cool before you touch them. Keep paper, rags and plastic bags away."],
+          ["Flux fumes", "Flux smoke irritates the eyes, nose and lungs; rosin flux fumes can cause **occupational asthma**", "Use a fume extractor close to the work, or good ventilation. Keep your face out of the smoke."],
+          ["Lead in tin-lead solder", "Lead is poisonous and builds up in the body. It gets in mainly from your hands to your mouth, on food, drink or cigarettes", "No eating, drinking or smoking at the bench. Wash your hands with soap and water after soldering and before you eat."],
+          ["Flying clippings and spitting solder", "Cut lead ends and drops of solder can fly into the eyes", "Wear **safety glasses**. Hold or cover lead ends when you trim them. Never flick molten solder off a joint."],
+          ["Electric shock and fire from the iron", "A damaged cable or casing can make the iron live; a cable melted by the hot tip can short", "Check the cable, plug and casing before use. Keep the cable away from the tip. Switch off when you finish."],
+          ["Cleaning solvents", "Isopropyl alcohol is flammable and its vapour irritates", "Use small amounts, keep the bottle closed, keep it away from the hot iron, ventilate."],
+          ["Static-sensitive parts", "Damaged parts, which fail at once or later (see the next section)", "Wrist strap, mat and careful handling."]
+        ] } },
+        {"note": "The smoke you see when you solder is mostly burning **flux**, not lead. At soldering temperatures very little lead goes into the air. The main lead risk is swallowing it: from your fingers to your food. That is why hand-washing and no food at the bench matter so much.", "label": "Remember"},
+        {"h": "Setting up a safe bench"},
+        {"ul": ["A clear, tidy bench with good light and a heat-resistant mat or board.", "The iron in its stand, with the stand where you will not reach across it, and the cable away from the edge and from the tip.", "A damp (not dripping) sponge or a brass-wool tip cleaner in the stand.", "A fume extractor placed close to the work, drawing fumes away from your face and away from your neighbour.", "Safety glasses, and an anti-static mat and wrist strap where static-sensitive parts are used.", "A marked container for solder scraps and clippings."]},
+        {"h": "First aid for a soldering burn"},
+        {"flow": ["Cool the burn under cool, gently running water for about 20 minutes", "Remove rings or tight items near the burn before it swells", "Cover it with a clean, non-fluffy dressing or cling film", "Report it to your instructor and record it"]},
+        {"p": "Do not use ice, butter, oil or toothpaste, and do not burst blisters. A large or deep burn, or a burn on the face or eyes, needs medical help."}
+      ]
+    },
+    {
+      "title": "Static electricity (ESD) control",
+      "blocks": [
+        {"p": "When you walk across a floor, sit on a plastic chair or rub against synthetic clothing, static charge builds up on your body. Touching a component lets the charge jump into it. This is **electrostatic discharge (ESD)**. You will not feel a discharge below about 3,000 volts, but some parts, such as integrated circuits (ICs), MOSFET transistors and some LEDs, can be damaged by far less."},
+        {"p": "ESD damage can be total, so the part fails at once, or hidden: the part is weakened and fails weeks later in the customer's equipment. Hidden damage is the more costly, because nobody knows it happened."},
+        {"h": "Protecting parts at the bench"},
+        { "table": { "head": ["Control", "How it works"], "rows": [
+          ["Anti-static wrist strap", "A band on your bare wrist, connected by a lead to the bench's earth point. It drains charge from your body slowly and safely. The lead has a built-in resistor, usually about 1 megohm, which limits the current through you if you touch a live part."],
+          ["Anti-static (ESD) mat", "A slightly conductive mat on the bench, connected to the same earth point, so parts and boards laid on it are not charged."],
+          ["Anti-static packaging", "Keep sensitive parts in their anti-static bags, tubes or conductive foam until you fit them. Pink bags are anti-static; silver metallised bags also shield the contents from outside charges."],
+          ["Careful handling", "Hold boards and parts by their edges. Do not touch the pins or the tracks."],
+          ["Keep charge-makers away", "Ordinary plastic bags, foam cups, polystyrene packing and synthetic clothes build up charge. Keep them off the bench."],
+          ["Earthed soldering station", "A station with an earthed tip will not pass static or leakage current into the part."]
+        ] } },
+        {"note": "Never connect a wrist strap straight to an earth terminal with plain wire, and never wear one while working near a live mains circuit. Its resistor is there to protect you; without it, the strap could become the path for a shock.", "label": "Safety"},
+        {"note": "Air-conditioned rooms in Jamaica are often very dry, and dry air lets static build up quickly. Do not think that the island's humid weather protects parts at the bench: use the strap and mat every time.", "label": "Jamaica"}
+      ]
+    },
+    {
+      "title": "Irons, tips, solder and flux",
+      "blocks": [
+        {"h": "Soldering irons"},
+        { "table": { "head": ["Tool", "Use", "Notes"], "rows": [
+          ["Temperature-controlled soldering station", "Best for circuit board work", "Holds the tip at the set temperature. Usually 40 to 80 W, with a fine tip for small joints."],
+          ["Fixed-power iron", "Light work on wires and simple kits", "Typically 15 to 40 W for electronics. Its tip temperature is not controlled, so it can overheat when idle."],
+          ["Soldering gun", "Heavy wires and terminals", "Heats quickly but is too big and hot for circuit boards."],
+          ["Gas (butane) iron", "Work away from a power point", "Useful on site; take care with the flame and the gas."]
+        ] } },
+        {"h": "Tips"},
+        { "table": { "head": ["Tip shape", "Best for"], "rows": [
+          ["Conical (fine point)", "Small pads and fine work; touches only a small area"],
+          ["Chisel (flat, like a small screwdriver blade)", "General board work and larger joints; the flat face passes heat well"],
+          ["Bevel or hoof", "Dragging solder along rows of pins; larger pads"],
+          ["Large chisel", "Wires, terminals, solder cups and ground planes"]
+        ] } },
+        {"p": "Choose the **largest tip that fits the joint**. A tip that is too small cannot pass enough heat, so you hold it on longer and overheat the part or the board."},
+        {"h": "Caring for the tip"},
+        {"ul": ["**Tinning** means coating the hot tip with a thin layer of fresh solder. A tinned tip passes heat quickly and is protected from oxidation.", "Wipe the tip on a damp sponge or in brass wool before each joint, then re-tin it.", "Keep the sponge damp, not dripping: a wet sponge cools the tip too much.", "Never file or sand a plated tip: it removes the iron plating and the tip wears out quickly.", "Do not press hard on the joint; good heat transfer comes from a clean, tinned tip, not force.", "Tin the tip well before switching off or leaving the iron in its stand."]},
+        {"h": "Tip temperature"},
+        {"p": "The tip must be hotter than the solder's melting point so that heat flows quickly into the joint. As a starting point, tip temperatures of **about 300 to 350 °C** are often used for tin-lead solder and **about 340 to 380 °C** for lead-free solder. These figures vary with the tip, the joint and the solder: follow the solder maker's data and your instructor. Too hot burns the flux, oxidises the tip and lifts pads; too cold gives dull, poor joints."},
+        {"h": "Solder"},
+        { "table": { "head": ["Solder", "Melts at about", "Notes"], "rows": [
+          ["63/37 tin-lead (63% tin, 37% lead)", "183 °C", "Eutectic: changes from solid to liquid at one temperature, so it sets cleanly. Bright, shiny joints."],
+          ["60/40 tin-lead (60% tin, 40% lead)", "183 to 190 °C", "Has a short 'pasty' range while it sets, so the joint must be held still a little longer."],
+          ["Lead-free, such as tin-silver-copper (often called SAC305)", "About 217 to 220 °C", "No lead, but needs a hotter tip. Joints look a little duller and more satin than tin-lead joints."],
+          ["Lead-free tin-copper", "About 227 °C", "Cheaper lead-free alloy, often used for general work."]
+        ] } },
+        {"p": "For circuit boards use **thin flux-cored solder, about 0.5 to 1 mm across**; 0.7 mm is a common size. Thicker solder suits wires and terminals. Never use plumbing solder or acid-core solder on electrical work."},
+        {"h": "Flux"},
+        {"p": "Metal surfaces are covered by a thin film of oxide, which solder will not stick to. **Flux** cleans off the oxide as the joint heats, stops new oxide forming, and helps the solder flow and **wet** the metal (spread over it and bond to it). Most electronic solder has flux in its core, so you add flux as you add solder."},
+        { "table": { "head": ["Flux type", "Notes"], "rows": [
+          ["Rosin flux", "The traditional electronics flux. Its residue is usually cleaned off with isopropyl alcohol."],
+          ["No-clean flux", "Leaves very little residue, which can normally be left on the board."],
+          ["Water-soluble flux", "Very active; the residue is corrosive and must be washed off."],
+          ["Acid flux (for plumbing and sheet metal)", "**Never** on electronics or wiring: it corrodes copper and tracks."]
+        ] } },
+        {"h": "Other tools you will use"},
+        {"ul": ["Side cutters or flush cutters for trimming leads; long-nose pliers for bending leads", "Wire strippers, and a heat gun for heat-shrink sleeving", "'Helping hands' or a board holder (PCB vice) with clips to hold the work steady", "A magnifier, such as a loupe or a magnifying lamp", "A desoldering pump (solder sucker) and desoldering braid (wick)", "A clip-on heat sink, such as a crocodile clip", "A multimeter, and isopropyl alcohol with a soft brush"]}
+      ]
+    },
+    {
+      "title": "Circuit boards and components",
+      "blocks": [
+        {"h": "Circuit boards"},
+        { "table": { "head": ["Term", "Meaning"], "rows": [
+          ["PCB (printed circuit board)", "An insulating board, often glass-fibre (FR4), with copper paths that join the components."],
+          ["Track", "A copper path that joins one part to another."],
+          ["Pad", "The copper area around a hole, or under a surface part, where a joint is made."],
+          ["Plated-through hole", "A hole lined with copper joining the pads on both sides of a double-sided board. Solder should flow right through it."],
+          ["Solder mask (solder resist)", "The coating, often green, that covers the tracks so solder does not stick where it is not wanted."],
+          ["Silkscreen (legend)", "The white printing that shows each part's outline and reference, such as R1, C3, D2."],
+          ["Component side and solder side", "Through-hole parts sit on the component side; their leads are soldered on the other side."]
+        ] } },
+        {"p": "**Through-hole** components have leads that pass through holes in the board and are soldered on the other side. **SMDs (surface mount devices)** are soldered onto pads on the surface, with no holes. At Level 2 you work mainly with through-hole parts."},
+        {"p": "**Stripboard** has rows of holes and parallel copper strips for building test circuits; strips are broken where needed with a track cutter or a drill bit turned by hand. A solderless **breadboard** is used for trying circuits without soldering at all."},
+        {"h": "Reference letters on boards and drawings"},
+        { "table": { "head": ["Letter", "Component"], "rows": [
+          ["R", "Resistor"],
+          ["C", "Capacitor"],
+          ["D", "Diode (LEDs are often D or LED)"],
+          ["Q", "Transistor"],
+          ["U or IC", "Integrated circuit"],
+          ["J or CN", "Connector"],
+          ["SW", "Switch"],
+          ["F", "Fuse"]
+        ] } },
+        {"h": "Units and prefixes"},
+        { "table": { "head": ["Quantity", "Unit", "Prefixes you will meet"], "rows": [
+          ["Resistance", "ohm (Ω)", "kΩ = 1,000 Ω; MΩ = 1,000,000 Ω. 4.7 kΩ is often printed 4K7."],
+          ["Capacitance", "farad (F)", "µF (microfarad) = one millionth of a farad; nF = one thousandth of a µF; pF = one thousandth of a nF"],
+          ["Voltage rating", "volt (V)", "The highest voltage a capacitor may safely have across it"]
+        ] } },
+        {"h": "Resistor colour code"},
+        { "table": { "head": ["Colour", "Digit", "Multiplier", "Tolerance"], "rows": [
+          ["Black", "0", "× 1", "–"],
+          ["Brown", "1", "× 10", "±1%"],
+          ["Red", "2", "× 100", "±2%"],
+          ["Orange", "3", "× 1,000", "–"],
+          ["Yellow", "4", "× 10,000", "–"],
+          ["Green", "5", "× 100,000", "±0.5%"],
+          ["Blue", "6", "× 1,000,000", "±0.25%"],
+          ["Violet", "7", "Rarely used", "±0.1%"],
+          ["Grey", "8", "Rarely used", "±0.05%"],
+          ["White", "9", "Rarely used", "–"],
+          ["Gold", "–", "× 0.1", "±5%"],
+          ["Silver", "–", "× 0.01", "±10%"]
+        ] } },
+        {"p": "On a four-band resistor, read from the end the bands are bunched towards: band 1 is the first digit, band 2 the second digit, band 3 the multiplier (the number of noughts) and band 4 the tolerance. **Examples:** orange, orange, brown, gold = 3, 3, × 10 = 330 Ω ±5%. Green, blue, red, gold = 5, 6, × 100 = 5,600 Ω = 5.6 kΩ ±5%. Brown, black, yellow, gold = 1, 0, × 10,000 = 100 kΩ ±5%. A five-band resistor has three digit bands before the multiplier."},
+        {"note": "If you are not sure of a colour, measure the resistor with a multimeter on a resistance range before you fit it, with the resistor out of the circuit.", "label": "Tip"},
+        {"h": "Parts that must go the right way round"},
+        {"p": "**Polarised** parts work only when current flows through them one way. Fitted backwards, the circuit will not work, and some parts are damaged or even burst."},
+        { "table": { "head": ["Component", "How it is marked", "If fitted backwards"], "rows": [
+          ["Diode", "A painted **band** at one end marks the **cathode**; the board shows a matching band or line", "Blocks current where it should pass, or passes it where it should block"],
+          ["LED", "The **longer lead is the anode** (+); the flat edge on the rim is next to the **cathode** (−)", "Does not light; too much reverse voltage can damage it"],
+          ["Aluminium electrolytic capacitor", "A **stripe with minus signs** marks the **negative** lead; the positive lead is usually longer; the board shows + or a shaded half", "Can overheat, bulge, leak or burst"],
+          ["Tantalum capacitor", "Usually marked on the **positive** side, the opposite of an electrolytic: check carefully", "Can fail short-circuit and burn"],
+          ["Integrated circuit (IC)", "A **notch** or **dot** at one end marks **pin 1**. Viewed from the top, pins are counted anticlockwise from pin 1", "Wrong connections; the IC is usually destroyed when power is applied"],
+          ["Transistor", "Check the pin order (for example E, B, C) in the maker's data sheet; it varies between types", "Circuit does not work; part may be damaged"]
+        ] } },
+        {"p": "Ceramic capacitors, ordinary resistors and most small inductors are not polarised: they can go either way, but it is good practice to fit them so their markings can be read."}
+      ]
+    },
+    {
+      "title": "Preparing and soldering a board joint",
+      "blocks": [
+        {"h": "Before you start"},
+        {"flow": ["Set up the bench and put on safety glasses", "Check the iron's cable, plug, casing and stand", "Dampen the sponge", "Fit a suitable tip, switch on and set the temperature", "Wipe and tin the hot tip", "Check the parts list against the board layout", "Identify each part, its value and which way round it goes"]},
+        {"h": "Preparing the parts"},
+        {"ul": ["**Clean surfaces:** dirt, grease and oxide stop solder wetting the metal. Old or tarnished leads and pads can be cleaned with a fibreglass pen or fine abrasive, then wiped with isopropyl alcohol. Do not touch cleaned pads with your fingers.", "**Form the leads** with long-nose pliers so they fit the holes. Bend a little way from the body, about 2 mm, never right against it, or the lead seal can crack.", "**Fit parts in order of height:** wire links first, then resistors and diodes, IC sockets, small capacitors, transistors, and the tallest parts last. The board then lies flat while you solder each group.", "Push each part down flat against the board (unless the layout says to stand it off for cooling), then bend the leads out slightly on the solder side so it cannot fall out."]},
+        {"h": "Making the joint"},
+        {"flow": ["Wipe the tip and add a touch of fresh solder", "Place the tip so it touches the pad and the lead at the same time", "Wait about a second for both to heat", "Feed solder into the joint, where the pad meets the lead, not onto the tip", "Let the solder flow round the lead and over the pad", "Take the solder away first", "Then take the iron away", "Hold the board still until the solder has set"]},
+        {"p": "A small board joint usually takes **2 to 4 seconds** of heating in all: long enough for the solder to flow, no longer. Use just enough solder to cover the pad and form a smooth, concave fillet up the lead. More solder does not make a better joint."},
+        {"note": "Do not melt solder on the tip and carry it to the joint. The flux burns off on the way, and the solder lands on a cold lead and pad without wetting them, making a dry joint. Heat the metal, and let the metal melt the solder.", "label": "Remember"},
+        {"note": "On a double-sided board with plated-through holes, a good joint shows solder that has flowed up through the hole. Large ground areas take more heat: you may need a bigger tip, not a hotter setting.", "label": "Tip"},
+        {"h": "Trimming the leads"},
+        {"p": "Trim each lead just above the top of the solder fillet with side cutters, leaving about 1 mm, or as the Centre's standard says. Do not cut into the joint itself. Wear safety glasses, and hold the lead end or cover it with your hand, because clippings fly with force. Put the clippings in the waste container."},
+        {"h": "Protecting parts from heat"},
+        {"ul": ["Too much heat, or heat for too long, can damage diodes, LEDs, transistors and ICs inside their bodies, melt plastic parts and lift pads off the board.", "Use a temperature-controlled iron with a clean, tinned tip of the right size, so heat passes quickly and the joint is made fast.", "For a sensitive part, clip a **heat sink**, such as a crocodile clip or heat-sink tweezers, onto the lead between the joint and the body. It draws heat away before it reaches the part.", "Fit an **IC socket** where the layout allows, and plug the IC in after soldering.", "Let a joint cool before you rework it, and do not keep going back to the same joint."]}
+      ]
+    },
+    {
+      "title": "Soldering wires and terminals",
+      "blocks": [
+        {"h": "Preparing stranded wire"},
+        {"ul": ["Strip only as much insulation as the joint needs, with wire strippers set to the right size, without nicking or cutting any strands. Cut strands weaken the wire and reduce how much current it can carry.", "Twist the strands neatly in the direction of their lay, so no strands stick out.", "**Tin** the end: heat it and let a little solder flow into the strands. The solder should soak in without making a blob or running far up under the insulation.", "Slide any **heat-shrink sleeving** onto the wire before you make the joint, well away from the heat. Once the joint is made, it cannot be fitted."]},
+        {"h": "Joining two wires in line"},
+        {"flow": ["Slide heat-shrink onto one wire, away from the joint", "Strip both ends without cutting strands", "Twist and tin each end", "Make a firm mechanical joint, for example by twisting the ends together in line or hooking them", "Heat the joint and feed in enough solder to flow through all the strands", "Hold still while it sets", "Check it is smooth and the insulation is not damaged", "Slide the heat-shrink over the joint and shrink it with a heat gun"]},
+        {"p": "Heat-shrink usually shrinks to half its size (a 2:1 ratio) or a third (3:1). Choose a size that slides over the joint before shrinking and grips tightly after. Keep the heat gun moving and point it away from people; its nozzle stays hot after use. **Adhesive-lined (dual-wall) heat-shrink** seals out moisture and is best for outdoor and damp places."},
+        {"h": "Wires to tags, cups and pads"},
+        {"ul": ["**Terminal tag:** pass the tinned wire through the eye of the tag and bend it round to hold it, then solder.", "**Solder cup** (in many connectors): fill the cup partly with solder, melt it, push the tinned wire into the molten solder, and hold still until it sets.", "**Flat pad** (for example on an LED strip): tin the pad and the wire end separately, then lay the wire on the pad and heat them together until the solder on both melts and joins."]},
+        {"h": "Melted insulation"},
+        {"p": "If the insulation shrinks back or melts near a joint, the iron was held on too long, the tip was too hot, or the tip was too small so the joint took a long time to heat. Use a larger tip, a correct temperature, a tinned wire and a quick joint. Damaged insulation must be cut back and the joint remade."},
+        {"note": "Do not tin the end of a stranded wire that will go into a **screw terminal**. Under the pressure of the screw, solder slowly creeps, the screw loosens and the joint can overheat. Use a crimped bootlace ferrule instead, or the bare twisted strands if the terminal is made for them.", "label": "Remember"}
+      ]
+    },
+    {
+      "title": "Inspecting, correcting and testing",
+      "blocks": [
+        {"h": "What a good joint looks like"},
+        {"p": "A good tin-lead joint is **smooth and shiny**. The solder covers the whole pad and rises up the lead in a neat, **concave** slope, like a small volcano, and you can still see the shape of the lead under the solder. A lead-free joint looks a little duller or satin, but it should still be smooth and well wetted. Inspect every joint with a **magnifier** under good light."},
+        {"h": "Faults: causes and cures"},
+        { "table": { "head": ["Fault", "What you see", "Usual cause", "Cure"], "rows": [
+          ["Dry (cold) joint", "Dull, grainy, often a ball sitting on the pad; the solder has not wetted the lead or pad", "Not enough heat; dirty or oxidised metal; solder carried on the tip", "Remove the old solder, clean, and resolder with the tip heating both pad and lead"],
+          ["Disturbed joint", "Frosty, rough or cracked surface", "The lead or board moved while the solder was setting", "Reheat with a little fresh solder and hold still until it sets"],
+          ["Solder bridge", "Solder joining two pads or tracks that should be separate", "Too much solder; dragging the iron; pads very close together", "Draw the extra solder off with clean braid, or with a clean tip and fresh flux"],
+          ["Too much solder", "A large blob hiding the lead and the shape of the joint", "Feeding too much solder", "Remove the extra with braid; a hidden fault cannot be inspected"],
+          ["Too little solder", "Pad not fully covered; gap round the lead", "Solder taken away too soon", "Add a little more solder with the tip on the joint"],
+          ["Lifted pad or track", "The copper pad has come away from the board", "Too much heat for too long, or force on the lead while hot", "Report it; it may be repaired with a wire link if the instructor allows"],
+          ["Spike (icicle)", "A sharp point of solder pulled up from the joint", "Iron pulled away slowly, or the flux had burnt off", "Reheat briefly with a touch of fresh solder"],
+          ["Burnt board or flux", "Brown or black marks; charred flux", "Tip too hot or held too long", "Lower the temperature, shorten the time; clean the board"]
+        ] } },
+        {"h": "Cleaning the board"},
+        {"p": "If the flux is not a no-clean type, remove the residue with **isopropyl alcohol** and a soft brush, then let the board dry fully. Keep the alcohol away from the hot iron, use only a small amount and close the bottle."},
+        {"h": "Checking and testing"},
+        {"flow": ["Inspect every joint with a magnifier", "Check every part: right value, right place, right way round, sitting flat", "Check for bridges, especially between IC pins", "With no power connected, use a multimeter to check for a short across the supply connections", "Connect only the battery or low-voltage supply your instructor approves, and test the circuit as the instructions say"]},
+        {"note": "Never connect a newly built or repaired board to its supply without a short check first. A bridge across the supply can overheat tracks and parts within seconds.", "label": "Safety"}
+      ]
+    },
+    {
+      "title": "De-soldering, replacing parts and finishing",
+      "blocks": [
+        {"p": "De-soldering removes solder so that a part can come out without damage. The aim is to clear the solder from every lead first, then lift the part out. Never pull a part while its solder is molten: the lead can rip out the plating or the pad, and molten solder can spit."},
+        {"h": "Desoldering pump (solder sucker)"},
+        {"flow": ["Push the plunger down until it locks", "Heat the joint until all the solder is molten", "Put the nozzle over the molten solder, close to the tip", "Press the release button: the pump sucks the solder in", "Repeat if needed, and empty and clean the pump often"]},
+        {"p": "A pump is quick and good for clearing holes with plenty of solder. It can leave a thin film, which braid will remove."},
+        {"h": "Desoldering braid (wick)"},
+        {"flow": ["Choose a braid width to suit the pad", "Lay a clean part of the braid on the joint", "Press the hot tip on top of the braid", "Watch the solder soak into the braid", "Lift the braid and the iron away together, while the solder is still molten", "Cut off the used, solder-filled end"]},
+        {"p": "Braid is very good for small amounts of solder, flat pads, surface parts and removing bridges. It heats the pad for longer than a pump, so work quickly and never leave the braid to cool on the joint, or it will solder itself to the pad."},
+        {"note": "Old joints, especially lead-free ones, can be hard to clear. Adding a little fresh tin-lead solder first, where the Centre allows it, helps the old solder melt and flow into the pump or braid.", "label": "Tip"},
+        {"h": "Removing a part with several leads"},
+        {"ul": ["Clear the solder from every lead with the pump or braid.", "Check each lead is free: it should move slightly in its hole when nudged with a tool.", "Lift the part out gently. If a lead still holds, clear that joint again; do not force it.", "If the old part is scrap anyway, it can be easier to cut its leads first and remove each lead separately, as your instructor shows you."]},
+        {"h": "Avoiding damage"},
+        {"ul": ["Too much heat for too long lifts pads and tracks: work quickly with a clean, tinned tip of the right size.", "Let the board cool between attempts on the same pad.", "On plated-through holes, the hole must be completely clear before the lead will come out.", "Clear the holes of solder before fitting the new part, then solder it in the usual way."]},
+        {"h": "Finishing the job"},
+        {"ul": ["Wipe and tin the tip, switch off the iron and leave it in its stand to cool.", "Put solder scraps, dross, used braid and lead clippings in the **marked container** for safe disposal. Never put them in the food bin, down the sink or leave them in the stand.", "Clean the bench and wipe up any flux or alcohol.", "Return the tools, switch off the fume extractor, and wash your hands with soap and water."]}
+      ]
+    },
+    {
+      "title": "Revision",
+      "blocks": [
+        {"h": "Checklist"},
+        {"p": "Tick each statement only when you can do it without looking at the notes."},
+        {"ul": ["I can name the hazards of soldering and say how each is controlled.", "I can explain why lead is a risk mainly through the hands and mouth, and why fume extraction is needed for flux fumes.", "I can give first aid for a soldering burn.", "I can explain how static damages parts and use a wrist strap, mat and anti-static packaging correctly.", "I can choose an iron, a tip, a solder and a temperature for a joint, and tin and clean the tip.", "I can explain what flux does and why acid flux must never be used on electronics.", "I can name the parts of a circuit board, and tell through-hole parts from SMDs.", "I can read a resistor colour code and capacitor values and voltage ratings.", "I can fit diodes, LEDs, electrolytic capacitors and ICs the right way round.", "I can form leads and fit parts in a sensible order.", "I can make a sound board joint: heat pad and lead, feed solder, remove solder then iron, hold still.", "I can trim leads safely and protect sensitive parts with a heat sink.", "I can strip, tin and join stranded wires and cover the joint with heat-shrink.", "I can recognise dry joints, disturbed joints, bridges and lifted pads, say what causes them and correct them.", "I can clean a board and check it for shorts before power is connected.", "I can de-solder parts with a pump and with braid without lifting pads.", "I can finish the job safely and dispose of solder waste correctly."]},
+        {"h": "Numbers to remember"},
+        { "table": { "head": ["Figure", "What it is"], "rows": [
+          ["183 °C", "Melting point of 63/37 tin-lead solder"],
+          ["About 217 to 220 °C", "Melting range of common lead-free (tin-silver-copper) solder"],
+          ["About 300 to 350 °C", "A common starting tip temperature for tin-lead board work; follow the maker"],
+          ["0.5 to 1 mm", "Solder diameter for circuit board work"],
+          ["2 to 4 seconds", "Typical heating time for a small board joint"],
+          ["About 1 megohm", "The safety resistor in an anti-static wrist strap lead"],
+          ["About 20 minutes", "Time to cool a burn under running water"]
+        ] } },
+        {"h": "Key terms"},
+        {"terms": [["Anode / cathode", "The positive and negative ends of a diode or LED; current flows from anode to cathode."], ["Bridge", "Solder that wrongly joins two pads or tracks."], ["Desoldering braid (wick)", "Fluxed copper braid that soaks up molten solder."], ["Desoldering pump", "A spring-loaded tool that sucks molten solder away from a joint."], ["Dry (cold) joint", "A joint where the solder has not wetted the metal, so the connection is poor."], ["ESD", "Electrostatic discharge: a sudden flow of static charge that can damage parts."], ["Flux", "A chemical that removes oxide and helps solder flow and wet the metal."], ["Heat sink", "A clip that draws heat away from a component's lead while it is soldered."], ["Lead-free solder", "Solder without lead, usually tin with silver and copper; it melts hotter than tin-lead."], ["Pad", "The copper area where a joint is made."], ["PCB", "Printed circuit board."], ["Polarised component", "A part that must be fitted one way round."], ["SMD", "Surface mount device: a part soldered onto pads on the board's surface."], ["Solder mask", "The coating, often green, that stops solder sticking where it is not wanted."], ["Through-hole component", "A part whose leads pass through holes and are soldered on the other side."], ["Tinning", "Coating a tip, wire or pad with a thin layer of fresh solder."], ["Track", "A copper path on a circuit board."], ["Wetting", "Solder spreading over and bonding to a clean metal surface."]]}
+      ]
+    }
+  ],
+  "cases": {
+    "c1": {"title": "A gate-motor board in Constant Spring", "text": "Technician Mr Wayne Morgan brings the control board from an electric gate opener at a house in Constant Spring, St Andrew, to the workshop, where trainee Danielle Francis helps him. The board runs on 24 V DC and has been disconnected. A bulging 1,000 µF, 35 V aluminium electrolytic capacitor near the motor relay must be replaced. The board is double-sided with plated-through holes, and the old solder joints are dull and hard."},
+    "c2": {"title": "Bench habits in a Mandeville workshop", "text": "At the Centre's electronics bench in Mandeville, Manchester, trainee Romario Hall is soldering a kit with 60/40 tin-lead solder. He has a patty and a soft drink beside the board. The bench's fume extractor is switched off because 'it is noisy', and a desk fan is blowing the flux smoke away from his face, straight towards the trainee beside him."},
+    "c3": {"title": "LED strip lights in a Negril restaurant", "text": "Electrician Ms Tricia Gordon and trainee Omar Spence are repairing a 12 V LED strip under the bar top of a restaurant in Negril, Westmoreland. The driver is unplugged. The two-core lead from the driver has broken off the strip's small copper pads, marked + and −, and must be soldered back. Omar must also join a 1 m extension to the same lead with an in-line joint. The restaurant is open to the sea air and the bar area is often damp."},
+    "c4": {"title": "Checking trainee boards in May Pen", "text": "Mrs Sonia Lewis checks practice boards at a security-systems workshop in May Pen, Clarendon, where trainees are placed for work experience. On Jason's board she finds: joint A, a dull, lumpy ball that has not wetted the pad; joints B and C, on next-door IC pins, joined by a thin line of solder; joint D, frosty and cracked, made when Jason knocked the board as the solder set; and pad E, lifted from the board where he reworked a joint several times."},
+    "c5": {"title": "A thermostat IC at a Falmouth hotel", "text": "In the maintenance workshop of a hotel in Falmouth, Trelawny, technician Mr Andre Wilson and trainee Kimberly Dixon must replace an 8-pin IC on the control board of a room thermostat. The new IC is in a pink anti-static bag. The workshop is air-conditioned and the air is very dry. Kimberly is wearing a polyester uniform. The bench has an ESD mat and a wrist strap, but the strap's lead is not plugged in."}
+  },
+  "questions": [
+    {"id": "P-01", "c": "c1", "q": "Before removing the old capacitor, what should Danielle note?", "o": ["The colour of the capacitor's plastic sleeve", "Which hole takes its striped, negative lead", "How long its leads are above the board", "The date code printed on its top"], "a": 1, "why": "An electrolytic capacitor is polarised. Note which way round it was fitted, and check the board's + or shaded marking, so the new one goes in the same way. Fitted backwards, it can overheat and burst."},
+    {"id": "P-02", "c": "c1", "q": "Which replacement capacitor is suitable?", "o": ["1,000 µF rated at 16 V", "100 µF rated at 35 V", "1,000 µF rated at 50 V", "10,000 µF rated at 6.3 V"], "a": 2, "why": "Use the same capacitance and a voltage rating equal to or higher than the original, as long as it fits the space. A lower voltage rating can fail, and a different capacitance changes how the circuit works."},
+    {"id": "P-03", "c": "c1", "q": "The old joints are dull and hard, and the pump will not clear them. What often helps?", "o": ["Add fresh solder, then de-solder again", "Turn the iron up to its highest setting", "Pull the capacitor out while heating one lead", "Scrape the joints with a screwdriver first"], "a": 0, "why": "Fresh solder with its flux helps old joints melt and flow, so the pump or braid can clear them. Turning the iron right up or pulling on the part risks lifting the pads."},
+    {"id": "P-04", "c": "c1", "q": "Danielle heats one lead and pulls on the capacitor, and a pad tears off. What should she have done?", "o": ["Heated the lead for longer before pulling", "Rocked it from side to side while pulling", "Cleared both leads, then eased it out", "Pulled faster, before the pad could heat up"], "a": 2, "why": "With one lead still soldered, pulling puts force on a hot pad and tears it away. Clear the solder from every lead first, check each lead is loose, then lift the part out gently."},
+    {"id": "P-05", "c": "c2", "q": "How is lead from Romario's solder most likely to get into his body?", "o": ["Breathing in lead vapour from the flux smoke", "Soaking through the skin of his fingertips", "From his fingers onto the patty he eats", "From the soft drink taking lead out of the air"], "a": 2, "why": "Very little lead goes into the air at soldering temperatures; the smoke is mostly flux. Lead is swallowed from the hands, on food and drink. No eating or drinking at the bench, and wash your hands before eating."},
+    {"id": "P-06", "c": "c2", "q": "What is wrong with using the desk fan in place of the fume extractor?", "o": ["It cools the joints too fast and causes dry joints", "It blows the fumes to his neighbour, not away", "It makes the solder flow too slowly on the pads", "Nothing, as long as the smoke is kept off Romario"], "a": 1, "why": "A fan only moves the flux fumes on to someone else. A fume extractor close to the work draws the fumes in and filters them. Rosin flux fumes can cause asthma, so everyone at the bench needs protecting."},
+    {"id": "P-07", "c": "c2", "q": "Romario touches the tip and burns a finger. He has cooled it under running water for 20 minutes. What next?", "o": ["Burst the blister so the skin dries faster", "Rub on some toothpaste to soothe the burn", "Wrap it tightly in tape and carry on working", "Cover it loosely with a clean dressing"], "a": 3, "why": "After cooling, cover the burn loosely with a clean dressing or cling film and report it. Bursting blisters, creams and tight tape all raise the risk of infection or further damage."},
+    {"id": "P-08", "c": "c2", "q": "At the end of the session, what should Romario do with the iron?", "o": ["Wipe and tin the tip, switch off and leave it in its stand", "Switch it off and lay it flat on the bench so it cools faster", "Wipe the tip dry with no solder on it, and leave it switched on", "Dip the tip in water so it is cool enough to put away"], "a": 0, "why": "A tip stored tinned is protected from oxidation; a bare, dry tip corrodes and stops wetting. The iron stays in its stand until cool. Water on a hot tip cracks the plating."},
+    {"id": "P-09", "c": "c3", "q": "What is the best way for Omar to join each wire to its small pad on the strip?", "o": ["Melt solder on the tip and dab it onto the wire on the pad", "Tin the pad and the wire end, then heat them together", "Twist the wire round the strip so it holds, then solder", "Hold the wire on the pad and press on hard with the tip"], "a": 1, "why": "For a wire on a flat pad, tin both first. Then lay the wire on the pad and heat them together: the two layers of solder melt and join quickly, without overheating the strip."},
+    {"id": "P-10", "c": "c3", "q": "Which way of covering the in-line joint suits the damp bar area best?", "o": ["Two layers of insulating tape wrapped round it", "A plastic twist-on connector over the joint", "A loose single-wall sleeve slid over the joint", "Adhesive-lined heat-shrink, slid on beforehand"], "a": 3, "why": "Adhesive-lined (dual-wall) heat-shrink melts its lining as it shrinks and seals out moisture and salt air. Tape works loose, and a loose sleeve lets damp in. Remember to slide it on before soldering."},
+    {"id": "P-11", "c": "c3", "q": "The joint on the − pad is dull and lumpy, and the wire moves in it. What should Omar do?", "o": ["Clear the old solder, clean, tin and resolder", "Add more solder on top to make the joint stronger", "Glue the wire down to the strip with some hot glue", "Leave it, as the strip runs on only 12 volts"], "a": 0, "why": "A dull, lumpy joint with a loose wire is a dry joint: the solder never bonded to the metal. Adding more on top hides it. Clear it, clean and tin both parts, and make it again with enough heat."},
+    {"id": "P-12", "c": "c3", "q": "Before the strip is powered, how should Omar check the polarity?", "o": ["Power it up, and swap the wires over if it stays dark", "Assume the wire with a printed stripe is the positive", "Use a meter to check the + pad joins the driver's + lead", "Touch the two wires together briefly and watch for a spark"], "a": 2, "why": "Check with a meter, with the driver unplugged, that the + pad is joined to the driver's + output. Guessing from wire markings or trial and error can damage LEDs and wastes time."},
+    {"id": "P-13", "c": "c4", "q": "What fault is at joints B and C, and what usually causes it?", "o": ["A dry joint, from too little heat on the pad and lead", "A lifted pad, from too much heat for too long", "A bridge, from excess solder or a dragged tip", "A disturbed joint, from the board being moved"], "a": 2, "why": "Solder joining two pads that should be separate is a bridge. It is caused by too much solder, by dragging the iron across, or by pads very close together, as IC pins are."},
+    {"id": "P-14", "c": "c4", "q": "How should the bridge between B and C be removed?", "o": ["Scrape it off with a small screwdriver once it is cold", "Leave it, as the IC joins those pins inside anyway", "Melt it and flick the solder off with a quick movement", "Draw off the extra with clean braid, then inspect"], "a": 3, "why": "Clean braid, or a clean tip with fresh flux, draws off the extra solder without damaging the pads. Scraping can cut tracks, flicking sprays molten solder, and a bridge between IC pins is a short circuit."},
+    {"id": "P-15", "c": "c4", "q": "How should joint D be corrected?", "o": ["Reheat with fresh solder and hold it still", "File the surface smooth so that it looks shiny", "Add a thick layer of solder on top of the crack", "Blow on it to cool it faster after reheating"], "a": 0, "why": "A frosty, cracked joint was disturbed while it set. Reheat it with a touch of fresh solder (for the flux) and hold the lead and board still until it has set. Filing or covering it hides the fault."},
+    {"id": "P-16", "c": "c4", "q": "Which change to Jason's method would most likely have prevented joint A?", "o": ["Using thicker solder wire on that joint", "Taking the iron away before the solder", "Using a smaller, finer tip on the joint", "Heating pad and lead together first"], "a": 3, "why": "A dull ball that has not wetted the pad shows the pad and lead were not hot enough. Put the clean, tinned tip on both, wait a moment, then feed solder into the joint. A smaller tip passes even less heat."},
+    {"id": "P-17", "c": "c5", "q": "What should Kimberly do before she takes the IC out of its bag?", "o": ["Plug the strap into the mat's earth point and wear it", "Hold the bag up to the light to read the part number on it", "Rub her hands together to warm the IC's pins first", "Spray a little water on the bench to stop static"], "a": 0, "why": "In dry air, with polyester clothing, she can carry a large charge without feeling it. With the strap connected to the earth point and the IC handled on the mat by its body, the charge drains away safely."},
+    {"id": "P-18", "c": "c5", "q": "Why does the lead of Kimberly's wrist strap have a resistor of about 1 megohm in it?", "o": ["To make the strap drain charge as fast as possible", "To limit current through her if she touches a live part", "To measure how much static charge her body is carrying", "To stop sweat on her wrist from corroding the metal band"], "a": 1, "why": "The resistor drains static slowly, which is all that is needed, and limits the current through her body if she touches something live. That is why a strap must never be joined to earth with plain wire."},
+    {"id": "P-19", "c": "c5", "q": "Kimberly holds the new IC from above with its notch pointing away from her. Where is pin 8?", "o": ["Second from the top on the left side", "Bottom left, at the foot of pin 1's row", "Bottom right, diagonally across from pin 1", "Top right, across the notch end from pin 1"], "a": 3, "why": "With the notch away from you and the IC viewed from the top, pin 1 is top left. Pins 1 to 4 run down the left side and pins 5 to 8 run back up the right side, so pin 8 is top right, opposite pin 1."},
+    {"id": "P-20", "c": null, "q": "A resistor's bands read yellow, violet, orange, gold. What is its value?", "o": ["4.7 kΩ ±5%", "47 kΩ ±5%", "470 kΩ ±5%", "473 Ω ±10%"], "a": 1, "why": "Yellow = 4, violet = 7, orange = × 1,000: 47 × 1,000 = 47,000 Ω = 47 kΩ. Gold is ±5% tolerance. Reading the third band as a digit instead of a multiplier is the common mistake."}
+  ]
+}

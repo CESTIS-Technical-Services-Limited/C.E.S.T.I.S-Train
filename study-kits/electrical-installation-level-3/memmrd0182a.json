@@ -1,0 +1,333 @@
+{
+  "format": "cestis-study-kit",
+  "version": 1,
+  "status": "to-check",
+  "written": "2026-11-07",
+  "programme": "Electrical Installation",
+  "qualification": { "id": "QUAL-EIM-L3", "title": "ELECTRICAL INSTALLATION AND MAINTENANCE LEVEL 3", "code": "MEM32507" },
+  "level": 3,
+  "unit": { "code": "MEMMRD0182A", "title": "Fault find and repair/rectify basic electrical circuits and secondary wiring" },
+  "summary": "This unit teaches you to lead fault finding on lighting and socket circuits and on secondary wiring: the control, interlock and metering wiring of starters and panels. You will learn to read schematics and terminal markings, work out what readings to expect, test logically with the circuit dead, find the root cause, repair to a proper standard, test and hand back, and write the fault report.",
+  "sections": [
+    {
+      "title": "Unit overview",
+      "blocks": [
+        { "p": "Anyone can change parts until a machine runs. A Level 3 electrician finds the fault by reasoning: what the symptom means, what the drawing says should happen, what each reading should be, and why the part failed. This unit covers basic circuits (lighting, sockets, fixed appliances) and **secondary wiring**: the low-current wiring that controls, interlocks, protects and measures, as opposed to the primary (power) wiring that carries the load current." },
+        { "h": "What you must be able to do" },
+        { "table": { "head": ["Task", "What it looks like on the job"], "rows": [
+          ["Gather information", "Question the operator, read the fault history and collect the latest drawings before touching anything."],
+          ["Read the drawings", "Use the schematic to follow the logic, and the wiring diagram, terminal schedule and wire numbers to find the real wires."],
+          ["Explain how the circuit should work", "Describe a stop/start starter, reversing and star-delta control, two-way lighting, a radial socket circuit and a current transformer circuit."],
+          ["Work safely", "Have the fault shown by the authorised person, then isolate, lock off, tag and prove dead before testing."],
+          ["Predict and take readings", "Work out the resistance or voltage to expect, null the meter leads, measure, and say what each result means."],
+          ["Test logically", "Narrow the fault to one area with the drawing, then use half-split, substitution and other methods instead of changing parts at random."],
+          ["Find the root cause", "Ask why the part failed, using the fault history and the 'five whys'."],
+          ["Repair to standard", "Like-for-like parts, ferrules, wire numbers, correct torque, protected and segregated wiring; never a bypassed safety device."],
+          ["Test, hand back and record", "Dead tests, a function test by the authorised person, marked-up drawings, a clear fault report and a handover to the operator."],
+          ["Lead the team", "Share the work, keep it safe under production pressure, give honest time estimates and coach trainees to reason."]
+        ] } },
+        { "note": "Heat, damp, salt air, dust, vibration, lizards and ants, lightning and supply dips all cause faults in Jamaican panels. Many of these faults come and go, so the history of when a fault happens is often your best clue.", "label": "Jamaica" },
+        { "note": "At the Centre, trainees test **dead**. Only the instructor energises a board or panel, and only the instructor takes live readings. This kit explains what live readings mean, because you must understand them, but you do not take them yourself until you are authorised.", "label": "Safety" }
+      ]
+    },
+    {
+      "title": "Reading drawings and terminal markings",
+      "blocks": [
+        { "table": { "head": ["Drawing", "What it shows", "Use it to"], "rows": [
+          ["Schematic (ladder diagram)", "The control circuit as rungs between two supply lines, in the order the logic works", "Follow how the circuit should work, line by line, and decide where a fault could be."],
+          ["Wiring (connection) diagram and terminal schedule", "The real connections: which wire lands on which terminal of which device", "Find the terminal where a field wire lands, and trace the actual wire."],
+          ["Panel layout", "Where each device is mounted", "Find the device in the panel."],
+          ["Single-line diagram", "The power system: supplies, breakers, transformers", "See where the supply comes from and where to isolate."],
+          ["Block diagram", "The main parts of a system and how they relate", "Get an overview of a large system."],
+          ["Cable schedule and route drawings", "Each cable, its cores and where it runs", "Find the cable to a remote switch or sensor."]
+        ] } },
+        { "h": "Wire numbers and cross-references" },
+        { "ul": [
+          "Every control wire has a number, shown on the drawing and printed on a **ferrule** (sleeve marker) at each end. All wires joined together electrically share the same number; the number changes each time the circuit passes through a device.",
+          "On many schematics a list under each coil shows where that device's contacts appear, for example '13–14 → rung 4; 21–22 → rung 6'. Beside each contact is a reference back to its coil. These **cross-references** let you find every place one relay acts.",
+          "Device letters vary with the standard. Common ones: **K** or **KM** contactor or relay, **F** fuse or overload, **Q** breaker or isolator, **S** switch or push button, **H** lamp, **T** transformer, **X** terminal strip. US drawings use M (motor starter), CR (control relay), OL (overload), PB (push button), LS (limit switch)."
+        ] },
+        { "h": "Contact and terminal numbers" },
+        { "table": { "head": ["Marking", "Meaning"], "rows": [
+          ["A1 – A2", "The coil of a relay or contactor"],
+          ["1–2, 3–4, 5–6 (or L1–T1, L2–T2, L3–T3)", "The main (power) contacts of a contactor"],
+          ["13–14, 23–24 (ending in 3–4)", "Normally open (NO) auxiliary contacts"],
+          ["11–12, 21–22 (ending in 1–2)", "Normally closed (NC) auxiliary contacts"],
+          ["11, 12, 14", "A changeover contact: 11 common, 11–12 normally closed, 11–14 normally open"],
+          ["95 – 96", "The NC trip contact of an overload relay, wired in the control circuit"],
+          ["97 – 98", "The NO contact of an overload relay, used for a 'tripped' lamp or alarm"],
+          ["15, 16, 18", "A timer's changeover contact: 15 common, 15–16 NC, 15–18 NO"]
+        ] } },
+        { "p": "'Normally' means the state with the coil **de-energised** and the device at rest. NO contacts close, and NC contacts open, when the coil is energised or the device is operated." },
+        { "note": "Check that the drawing is the latest issue and matches the panel. If you find a difference, the panel is the truth: note it and mark up the drawing.", "label": "Tip" }
+      ]
+    },
+    {
+      "title": "How control circuits work",
+      "blocks": [
+        { "p": "You cannot find a fault in a circuit you do not understand. These are the circuits you will meet most." },
+        { "h": "Stop/start (direct-on-line) starter" },
+        { "flow": ["Control supply and fuse", "Overload NC contact 95–96", "Stop button (NC)", "Start button (NO), with the holding contact 13–14 in parallel", "Contactor coil A1–A2", "Back to the other side of the control supply"] },
+        { "p": "Pressing start energises the coil. The contactor closes its main contacts, and its NO auxiliary contact, wired across the start button, closes too. This **holding (latching) contact** keeps the coil fed when start is released. Pressing stop, an overload trip or a loss of supply breaks the chain; the coil drops out and stays out until start is pressed again." },
+        { "h": "Other common circuits" },
+        { "table": { "head": ["Circuit", "How it works", "What to remember"], "rows": [
+          ["Forward/reverse starter", "Two contactors swap two lines to reverse the motor. Each contactor's NC auxiliary contact is wired in series with the **other** contactor's coil.", "This **electrical interlock** means both can never close together, which would short two lines. Many have a mechanical interlock as well."],
+          ["Star-delta starter", "Main and star contactors close first; after a set time the **timer** drops the star contactor out and brings the delta contactor in.", "Star and delta contactors are interlocked. The timer is set so that the motor is near full speed at changeover."],
+          ["Limit switches", "A switch operated by the machine's movement opens the coil circuit at the end of travel.", "If it fails closed, or its wiring is shorted, the machine runs past its stop."],
+          ["Sensors (proximity, photoelectric)", "Electronic switches, usually on 24 V DC, with PNP or NPN outputs.", "A replacement must be the same type, voltage and output."],
+          ["Timers and relays", "Contacts operate after a delay (on-delay or off-delay), or multiply one signal to several circuits.", "The coil voltage and the contact rating must suit the circuit."],
+          ["Safety circuits", "Emergency stops, guard switches and safety relays stop the machine when a person could be harmed.", "They are **never** bridged or bypassed."]
+        ] } },
+        { "h": "Control supplies" },
+        { "ul": [
+          "Control circuits often run at a lower voltage (24 V DC, 24 V AC or 110 V AC) from a **control transformer** or power supply, protected by its own fuse.",
+          "One side of a control transformer's secondary is normally **connected to earth**, and the fuse and all switches are in the other side. If a control wire then touches earthed metal, the fuse blows. On an unearthed secondary, a first earth fault goes unnoticed and a second one can bypass a stop or start a machine.",
+          "A **diode** across a DC coil (or a resistor-capacitor unit or varistor across an AC coil) absorbs the voltage spike made when the coil is switched off. It protects contacts and electronic outputs. A diode must be the right way round: reversed, it shorts the supply.",
+          "Control wiring is kept **apart** from power wiring, in its own trunking, to reduce electrical interference and to make wires easier to trace."
+        ] }
+      ]
+    },
+    {
+      "title": "Metering and protection wiring: current transformers",
+      "blocks": [
+        { "p": "Large currents are not taken to meters and protection relays directly. A **current transformer (CT)** around the main conductor produces a small secondary current in proportion: a 400/5 A CT gives 5 A in its secondary when 400 A flows in the primary. The ratio is 400 ÷ 5 = 80, so 3 A in the secondary means 3 × 80 = 240 A in the primary." },
+        { "note": "**Never open-circuit the secondary of a CT while its primary carries current.** The CT tries to drive its current through the open gap and can produce a very high voltage: enough to kill, to arc, and to destroy the CT. The secondary must always be connected to its meter or relay, or shorted.", "label": "Safety" },
+        { "h": "Working on CT secondary wiring" },
+        { "flow": ["Read the procedure and drawings; label the wires", "Isolate, lock off and prove dead the primary circuit where it can be shut down", "Fit the shorting links at the test block or terminal block", "Disconnect the meter or relay", "Do the work; reconnect and check every termination", "Remove the shorting links", "Authorised person restores the supply and checks the readings"] },
+        { "ul": [
+          "CT secondary circuits are **not fused**: a blown fuse would open the circuit.",
+          "The secondary is earthed at **one point only**, so that it cannot rise to a dangerous voltage if the CT's insulation fails. A second earth would let current bypass the meter.",
+          "If the shorting links are left in after the work, the meter or relay reads zero or low: the protection may not operate. Removing them is a step on the checklist.",
+          "A CT connected the wrong way round (its P1/P2 or S1/S2 marks reversed) makes an energy meter read wrongly. Keep the polarity as drawn.",
+          "Voltage circuits to meters (from voltage transformers or direct) **are** fused, and must never be shorted."
+        ] }
+      ]
+    },
+    {
+      "title": "A logical method",
+      "blocks": [
+        { "flow": ["Gather information", "Study the drawing: how should it work?", "See the fault (authorised person operates)", "Isolate, lock off, tag, prove dead", "Narrow down the area", "Test and find the faulty part", "Find the root cause", "Repair like for like", "Dead tests, then function test", "Record, mark up drawings, hand over"] },
+        { "h": "Gathering information" },
+        { "ul": [
+          "**The operator**: what exactly happens, when it started, what the machine was doing, any alarms, noises, smells, and whether anything was changed, cleaned or repaired just before.",
+          "**The fault history**: the same contactor failing four times in a year points to a root cause, such as the wrong size, heat or very frequent starts, not to bad luck.",
+          "**The pattern**: only in the afternoon heat, only after rain, only when another machine starts.",
+          "**Your senses**: discoloured terminals, burnt smells, loose wires, water marks, insect nests."
+        ] },
+        { "h": "Types of fault" },
+        { "table": { "head": ["Fault", "What it is", "Typical clues"], "rows": [
+          ["Open circuit", "A break: a broken wire, a loose terminal, a blown fuse, an open coil or contact", "Nothing happens; a reading of open circuit (OL) where there should be continuity"],
+          ["Short circuit", "Line touches neutral or another line, or a coil's turns are shorted", "Fuse blows or breaker trips at once; a coil reads far too low"],
+          ["Earth fault", "A live conductor touches earthed metal", "GFCI or fuse operates; low insulation resistance to earth"],
+          ["High-resistance joint", "A joint that still conducts but has too much resistance", "Heat and discolouration; low voltage at the load; a fault that appears when hot or loaded"],
+          ["Intermittent fault", "A fault that comes and goes", "Tests good when you look; linked to heat, vibration, damp or movement"],
+          ["Wrong connection or setting", "A wire on the wrong terminal, a wrong part, a timer or overload set wrongly", "Often appears just after a repair or alteration"]
+        ] } },
+        { "h": "Ways to test" },
+        { "table": { "head": ["Method", "How", "Best for"], "rows": [
+          ["Half-split", "Test at the middle of the suspect chain. The result tells you which half holds the fault; test the middle of that half, and so on.", "A long series chain: eight devices are covered in three tests, not eight."],
+          ["Input to output (or output to input)", "Test each stage in order", "Short chains"],
+          ["Substitution", "Swap the suspect part for a known-good one of the same type", "Sensors, relays and electronic parts that are hard to test. The authorised person runs the test. Never 'test' a device by bridging it out."],
+          ["Operating by hand", "With the circuit dead, press buttons, push contactors in (if the maker allows) and operate limit switches while measuring", "Checking contacts in both states"],
+          ["Moving and flexing", "Move cables and tap devices gently while measuring", "Intermittent and broken-strand faults"]
+        ] } },
+        { "h": "Root cause: the five whys" },
+        { "p": "A blown fuse is a symptom. Replacing it without finding out why it blew leaves the fault in place. Keep asking 'why?' until you reach a cause you can remove. Example: the control fuse blew. **Why?** A wire shorted to the panel. **Why?** Its insulation was cut through. **Why?** The cable enters through a hole drilled in the gland plate with no grommet. **Why?** The hole was added during an alteration that nobody inspected. The cure is not only a new fuse and wire, but a grommet at every such entry and an inspection after alterations." },
+        { "note": "A fuse that has blown three times in a week is telling you something. Never fit a larger fuse, and never bridge the holder: find the cause.", "label": "Remember" }
+      ]
+    },
+    {
+      "title": "Instruments, dead tests and expected readings",
+      "blocks": [
+        { "h": "Using the ohmmeter" },
+        { "ul": [
+          "Use it only on a circuit that is isolated and proved dead.",
+          "Choose the right range and **null (zero) the leads**: touch them together and cancel or subtract their resistance, so that small resistances are read correctly.",
+          "To test one part on its own, **disconnect one end** of it. Otherwise you may be reading a parallel path through other parts.",
+          "OL (over-range) means open circuit: no path."
+        ] },
+        { "h": "What to expect" },
+        { "table": { "head": ["Part (circuit dead)", "Healthy reading", "Fault readings"], "rows": [
+          ["Fuse", "Close to 0 Ω", "OL: blown"],
+          ["Closed contact or switch; wire end to end", "Close to 0 Ω", "A few ohms or more, or unsteady: dirty, burnt or loose"],
+          ["Open contact or switch", "OL", "Any low reading: welded contact, or a parallel path"],
+          ["Overload relay 95–96 / 97–98", "95–96 closed, 97–98 open", "95–96 open and 97–98 closed: the relay has tripped. Find out why before resetting."],
+          ["Relay or contactor coil", "The maker's value: often hundreds of ohms for small 24 V DC coils, and tens to hundreds of ohms for AC contactor coils", "OL: open coil. Near 0 Ω: shorted coil. Replace either."],
+          ["Insulation between a wire and earth", "Very high, in megohms", "Low: damaged insulation, damp or a pinched wire"]
+        ] } },
+        { "h": "Calculations you will use" },
+        { "table": { "head": ["To find", "Formula", "Example"], "rows": [
+          ["Coil current", "I = V ÷ R", "A 24 V coil of 800 Ω: 24 ÷ 800 = 0.03 A = 30 mA"],
+          ["Coil resistance", "R = V ÷ I", "A 24 V DC solenoid drawing 0.6 A: 24 ÷ 0.6 = 40 Ω"],
+          ["Resistances in series", "Add them", "A 30 Ω coil fed through 6 Ω of cable: 36 Ω"],
+          ["Equal resistances in parallel", "One value ÷ the number of branches", "Four 1,000 Ω coils in parallel: 250 Ω"],
+          ["Two unequal resistances in parallel", "R1 × R2 ÷ (R1 + R2)", "300 Ω and 600 Ω: 180,000 ÷ 900 = 200 Ω"],
+          ["Cable loop resistance", "Loop length (out and back) × ohms per metre", "2 × 90 m × 0.02 Ω/m = 3.6 Ω"],
+          ["Voltage drop in the cable", "VD = I × loop resistance", "0.5 A × 3.6 Ω = 1.8 V"]
+        ] } },
+        { "p": "**Using the sums.** If four equal coils in parallel should read 250 Ω but read 333 Ω, only three branches are conducting: one coil, or the wire to it, is open. If the group reads near 0 Ω, one coil is shorted (and it would blow the fuse when energised). A long, thin cable to a 24 V solenoid can drop several volts, so the coil hums but does not pull in: look for an undersized cable or a high-resistance joint." },
+        { "h": "Insulation resistance tests on control wiring" },
+        { "ul": [
+          "**Disconnect electronic parts first**: controller cards, PLC inputs and outputs, sensors, power supplies, timers, drives. The test voltage can destroy them, and they give false low readings.",
+          "Use the test voltage suited to the circuit (the Centre's test sheet will say).",
+          "Warn others, keep your hands off the conductors, and discharge the circuit afterwards."
+        ] },
+        { "h": "What live readings mean" },
+        { "p": "The authorised person may take voltage readings on an energised circuit. Across a **closed** contact the meter reads about 0 V; across the **open** point in a series chain it reads the full control voltage, because that is where the circuit is broken. A lower-than-normal voltage at a coil, with normal voltage at the supply, means volts are being lost along the way: a high-resistance joint or an undersized cable. A thermal imaging camera can show a hot joint without contact. You must understand these results to plan your dead tests." }
+      ]
+    },
+    {
+      "title": "Common faults in control and secondary wiring",
+      "blocks": [
+        { "table": { "head": ["Symptom", "Likely causes", "Dead tests"], "rows": [
+          ["Contactor will not pull in at all", "Blown control fuse; overload tripped (95–96 open); stop button or its wiring open; start button not closing; open coil; interlock contact open", "Continuity through the chain from the fuse to the coil, half-split; coil resistance."],
+          ["Motor runs only while start is held", "Holding contact 13–14 not closing, or its wires to the start button open or on the wrong terminals", "Continuity across the auxiliary contact with the contactor pushed in; trace both wires."],
+          ["Motor will not stop from the stop button", "Stop button shorted or wrongly wired; welded contactor contacts", "Stop button reads open when pressed; main contacts read open when released."],
+          ["One direction of a reversing starter will not work", "Interlock NC contact on the other contactor open; that direction's button, limit switch or coil", "Continuity of each device in that coil's rung."],
+          ["Machine runs past its end of travel", "Limit switch failed closed, out of position, or its wiring shorted", "Operate the switch by hand: it must read open when operated."],
+          ["Star-delta starter stays in star", "Timer failed, wrongly set or wrongly connected; delta coil or the star contactor's interlock contact open", "Timer contact and coil circuit continuity; the timer may need substitution."],
+          ["Breaker trips at star-delta changeover", "Star contactor slow to open or welded; interlock missing; timer far too short, so the motor is still slow", "Main contacts open when released; interlock wiring as drawn; timer setting."],
+          ["Contactor chatters, or several drop out together", "Low control voltage: a supply dip when a large motor starts, a loose neutral, an overloaded control transformer; dirt on the magnet faces", "Tighten and test connections; check the transformer's rating against its load."],
+          ["Control fuse blows", "Shorted coil; wire chafed to earth (hinges, gland plates); water in a field device; a reversed diode", "Coil resistance; insulation resistance of each wire with devices disconnected, splitting the circuit."],
+          ["Solenoid hums but does not operate", "Low voltage at the coil from a long, thin cable or a high-resistance joint; a stuck plunger", "Loop resistance of the cable against the calculated value; inspect joints."],
+          ["Fault appears only when the panel is hot", "A loose or high-resistance joint that opens as it expands; a failing electronic part", "Inspect for discolouration; check tightness; resistance across joints."]
+        ] } },
+        { "note": "Ants, lizards and wasps nest in contactors, limit switches and junction boxes, and salt air corrodes contacts near the coast. Look inside field devices as well as the panel, and seal cable entries when you close up.", "label": "Jamaica" }
+      ]
+    },
+    {
+      "title": "Faults in lighting and socket circuits",
+      "blocks": [
+        { "h": "Two-way and intermediate switching" },
+        { "p": "In a **two-way** circuit, the line goes to the common terminal of the first switch. Two **strappers** (travellers) join the other two terminals of the first switch to the matching terminals of the second. The common of the second switch feeds the lamp, and the neutral goes straight to the lamp. Each switch selects one strapper or the other, so either switch can complete or break the path. For three or more switch positions, an **intermediate** switch is put in the strappers between the two-way switches: in one position it connects them straight through, in the other it crosses them over." },
+        { "table": { "head": ["Symptom", "Likely cause"], "rows": [
+          ["Light works from one switch but not the other", "One strapper open, or a strapper and a common swapped at one switch"],
+          ["Light works only for some combinations of switch positions", "One strapper open, or a faulty or wrongly wired intermediate switch"],
+          ["Light never works; lamp is good", "Open line, switched line or neutral; faulty lamp holder"],
+          ["Light cannot be switched off", "Strappers shorted together; common and strapper wired wrongly"]
+        ] } },
+        { "p": "Dead tests: identify the common at each switch from its marking; test each strapper end to end; test each switch from its common to each strapper terminal in both positions; test an intermediate switch for straight-through in one position and crossed in the other." },
+        { "h": "Socket circuits" },
+        { "ul": [
+          "In a **radial** circuit the cable runs from the panel to the first outlet, then on to the next, in a chain. If the outlets beyond a certain point are dead, the break is at the last working outlet, at the first dead one, or in the cable between them.",
+          "A **high-resistance joint** in the chain makes that outlet warm or discoloured and gives low voltage at the outlets beyond it when they are loaded. Dead, the conductor with the bad joint reads higher end to end than the others.",
+          "Push-in and loose screw terminals at outlets are common trouble spots. Remake the joint on clean copper and tighten it properly."
+        ] },
+        { "h": "GFCI (RCD) tripping" },
+        { "table": { "head": ["Pattern", "Likely cause", "How to find it, dead"], "rows": [
+          ["Trips at random; fixed wiring tests good", "A leaky appliance", "Test the insulation resistance of each appliance separately; return them one at a time."],
+          ["Trips at once on reset, even with everything unplugged", "A **neutral-to-earth fault** on the protected wiring, or damaged insulation", "Insulation resistance of line to earth and neutral to earth separately; split the circuit at boxes to find the section."],
+          ["Trips in or after rain", "Water in an outdoor box, fitting or cable", "Open outdoor boxes; insulation resistance section by section."],
+          ["Trips when another circuit's load is switched on", "A shared neutral, or the neutral of another circuit connected on the load side", "Trace and separate the neutrals."]
+        ] } },
+        { "p": "A GFCI compares the current in the line with the current in the neutral. A neutral touching earth after the device lets part of the return current flow through the earth instead, so the device sees a difference and trips, even though no line fault exists. This is why neutral to earth is tested separately. Never replace a tripping GFCI with an ordinary breaker." }
+      ]
+    },
+    {
+      "title": "Repairing, testing, recording and leading",
+      "blocks": [
+        { "h": "The standard of repair" },
+        { "table": { "head": ["Point", "Standard"], "rows": [
+          ["Parts", "**Like for like**: the same coil voltage (and AC or DC), contact rating and type, or an equal approved by the maker or supervisor. A part that merely fits the base is not a replacement."],
+          ["Wire", "The same size, colour and insulation as the drawing gives."],
+          ["Terminations", "Crimped bootlace ferrules on fine-stranded wire; terminals tightened to the maker's torque. A heated joint is remade on clean, bright copper with a new ferrule or lug, not sprayed and left."],
+          ["Identification", "A number ferrule at both ends of every wire, matching the drawing."],
+          ["Routing", "In the trunking, apart from power wiring, supported. Wires that cross a door hinge are flexible, long enough to move freely, and protected by spiral wrap or flexible conduit."],
+          ["Safety devices", "Never bridged, linked out or defeated, even for a short time."],
+          ["Spare cores", "Labelled and made safe."],
+          ["If the part is not available", "Leave the equipment isolated, tagged 'out of service', and report it. Never run it on a taped or bridged repair."]
+        ] } },
+        { "h": "After the repair" },
+        { "flow": ["Check the connections against the drawing", "Dead tests: continuity, insulation resistance, device operation by hand", "Tools out, covers on, people clear", "Locks removed by their owners", "Authorised person energises and runs the function test", "Operator sees it working and confirms it does what they need", "Drawings marked up; fault report and history completed"] },
+        { "h": "Records" },
+        { "ul": [
+          "**The fault report** gives the machine and date, the symptom, the tests and readings, the cause found, the repair, the tests after repair, and what should be done to stop it happening again, with your name.",
+          "A useful entry is specific: 'KM2 will not close: K1 interlock contact 21–22 open circuit; contact block replaced like for like; continuity and function tests passed.' 'Fixed it' helps nobody.",
+          "If the wiring is changed in any way, for example a spare contact used in place of a burnt one, **mark up the drawing** (the as-built drawing) and correct the wire numbers, and leave the marked-up copy in the panel.",
+          "Update the machine's fault history: it is how the next person spots a pattern."
+        ] },
+        { "h": "Leading a breakdown" },
+        { "ul": [
+          "Find out the pressure on production, but make it clear that isolation and proving dead are never skipped.",
+          "Give a time estimate only when you know the fault, the parts needed and their delivery time; until then, say what you know and when you will know more.",
+          "Share the work: one person on drawings and history, one preparing the isolation, tests divided by area. Each person reports what they find, so the team follows the evidence.",
+          "Coach trainees to reason: before a part is changed, ask them what each test showed and what that proves.",
+          "Check the repair yourself before the covers go on."
+        ] }
+      ]
+    },
+    {
+      "title": "Revision",
+      "blocks": [
+        { "h": "Checklist" },
+        { "p": "Tick each statement only when you can do it without looking at the notes." },
+        { "ul": [
+          "I can gather information from the operator, the fault history and the drawings before I start.",
+          "I can say what a schematic, a wiring diagram, a terminal schedule and a single-line diagram are each used for.",
+          "I can use wire numbers, ferrules and cross-references to trace a circuit.",
+          "I can read contact markings: A1–A2, 13–14, 11–12, 11–12–14, 95–96 and 97–98.",
+          "I can explain a stop/start starter with a holding contact, a reversing starter with interlocks and a star-delta starter with its timer.",
+          "I can explain why one side of a control transformer's secondary is earthed, and what a diode across a DC coil does.",
+          "I can explain the danger of an open CT secondary and the order of work with shorting links.",
+          "I can work out coil currents, series and parallel resistances, loop resistance and voltage drop, and use them to judge readings.",
+          "I can null an ohmmeter's leads and test a part on its own by disconnecting one end.",
+          "I can use the half-split method and substitution, and explain why parts are not changed at random.",
+          "I can find the root cause with the five whys.",
+          "I can find faults in two-way and intermediate lighting, radial socket circuits and GFCI-protected circuits with dead tests.",
+          "I can repair to standard: like-for-like parts, ferrules, wire numbers, torque, protected routing, no bypassed safety devices.",
+          "I can carry out dead tests after a repair and say who does the function test.",
+          "I can write a fault report, mark up a drawing and hand the machine back to the operator.",
+          "I can lead a team on a breakdown safely and give an honest estimate."
+        ] },
+        { "h": "Key terms" },
+        { "terms": [
+          ["As-built drawing", "A drawing marked up to show how the wiring really is after changes."],
+          ["Auxiliary contact", "A small contact on a contactor used in the control circuit, for holding, interlocking or signalling."],
+          ["Current transformer (CT)", "A transformer that steps a large primary current down to a small secondary current for a meter or relay."],
+          ["Ferrule", "A printed sleeve on a wire showing its number; also a crimped metal sleeve (bootlace ferrule) on a stranded wire end."],
+          ["Five whys", "Asking 'why?' again and again until the real cause of a fault is found."],
+          ["Half-split method", "Testing at the middle of a chain, then at the middle of the faulty half, to find a fault in few tests."],
+          ["High-resistance joint", "A joint that conducts but has too much resistance, so it heats and loses voltage."],
+          ["Holding (latching) contact", "The NO auxiliary contact across the start button that keeps the coil energised."],
+          ["Interlock", "Wiring or a mechanism that stops two things happening together, such as forward and reverse."],
+          ["Intermediate switch", "A switch placed in the strappers to give a third switching position."],
+          ["Ladder diagram", "A schematic drawn as rungs between two supply lines."],
+          ["NC / NO", "Normally closed / normally open: the state of a contact with its device at rest."],
+          ["Secondary wiring", "Control, interlock, protection and metering wiring, as distinct from the power wiring."],
+          ["Shorting link", "A link at a test block that shorts a CT's secondary so a meter or relay can be disconnected."],
+          ["Strapper (traveller)", "One of the two wires linking the switches in a two-way lighting circuit."],
+          ["Substitution", "Swapping a suspect part for a known-good one of the same type."]
+        ] }
+      ]
+    }
+  ],
+  "cases": {
+    "c1": { "title": "A roller shutter at a Montego Bay freight warehouse", "text": "A freight warehouse at Montego Bay Freeport, St James, has a motorised roller shutter with a reversing starter: contactor KM1 raises the door and KM2 lowers it. Each contactor's NC auxiliary contact (21–22) is in series with the other's coil. The 110 V AC control circuit also has an overload relay F2 and up and down limit switches. The door goes up normally but will not come down: KM2 never pulls in. The warehouse supervisor wants the door working before the evening trucks arrive. Trainee leader Marlon and two trainees attend, with the site's authorised electrician, Mr Fitzroy Dixon." },
+    "c2": { "title": "A dosing panel at a water works near Spaldings", "text": "A small water treatment works near Spaldings, Clarendon, has a 24 V DC control panel for its chlorine dosing. Three identical relay coils of 720 Ω each are connected in parallel on one output. A 24 V DC solenoid valve with a coil of 30 Ω is at the tank, 150 m from the panel, fed by a two-core cable with 0.02 Ω per metre in each core. A proximity sensor with a PNP output detects the dosing pump's stroke. Trainee leader Camille and trainee Jevaughn are fault finding with the panel isolated, locked off and proved dead." },
+    "c3": { "title": "Corridor lights at a Williamsfield school", "text": "A long corridor at a school in Williamsfield, Manchester, has its lights controlled from three positions: a two-way switch at each end and an intermediate switch in the middle. A staff room off the corridor has a 110 V radial circuit of six socket outlets. Teachers report two problems: the corridor lights work from the end switches only when the middle switch is in one of its two positions, and in the staff room the outlets at the far end run the kettle slowly while outlet 2 gets warm. Trainee leader Renee and two trainees isolate both circuits." },
+    "c4": { "title": "Changing an energy meter at an Ocho Rios hotel", "text": "A hotel in Ocho Rios, St Ann, has its own check meter on the main switchboard, fed by three current transformers marked 400/5 A through a test block with shorting links. The meter has failed and is to be replaced. The hotel cannot shut down its main supply during the day. The hotel's authorised engineer, Mrs Beverley Chin, leads the work to a written procedure; trainee leader Rohan assists and keeps the record." },
+    "c5": { "title": "A star-delta pump starter near Chapelton", "text": "An irrigation pump near Chapelton, Clarendon, is started by a star-delta starter fed from a 110 V control transformer. The farm reports two faults a month apart. First, the breaker tripped with a bang at the moment of changeover; the star contactor's main contacts were then found welded together. Second, after a new star contactor was fitted and the timer was left at 2 seconds, the motor now groans at changeover and the overload trips a few seconds later. Trainee leader Tanisha also finds that the earth link on the control transformer's secondary has been removed." }
+  },
+  "questions": [
+    { "id": "P-01", "c": "c1", "q": "With the panel dead, Marlon reads 310 Ω across KM2's coil, near 0 Ω through the down button when pressed, and open circuit across KM1's contact 21–22 with KM1 released. What is the fault?", "o": ["KM2's coil is open circuit and the contactor must be changed", "The down push button is not closing when it is pressed", "KM1's interlock contact is stuck open in KM2's rung", "The overload relay F2 has tripped and needs to be reset"], "a": 2, "why": "An NC contact should read near 0 Ω when its contactor is released. KM1's 21–22 is in series with KM2's coil, so if it stays open KM2 can never pull in, while the up direction is unaffected. The coil and button readings are healthy." },
+    { "id": "P-02", "c": "c1", "q": "The new contact block will not arrive until tomorrow. The supervisor asks Marlon to link out contact 21–22 for tonight. Why must he refuse?", "o": ["A link would make the door run at twice its normal speed", "Both contactors could close together, shorting two lines", "The link would stop the overload relay from ever tripping again", "A link would make the control fuse too small for the circuit"], "a": 1, "why": "The interlock is what stops the up and down contactors closing at the same time. A reversing starter swaps two lines, so both closed together is a direct short circuit between lines. The door stays isolated and tagged, and is worked by its manual chain if the maker provides one." },
+    { "id": "P-03", "c": "c1", "q": "On the schematic, a small list under KM1's coil reads '13–14 → rung 3; 21–22 → rung 7'. What is this list for?", "o": ["It gives the order in which KM1's terminals must be tightened", "It gives the wire numbers that are connected to KM1's coil", "It shows which rungs must be tested live by the authorised person", "It shows where on the drawing each of KM1's contacts is used"], "a": 3, "why": "This is a cross-reference. One contactor's contacts appear in several rungs, and the list tells you where each one is, so you can see everything that device controls. Here it leads straight to KM1's interlock contact in KM2's rung." },
+    { "id": "P-04", "c": "c1", "q": "A week later the door will not move in either direction. Dead tests on overload relay F2 show 95–96 open and 97–98 closed. What does this mean, and what comes next?", "o": ["The relay has tripped; find out why before it is reset", "The relay is healthy; the fault must be in the two push buttons", "The relay's contacts are wired the wrong way round and must be swapped", "The relay has failed; link out 95–96 until a new one arrives"], "a": 0, "why": "At rest 95–96 is closed and 97–98 open. The reverse shows the relay has tripped, opening the control circuit for both directions. A trip is a symptom: check for a jammed door, a failing motor or a wrong setting before it is reset, and never bridge the trip contact." },
+    { "id": "P-05", "c": "c2", "q": "Jevaughn measures across the three relay coils together and reads 360 Ω. What does this tell Camille?", "o": ["All three coils are healthy, as 360 Ω is half of 720 Ω", "One coil is shorted, pulling the group's reading down", "Only two branches conduct: one coil or its wire is open", "The meter leads were not nulled, adding 120 Ω to the reading"], "a": 2, "why": "Three equal 720 Ω coils in parallel should read 720 ÷ 3 = 240 Ω. Two in parallel read 720 ÷ 2 = 360 Ω, so one branch is missing. Testing each coil at its own terminals shows whether the coil or the wire to it is open. A shorted coil would bring the reading near 0 Ω." },
+    { "id": "P-06", "c": "c2", "q": "The solenoid valve hums but does not open. About what voltage reaches its coil through the 150 m cable when the panel gives 24 V?", "o": ["About 24 V, as a cable does not lose voltage on DC", "About 20 V, as 6 Ω of cable is in series with the coil", "About 4 V, as most of the supply is lost in the cable", "About 12 V, as the supply is shared equally by two cores"], "a": 1, "why": "The loop is 2 × 150 = 300 m, so its resistance is 300 × 0.02 = 6 Ω. With the 30 Ω coil that makes 36 Ω: I = 24 ÷ 36 = 0.67 A, and the coil gets 0.67 × 30 = 20 V. The other 4 V is lost in the cable. A thicker cable, or a relay near the valve, cures it." },
+    { "id": "P-07", "c": "c2", "q": "A new relay with a built-in suppression diode is fitted. Now the output fuse blows every time the relay is energised, and the coil itself reads 720 Ω. What is the most likely cause?", "o": ["A1 and A2 are reversed, so the diode conducts", "The new relay's coil resistance is too high for a 24 V supply", "The diode has removed the voltage spike that the fuse needs", "The relay's contacts are rated for AC and cannot switch DC"], "a": 0, "why": "The diode is fitted so that it blocks in normal use and conducts only the coil's switch-off spike. With the supply polarity reversed at the coil, the diode is forward biased and puts a short circuit across the 24 V output. Connect A1 and A2 as the relay's marking shows." },
+    { "id": "P-08", "c": "c2", "q": "The stroke sensor has failed. The store has a sensor of the same size and voltage, but with an NPN output. What should Camille do?", "o": ["Fit it, and swap its two supply wires to turn NPN into PNP", "Fit it, since sensors of the same size are interchangeable", "Fit it, and bridge the input until the right sensor comes", "Get a PNP sensor of the same type for this input"], "a": 3, "why": "A PNP sensor switches the positive supply to the input; an NPN sensor switches the negative. An input wired for one will not see the other, and reversing the supply can destroy the sensor. Like for like means the same output type as well as the same size and voltage." },
+    { "id": "P-09", "c": "c3", "q": "The lights work from the end switches only when the middle switch is in one of its two positions. Which fault fits best?", "o": ["The neutral is open circuit at the first light in the corridor", "The breaker for the lighting circuit is too small", "The intermediate switch or a strapper at it is faulty", "Both two-way switches have failed in the same way"], "a": 2, "why": "With the middle switch in one position the path through the strappers is complete, so the line, neutral, lamps and end switches are all sound. The fault appears only in the middle switch's other position, so one of its paths, or a strapper landed on the wrong terminal there, is open." },
+    { "id": "P-10", "c": "c3", "q": "Renee tests the intermediate switch on its own with an ohmmeter. What should a good one show?", "o": ["All four terminals joined together in both positions", "No continuity in one position, and all four joined in the other", "Each pair straight through in both positions of the switch", "Straight through in one position, and crossed over in the other"], "a": 3, "why": "An intermediate switch has four terminals: two strappers in, two out. In one position it connects them straight through; in the other it crosses them. That crossing is what lets a middle switch change the state of the lights." },
+    { "id": "P-11", "c": "c3", "q": "For the staff room circuit, which dead test is most likely to find the cause of the warm outlet and the slow kettle?", "o": ["Continuity of each conductor, looking for a high reading", "An insulation resistance test between the line and neutral conductors", "A polarity check at the last outlet, made with a plug-in tester", "A count of the outlets, to see whether the circuit is overloaded"], "a": 0, "why": "A warm outlet with low voltage beyond it points to a high-resistance joint in the chain, most likely at outlet 2. Measured dead with nulled leads, the conductor with the bad joint reads noticeably higher than the others. Insulation resistance finds leakage, not a poor joint." },
+    { "id": "P-12", "c": "c4", "q": "Before the meter failed, it showed 3.2 A in one CT's secondary circuit. About what current was flowing in that main conductor?", "o": ["About 16 A", "About 256 A", "About 125 A", "About 1,280 A"], "a": 1, "why": "A 400/5 A CT has a ratio of 400 ÷ 5 = 80. Primary current = secondary current × ratio = 3.2 × 80 = 256 A." },
+    { "id": "P-13", "c": "c4", "q": "The new meter is connected and every termination has been checked. What is the last step at the test block before the readings are checked?", "o": ["Fit a fuse in each CT secondary wire to protect the new meter", "Leave the shorting links in, as extra protection for the meter", "Remove the shorting links, so current flows in the meter", "Earth both ends of each CT's secondary winding at the test block"], "a": 2, "why": "The links short the CTs so the meter can be changed safely. Left in, they carry the current past the meter, which reads zero or low. They come out only after the meter is reconnected and checked. CT secondaries are never fused, because a blown fuse would open-circuit the CT." },
+    { "id": "P-14", "c": "c4", "q": "Rohan notices that each CT secondary circuit is connected to earth at one point. Why only one?", "o": ["A second earth would let some of the current bypass the meter", "One earth is cheaper, and a second would add nothing useful", "Two earths would double the voltage across the meter's terminals", "The earth is only a spare, for when the shorting link fails"], "a": 0, "why": "One earth ties the secondary circuit to earth potential, so it cannot float up to a dangerous voltage if the CT's insulation fails. A second earth makes a parallel path through the earth for the secondary current, so the meter or relay reads wrongly." },
+    { "id": "P-15", "c": "c5", "q": "Why did the breaker trip at the moment of changeover in the first fault?", "o": ["The timer ran too long and the motor went over its full speed", "The overload relay was set too low for the pump's motor", "The control transformer could not supply two coils at once", "Star stayed closed as delta closed, shorting the supply lines"], "a": 3, "why": "The star contactor joins the three winding ends together; the delta contactor connects those same ends to the lines. If the star contacts are welded shut when delta closes, the lines are shorted through them. Find out why they welded, and check that the electrical and mechanical interlocks are in place." },
+    { "id": "P-16", "c": "c5", "q": "In the second fault, the motor groans at changeover and the overload trips. What should Tanisha check first?", "o": ["The pump's direction of rotation, by swapping two lines", "The timer setting: 2 seconds may be too short", "The main breaker's rating, which may be too small", "The delta contactor's coil, which may be open circuit"], "a": 1, "why": "In star the motor has reduced torque and takes time to run up. If the timer changes to delta while the motor is still slow, it draws a current close to a direct-on-line start, and the overload trips. Set the timer so the motor is near full speed at changeover, as the maker advises." },
+    { "id": "P-17", "c": "c5", "q": "What should Tanisha do about the missing earth link on the control transformer's secondary?", "o": ["Leave it off, as an unearthed control circuit cannot give a shock", "Fit it on the fused side instead, to protect the transformer", "Refit it as drawn, so an earth fault blows the fuse", "Fit a link on both sides, so that the circuit is doubly safe"], "a": 2, "why": "With one side earthed and the fuse in the other, a control wire touching earthed metal blows the fuse and shows the fault. Without the link, a first earth fault goes unnoticed and a second one can bypass a stop button or energise a coil. A link on both sides would short the secondary." },
+    { "id": "P-18", "c": null, "q": "At a block factory, four contactors on different machines all drop out for a moment whenever the big mixer starts. What should be suspected first?", "o": ["All four contactors have worn out at the very same time", "The operators are pressing the stop buttons by mistake", "The mixer's overload relay is set too high for its motor", "A dip in control voltage as the mixer starts"], "a": 3, "why": "Several devices misbehaving together point to something they share: here, the supply. A large motor's starting current pulls the voltage down, and coils release when their voltage falls too far. Check the supply connections, including a loose neutral, and the control transformer's rating, before changing any contactor." },
+    { "id": "P-19", "c": null, "q": "A control fuse blew because a wire was cut where its cable enters the panel through a hole drilled, with no grommet, during an alteration last year. Which action deals with the root cause?", "o": ["Fit grommets at every entry and inspect work after alterations", "Replace the fuse and the damaged wire, then close the job", "Fit a fuse of the next size up, so that it does not blow again", "Wrap the damaged wire in tape where it touches the plate"], "a": 0, "why": "Replacing the fuse and wire cures the symptom. The reason the wire was cut is an unprotected entry, and the reason that happened is that altered work was not checked. Dealing with both stops the same fault returning here and elsewhere." },
+    { "id": "P-20", "c": null, "q": "With a starter dead and one coil wire disconnected, a 220 V AC contactor's coil reads OL between A1 and A2. Its auxiliary contacts test good. What should be done?", "o": ["Clean the coil terminals with contact spray and reconnect it", "Fit a coil or contactor of the same coil voltage and rating", "Fit any coil that fits, and adjust the control fuse to suit", "Reconnect it, as OL is the normal reading for an AC coil"], "a": 1, "why": "OL means no path: the coil winding is open, so it can never pull in. A healthy coil reads the maker's value, usually tens to hundreds of ohms. The replacement must match the coil voltage, AC or DC, and the contactor's rating; a wrong coil overheats or fails to operate." }
+  ]
+}

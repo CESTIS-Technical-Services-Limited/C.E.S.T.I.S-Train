@@ -1,0 +1,467 @@
+{
+  "format": "cestis-study-kit",
+  "version": 1,
+  "status": "to-check",
+  "written": "2026-11-07",
+  "programme": "Electrical Installation",
+  "qualification": { "id": "QUAL-EIM-L3", "title": "ELECTRICAL INSTALLATION AND MAINTENANCE LEVEL 3", "code": "MEM32507" },
+  "level": 3,
+  "unit": { "code": "MEMCOR0012A", "title": "Plan a complete activity" },
+  "summary": "This unit teaches you to plan a whole electrical job, from the client's first request to handover and review. You will learn to agree a clear scope, break the work into tasks, estimate time and cost, find the critical path, draw a bar chart, plan people, equipment, materials, safe isolation and quality checks, and then track the job, deal with changes and delays, and close it out properly.",
+  "sections": [
+    {
+      "title": "Unit overview",
+      "blocks": [
+        { "p": "A 'complete activity' is a whole job, not one task: for example rewiring a school block, fitting out a shop or adding circuits in a working hotel. This unit is for Level 3 electricians who plan such jobs and lead the team that carries them out. A good plan lets the job finish safely, on time, to the standard and within the price; a poor one shows up as wasted trips, idle electricians, angry clients and lost money." },
+        { "h": "What you must be able to do" },
+        { "table": { "head": ["Task", "What it looks like on the job"], "rows": [
+          ["Define the job", "Turn a vague request into a written, measurable scope agreed with the client, after a survey."],
+          ["Gather the information", "Collect the drawings, specification, schedules, code requirements, the client's constraints and the survey findings."],
+          ["Break down and sequence the work", "Split the job into tasks and put them in a sensible order, with their links to each other and to other trades."],
+          ["Estimate time", "Work out labour-hours, crew sizes and working days from past records, and allow for travel, weather and waiting."],
+          ["Find the critical path", "Draw a network diagram, work out the job length and the float on each task, and know which tasks must be watched."],
+          ["Draw a bar chart", "Show the tasks on a calendar with people, hold points, the inspection and handover."],
+          ["Plan resources", "Choose competent people, book tools and test instruments, take off materials and set order dates from lead times."],
+          ["Estimate cost", "Build up a price from materials, labour, hire, contingency, overheads and profit, with GCT on its own line."],
+          ["Plan for safety and quality", "Write the risk assessment, isolation plan and temporary supplies, arrange permits, and plan checks, hold points and tests."],
+          ["Run, track and close the job", "Share the plan, mark progress, recover delays, handle variations, hand over and review what was learned."]
+        ] } },
+        { "h": "The planning cycle" },
+        { "flow": [
+          "Request from the client",
+          "Survey and agree the scope",
+          "Break down, sequence and estimate",
+          "Plan resources, safety and quality",
+          "Get the plan approved and brief everyone",
+          "Carry out and track the work; deal with changes",
+          "Test, inspect and hand over",
+          "Close out and review"
+        ] },
+        { "note": "In Jamaica a new or altered installation must be inspected and certified by the **Government Electrical Regulator (GER)**, which took over from the Government Electrical Inspectorate, before JPS will connect or reconnect it. The inspection date, and any JPS work, are steps in your programme that you do not control, so book them early and plan around them. Allow for public holidays and for the rainy seasons and the hurricane season (1 June to 30 November).", "label": "Jamaica" },
+        { "h": "How to use this kit" },
+        { "p": "Read the sections in order: they follow the planning cycle. Work through every worked example with a calculator, then try the practice test. Your instructor will give you the Centre's planning forms: task list, take-off sheet, estimate sheet, risk assessment, isolation plan and test plan." }
+      ]
+    },
+    {
+      "title": "Defining the job: scope and information",
+      "blocks": [
+        { "p": "Every plan starts with knowing exactly what the job is. Clients often ask vaguely: 'sort out the electrics', 'make it safe and modern', 'we need more power in the shop'. You cannot plan, price or finish a vague job." },
+        { "flow": [
+          "Receive the request and meet the client",
+          "Survey the site and the existing installation",
+          "Write a draft scope",
+          "Go through it with the client and correct it",
+          "Get it agreed in writing before planning in detail"
+        ] },
+        { "h": "What a written scope contains" },
+        { "table": { "head": ["Item", "Example"], "rows": [
+          ["What will be done, and where", "Rewire classrooms 1 to 4: new lighting and outlet circuits, new 24-way panel."],
+          ["The standard and drawings it must meet", "To the wiring code and drawing E2 revision B."],
+          ["What is included", "Strip-out of old wiring, new containment, testing, certificate, updated circuit chart."],
+          ["What is not included (exclusions)", "Making good and painting walls; the school's IT cabling; GER and JPS fees."],
+          ["Key dates", "Ready for inspection by 30 June."],
+          ["Constraints", "Work only when rooms are empty; no shutdowns during exams."],
+          ["Assumptions", "The existing service cable and meter are adequate; the ceiling is safe to work in."]
+        ] } },
+        { "h": "Measurable objectives" },
+        { "p": "Write the job's objectives so that, at the end, anyone can check whether they have been met. A useful test is **SMART**: specific, measurable, achievable, realistic and time-bound." },
+        { "table": { "head": ["Weak (cannot be checked)", "Better (can be checked)"], "rows": [
+          ["Upgrade the electrics as needed.", "Replace the main panel and rewire the ground floor to drawing E1 rev C by 15 August."],
+          ["Improve the lighting.", "Give an average of 300 lux at desk height in each classroom, measured and recorded."],
+          ["Finish quickly.", "Complete within 12 working days of starting, with no more than one room out of use at a time."]
+        ] } },
+        { "h": "Sources of information" },
+        { "table": { "head": ["Source", "What it tells the planner"], "rows": [
+          ["Drawings (layout, single-line, schematic)", "Where everything goes, how the supply is arranged, how circuits work."],
+          ["Specification", "Materials, workmanship, tests and documents required."],
+          ["Circuit schedule", "Every circuit, its load, cable size and protective device."],
+          ["The wiring code", "The minimum safety requirements every design must meet."],
+          ["Makers' data", "Sizes, weights, mounting needs, lead times and installation instructions."],
+          ["The client", "Opening hours, timetables, exams, events, busy seasons, essential equipment and who decides."],
+          ["The site survey", "The real condition of the building and installation, access and hazards."],
+          ["Records of past jobs", "How long similar work really took, and what went wrong."],
+          ["Suppliers", "Prices and delivery times."]
+        ] } },
+        { "h": "The survey" },
+        { "ul": [
+          "The supply: 110/220 V single-phase or three-phase, the meter and service cable, and their condition.",
+          "The existing panel: spare ways, condition, grounding and bonding, signs of overheating.",
+          "Cable routes: wall and ceiling construction, roof spaces, how far each run is, where containment can go.",
+          "**Essential loads** that must stay on or be planned for: fridges and freezers, servers and computers, alarms, pumps, medical equipment.",
+          "Other sources of supply: generators, solar PV, UPS units.",
+          "Hazards: heights, hot roof spaces, materials that may contain asbestos, live overhead lines, occupants and the public.",
+          "Access and logistics: working hours, keys, parking, storage for materials, toilets, where waste can go.",
+          "Other trades and other work planned on site."
+        ] },
+        { "note": "Write down every assumption you make, such as 'the existing service cable is adequate'. If it turns out to be wrong, the written assumption shows why the price or time must change.", "label": "Tip" }
+      ]
+    },
+    {
+      "title": "Breaking down and sequencing the work",
+      "blocks": [
+        { "p": "Break the job into tasks small enough to be timed, given to named people and checked. This is often called a **work breakdown**. A whole job becomes stages, and each stage becomes tasks." },
+        { "h": "Typical stages of an electrical job" },
+        { "table": { "head": ["Stage", "What happens", "Depends on"], "rows": [
+          ["Survey and design", "Final measurements, circuit design, drawings and schedules approved.", "The agreed scope."],
+          ["Order long-lead items", "Panels, switchgear, special fittings ordered.", "The approved design."],
+          ["Set up the site", "Storage, signs, barriers, welfare, temporary lighting.", "Access agreed with the client."],
+          ["Strip-out", "Old wiring and fittings removed safely, after isolation.", "Isolation plan; temporary supplies in place."],
+          ["First fix", "Containment, boxes and cables installed before walls and ceilings are closed.", "Strip-out; routes agreed with other trades."],
+          ["Hold point", "Concealed work inspected and photographed.", "First fix complete."],
+          ["Close-up by others", "Ceilings, plastering and painting.", "Hold point released."],
+          ["Second fix", "Accessories, fittings and the panel connected.", "Close-up; panel delivered."],
+          ["Testing", "Dead tests, then energising by the authorised person, then live and functional tests.", "Second fix."],
+          ["Inspection and connection", "GER inspection; JPS connection where needed.", "Tests passed and recorded."],
+          ["Handover and close-out", "Documents, demonstration, snags cleared, review.", "Inspection passed."]
+        ] } },
+        { "h": "Dependencies" },
+        { "ul": [
+          "Most links are **finish-to-start**: first fix must finish (in an area) before the ceiling is closed there.",
+          "Some tasks can run **at the same time**, such as waiting for the panel to arrive while first fix goes on.",
+          "Some links are to things outside your control: deliveries, other trades, the inspection, JPS. Mark these clearly in the plan.",
+          "Normal order in a rewire: **strip-out, first fix, second fix, testing.**"
+        ] },
+        { "h": "Phasing work in occupied buildings" },
+        { "p": "Schools, libraries, hotels, shops and clinics usually stay open. Split the job into **phases** (for example one or two rooms at a time) so that the rest of the building keeps working. Put shutdowns and noisy work, such as chasing walls and drilling, at times when the building is closed or the area is empty: evenings, weekends, school holidays or closing days. Each phase is fenced off, finished, tested and handed back before the next starts." },
+        { "note": "Ask the client for the timetable, opening hours, exam dates, events and busy seasons before you set any dates. A shutdown during exams, a hotel's full weekend or a shop's Christmas rush can turn a good job into a complaint.", "label": "Tip" }
+      ]
+    },
+    {
+      "title": "Estimating time",
+      "blocks": [
+        { "h": "Labour-hours, crews and days" },
+        { "p": "A **labour-hour** (or man-hour) is one person working for one hour. Estimate the labour-hours for each task, then work out how long it will take with the crew you have." },
+        { "table": { "head": ["To find", "Use"], "rows": [
+          ["Working days", "labour-hours ÷ (number of people × hours worked a day), then round **up**"],
+          ["People needed", "work to do ÷ (output per person a day × days available), then round **up**"],
+          ["Labour-hours", "people × hours a day × days"]
+        ] } },
+        { "p": "**Example 1.** A job needs 96 labour-hours. Two electricians work 8 hours a day. Days = 96 ÷ (2 × 8) = **6 working days**." },
+        { "p": "**Example 2.** 60 outlets must be wired in 5 days. One electrician wires about 4 outlets a day on this job. People = 60 ÷ (4 × 5) = **3 electricians**." },
+        { "p": "**Example 3.** A job needs 130 labour-hours with 3 electricians at 8 hours a day: 130 ÷ 24 = 5.4, so plan **6 days**. Never round time down: a part day still has to be worked." },
+        { "h": "Where the figures come from" },
+        { "p": "The most reliable source is **the time recorded on similar past jobs** by your own firm, because it reflects your people, tools and conditions. Makers' guides and published tables help when you have no records. Rates vary with the building, the containment used and the crew, so treat any figure you are given as an example and use your firm's records." },
+        { "h": "Allowances" },
+        { "ul": [
+          "Travel to and from site, loading and unloading.",
+          "Setting up and clearing up each day, and breaks.",
+          "Restricted working hours, such as only when classrooms are empty.",
+          "Waiting for other trades, deliveries or the inspector.",
+          "Rain for outdoor work such as trenching, especially in the rainy seasons.",
+          "Heat in roof spaces, which slows work and needs rest breaks.",
+          "Training time when apprentices are in the crew."
+        ] },
+        { "h": "Working days and dates" },
+        { "p": "Programmes count **working days**, usually Monday to Friday. Count the start day as day 1 and skip weekends and public holidays." },
+        { "p": "**Example.** A 7-day task starts on Thursday. Thursday and Friday are days 1 and 2, Monday to Friday of the next week are days 3 to 7, so it finishes on the **Friday of the following week**." },
+        { "note": "Jamaican public holidays include New Year's Day, Ash Wednesday, Good Friday, Easter Monday, Labour Day (23 May), Emancipation Day (1 August), Independence Day (6 August), National Heroes Day (the third Monday in October), Christmas Day and Boxing Day. Check the calendar for the year you are planning.", "label": "Jamaica" }
+      ]
+    },
+    {
+      "title": "Network diagrams, the critical path and bar charts",
+      "blocks": [
+        { "h": "The network diagram" },
+        { "p": "A **network diagram** shows each task as a box, joined by arrows to the tasks that must come before and after it. Its great advantage over a list is that it shows **which tasks depend on which**. From it you can find the job length, the critical path and the float. The method is called **CPM, the critical path method**." },
+        { "table": { "head": ["Term", "Meaning"], "rows": [
+          ["Earliest start (ES)", "The soonest a task can start, once everything before it is finished."],
+          ["Earliest finish (EF)", "ES + duration."],
+          ["Latest finish (LF)", "The latest a task can finish without delaying the job."],
+          ["Latest start (LS)", "LF − duration."],
+          ["Float", "LS − ES (or LF − EF): how far a task can slip without delaying the job."],
+          ["Critical path", "The longest chain of linked tasks through the job. Its tasks have zero float."]
+        ] } },
+        { "h": "Worked example: an office fit-out" },
+        { "p": "Tasks: A, survey (1 day). B, order and receive the panel (6 days, after A). C, first fix (4 days, after A). D, second fix (2 days, after B and C). E, testing (1 day, after D). Days are counted as finishing times: 'ends on day 7' means at the end of day 7." },
+        { "p": "**Forward pass** (earliest times): A runs from 0 to 1. B starts at 1 and ends at 7. C starts at 1 and ends at 5. D needs both B and C, so it starts at the later of the two, 7, and ends at 9. E ends at 10. **The job takes 10 days.**" },
+        { "p": "**Backward pass** (latest times): E must end by 10, so it starts by 9. D must end by 9, so it starts by 7. B and C must both end by 7. So C can start as late as 7 − 4 = 3." },
+        { "table": { "head": ["Task", "Duration", "ES", "EF", "LS", "LF", "Float"], "rows": [
+          ["A survey", "1", "0", "1", "0", "1", "0"],
+          ["B panel delivery", "6", "1", "7", "1", "7", "0"],
+          ["C first fix", "4", "1", "5", "3", "7", "2"],
+          ["D second fix", "2", "7", "9", "7", "9", "0"],
+          ["E testing", "1", "9", "10", "9", "10", "0"]
+        ] } },
+        { "p": "The **critical path is A–B–D–E**. C has **2 days of float**: its electricians could start 2 days late, or help elsewhere for 2 days, without moving the finish." },
+        { "h": "What delays do" },
+        { "ul": [
+          "A delay to a **critical** task delays the finish by the same amount.",
+          "A delay to a task **with float** does not move the finish, unless it is bigger than the float. Then the finish moves by the amount it is bigger. In the example, if C slips 3 days, the finish moves 1 day.",
+          "To **shorten** a job, shorten a critical task. Shortening a task with float gains nothing.",
+          "When you shorten the critical path, another path may become critical. In the example, if the panel arrived in 4 days, B would end on day 5, the same day as C; cutting B any further gains nothing, because C becomes critical."
+        ] },
+        { "note": "The planner watches the critical tasks most closely, because any slip in them moves the finish. Long-lead deliveries, such as panels and switchgear, are often on the critical path: order them the moment the design is fixed, and chase the supplier.", "label": "Remember" },
+        { "h": "The bar (Gantt) chart" },
+        { "p": "A **bar chart** (Gantt chart) lists the tasks down the side and a calendar along the top. Each task is a bar from its start date to its finish. Everyone can see at a glance what happens each day and which tasks run **at the same time**." },
+        { "ul": [
+          "Mark the critical tasks in a different colour.",
+          "Show **milestones**, such as 'panel delivered' or 'GER inspection', as diamonds.",
+          "Mark **hold points** where work must stop for a check.",
+          "Add a row for the number of people needed each day, to spot days when too many or too few are needed.",
+          "During the job, shade each bar as work is done and draw a line at today's date: anything left unshaded behind the line is behind plan."
+        ] },
+        { "h": "Using both together" },
+        { "p": "The **network** works out the logic: the critical path, job length and float. The **bar chart** puts that logic onto real dates, shows the people needed and is easy for the team and the client to read. During the job, mark progress on the bar chart daily, and use the network to judge whether a delay will move the finish." }
+      ]
+    },
+    {
+      "title": "Resources: people, equipment and materials",
+      "blocks": [
+        { "h": "People" },
+        { "ul": [
+          "Give each task to someone **competent** for it. Risky work, such as panel changes, isolations and testing, needs experienced, authorised people. Trainees work under close supervision on dead work only.",
+          "Certification needs a licensed electrician; check who will sign.",
+          "Check availability: leave, other jobs and training days.",
+          "Write down who does what: who isolates, who tests, who talks to the client, who orders materials.",
+          "Plan the other trades your work depends on, and those who depend on you."
+        ] },
+        { "h": "Equipment" },
+        { "table": { "head": ["Item", "Planning points"], "rows": [
+          ["Hand and power tools", "Enough for the crew; checked and in good order."],
+          ["Access equipment", "Ladders, mobile towers, scissor lifts: the right type for the height and the ground; inspected; hired in time."],
+          ["Test instruments", "Voltage tester and proving unit, low-resistance ohmmeter, insulation resistance tester, GFCI/RCD tester: **booked** for the test dates and **in calibration**."],
+          ["Hire items", "Trenchers, cable-pulling winches, lifts: booked for the right days; hire costs in the estimate."],
+          ["Vans and transport", "Enough space for people, tools and long lengths of conduit."]
+        ] } },
+        { "p": "If two jobs need the firm's only instrument on the same day, find out early: move one of the tests (if it has float), or arrange a second instrument in good time." },
+        { "h": "Materials" },
+        { "p": "A **take-off** is the list of materials counted and measured from the drawings: every box, accessory, fitting, length of cable and conduit, and fixing. Add a sensible **waste allowance** for offcuts and terminations, often around 5 to 10% for cable (use your firm's figure), and round up to whole rolls or lengths." },
+        { "ul": [
+          "Too little means stoppages and extra trips.",
+          "Too much ties up the client's or the firm's money, needs storage, can be stolen and ends up as waste. That is why the allowance is small, not 50%."
+        ] },
+        { "h": "Order dates from lead times" },
+        { "p": "The **lead time** is how long a supplier takes to deliver after the order. **Latest order date = date needed on site − lead time − a margin for delays.** Long-lead items, such as panels, switchgear and special light fittings, are ordered as soon as the design is approved." },
+        { "p": "**Example.** A panel is needed on site on Monday 7 June. The supplier needs 4 weeks, and you allow 1 week's margin. Order by Monday 3 May, 5 weeks before." },
+        { "h": "On site" },
+        { "ul": [
+          "Check every delivery against the order and the specification; report shortages and damage at once.",
+          "Store materials dry, secure and out of the way; keep cable drums from being damaged.",
+          "Book returns of unused materials to the store."
+        ] }
+      ]
+    },
+    {
+      "title": "Estimating cost",
+      "blocks": [
+        { "p": "An estimate builds the price up from the costs. Set it out step by step so that someone else can check it." },
+        { "table": { "head": ["Cost", "How it is worked out"], "rows": [
+          ["Materials", "Take-off quantities × current supplier prices, including the waste allowance."],
+          ["Labour", "Labour-hours × the labour rate."],
+          ["Plant and hire", "Hire rate × days, plus delivery."],
+          ["Transport and disposal", "Travel to site; skips and safe disposal of old cable and fittings."],
+          ["Fees and permits", "Where the firm pays them; otherwise list them as exclusions."],
+          ["Contingency", "A sum for things that cannot be foreseen, such as hidden faults found when walls and ceilings are opened in an old building."],
+          ["Overheads", "The firm's running costs: office, vans, insurance, tools, management."],
+          ["Profit", "What the firm earns for the risk and work."],
+          ["GCT", "Added at the current rate on the price before tax, on its own line."]
+        ] } },
+        { "h": "Worked example" },
+        { "p": "Materials J$250 000. Labour 60 labour-hours at J$2 500 = J$150 000. Hire J$20 000. Disposal J$10 000. The firm adds 10% contingency on the direct costs, then 15% for overheads and profit on that total." },
+        { "flow": [
+          "Direct costs: 250 000 + 150 000 + 20 000 + 10 000 = J$430 000",
+          "Contingency: 10% of 430 000 = J$43 000; total J$473 000",
+          "Overheads and profit: 15% of 473 000 = J$70 950",
+          "Price before GCT: 473 000 + 70 950 = J$543 950",
+          "GCT at the current rate is then worked out on J$543 950 and shown on its own line"
+        ] },
+        { "note": "Follow your firm's method exactly: whether each percentage is added to the direct costs or to the running total changes the answer. Adding 10% and then 15% is not the same as adding 25% once. Work every sum twice, and do a rough check: J$430 000 plus about a quarter is about J$540 000.", "label": "Tip" },
+        { "h": "Cost per unit" },
+        { "p": "Dividing a cost by the number of units helps you compare jobs and check estimates. **Example:** wiring 30 outlets cost J$195 000, so each outlet cost 195 000 ÷ 30 = J$6 500." },
+        { "h": "Estimate and quotation" },
+        { "p": "The **estimate** is the firm's own working. The **quotation** is the written offer to the client: the scope, exclusions, the price before GCT, GCT on its own line, the total, how long the price is valid, payment terms and the expected time on site." }
+      ]
+    },
+    {
+      "title": "Planning for safety, isolation and quality",
+      "blocks": [
+        { "h": "Risk assessment and method statement" },
+        { "p": "For each stage, list the hazards, who could be harmed and the controls, starting with eliminating the hazard (working dead) and ending with PPE. The **method statement** says how the work will be done safely, step by step. Brief the team on both before work starts." },
+        { "h": "Permits to work" },
+        { "p": "A **permit to work** is a written authority from the person in control of the premises for higher-risk work. It states what work is allowed, where and when, the hazards, the isolations and precautions, and how the area is handed back. It adds to your own risk assessment and isolation procedure; it never replaces them." },
+        { "ul": [
+          "Electrical isolation permits on larger sites and factories.",
+          "Work above ceilings in hospitals, hotels and kitchens (dust, gas lines, hot ducts, infection control).",
+          "Hot work, such as cutting or brazing.",
+          "Work on roofs, in confined spaces or near hazardous areas."
+        ] },
+        { "h": "Occupied buildings and the public" },
+        { "ul": [
+          "Fence off work areas with barriers and signs; keep pupils, staff and customers out.",
+          "Lock tools and materials away; never leave cut cable ends or open boxes within reach.",
+          "Keep escape routes and fire exits clear; plan noisy and dusty work for when areas are empty.",
+          "Plan how old cable, removed fittings and packaging will be removed, so the site stays safe and tidy."
+        ] },
+        { "h": "The isolation plan" },
+        { "table": { "head": ["The plan states", "Why"], "rows": [
+          ["Which circuits are isolated, and what each one feeds", "Nothing important is switched off by surprise."],
+          ["When, and for how long", "The client can plan around it."],
+          ["Who isolates, where locks and tags go", "One competent person is responsible; every worker fits their own lock."],
+          ["That each circuit is proved dead with a tester checked on a proving unit before and after", "The only proof that a circuit is dead."],
+          ["Other sources of supply: generators, solar PV, UPS units", "A circuit switched off at the panel may still be fed."],
+          ["Temporary supplies for essential loads", "Fridges, alarms, servers and pumps stay on safely."],
+          ["Who is told before and after", "Staff, occupants, security, the alarm company."],
+          ["How the supply is restored", "Only after tests, with every lock removed by its owner and the area clear."]
+        ] } },
+        { "h": "Temporary supplies" },
+        { "p": "Where an essential load is on a circuit that must be off, plan a **temporary supply** from another protected circuit or a proper temporary board, installed and tested like any other circuit. Never use long trailing leads across walkways or through doors. Where a load can safely ride out a short outage, such as a closed freezer or an alarm panel on its standby batteries, check how long it can last and keep the outage well within that." },
+        { "h": "Special hazards to plan for" },
+        { "table": { "head": ["Hazard", "What the plan must do"], "rows": [
+          ["Materials that may contain asbestos (old ceiling boards, panel backs, flash guards)", "Stop; allow for testing and specialist removal before your work starts. Never drill or break it."],
+          ["Hot roof spaces", "Work early in the day, rest breaks, water, ventilation and a second person."],
+          ["Work at height", "The right access equipment, inspected; protect people below."],
+          ["Standby generators", "A changeover switch that breaks the mains before connecting the generator, so it can never feed back into JPS lines."],
+          ["Solar PV and batteries", "The system's own shutdown procedure; parts stay live in daylight."],
+          ["Rain and the hurricane season", "Indoor work ready for wet days; secure materials and the site when a storm is forecast."]
+        ] } },
+        { "h": "Planning quality" },
+        { "p": "Write into the plan every check, when it happens and who signs it. This is often called an **inspection and test plan**." },
+        { "ul": [
+          "**First fix:** routes, box positions and heights, cable sizes, supports and segregation checked against the drawings, room by room.",
+          "**Hold point before walls and ceilings are closed:** concealed cables inspected and photographed. A hold point means work stops until the check is done and the work released.",
+          "**Second fix:** accessories level, terminations tight, protective conductors connected, labels fitted.",
+          "**Dead tests** before any supply is restored: continuity of protective conductors, insulation resistance and polarity, plus any others the code and specification require. Planned this way, faults are found while it is safe to find them.",
+          "**After energising** by the authorised person: GFCI/RCD tests and functional checks.",
+          "**The GER inspection**, booked with enough time before it for testing and clearing snags.",
+          "A **snag list** cleared, and the certificate and records completed for handover."
+        ] },
+        { "note": "Check the plan against the specification before it is approved, line by line, so that nothing required (a test, a document, a material) is left out.", "label": "Tip" }
+      ]
+    },
+    {
+      "title": "Running, tracking and closing the job",
+      "blocks": [
+        { "h": "Approval and communication" },
+        { "ul": [
+          "Have the plan checked and approved by your supervisor, and the dates agreed with the client.",
+          "Give the programme to everyone who needs it: the client (for a school, the principal), your team, the other trades and your supervisor.",
+          "Say in the plan how and when progress is reported: for example a daily update to the supervisor and a weekly report to the client. Problems raised early are decided quickly.",
+          "Brief the team at the start of each day, including a short toolbox talk on that day's hazards.",
+          "Listen to the team. If someone suggests a better order of work, consider it, and change the plan if it is better and safe."
+        ] },
+        { "h": "Tracking progress" },
+        { "ul": [
+          "Mark progress on the bar chart every day, honestly.",
+          "Keep a **site diary**: date, people on site, work done, deliveries, visitors, instructions received, problems and delays and who caused them, and the weather. A dated diary entry is strong evidence if there is a dispute later.",
+          "Compare work done with work planned **for the same day**."
+        ] },
+        { "p": "**Example.** Twelve rooms are planned evenly over 6 days, 2 rooms a day. At the end of day 4, 8 rooms should be done. If 7 are done, the job is half a day behind." },
+        { "h": "When the job falls behind" },
+        { "flow": [
+          "Find the cause: late delivery, extra work, too few people, another trade, weather",
+          "Check whether the delayed tasks are on the critical path, and how much float they have",
+          "If the finish is at risk, look at recovery options with your supervisor",
+          "Agree the new plan and tell the client honestly about any change to the finish",
+          "Update the bar chart and brief the team"
+        ] },
+        { "table": { "head": ["Recovery option", "Points to watch"], "rows": [
+          ["Add people", "They must be competent and have work they can do without getting in each other's way."],
+          ["Work extra hours or a weekend shift", "Agreed with the supervisor and client; tired people make mistakes; plan rest and lighting."],
+          ["Change the order of tasks", "Only where the logic allows; do something else while waiting for a delivery."],
+          ["Use float", "Move non-critical work to free people for critical tasks."],
+          ["Never", "Skip tests, inspections or safe isolation to save time."]
+        ] } },
+        { "h": "Changes (variations)" },
+        { "p": "When the client asks for extra or different work, do not just do it. Check the design first (the extra load, spare ways in the panel, whether the supply and main cable can carry it, the cable sizes and protection needed), then work out the extra materials, labour, time and cost, and its effect on the critical path. Put it in a **written variation** for the client to sign **before** the work starts, so there is no dispute when the bill comes. Then update the drawings, schedules, materials list and bar chart, and brief the team." },
+        { "h": "Backup plans" },
+        { "table": { "head": ["Risk", "Backup"], "rows": [
+          ["A delivery may be late", "A second supplier identified; other work ready to do meanwhile."],
+          ["Rain stops outdoor work", "Indoor tasks ready to switch to."],
+          ["A key person is off sick", "Another competent person identified."],
+          ["A test instrument fails", "A spare, or a hire arrangement."],
+          ["A storm is forecast", "A plan to secure the site and materials."]
+        ] } },
+        { "h": "Resource levelling" },
+        { "p": "If two tasks need the same person or equipment at the same time, give priority to the critical task and move the other within its float. This evens out the demand for people and equipment without moving the finish." },
+        { "h": "Closing out" },
+        { "p": "A job is **complete** only when the work is tested, inspected and passed, the snags are cleared and the records are done. Hand over the certificate, circuit chart, as-built drawings and makers' manuals; show the client how to switch off, reset a breaker and test a GFCI; clear the site; return materials and hire items; and send the final account." },
+        { "h": "The end-of-job review" },
+        { "p": "Hold a short review with the team. Compare planned and actual time and cost, and list what went well, what did not and what to change next time. These **lessons learned** are recorded for the next plan. Ask the team for their ideas: they saw problems the planner may have missed." },
+        { "p": "**Example.** Planned 360 labour-hours, actual 414. Overrun = (414 − 360) ÷ 360 × 100 = **15%**. The diary shows 40 hours lost waiting for a late panel, so the lesson is about order dates, not about the electricians' speed." }
+      ]
+    },
+    {
+      "title": "Revision",
+      "blocks": [
+        { "h": "Checklist" },
+        { "p": "Tick each statement only when you can do it without looking at the notes." },
+        { "ul": [
+          "I can turn a vague request into a written, measurable scope with inclusions, exclusions, constraints and assumptions.",
+          "I can list the information a planner gathers and what a survey must check, including essential loads and other sources of supply.",
+          "I can break a job into stages and tasks and put them in order: strip-out, first fix, second fix, testing.",
+          "I can phase work in an occupied building around its timetable or opening hours.",
+          "I can work out working days from labour-hours, and people needed from output rates, rounding up.",
+          "I can count working days to a date, allowing for weekends and public holidays.",
+          "I can draw a network diagram, do a forward and backward pass, and find the job length, critical path and float.",
+          "I can say what a delay to a critical or non-critical task does to the finish.",
+          "I can draw and use a bar chart with milestones, hold points and progress marking.",
+          "I can take off materials, add a waste allowance and set order dates from lead times.",
+          "I can build up a cost estimate with contingency, overheads, profit and GCT on its own line.",
+          "I can write an isolation plan with temporary supplies, and say when a permit to work is needed.",
+          "I can plan quality checks, hold points, dead tests and the GER inspection.",
+          "I can track progress, find the cause of a delay, choose a safe recovery and handle a variation.",
+          "I can close out a job and lead a lessons-learned review."
+        ] },
+        { "h": "Formulas to remember" },
+        { "table": { "head": ["Formula", "Use"], "rows": [
+          ["Days = labour-hours ÷ (people × hours a day)", "Time for a crew; round up"],
+          ["People = work ÷ (output per person a day × days)", "Crew size; round up"],
+          ["EF = ES + duration; LS = LF − duration", "Network times"],
+          ["Float = LS − ES", "How far a task can slip"],
+          ["Latest order date = date needed − lead time − margin", "Ordering"],
+          ["Overrun % = (actual − planned) ÷ planned × 100", "Review"]
+        ] } },
+        { "h": "Key terms" },
+        { "terms": [
+          ["Bar (Gantt) chart", "A chart showing each task as a bar on a calendar, so overlaps and dates can be seen at a glance."],
+          ["Contingency", "A sum in the estimate for problems that cannot be foreseen, such as hidden faults in an old building."],
+          ["CPM", "Critical path method: finding the longest chain of linked tasks, which sets the job length."],
+          ["Critical path", "The chain of tasks with zero float; a delay to any of them delays the finish."],
+          ["Float", "How long a task can be delayed without delaying the whole job."],
+          ["Hold point", "A stage where work must stop until a check is done and the work is released."],
+          ["Inspection and test plan", "A list of every check and test, when it happens and who signs it."],
+          ["Labour-hour", "One person working for one hour."],
+          ["Lead time", "How long a supplier takes to deliver after an order."],
+          ["Lessons learned", "Points recorded at the end of a job so that the next one goes better."],
+          ["Milestone", "A key event in the programme, such as a delivery or the inspection, shown as a diamond."],
+          ["Network diagram", "A diagram of tasks joined by arrows showing which depend on which."],
+          ["Permit to work", "Written authority from the person in control of the premises for higher-risk work."],
+          ["Resource levelling", "Moving tasks within their float so that people and equipment are not double-booked."],
+          ["Scope", "The written statement of what the job includes and excludes, to what standard and by when."],
+          ["Site diary", "A dated daily record of work, people, deliveries, instructions, problems and weather."],
+          ["Strip-out", "Removing old wiring and fittings before a rewire."],
+          ["Take-off", "The list of materials counted and measured from the drawings."],
+          ["Variation", "A written, agreed change to the work, with its price and time, signed before the work is done."]
+        ] }
+      ]
+    }
+  ],
+  "cases": {
+    "c1": { "title": "Rewiring a parish library in Black River", "text": "Kevin Ellis, a Level 3 electrician, is planning the rewiring of a parish library in Black River, St Elizabeth. The library's request says only 'make the electrics safe and modern'. It is open Tuesday to Saturday, 9 a.m. to 5 p.m., and closed on Sundays and Mondays. The public computers, a small server and the fire alarm panel are all fed from the old panel, which is to be replaced." },
+    "c2": { "title": "A pharmacy fit-out in Falmouth", "text": "Nadia Francis is planning the electrical fit-out of a new pharmacy in Falmouth, Trelawny. Her tasks are: A, survey and final design (2 days); B, order and receive the panel (8 days, after A); C, containment and first fix (5 days, after A); D, ceiling closed up by the ceiling contractor (2 days, after C and the hold-point inspection); E, second fix and connecting the panel (3 days, after B and D); F, testing (1 day, after E); G, inspection and handover (1 day, after F)." },
+    "c3": { "title": "Court lights at a school in Brown's Town", "text": "Dwayne Henry is estimating the lighting for a netball court at a high school in Brown's Town, St Ann: six poles with LED floodlights fed by an underground cable. His figures are: materials J$600 000; labour 80 labour-hours at J$2 500 an hour; hire of a trencher and an access lift J$50 000. The firm adds a contingency of 10% of these direct costs, then adds 20% to that total for overheads and profit. Two electricians will do the work, each working 8 hours a day. The floodlights must be on site by Monday 1 March 2027, and the supplier quotes 5 weeks for delivery." },
+    "c4": { "title": "New circuits in a hotel kitchen in Runaway Bay", "text": "Shauna Bailey is planning four new circuits for kitchen equipment at a hotel in Runaway Bay, St Ann. The kitchen works from 5:30 a.m. to 11 p.m. every day. The new breakers go in the kitchen panel, which also feeds the walk-in freezer. The cables will run above the kitchen ceiling, close to the hood ducts and gas pipes. The hotel's chief engineer issues a permit for any work above ceilings and any shutdown of kitchen supplies. This week Shauna's team is working a normal day shift on another job." },
+    "c5": { "title": "Guest cottages in Treasure Beach", "text": "Garfield Morrison's team is wiring ten new guest cottages at a resort in Treasure Beach, St Elizabeth. The bar chart plans the cottages evenly over 20 working days, two days each, followed by testing and handover. At the end of day 12, five cottages are finished. The team lost two days waiting for cable, which had been ordered a week before it was needed from a supplier that usually takes ten days. The resort owner now asks for USB outlets beside every bed." }
+  },
+  "questions": [
+    { "id": "P-01", "c": "c1", "q": "Kevin's first draft of the scope says 'Upgrade the electrical system as needed.' Why will this cause trouble later?", "o": ["It is too short, and the library board wants a much longer report", "Nobody can show when the job is done or what the price covers", "It does not give the names of the electricians on the team", "It leaves out the GCT rate that the library will have to pay"], "a": 1, "why": "A scope must say exactly what will be done, to which standard and by when, so both sides can check at the end that the job is complete and agree what the price covers. 'As needed' can be argued about for ever. Team names and tax belong elsewhere." },
+    { "id": "P-02", "c": "c1", "q": "Which way of programming the work suits the library best?", "o": ["Close the whole library for three weeks so the team can work freely", "Start in the reading room on a Saturday, when the most people visit", "Change the panel and do noisy work on Mondays, one area at a time", "Do every task on weekday evenings, after the library closes at 5"], "a": 2, "why": "The library is closed on Mondays (and Sundays), so the shutdowns and the noisiest work fit there without disturbing readers, and working one area at a time keeps the rest open. Closing the whole building costs the public a service, and evening work brings tiredness and extra cost." },
+    { "id": "P-03", "c": "c1", "q": "The fire alarm panel will lose its normal supply while the main panel is changed. What should Kevin's plan include?", "o": ["Disconnect the panel's standby batteries as well, so it is fully dead", "Check its batteries will last the outage, and warn whoever monitors it", "Nothing, because a fire alarm panel does not need mains power to work", "Keep the alarm's breaker on while the rest of the board is being changed"], "a": 1, "why": "An alarm panel runs from standby batteries when its mains supply is off, but only for a limited time, and losing the supply can send a fault signal. The plan should check the batteries will cover the outage and warn the alarm's maintainer or monitoring company and the library. Keeping one breaker live in a board being changed is live working." },
+    { "id": "P-04", "c": "c2", "q": "What is the shortest time in which the pharmacy fit-out can be finished?", "o": ["14 days", "22 days", "15 days", "12 days"], "a": 2, "why": "A ends on day 2. B ends on day 10; C ends on day 7 and D on day 9. E needs both B and D, so it starts after day 10 and ends on day 13; F ends on day 14 and G on day 15. The longest chain, A–B–E–F–G, sets the job length. Adding up every task (22) ignores the tasks that run at the same time." },
+    { "id": "P-05", "c": "c2", "q": "The ceiling contractor says task D will take 4 days, not 2. What happens to the finish date?", "o": ["It moves 2 days later", "It stays the same", "It moves 4 days later", "It moves 1 day later"], "a": 3, "why": "C and D have 1 day of float: they finish on day 9, but E cannot start until the panel arrives on day 10. A 2-day delay to D uses up that 1 day and pushes E, F and G back by the other 1 day. A delay moves the finish only by the amount it exceeds the float." },
+    { "id": "P-06", "c": "c2", "q": "The supplier offers to deliver the panel in 6 days instead of 8, for an extra charge. How much shorter would the job become?", "o": ["1 day", "2 days", "No shorter", "3 days"], "a": 0, "why": "With B at 6 days the panel arrives on day 8, but C and D still finish on day 9, so E now starts after day 9 instead of day 10. Only 1 day is saved, because the C–D path becomes critical. Before paying to speed up a task, check what the other paths allow." },
+    { "id": "P-07", "c": "c2", "q": "Why is the hold-point inspection placed between task C and task D?", "o": ["So the inspector can check first-fix cables before they are hidden", "Because the inspector happens to be free to visit on that day of the job", "So that the new panel can be tested before it arrives on site", "Because a hold point gives the team a spare day if it falls behind"], "a": 0, "why": "A hold point is a stage where work stops until a check is done and the work released. Cables above a ceiling are hidden for good once it is closed, so they are inspected, and often photographed, first. Putting a fault right after close-up means taking the ceiling down." },
+    { "id": "P-08", "c": "c3", "q": "How many working days should Dwayne plan for the two electricians?", "o": ["10 days", "8 days", "4 days", "5 days"], "a": 3, "why": "Days = labour-hours ÷ (people × hours a day) = 80 ÷ (2 × 8) = 5 days. Dividing by 8 hours alone gives the time for one electrician. Allow extra where the job needs it, for example for rain while trenching." },
+    { "id": "P-09", "c": "c3", "q": "What price, before GCT, should Dwayne put on the estimate?", "o": ["J$1 105 000", "J$1 122 000", "J$1 020 000", "J$1 092 000"], "a": 1, "why": "Labour = 80 × J$2 500 = J$200 000, so direct costs = 600 000 + 200 000 + 50 000 = J$850 000. Contingency 10% = J$85 000, giving J$935 000. Overheads and profit 20% of 935 000 = J$187 000, giving J$1 122 000. Adding 30% in one step (J$1 105 000) does not follow the firm's method." },
+    { "id": "P-10", "c": "c3", "q": "Allowing one extra week as a margin, what is the latest date Dwayne can order the floodlights?", "o": ["Monday 25 January 2027", "Monday 1 February 2027", "Monday 18 January 2027", "Monday 11 January 2027"], "a": 2, "why": "Count back from the date needed: 5 weeks' delivery plus 1 week's margin is 6 weeks, so the order must go in by Monday 18 January. Ordering on 25 January leaves no room for a late delivery. In practice, order as soon as the design and price are approved." },
+    { "id": "P-11", "c": "c4", "q": "When should Shauna plan the shutdown of the kitchen panel?", "o": ["Overnight, after 11 p.m., agreed with the chef and the engineer", "At 2 p.m., the quietest time between lunch and dinner service", "At 6 a.m., before the breakfast rush gets too busy in the kitchen", "Whenever the team arrives, since the freezer can manage without power"], "a": 0, "why": "Overnight is the only time the kitchen is not cooking, so a shutdown then disrupts the hotel least. It must be agreed with the chef and covered by the chief engineer's permit. A shutdown during service would stop the kitchen and affect guests." },
+    { "id": "P-12", "c": "c4", "q": "Shauna's team is on a day shift elsewhere this week. Which arrangement for the night work is safest?", "o": ["The same team, straight after its day shift, to save on wages", "A team that has rested in the day, with good temporary lighting", "One electrician alone, so that fewer people are kept up all night", "Any team, as long as the work is done by torchlight to save time"], "a": 1, "why": "Tired people make mistakes, and the area will be dark once the panel is isolated. Plan a rested team, proper temporary lighting and at least two people, so that someone can raise the alarm if anything goes wrong." },
+    { "id": "P-13", "c": "c4", "q": "The freezer must stay cold, but the panel must be dead while the breakers are fitted. What should the plan do?", "o": ["Leave the freezer's breaker on while the other breakers are fitted", "Run the freezer from an extension cord to a guest room for the night", "Unplug the freezer and empty it into the guest-room fridges first", "Keep the outage short, the door shut and the temperature checked"], "a": 3, "why": "A closed walk-in freezer holds its temperature for a while without power, so a short, planned outage with the door kept shut and the temperature checked before and after protects the food. If the work would take too long, a properly installed and tested temporary supply is planned instead. Working in a panel with a breaker left on is live working." },
+    { "id": "P-14", "c": "c4", "q": "What is the main purpose of the chief engineer's permit for this work?", "o": ["To show the hotel that the firm's electricians are licensed and insured", "So the hotel can control the timing, hazards and isolations of the work", "To let the firm charge the hotel extra for working through the night", "To replace the need for the team's own isolation and risk assessment"], "a": 1, "why": "A permit to work is the hotel's written control: it records what work is allowed, where and when, the hazards (gas, hot ducts, kitchen staff), the isolations and precautions, and when the area is handed back. It adds to the team's own risk assessment and isolation procedure; it never replaces them." },
+    { "id": "P-15", "c": "c5", "q": "At the end of day 12, how does the cottage work stand against the plan?", "o": ["On plan, since half the time has gone", "Two cottages, about four days, behind plan", "One cottage, about two days, behind plan", "One cottage ahead, as the delay is over"], "a": 2, "why": "At two days a cottage, 6 cottages should be finished by the end of day 12. Five are done, so the job is one cottage, about two days, behind. Always compare work done with work planned for the same day." },
+    { "id": "P-16", "c": "c5", "q": "Which is the best way for Garfield to recover the lost time?", "o": ["Agree an extra person or a Saturday shift, then update the chart", "Leave out testing on the last cottages to finish on the planned day", "Work the team twelve hours a day until it catches up, without asking", "Keep quiet, as the resort may not notice that the job finished late"], "a": 0, "why": "Recovery options include adding competent people, working extra hours safely or changing the order of tasks. They are agreed with the supervisor, the client is told about any change to the finish and the chart is updated. Skipping tests is never an option, and long, tired shifts cause accidents." },
+    { "id": "P-17", "c": "c5", "q": "What must happen before the team fits the USB outlets the owner has asked for?", "o": ["A written variation with the price and extra days, signed by the owner", "Nothing, because small extras like these are always fitted free of charge", "The team fits them straight away, and the office works out the price later", "The supervisor tells the owner on the phone roughly what they will cost"], "a": 0, "why": "A change to the scope is a variation. Its price and its effect on the programme are worked out, written down and signed by the client before the work starts, so there is no dispute when the bill comes. Then the drawings, materials list and bar chart are updated." },
+    { "id": "P-18", "c": "c5", "q": "Which lesson about the cable should go into the end-of-job review?", "o": ["Always buy twice the cable that a job needs, so that it never runs short", "Never use that supplier again, whatever its prices and its service", "Delays in deliveries can never be planned for, so there is no real lesson", "Set order dates from lead times, with a margin, at the planning stage"], "a": 3, "why": "The cable was ordered a week before it was needed from a supplier that takes ten days, so it was bound to be late. The lesson is to work out order dates from lead times, with a margin, when the job is planned. Over-ordering ties up money and creates waste." },
+    { "id": "P-19", "c": null, "q": "A job of 8 working days (Monday to Friday, no public holidays) starts on Wednesday 2 December 2026. On which day does it finish?", "o": ["Thursday 10 December", "Wednesday 9 December", "Friday 11 December", "Monday 14 December"], "a": 2, "why": "Count only working days, including the start day: Wednesday 2, Thursday 3 and Friday 4 are days 1 to 3; Monday 7 to Friday 11 are days 4 to 8. So the job finishes on Friday 11 December." },
+    { "id": "P-20", "c": null, "q": "Two tasks in the same week both need the firm's only cable-pulling winch. Task P is on the critical path; task Q has 5 days of float. What should the planner do?", "o": ["Give the winch to Q first, as it has the most time to spare", "Do both tasks at the same time and share the winch between them", "Delay both tasks until a second winch can be bought for the firm", "Give the winch to P first and move Q later, within its float"], "a": 3, "why": "A delay to a critical task delays the whole job, but a task with float can move by up to that float without harm. Moving non-critical work within its float so that equipment and people are not double-booked is called resource levelling." }
+  ]
+}

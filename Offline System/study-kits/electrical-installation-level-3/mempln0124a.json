@@ -1,0 +1,517 @@
+{
+  "format": "cestis-study-kit",
+  "version": 1,
+  "status": "to-check",
+  "written": "2026-11-07",
+  "programme": "Electrical Installation",
+  "qualification": { "id": "QUAL-EIM-L3", "title": "ELECTRICAL INSTALLATION AND MAINTENANCE LEVEL 3", "code": "MEM32507" },
+  "level": 3,
+  "unit": { "code": "MEMPLN0124A", "title": "Perform testing on complex electrical installation" },
+  "summary": "This unit teaches you to plan, carry out, judge and record the tests on a complex installation: one with several boards, three-phase and split-phase circuits, a standby generator, a UPS, solar PV and large motors. You will learn to isolate every source, to use advanced tests such as the polarisation index, micro-ohm and earth electrode tests, and to check PV strings, CT circuits and protection. You will also learn to analyse a full set of results, lead a test team and sign only results you can stand behind.",
+  "sections": [
+    {
+      "title": "Unit overview",
+      "blocks": [
+        { "p": "At Level 2 you tested a house or a small shop: one board, one supply, a few circuits. This unit is about the bigger jobs you will lead at Level 3: hotels, factories, clinics, schools, pumping stations and office blocks. These installations have several boards, more than one source of supply, large motors and electronic equipment that can be damaged by careless testing. The tests are the same family you already know, plus some new ones, but the planning, the safety and the judgement are much harder." },
+        { "h": "What you must be able to do" },
+        { "table": { "head": ["Task", "What it looks like on the job"], "rows": [
+          ["Plan the testing", "Collect the drawings, design limits and makers' data; list every source; write a test plan and an isolation plan with the order of tests, hold points, instruments and agreed shutdowns."],
+          ["Isolate a multi-source installation", "Lock off the JPS supply, the generator, the UPS and the PV inverter; deal with stored energy; prove dead with a tester checked before and after."],
+          ["Carry out advanced dead tests", "Continuity of protective conductors and armour; insulation resistance between every pair of conductors, with timed tests (DAR and PI) on motors and long cables; micro-ohm tests on joints; earth electrode tests."],
+          ["Take part in live tests", "Supply polarity and voltage, phase rotation, earth fault loop impedance and prospective fault current on the mains and on the generator, and RCD tests, done by or with an authorised competent person."],
+          ["Test special systems", "PV strings, CT circuits for metering and protection, protection relays, motors fed from drives, UPS units and other sensitive electronics."],
+          ["Carry out functional tests", "Prove that interlocks, transfer switches, UPS changeover, PV anti-islanding and emergency stops work as designed."],
+          ["Analyse the results", "Compare every result with the design limit, with similar circuits and with the value you expect; correct for temperature; find what each failure means and what must be done."],
+          ["Record and certify", "Complete the schedules of test results and the certificate, list failures and limits of the testing, and sign only for tests you did, led or witnessed."],
+          ["Lead the test team", "Brief the team, match tasks to competence, check instruments and readings every day, and repeat doubtful tests."]
+        ] } },
+        { "h": "What makes an installation 'complex'" },
+        { "ul": [
+          "**Several boards**: a main switchboard feeding sub-boards through sub-main cables, sometimes armoured, sometimes in busbar trunking.",
+          "**More than one source**: the JPS supply, a standby generator with an automatic transfer switch (ATS), a UPS with batteries, and solar PV (grid-tied, or hybrid with batteries).",
+          "**Three-phase and split-phase circuits** on the same site, with motors whose direction depends on phase rotation.",
+          "**Large motors, variable speed drives (VSDs), EV chargers and electronics**, which can be damaged by test voltages or can give false readings.",
+          "**Current transformers (CTs), meters and protection relays** on the larger boards.",
+          "**Critical loads** that cannot simply be switched off: cold rooms, water pumps, clinics, data rooms, lifts and fire systems."
+        ] },
+        { "note": "JPS supplies homes and most businesses at **110/220 V split-phase, 50 Hz**; larger premises often take a three-phase supply. The wiring code used in Jamaica is based on the US NEC, but many test instruments and test forms use British names: R1 + R2, Zs, RCD, schedule of test results. This kit uses those names and gives the US terms where they help. A new or altered installation must be inspected and certified by a licensed electrical inspector, under the Government Electrical Regulator (GER), before JPS will connect it. Your test results are the evidence that inspector reads.", "label": "Jamaica" },
+        { "note": "Every limit you judge against (minimum insulation resistance, maximum Zs, trip times, earth electrode resistance) comes from the design, the code the Centre uses and the makers' data. Figures in this kit are typical. Where they differ from your job's specification or the maker's instructions, follow the specification, the maker and your instructor.", "label": "Remember" }
+      ]
+    },
+    {
+      "title": "Planning the testing",
+      "blocks": [
+        { "p": "On a house you can carry the plan in your head. On a hotel or a factory you cannot: there are too many sources, boards, people and shutdowns. A **written test plan** makes sure nothing is missed, the team works in a safe order, and the client knows when the power will be off." },
+        { "h": "Information to gather first" },
+        { "table": { "head": ["Document", "What you take from it"], "rows": [
+          ["Single-line (one-line) diagram", "Every source, board, sub-main, transfer switch and isolation point, and which board feeds which. This is the base of your isolation plan."],
+          ["Circuit schedules and design calculations", "Cable sizes and lengths, protective devices, the maximum Zs for each circuit, the expected R1 + R2, the prospective fault current and the breaking capacity of each device."],
+          ["Specification", "Which tests are required, the pass limits, who must witness them, and which forms to use."],
+          ["Makers' data", "For the generator, ATS, UPS, PV inverter, drives, RCDs and relays: what must be disconnected before insulation testing, capacitor discharge times, and the makers' own test procedures."],
+          ["Earlier test records", "Results to compare with, and known problems. On an alteration, the existing circuits' last results."]
+        ] } },
+        { "h": "The order of tests" },
+        { "flow": [
+          "Inspection: look before you test",
+          "Dead tests: continuity of protective and bonding conductors, insulation resistance, polarity, earth electrode, micro-ohm tests on joints",
+          "Hold point: the lead tester checks the dead results before anything is energised",
+          "Live tests on the JPS supply: voltage and polarity, phase rotation, Ze, Zs and fault current, RCD tests",
+          "Live tests repeated on the generator supply: rotation, Zs and fault current",
+          "Functional tests: interlocks, ATS, UPS, PV, emergency stops",
+          "Analyse, record, certify and report"
+        ] },
+        { "p": "**Why this order?** Continuity of the protective conductors comes first, because every later test, and the safety of the people doing it, relies on a sound earth path. Dead tests come before live tests because a live test on a faulty circuit can be dangerous. For example, a loop impedance test pushes current down the protective conductor: if that conductor is broken, the metal parts of the circuit can rise to line voltage during the test, and anyone touching them gets a shock. Insulation tests come before switching on, so that a short circuit or a nail through a cable is found with the tester, not with a flash at the breaker." },
+        { "h": "What the written test plan holds" },
+        { "ul": [
+          "The scope: which boards, sub-mains and circuits are tested, and what is left out.",
+          "The **isolation plan**: every source and every lock-off point, and who holds which lock.",
+          "The order of tests and the **hold points**.",
+          "The instruments: type, serial number, calibration date and category (CAT) rating.",
+          "Equipment to disconnect before insulation testing: drives, UPS, inverters, surge protective devices, LED drivers and controls.",
+          "The limits for each test, taken from the design.",
+          "Shutdown times agreed with the client, and how critical loads will be kept going.",
+          "The team, their roles and who may do live tests.",
+          "Blank schedules for each board, and the emergency arrangements."
+        ] },
+        { "h": "Hold points" },
+        { "p": "A **hold point** is a stage where work stops until the lead tester has checked the results and signed them off. Typical hold points: no board is energised until its dead tests have passed; no circuit is handed over until its live and functional tests are recorded. Hold points catch mistakes while they are still cheap and safe to fix." },
+        { "h": "Shutdowns and critical loads" },
+        { "p": "Dead testing needs the power off, often for hours. Agree the times with the client in writing. Find out which loads cannot be off for long (cold rooms, medical equipment, pumps, servers) and arrange a temporary supply or another source for them. Tell the users before the shutdown, and plan how the supply will be restored and checked afterwards." },
+        { "note": "Plan outdoor tests (earth electrodes, PV arrays, roof work) around the weather. Heavy rain makes PV and spike work unsafe, and the hurricane season (June to November) can close sites for days. Earth electrodes read highest in the dry months, roughly December to April, which is the fairest time to prove them.", "label": "Jamaica" },
+        { "h": "Instruments" },
+        { "table": { "head": ["Instrument", "Used for", "Check before use"], "rows": [
+          ["Two-pole voltage indicator and proving unit", "Proving dead", "Prove it on the proving unit before and after every test."],
+          ["Insulation and continuity tester (often in a multifunction tester)", "Continuity at a test current of at least 200 mA; insulation resistance at 250, 500 or 1,000 V DC; timed tests", "Null the leads; check it on its check box of known values."],
+          ["Micro-ohm meter (low-resistance ohmmeter, often called a DLRO)", "Busbar joints, cable lugs, breaker contacts", "Check it on its check resistor."],
+          ["Earth electrode tester with spikes and leads", "Fall-of-potential and other electrode tests", "Leads undamaged; spikes and tape ready."],
+          ["Loop impedance and RCD tester", "Ze, Zs, prospective fault current, RCD trip times (live tests)", "Used only by a competent, authorised person; check box."],
+          ["Phase rotation indicator", "Phase sequence on three-phase boards", "Check it on a known supply."],
+          ["DC clamp meter and PV tester", "String voltage, current and insulation on PV arrays", "Rated for the DC voltage of the array."],
+          ["Relay test set and primary injection set", "Protection relays and CT circuits", "Specialist equipment; specialist operator."]
+        ] } },
+        { "p": "**Measurement categories (CAT ratings)** tell you how big a voltage surge an instrument and its leads can survive at a point in the installation. **CAT IV** is for the origin of the installation: the service, the meter and the main incomer, where surges from the JPS lines are largest. **CAT III** is for distribution boards, sub-mains and fixed equipment. **CAT II** is for plug-in equipment at outlets. Use an instrument and leads rated for the category and the voltage where you measure." },
+        { "note": "Check each instrument on its check box or check resistor at the start and end of each day, and write the readings down. If the end-of-day check fails, every result taken since the last good check is in doubt and must be repeated.", "label": "Tip" }
+      ]
+    },
+    {
+      "title": "Safe isolation with several sources",
+      "blocks": [
+        { "p": "On a complex installation, opening one breaker rarely makes a board dead. A board may be fed from the JPS supply, a generator, a UPS and a PV inverter, and each can make it live in a different way. Before any dead test, every source must be found, isolated and locked off, and the board proved dead at the point of work." },
+        { "table": { "head": ["Source", "How it can make 'dead' equipment live", "How to isolate it"], "rows": [
+          ["JPS supply", "A sub-board may be fed from two boards; labels may be wrong.", "Lock off the incomer or the board's isolator; test at the point of work."],
+          ["Standby generator with an ATS", "Loss of the JPS supply is exactly what tells the ATS to start the generator and transfer, often within seconds.", "Set the generator controller to OFF (not AUTO), isolate its starting battery if the maker allows, and lock the generator breaker or the ATS in a safe position."],
+          ["UPS", "Its batteries keep the output live when the input is off. A static bypass or an external maintenance bypass may feed the output from another board.", "Follow the maker's shutdown: transfer to maintenance bypass or shut down, isolate the batteries at their DC isolator, and lock off the output."],
+          ["Grid-tied PV inverter", "The inverter stops feeding the AC side when the grid is lost (anti-islanding), but the **DC side is live whenever light falls on the panels**, and the inverter's capacitors hold a charge.", "Open and lock the AC isolator; open the DC isolator; treat all DC cables as live; wait the discharge time marked on the inverter."],
+          ["Hybrid inverter with batteries", "It can run 'backup' circuits from its batteries when the grid is off.", "Shut it down as the maker says, isolate the batteries and lock off its AC output."],
+          ["Capacitors in drives, UPS units and power-factor banks", "They hold a charge after the supply is off.", "Wait the discharge time marked on the equipment, then prove dead."],
+          ["Shared or borrowed neutrals", "A neutral can carry current from another circuit that is still on.", "Treat the neutral as live until proved dead; isolate every circuit that shares it."]
+        ] } },
+        { "h": "Isolating a multi-source board" },
+        { "flow": [
+          "Study the single-line diagram and the labels on site; list every source",
+          "Agree the shutdown with the client and warn the users",
+          "Shut down and isolate the PV inverter, AC and DC sides",
+          "Set the generator so it cannot start, and lock its breaker open",
+          "Shut down the UPS or put it on maintenance bypass as the maker says; isolate its batteries",
+          "Open and lock off the JPS incomer or the board's isolator",
+          "Fit locks and tags at every point; one personal padlock per worker on each multi-lock hasp",
+          "Prove the tester on the proving unit, test every pair of conductors at the board, prove the tester again",
+          "Wait discharge times where equipment holds stored energy, and prove dead again"
+        ] },
+        { "note": "Never trust a display. An inverter screen that has gone blank, an ATS showing 'mains' or a UPS showing 'off' proves nothing. Only a test with a proven tester, at the point of work, proves a board dead.", "label": "Safety" },
+        { "h": "Group isolation" },
+        { "p": "When several people work on the same equipment, each person puts their **own padlock** on a multi-lock hasp at each isolation point, and keeps their own key. Nobody can switch on until the last lock is off. On a big shutdown with many isolation points, a **lock box** is often used: the lead person locks every isolation point, puts those keys in the lock box, and each worker fits their own padlock to the box. The isolation keys cannot be reached until every worker has removed their lock." },
+        { "h": "Back-feed" },
+        { "p": "**Back-feed** is power flowing the 'wrong' way into a part of the system that is supposed to be dead: from a UPS battery into its output board, from a generator connected without a proper transfer switch into the building and even onto JPS's lines, or from a PV system into a board that has been switched off at its incomer. Back-feed has killed electricians and JPS line workers. Your isolation plan must close every path." },
+        { "h": "Restoring the supply" },
+        { "p": "Restoring is planned as carefully as isolating. Remove test links and reconnect everything you disconnected (drives, SPDs, electrode links); check that everyone is clear; remove locks only when each worker has finished. A common order is: JPS supply first, then the generator controller back to AUTO, then the UPS, and the PV inverter last, because a grid-tied inverter needs a healthy grid before it will connect." }
+      ]
+    },
+    {
+      "title": "Insulation resistance on large installations",
+      "blocks": [
+        { "p": "The insulation resistance test applies a **DC test voltage** between conductors, and from each conductor to earth, and measures the resistance in megohms (MΩ). On a large installation the method is the same as on a house, but there are more conductors, longer cables, large motors and sensitive electronics, and the reading itself tells you more if you know how to read it." },
+        { "h": "Test voltages and usual minimum values" },
+        { "table": { "head": ["Circuit", "Test voltage (DC)", "Usual minimum"], "rows": [
+          ["Extra-low voltage (SELV and PELV), up to 50 V", "250 V", "0.5 MΩ"],
+          ["Up to 500 V: includes 110 V, 220 V and most low-voltage three-phase systems", "500 V", "1 MΩ"],
+          ["Above 500 V, up to 1,000 V", "1,000 V", "1 MΩ"]
+        ] } },
+        { "p": "These are the values on British-style test forms. Specifications for new work often expect far higher readings, and a new circuit in good order usually reads hundreds of megohms. Motors, PV arrays and other equipment are tested at the voltage their makers give. **Too low a test voltage may miss a weak spot; too high a voltage may damage equipment.**" },
+        { "h": "How many tests?" },
+        { "p": "Every pair of conductors is tested. With n conductors the number of pairs is **n × (n − 1) ÷ 2**." },
+        { "table": { "head": ["Conductors", "Number of tests"], "rows": [
+          ["L, N, E (a 110 V circuit)", "3"],
+          ["L1, L2, E (a 220 V circuit with no neutral)", "3"],
+          ["L1, L2, N, E (a 110/220 V cooker or dryer circuit)", "6"],
+          ["L1, L2, L3, E (a three-phase motor circuit)", "6"],
+          ["L1, L2, L3, N, E (a three-phase sub-main)", "10"]
+        ] } },
+        { "p": "On a whole board, a quicker first check is to link all the line and neutral conductors together and test them to earth. If that passes, test between the live conductors. If it fails, split the board and test circuits one at a time." },
+        { "h": "Protecting sensitive equipment" },
+        { "ul": [
+          "**Disconnect** drives, UPS units, PV inverters, LED drivers, electronic dimmers and timers, control panels and **surge protective devices (SPDs)** before testing, as their makers say.",
+          "Electronic equipment can be **damaged** by a 500 V or 1,000 V test, and its filters and SPDs connect the conductors to earth through capacitors and varistors, which gives a **false low reading**.",
+          "If something cannot be disconnected, **link line and neutral together and test only from them to earth**, so the test voltage does not appear across the equipment, and use a lower test voltage only where the maker allows.",
+          "Test a motor cable fed from a drive with the cable **disconnected from the drive's output terminals**. Never insulation test the drive itself unless its maker gives a method.",
+          "Write down everything you disconnected, and reconnect and check it all afterwards."
+        ] },
+        { "h": "Neutral to earth on RCD circuits" },
+        { "p": "On circuits protected by RCDs, always test **neutral to earth** as well (with the neutral disconnected from the neutral bar). A neutral touching earth may carry no danger on its own, but it lets part of the neutral current return on the earth path, which upsets the RCD's balance and makes it trip for no clear reason, often only when other loads switch on. On split-phase boards, a neutral 'borrowed' from another circuit causes the same nuisance tripping." },
+        { "h": "Why the reading rises with time" },
+        { "p": "When the test voltage is applied, three currents flow. The **charging current** fills the cable or winding like a capacitor and dies away in seconds. The **absorption current** is the insulation's molecules slowly lining up with the voltage; it falls away over minutes. The **leakage current** flows through and over the insulation and stays steady. The tester shows voltage ÷ total current, so as the charging and absorption currents die away the reading rises. Clean, dry insulation has a large absorption current compared with its leakage, so its reading keeps climbing. Damp or dirty insulation has a large leakage current, so its reading stays flat." },
+        { "h": "Timed tests: DAR and PI" },
+        { "table": { "head": ["Test", "How it is worked out", "Typical guide (makers' tables vary)"], "rows": [
+          ["Spot reading", "The reading at 60 seconds", "Compare with the minimum, with similar equipment and with earlier results."],
+          ["**Dielectric absorption ratio (DAR)**", "Reading at 60 s ÷ reading at 30 s", ["Below about 1.25: questionable or poor", "About 1.4 to 1.6: good", "Above 1.6: excellent"]],
+          ["**Polarisation index (PI)**", "Reading at 10 minutes ÷ reading at 1 minute", ["Below 1.0: poor, do not energise", "1.0 to 2.0: questionable, investigate", "2.0 to 4.0: good", "Above 4.0: excellent"]]
+        ] } },
+        { "p": "**Worked example.** A pump motor reads 120 MΩ at 30 s, 150 MΩ at 60 s and 330 MΩ at 10 minutes. DAR = 150 ÷ 120 = **1.25**. PI = 330 ÷ 150 = **2.2**. The PI is in the good range, so the windings look clean and dry." },
+        { "ul": [
+          "A PI is a **ratio of two readings taken at the same temperature**, minutes apart, so it is much less affected by temperature than a single reading. That makes it the better figure for comparing this year's test with last year's.",
+          "A single reading falls as the insulation warms up: a rule of thumb is that it **roughly halves for every 10 °C rise**. Makers give correction tables to a base temperature. Always record the winding temperature and the humidity.",
+          "Where the 1-minute reading is extremely high (thousands of megohms), modern insulation may give a PI close to 1 and still be healthy. Use the maker's guidance.",
+          "Minimum spot readings for motors depend on their voltage and type; a figure often used for low-voltage motors is about 5 MΩ at 1 minute, corrected to the base temperature. Follow the maker."
+        ] },
+        { "note": "Jamaica's heat and high humidity lower insulation readings, especially in pump houses, plant rooms near the sea and equipment that has stood idle through the rainy season. A motor that reads low and flat should be cleaned and dried as its maker allows (for example with its anti-condensation heater or warm air), then retested, before anyone switches it on.", "label": "Jamaica" },
+        { "h": "Interpreting the readings" },
+        { "table": { "head": ["What you see", "Likely cause", "What to do"], "rows": [
+          ["One phase low to earth, the others high", "Damage or damp at that phase: a nicked cable, a wet gland, a burnt winding", "Separate cable and motor; test each part to find where."],
+          ["All phases low and the PI near 1", "General damp or dirt", "Clean and dry, then retest."],
+          ["Low between phases on a motor", "Winding insulation failing", "Refer to the motor repairer."],
+          ["Reading drops sharply when a switch is closed", "Equipment or lamps still connected on that switched part", "Find and disconnect it, then retest."],
+          ["Within the limit but far below similar circuits", "An early fault, damp in a box, or something left connected", "Investigate before passing it."]
+        ] } },
+        { "note": "The tester can give a painful shock, and long cables and big windings store a charge like a capacitor. Warn people before each test and make sure nobody can touch the circuit. After the test, leave the leads on while the tester discharges the circuit, and watch the voltage fall to zero before you touch anything. Big windings after a long timed test need longer: a rule often quoted is to keep them earthed for at least four times as long as the test voltage was applied. Follow the maker.", "label": "Safety" }
+      ]
+    },
+    {
+      "title": "Continuity and low-resistance tests",
+      "blocks": [
+        { "h": "Protective conductors on a large installation" },
+        { "p": "Every path that fault current must take is tested: the main earthing conductor, the main bonding conductors to water and gas pipes and structural steel, the protective conductors of sub-mains and final circuits, the armour of armoured cables, and metal conduit or trunking where the design uses it as a protective conductor. Low resistance on these paths is what lets a fault trip the protective device quickly." },
+        { "h": "R1 + R2 and the value you expect" },
+        { "p": "With the line conductor linked to the protective conductor at the board, the reading at the far end of a circuit is **R1 + R2**: the line conductor plus the protective conductor. Work out what you expect before you test, from the cable sizes and the length." },
+        { "table": { "head": ["Copper conductor", "Resistance per metre at 20 °C (about)"], "rows": [
+          ["12 AWG", "5.21 mΩ/m"],
+          ["10 AWG", "3.28 mΩ/m"],
+          ["8 AWG", "2.06 mΩ/m"],
+          ["2.5 mm²", "7.41 mΩ/m"],
+          ["4 mm²", "4.61 mΩ/m"],
+          ["6 mm²", "3.08 mΩ/m"]
+        ] } },
+        { "p": "**Worked example.** A 40 m circuit has a 10 AWG line conductor and a 10 AWG protective conductor. R1 + R2 = (3.28 + 3.28) × 40 = 262 mΩ, about **0.26 Ω**. A reading close to this is sound; a reading of 0.8 Ω points to a poor joint or a smaller conductor somewhere." },
+        { "h": "Correcting for temperature" },
+        { "p": "You test with the cables at room temperature, but in service they run hot, and copper's resistance rises about 0.4% for each °C. From 20 °C to 70 °C (a typical working temperature for PVC-insulated cable) that is 1 + 0.004 × 50 = **1.2**. So designers either give a factor (multiply measured R1 + R2 by 1.2, or whatever the design says) before adding Ze to get Zs, or they give a lower test limit. Some forms compare the measured Zs with about 80% of the tabulated maximum, for the same reason." },
+        { "p": "**Worked example.** Ze = 0.35 Ω; measured R1 + R2 = 0.26 Ω. Corrected R1 + R2 = 0.26 × 1.2 = 0.31 Ω. Zs = 0.35 + 0.31 = **0.66 Ω**. Compare this with the maximum Zs the design gives for that circuit's protective device." },
+        { "h": "Armour as the protective conductor" },
+        { "p": "Where the steel wire armour of an armoured cable is the protective conductor, test it from end to end: armour at the motor or sub-board to the main earthing terminal. The glands must be the right type, tight, and connected to earth (an earth tag or banjo under each gland). Steel armour has a much higher resistance than copper of the same size; the maker's data gives it per metre. Check that the design allowed for it, and that your reading is close to the expected value." },
+        { "h": "Low-resistance (micro-ohm) testing" },
+        { "p": "Bolted busbar joints, cable lugs, breaker contacts and earth bars have resistances of a few **micro-ohms (µΩ)**: millionths of an ohm. An ordinary continuity tester cannot see differences that small, but they matter. Heat in a joint is **P = I² × R**. A joint of 20 µΩ carrying 400 A gives off 400² × 0.000020 = 3.2 W. A loose joint of 200 µΩ at the same current gives off 400² × 0.000200 = **32 W**, in one small spot inside a closed switchboard. It gets hotter, oxidises, its resistance rises further, and in the end it can burn out or start a fire." },
+        { "p": "A **micro-ohm meter** passes a large DC current (often 10 A to 100 A or more; many specifications ask for at least 100 A on switchgear) through the joint and measures the tiny voltage across it. Resistance = voltage ÷ current. **Example**: 50 A gives 1.2 mV across a joint. R = 0.0012 ÷ 50 = 0.000024 Ω = **24 µΩ**." },
+        { "h": "The four-wire (Kelvin) connection" },
+        { "p": "The meter has **two current leads** (C1, C2) that push the test current through, and **two potential leads** (P1, P2) that measure only the voltage between the points they touch. Almost no current flows in the potential leads, so the resistance of the leads and of the clips is left out of the result. The potential leads go **either side of the joint, inside (between) the current leads**." },
+        { "flow": [
+          "Isolate, lock off and prove dead; the incoming supply isolated by JPS or the authorised person where needed",
+          "Check the meter on its check resistor",
+          "Clean the test points without damaging any plating",
+          "Current leads on the outside; potential leads just either side of the joint",
+          "Take a reading, reverse the current, take another and average them",
+          "Test every similar joint the same way, with the leads in the same positions",
+          "Record the readings, the lead positions and the temperature, then compare"
+        ] },
+        { "p": "**Why reverse the current?** Where two different metals meet (copper and tin plating, copper and aluminium, a brass bolt) a tiny voltage appears, like a thermocouple. It can be a sizeable part of a reading of a few millivolts. Reversing the current reverses the test voltage but not this small voltage, so averaging the two readings cancels it." },
+        { "h": "Judging joint readings" },
+        { "ul": [
+          "Compare joints of the **same size and type** with each other, and with the maker's figures. A single fixed limit does not work, because the reading depends on the bar size, the overlap and where the potential leads sit.",
+          "Where the maker gives no figure, a common rule in testing standards is to **investigate any joint more than about 50% above the lowest similar joint**. Follow the specification.",
+          "**Example**: five joints read 18, 19, 17, 31 and 18 µΩ. The 31 µΩ joint is (31 − 17) ÷ 17 = 82% above the lowest: open it, clean it, remake it to the maker's torque and retest.",
+          "Record the before and after readings and the torque used. Later tests compare with them, and a slow rise over the years shows a joint loosening.",
+          "After the board is back in service, a **thermal imaging** survey under load is a good check on the same joints."
+        ] }
+      ]
+    },
+    {
+      "title": "Earth electrode testing",
+      "blocks": [
+        { "p": "The earth electrode (ground rod, or several rods, plates or a buried ring) connects the installation to the general mass of the earth. It limits the voltages caused by lightning and by faults on the supply, and gives the system a stable reference to earth. Its resistance must be at or below the design value." },
+        { "h": "The fall-of-potential method" },
+        { "flow": [
+          "Isolate and lock off the installation",
+          "Check with a clamp meter that no current flows in the earthing conductor",
+          "Remove the test link to disconnect the electrode; fix a warning notice",
+          "Check drawings for buried pipes and cables; choose a straight line away from other electrodes and buried metal",
+          "Drive the current spike (C) well away, for example 30 to 50 m for a single rod",
+          "Drive the potential spike (P) at 62% of the distance from the electrode to C",
+          "Connect the tester as its maker shows and take a reading",
+          "Move P about 10% of the distance nearer and further, and take two more readings",
+          "If the three readings agree (within about 5%), the result is sound; if not, move C further out and repeat",
+          "Record the readings, distances, soil and weather; refit the link and remove the notice before restoring the supply"
+        ] },
+        { "p": "**Worked example.** C is 40 m from the electrode. P goes at 62% of 40 = 24.8 m, about 25 m. The check positions are about 21 m and 29 m (52% and 72%). Readings: 12.4, 12.6 and 12.9 Ω. The highest is (12.9 − 12.4) ÷ 12.4 = 4% above the lowest, so the readings agree and the electrode is about **12.6 Ω**." },
+        { "p": "**Why 62%?** Each spike, and the electrode, is surrounded by a zone of soil that makes up most of its resistance. When C is far enough away, these zones do not overlap, and theory shows that the true resistance of the electrode is found with P at about 61.8% of the distance. If the zones overlap, the readings change a lot as P moves, which is why the two check readings are taken." },
+        { "h": "Why the electrode is disconnected" },
+        { "ul": [
+          "With the link in place, the tester also measures all the parallel earth paths through the supply neutral, water pipes and other bonded metal. The reading comes out falsely low.",
+          "The installation must be isolated first, because while the electrode is disconnected a fault could leave the system without its earth connection.",
+          "**Measure before you disconnect.** In a supply where the neutral is earthed at many points, part of the neighbourhood's neutral current can flow through your electrode even with the building switched off. If a clamp meter shows current in the earthing conductor, do not open the link: opening a conductor that carries current can draw an arc and leave a dangerous voltage across the gap. Find out where the current comes from and get advice first."
+        ] },
+        { "h": "Other methods" },
+        { "table": { "head": ["Method", "When it is used", "Limits"], "rows": [
+          ["Clamp-on (stakeless) tester", "An electrode that is one of many in parallel, such as on a system with a multi-earthed neutral; no spikes or disconnection needed", "It measures the whole loop, so it needs a return path through other electrodes. It cannot test a single, isolated rod."],
+          ["Two-point (dead earth) method", "A quick check against a known low-resistance earth, such as a metal water main", "Only as good as the 'known' earth; not accepted as proof on most jobs."],
+          ["Soil resistivity (Wenner four-pin) test", "Design: deciding how many rods, and how deep, before installing", "It measures the soil, not an installed electrode."]
+        ] } },
+        { "h": "What affects the result" },
+        { "ul": [
+          "**Soil type**: clay and loam hold water and read lower; sand, gravel and limestone read higher. Much of Jamaica is limestone, and coastal sand is common.",
+          "**Moisture and season**: dry soil reads much higher. Test in dry weather for a fair worst case, and record the conditions.",
+          "**Depth and number of rods**: longer rods reach damper soil. Extra rods lower the result only if they are spaced well apart (at least one rod length apart is a common guide).",
+          "**Corrosion and loose clamps**: a corroded clamp adds resistance between the conductor and the rod."
+        ] },
+        { "h": "Judging the result" },
+        { "p": "Compare the result with the design value. Under the NEC, a single rod that is above 25 Ω must be supplemented by a second electrode; designs for clinics, data rooms, telecom equipment and lightning protection often ask for 10 Ω or less. If the result is too high, report it: the designer may add rods, use longer rods, bond to other electrodes such as the building's steel or a concrete-encased electrode, or use an approved ground enhancement material. **Never pour salt or chemicals round a rod**: it corrodes the rod and the effect washes away." },
+        { "note": "Keep people clear of the spikes and leads, and never drive a spike before checking for buried services. Do not test earth electrodes when lightning is about.", "label": "Safety" }
+      ]
+    },
+    {
+      "title": "Live tests on multi-source supplies",
+      "blocks": [
+        { "note": "Live tests are done only by a **competent, authorised person**, with instruments and fused leads rated for the CAT and voltage, suitable arc-rated PPE, and barriers to keep others away. At the Centre, only the instructor energises anything. Trainees may watch and record.", "label": "Safety" },
+        { "h": "Supply voltage and polarity" },
+        { "ul": [
+          "On a 110/220 V split-phase board, measure **L1 to N about 110 V, L2 to N about 110 V, and L1 to L2 about 220 V**. Neutral to earth should be close to 0 V.",
+          "On a three-phase board, measure every line to line and every line to neutral, and compare them: they should be close to each other.",
+          "**Polarity**: every single-pole breaker, fuse and switch must be in a **line** conductor, never the neutral; otherwise opening it leaves the circuit live. Edison-screw lampholders must have the line on the centre contact.",
+          "**A lost neutral on a split-phase supply** is dangerous: the two 110 V legs then share 220 V in series according to their loads, so one leg may rise to 150 V or more while the other falls. Equipment burns out. Check that the service and board neutral connections are sound and tight."
+        ] },
+        { "h": "Phase rotation" },
+        { "p": "On a three-phase board, a **phase rotation indicator** shows whether the phases come in the order L1-L2-L3. If any two are swapped, every three-phase motor runs backwards: pumps lose their flow, fans blow the wrong way, and some compressors are damaged in seconds. Check the rotation on the JPS supply **and again on the generator**, because the generator's lines may be connected in a different order. If the generator is wrong, correct it at the generator's connection (swap two lines there, with it isolated), so that both supplies match. Swapping two leads at one motor only makes that motor right on one supply and wrong on the other." },
+        { "h": "Earth fault loop impedance (Zs)" },
+        { "p": "When a line conductor touches earthed metal, the fault current flows round a loop: through the supply transformer, the line conductor, the fault, the protective conductor and back. The impedance of this loop is **Zs**. The lower it is, the bigger the fault current and the faster the breaker or fuse disconnects. **Ze** is the part outside the installation, measured at the origin. Zs = Ze + (R1 + R2). The designer gives a **maximum Zs** for each protective device; the measured or calculated Zs must not exceed it." },
+        { "h": "Prospective fault current" },
+        { "p": "At each board, measure the **prospective short-circuit current** (between live conductors) and the **prospective earth fault current** (line to earth), and record the **higher** of the two. Every protective device at that board must have a **breaking capacity** (marked in kA) at least as large as the prospective fault current there, or it may fail violently while trying to clear a fault. If the measured value is higher than any device's breaking capacity, report it to the designer: the devices may need changing, or the designer may have relied on an upstream device to protect them." },
+        { "h": "Testing on the generator supply" },
+        { "p": "A generator has a much higher internal impedance than JPS's transformer, so on generator supply **Zs is higher and the fault current is much lower**. Many generators can deliver only a few times their full-load current into a fault, and only for a short time. A breaker's magnetic trip may then not operate, and the fault may be cleared slowly, or not at all. So the loop impedance and fault current tests are **repeated with the installation on its generator**, and each result is judged against the same maximum Zs. A circuit that passes on the mains but fails on the generator is a failure: report it to the designer. Remedies include RCD protection, a different protective device, larger protective conductors, or a generator with better fault-current support." },
+        { "note": "Check how the neutral is switched. Under the NEC, if the transfer switch does **not** switch the neutral, the generator's neutral must **not** be bonded to earth at the generator; if the transfer switch **does** switch the neutral, the generator is a separate system and needs its own neutral-earth bond. A second neutral-earth bond in the wrong place sends normal neutral current along the earth conductors and metalwork, and makes RCDs trip.", "label": "Remember" },
+        { "h": "RCD types and tests" },
+        { "table": { "head": ["Type", "Detects", "Typical use"], "rows": [
+          ["AC", "Sinusoidal AC leakage only", "Simple resistive and older loads; not suitable where electronics can leak DC."],
+          ["A", "AC, and pulsating DC", "Most modern final circuits with electronic loads."],
+          ["F", "As type A, plus mixed-frequency leakage", "Single-phase drives, some washing machines and pumps with inverters."],
+          ["B", "As type F, plus **smooth DC** leakage", "Three-phase drives, some EV chargers, PV and UPS equipment, as makers require."],
+          ["S (time-delayed)", "Trips after a set delay", "Upstream of 30 mA RCDs, so a fault on a final circuit trips only the 30 mA device (selectivity)."]
+        ] } },
+        { "ul": [
+          "**Half rated current**: the RCD must **not** trip. If it does, it is too sensitive, or there is already **standing leakage** on the circuit (computers, medical equipment and LED drivers all leak a little through their filters). A guide often used is to keep standing leakage below about 30% of the RCD's rated current.",
+          "**Rated current**: the RCD must trip within its limit. Typical limits from the device standards: a general-type RCD within 300 ms; an S-type between 130 and 500 ms.",
+          "**Five times rated current** (for 30 mA RCDs): typically within 40 ms.",
+          "US-style **GFCIs** (trip at about 4 to 6 mA) are tested with their TEST button and a GFCI tester; their trip times come from their own standard.",
+          "Finish with the **test button** on each device, and record the results on the schedule."
+        ] }
+      ]
+    },
+    {
+      "title": "PV systems, CTs, relays, motors and drives",
+      "blocks": [
+        { "h": "Solar PV: safety first" },
+        { "p": "PV modules make voltage whenever light falls on them, so **the DC side cannot be made dead in daylight**. String voltages of 400 to 1,000 V DC are common. A DC arc does not go out by itself the way an AC arc does, because DC has no zero crossing, so **never break a DC connector under load**: open the DC isolator first, prove the current is zero with a DC clamp meter, and only then separate connectors. Use instruments rated for the DC voltage, wear suitable PPE and keep the string fuses and isolators open while you test." },
+        { "table": { "head": ["PV test", "What it shows", "How to judge it"], "rows": [
+          ["Continuity of frame and mounting earthing or bonding", "Frames and rails are bonded as designed", "Low resistance, as for any bonding conductor."],
+          ["Polarity of each string, before connection", "A reversed string can damage the inverter or the combiner", "Positive and negative where the drawing says."],
+          ["Open-circuit voltage (Voc) of each string", "The right number of modules, wired correctly", "Close to the expected value for the module temperature, and within a few per cent of identical strings measured at the same time."],
+          ["Short-circuit or operating current of each string", "Module health and wiring", "Close to the value expected for the sunlight at that moment (measured with an irradiance meter), and close to identical strings."],
+          ["Insulation resistance of the array", "Damaged cables, connectors or modules", "By the method and voltage the PV testing standard and the makers give."],
+          ["Inverter functional and anti-islanding test", "The inverter stops feeding when the grid is lost, and reconnects only when the grid is stable", "Within the times the inverter standard and JPS's connection rules require (often within 2 seconds to stop, and after several minutes of healthy grid to reconnect)."]
+        ] } },
+        { "h": "Working out the expected string voltage" },
+        { "p": "String Voc = number of modules × module Voc. The data sheet gives module Voc at **standard test conditions (STC)**: cells at 25 °C. Hot cells give a **lower** voltage: a typical crystalline module loses about 0.3% of its Voc for every °C above 25 °C." },
+        { "p": "**Worked example.** 14 modules with a Voc of 41 V: 14 × 41 = 574 V at STC. On a Jamaican roof at midday the cells may be about 50 °C, which is 25 °C above STC: 25 × 0.3% = 7.5% lower. Expected Voc ≈ 574 × 0.925 = **about 531 V**. (The designer also checks the other way: on the coolest morning the string voltage is highest, and it must stay below the inverter's maximum DC input voltage.)" },
+        { "h": "What a low string voltage tells you" },
+        { "table": { "head": ["Compared with identical strings", "Likely cause"], "rows": [
+          ["About one module's Voc low", "A module missing from the string, or shorted out"],
+          ["About two modules' Voc low", "One module connected the wrong way round"],
+          ["About a third of one module's Voc low (modules with three bypass diodes)", "A shorted bypass diode, or a shorted section of cells, in one module"],
+          ["Zero, or a reading of the wrong sign", "An open circuit (a loose connector, a blown string fuse) or reversed polarity"]
+        ] } },
+        { "p": "Current, unlike voltage, rises and falls almost directly with the sunlight. That is why string currents are compared with the value expected for the irradiance at the moment of the test, and why strings are measured within minutes of each other." },
+        { "h": "Current transformers (CTs)" },
+        { "p": "A CT steps a large current down to a small one for a meter or relay. A **300/5 A** CT has a ratio of 300 ÷ 5 = **60**. With 210 A in the primary, the secondary carries 210 ÷ 60 = **3.5 A**. **P1 and P2** mark the primary; **S1 and S2** the secondary. P1 normally faces the supply, and current entering P1 leaves S1 in the same instant." },
+        { "ul": [
+          "Check each CT's ratio and accuracy class on its nameplate against the design: a metering class for meters, a protection class for relays.",
+          "Check the wiring from S1 and S2 to the meter or relay against the drawing, and that the secondary circuit is **earthed at one point only**.",
+          "A **ratio and polarity check** proves each CT gives the right current and faces the right way. A reversed CT on a three-phase energy meter makes that phase count backwards, so the meter under-reads or runs backwards.",
+          "**Never open a CT secondary while primary current flows.** With nothing to drive current into, the CT can produce thousands of volts at its secondary terminals, which can kill and destroys the CT's insulation. Before removing a meter or relay, close the **shorting link** at the test block.",
+          "If a CT-operated meter is not set up with the CT ratio, its reading must be multiplied by the ratio."
+        ] },
+        { "h": "Protection relays" },
+        { "table": { "head": ["Test", "How it is done", "What it proves"], "rows": [
+          ["Secondary injection", "A test set injects current (and voltage) straight into the relay's inputs", "The relay picks up at its settings, trips in its set times, and its trip contacts work."],
+          ["Primary injection", "A large test current is passed through the CT primary", "The CT ratio and polarity, the secondary wiring, the shorting links and the relay all work together as one chain."],
+          ["Trip test", "The relay is made to operate the breaker", "The breaker actually opens."]
+        ] } },
+        { "p": "Secondary injection can pass while the system still fails: for example, if a CT shorting link was left closed, or a CT was wired to the wrong relay. Only primary injection proves the whole chain. These tests are usually done by specialists; at Level 3 you plan them, witness them and keep the records." },
+        { "h": "Motors and variable speed drives" },
+        { "ul": [
+          "Disconnect the motor cable from the drive's output before insulation testing the cable and motor.",
+          "A drive's DC bus capacitors hold a dangerous charge after the supply is off. Wait the time marked on the drive (often 5 to 15 minutes), then measure the DC bus voltage with a suitable meter before touching anything.",
+          "Measure the **winding resistance** of each phase with a low-resistance ohmmeter: the three readings should be close. A difference of more than a few per cent points to a shorted turn or a loose connection; the maker gives the tolerance.",
+          "Test motor insulation with the timed tests (DAR and PI) and record the temperature.",
+          "Check rotation with a short start ('bump') only when the motor is safe to turn and the driven machine allows it."
+        ] },
+        { "h": "UPS units and electronics" },
+        { "p": "Test circuits that feed UPS units and electronics with the equipment disconnected, or with line and neutral linked and tested to earth, as the makers allow. Disconnect surge protective devices. Remember that the UPS output can be live from its batteries even when its input is isolated. Afterwards, reconnect everything, check each connection, and record what was disconnected and reconnected." }
+      ]
+    },
+    {
+      "title": "Functional tests, analysis, records and leading the team",
+      "blocks": [
+        { "h": "Functional tests" },
+        { "p": "A **functional test** proves that a system works as intended. It does not measure a value; it operates the system and watches what happens." },
+        { "table": { "head": ["System", "What the test must prove"], "rows": [
+          ["Mechanical and electrical interlock between mains and generator breakers", "The two breakers can **never** be closed at the same time. Try to close the second while the first is closed: it must refuse."],
+          ["Automatic transfer switch (ATS)", "When the JPS supply fails, the generator starts and the load transfers after its set delay. When the supply returns and stays healthy, the load transfers back after its delay and the generator runs on to cool down. Record the delays."],
+          ["UPS", "When its input fails, the load stays on without a break; bypass and return work; alarms work."],
+          ["PV inverter", "It stops exporting when the grid is lost, and reconnects only after the grid has been healthy for its set time."],
+          ["Emergency stops, fire alarm shutdowns, isolators and controls", "Each operates as designed and resets correctly."]
+        ] } },
+        { "h": "Analysing the results" },
+        { "flow": [
+          "Check every result against its limit from the design",
+          "Compare it with similar circuits, joints, strings or motors",
+          "Compare it with the value you worked out in advance",
+          "Correct for temperature where the design says",
+          "Look for patterns: the same reading on circuits of very different lengths, readings that do not rise with distance",
+          "Decide: pass, fail or investigate; then the action and the retest"
+        ] },
+        { "table": { "head": ["What you find", "What it probably means", "What to do"], "rows": [
+          ["R1 + R2 far higher than on similar circuits", "A loose or poor joint, a smaller cable than designed, or a longer route", "Find and correct it; retest R1 + R2 and Zs."],
+          ["Zs passes on the mains, fails on the generator", "The generator's fault current is too low for the device to trip in time", "Record it as a failure on that supply; report it to the designer."],
+          ["Prospective fault current above a device's breaking capacity", "The device may not clear a fault safely", "Report it to the designer."],
+          ["Insulation passes, but far lower than similar circuits", "Damp, a damaged cable, equipment left connected", "Investigate before passing it."],
+          ["RCD trips at half its rated current", "Standing leakage on the circuit, or a faulty RCD", "Measure the leakage with loads disconnected; split the loads or replace the device."],
+          ["Current in the main earthing conductor in normal use", "A neutral-earth fault, or a neutral-earth bond in the wrong place (at a sub-board or generator)", "Find the source and correct it."],
+          ["Identical readings on circuits of very different lengths", "Readings estimated or copied", "Retest, and witness the retest."]
+        ] } },
+        { "h": "Records" },
+        { "p": "The **schedule of test results** records, for each circuit: its description, protective device, cable sizes, R1 + R2 (or R2), the insulation readings, polarity, Zs, RCD trip times and any remarks. The records also need the instruments used (with serial numbers), the test method where it matters, the temperature and humidity for insulation tests on large equipment, the date, and who tested. **Actual values are written, never 'OK' or a tick**: values can be checked, compared with the limit, and compared with the next test in years to come." },
+        { "h": "Certification" },
+        { "ul": [
+          "The **certificate** for the installation is signed by the **competent person who carried out or led the tests**, and states the extent of the work tested.",
+          "Limitations (anything not tested, and why) and departures from the design are written on it.",
+          "Failed items are listed, the circuits stay isolated until they are repaired and retested, and the retest results are added.",
+          "**Never sign for tests you did not do, lead or witness.** Your signature says the results are true."
+        ] },
+        { "h": "Leading the test team" },
+        { "ul": [
+          "Brief the team on the plan, the isolation points and the safety rules; give each person tasks they are competent for.",
+          "Issue calibrated instruments; have each one checked on its check box before and after each day.",
+          "Make sure every worker's own padlock is on before dead testing starts.",
+          "Check the schedules daily for gaps, 'OK' entries, results that do not fit the design, and readings that look copied. Have doubtful tests repeated, and witness some yourself.",
+          "Only competent, authorised people do live tests.",
+          "Review every schedule before you sign the certificate."
+        ] },
+        { "note": "Write the test report for the client in plain language: what was tested, what passed, what failed and why it matters, what must be done, and what was not tested. 'Circuit DB-3/7 fails on generator supply: Zs 1.95 Ω, maximum 1.75 Ω; breaker may not disconnect a fault in time; referred to designer' tells the client exactly what they need to know.", "label": "Tip" }
+      ]
+    },
+    {
+      "title": "Revision",
+      "blocks": [
+        { "h": "Checklist" },
+        { "p": "Tick each statement only when you can do it without looking at the notes." },
+        { "ul": [
+          "I can list the documents I need before testing a complex installation, and write a test plan with an isolation plan, an order of tests and hold points.",
+          "I can explain why continuity comes first and why dead tests must pass before live tests.",
+          "I can choose instruments with the right CAT rating, and check them before and after use.",
+          "I can find and isolate every source: JPS, generator, UPS, PV and stored energy, and explain back-feed.",
+          "I can organise group isolation with personal padlocks, a multi-lock hasp or a lock box.",
+          "I can work out how many insulation tests a circuit needs and protect sensitive equipment during the test.",
+          "I can explain why an insulation reading rises with time, and work out and judge the DAR and the PI.",
+          "I can work out an expected R1 + R2, correct it for temperature and find Zs.",
+          "I can test armour as a protective conductor and carry out a four-wire micro-ohm test, and judge joint readings.",
+          "I can carry out a fall-of-potential test, check that the result is sound, and say what to do if it is too high.",
+          "I can explain the supply checks on split-phase and three-phase boards, including phase rotation on the generator.",
+          "I can explain why Zs and fault current are tested on the generator, and what a failure means.",
+          "I can name the RCD types and say what the half, full and five-times tests show.",
+          "I can test PV strings, work out the expected Voc and say what a low string means.",
+          "I can work out CT currents, explain CT polarity, and explain why a CT secondary must never be opened under load.",
+          "I can explain the difference between secondary and primary injection.",
+          "I can carry out functional tests on interlocks, transfer switches, UPS units and PV inverters.",
+          "I can analyse a schedule of results, find the failures and give an action and retest for each.",
+          "I can complete the records and certificate honestly and lead a test team."
+        ] },
+        { "h": "Numbers to remember" },
+        { "table": { "head": ["Figure", "What it is"], "rows": [
+          ["250 V / 500 V / 1,000 V DC", "Insulation test voltages for ELV / up to 500 V / 500 to 1,000 V circuits"],
+          ["0.5 MΩ / 1 MΩ", "Usual minimum insulation resistance for ELV / low-voltage circuits"],
+          ["n × (n − 1) ÷ 2", "Number of insulation tests for n conductors (5 conductors: 10 tests)"],
+          ["DAR = R60s ÷ R30s; PI = R10min ÷ R1min", "Timed insulation tests; PI 2 to 4 good, below 1 poor"],
+          ["About 1.2", "Factor from 20 °C to 70 °C for copper resistance"],
+          ["Zs = Ze + (R1 + R2)", "Earth fault loop impedance"],
+          ["P = I² × R", "Heat in a joint"],
+          ["About 50% above the lowest", "Common trigger for investigating a joint among similar joints"],
+          ["62% (checks at about 52% and 72%)", "Position of the potential spike in a fall-of-potential test"],
+          ["25 Ω", "NEC: above this a single rod needs a supplementary electrode"],
+          ["About 0.3% per °C", "Typical fall in PV module Voc above 25 °C"],
+          ["300 ms / 40 ms", "Typical RCD limits at rated current / five times rated current (general type)"]
+        ] } },
+        { "h": "Key terms" },
+        { "terms": [
+          ["Absorption current", "The part of an insulation test current that falls away over minutes as the insulation polarises; it makes the reading rise."],
+          ["Back-feed", "Power flowing into a part of the system that is supposed to be dead, from a generator, UPS or PV system."],
+          ["Breaking capacity", "The largest fault current a protective device can safely interrupt, marked in kA."],
+          ["CAT rating", "The measurement category of an instrument: CAT IV at the origin, CAT III at distribution, CAT II at outlets."],
+          ["Current transformer (CT)", "A transformer that steps a large current down to a small one for a meter or relay."],
+          ["Dielectric absorption ratio (DAR)", "The 60-second insulation reading divided by the 30-second reading."],
+          ["Fall-of-potential test", "An earth electrode test using a current spike and a potential spike in a straight line."],
+          ["Functional test", "A test that operates a system to prove it works as intended, such as an interlock or a transfer switch."],
+          ["Hold point", "A stage where work stops until results are checked and signed off."],
+          ["Islanding", "An inverter or generator continuing to feed part of the grid that the power company has disconnected."],
+          ["Kelvin (four-wire) connection", "Separate current and potential leads, so the leads' own resistance is left out of a low-resistance reading."],
+          ["Micro-ohm meter", "An instrument that passes a large DC current to measure resistances of a few micro-ohms."],
+          ["Phase rotation", "The order in which the three phases reach their peaks; it decides the direction of three-phase motors."],
+          ["Polarisation index (PI)", "The 10-minute insulation reading divided by the 1-minute reading."],
+          ["Primary injection", "Passing a large test current through a CT primary to prove the CT, wiring and relay together."],
+          ["Prospective fault current", "The current that would flow in a short circuit or earth fault at a point; the higher of the two is recorded."],
+          ["R1 + R2", "The resistance of a circuit's line conductor plus its protective conductor."],
+          ["Schedule of test results", "The record of each circuit's test readings, attached to the certificate."],
+          ["Secondary injection", "Injecting test current into a relay's inputs to prove its settings and times."],
+          ["Separately derived system", "A source, such as a generator with a switched neutral, that needs its own neutral-earth bond."],
+          ["Standing leakage", "Leakage current that flows all the time from equipment filters; it uses up part of an RCD's margin."],
+          ["Voc", "Open-circuit voltage: the voltage of a PV module or string with no current flowing."],
+          ["Ze / Zs", "Earth fault loop impedance outside the installation / at the far end of a circuit."]
+        ] }
+      ]
+    }
+  ],
+  "cases": {
+    "c1": { "title": "Planning the tests at a Negril resort", "text": "Mr Kirk Henry, a Level 3 electrician, leads the testing of a new guest block at a resort in Negril, Westmoreland. The block's main board is fed from the JPS supply and from a 150 kVA standby generator through an automatic transfer switch (ATS). Sub-board DB-R feeds the reservations office through a UPS. Sub-board DB-K, in the kitchen, also has a 30 kW grid-tied PV inverter connected to it. Kirk has two testers and an apprentice, Jodian." },
+    "c2": { "title": "A pump motor at an Old Harbour pumping station", "text": "At a water pumping station near Old Harbour, St Catherine, testers Shellian Brown and Andre Facey test a large three-phase pump motor that is fed from a variable speed drive. The motor has stood unused for six weeks in a damp pump house. With the motor cable disconnected from the drive, and using the 1,000 V test the maker asks for, the readings from the windings to earth are: 95 MΩ at 30 seconds, 100 MΩ at 60 seconds and 110 MΩ at 10 minutes. The pump house is at 31 °C with 88% humidity. Last year, in the dry season, the motor's PI was 3.1." },
+    "c3": { "title": "Busbar joints at a Bog Walk factory", "text": "Mr Lennox Gayle leads the shutdown testing of the main switchboard at a food factory in Bog Walk, St Catherine. JPS has disconnected the incoming supply for the day. With a micro-ohm meter, his team measures six identical bolted busbar joints: 21, 23, 20, 22, 36 and 22 µΩ. Apprentice Tevin asks why the meter has four leads, and why Lennox takes each reading twice with the current reversed." },
+    "c4": { "title": "An earth electrode at a Lucea clinic", "text": "In March, near the end of the dry season, Ms Annmarie Spence tests the earth electrode of a new clinic in Lucea, Hanover. The design asks for 10 Ω or less. The clinic is isolated and locked off. Before touching the test link, she puts a clamp meter round the earthing conductor. She plans to drive the current spike 40 m from the electrode and to take readings with the potential spike at 21 m, 25 m and 29 m." },
+    "c5": { "title": "Results from a Savanna-la-Mar medical centre", "text": "Mr Clive Ebanks, the lead tester, checks the schedule for sub-board DB-3 at a medical centre in Savanna-la-Mar, Westmoreland. The design says: maximum Zs for the 20 A breakers is 1.75 Ω; measured R1 + R2 is multiplied by 1.2 for working temperature; the breakers' breaking capacity is 10 kA. Results: circuit 1 has R1 + R2 of 0.48 Ω and Ze is 0.30 Ω; circuit 2 has Zs of 1.10 Ω on the JPS supply and 1.95 Ω on the generator; at DB-3 the prospective short-circuit current is 6.2 kA and the prospective earth fault current is 4.1 kA." },
+    "c6": { "title": "Solar strings on a Santa Cruz school", "text": "Ms Kerry-Ann Bailey commissions a PV system on a high school roof in Santa Cruz, St Elizabeth. Each of three strings has 14 identical modules. The data sheet gives each module's open-circuit voltage as 41 V at standard test conditions (25 °C), with three bypass diodes per module, and says the voltage falls by about 0.3% for every °C above 25 °C. At midday, with the cells at about 50 °C, she measures the three strings within five minutes of each other: 531 V, 529 V and 518 V." }
+  },
+  "questions": [
+    { "id": "P-01", "c": "c1", "q": "Kirk sets the generator controller from AUTO to OFF before the team works on the main board, even though the JPS incomer will be locked off. Why?", "o": ["The generator burns fuel all the time while its controller is on AUTO", "The insulation tester will not work while the controller is on AUTO", "Losing the JPS supply is what tells the ATS to start the generator", "The ATS can only be fitted with a padlock once the generator is OFF"], "a": 2, "why": "An ATS is built to start the generator and transfer the load as soon as the JPS supply disappears, so locking off the JPS incomer alone can make the board live again within seconds. The generator must be stopped from starting and its breaker locked open as well." },
+    { "id": "P-02", "c": "c1", "q": "With the JPS incomer and the generator locked off, the PV inverter on DB-K shows 'grid lost' and its screen goes blank. Which statement is right?", "o": ["Its AC isolator still needs locking off, and its DC cables are still live", "The PV cables on the roof are now dead, because the inverter has stopped", "The inverter will now run DB-K from the panels, so DB-K cannot be tested", "A blank screen shows that the inverter's capacitors are now fully discharged"], "a": 0, "why": "The inverter stops feeding the AC side when the grid is lost, but the modules make voltage whenever light falls on them, so the DC side stays live in daylight. Lock off the AC and DC isolators, treat the DC cables as live, wait the discharge time and prove dead; never trust a display." },
+    { "id": "P-03", "c": "c1", "q": "Jodian will help to measure the voltages at the main board's incoming terminals, at the origin of the installation. What rating should the meter and its leads have?", "o": ["CAT II, as the meter will be connected there for only a few seconds", "CAT IV, as surges from the supply lines are largest at the origin", "CAT III, since only the meter's voltage rating matters at that point", "Any CAT rating, as long as the probes have shrouds over their tips"], "a": 1, "why": "The CAT rating says how big a surge an instrument can survive. The origin of the installation (service, meter and main incomer) is CAT IV; distribution boards are CAT III; plug-in equipment is CAT II. A meter rated too low can explode if a surge arrives while it is connected." },
+    { "id": "P-04", "c": "c1", "q": "Kirk insists that each circuit's R1 + R2 result is checked before anyone does a loop impedance test on it. Why does this matter for safety?", "o": ["The loop tester takes its test current setting from the R1 + R2 result", "A loop tester cannot be used until its continuity range has been used", "A loop test damages the cable insulation if continuity is tested later", "A loop test on a broken protective conductor can make metal parts live"], "a": 3, "why": "A loop impedance test pushes current from the line into the protective conductor. If that conductor is broken, the exposed metal of the circuit can rise to line voltage during the test. Proving the protective conductor first is why dead tests come before live tests." },
+    { "id": "P-05", "c": "c2", "q": "What are the dielectric absorption ratio (DAR) and the polarisation index (PI) from these readings?", "o": ["DAR about 1.16 and PI 1.1", "DAR about 0.95 and PI 0.91", "DAR about 1.05 and PI 1.1", "DAR about 5.0 and PI 10.0"], "a": 2, "why": "DAR is the 60-second reading divided by the 30-second reading: 100 ÷ 95 ≈ 1.05. PI is the 10-minute reading divided by the 1-minute reading: 110 ÷ 100 = 1.1. Dividing the wrong way round, or subtracting, gives the other answers." },
+    { "id": "P-06", "c": "c2", "q": "Based on these results, what should Shellian and Andre recommend before the pump goes back into service?", "o": ["Run the pump now, as 100 MΩ is far above the usual minimum for motors", "Clean and dry the windings as the maker allows, then retest and compare", "Repeat the test at 5,000 V, which will give readings less upset by damp", "Replace the motor, because a PI near 1 shows that its windings are burnt"], "a": 1, "why": "A flat reading with a PI near 1, after weeks in a damp pump house and with last year's PI at 3.1, points to moisture or dirt rather than burnt windings. Dry and clean the windings as the maker allows, retest, and only energise when the PI has recovered. A higher test voltage than the maker gives can damage the windings." },
+    { "id": "P-07", "c": "c2", "q": "Andre wants to compare this year's 1-minute reading with last year's to see the trend. Why is the PI a fairer figure to compare?", "o": ["Both its readings are at the same temperature, so heat matters less", "It stays the same however damp or dirty the windings become over time", "A 1-minute reading cannot be recorded on a motor that is fed by a drive", "It is a reading in megohms, so it can be taken straight off the tester"], "a": 0, "why": "A single insulation reading falls sharply as the winding warms (roughly halving for every 10 °C rise), so a reading at 31 °C cannot be compared directly with one taken in cooler weather. The PI divides two readings taken minutes apart at the same temperature, so temperature largely cancels out. Record temperature and humidity anyway." },
+    { "id": "P-08", "c": "c3", "q": "Where should Tevin clip the two potential (voltage) leads for each joint?", "o": ["Outside the two current leads, as far from the joint as they will reach", "On the same clips as the current leads, so that all four leads touch", "One on the joint itself and the other on the switchboard's earth bar", "Either side of the joint, in between the two current leads"], "a": 3, "why": "In the four-wire (Kelvin) method the current leads push the test current through, and the potential leads measure only the voltage between the points they touch. Placed either side of the joint, inside the current leads, they measure the joint alone, without the resistance of the leads and clips." },
+    { "id": "P-09", "c": "c3", "q": "Why does Lennox take each reading with the current one way, then reversed, and average the two?", "o": ["To cancel tiny voltages made where different metals meet", "To heat the joint evenly from both sides before it is measured", "To prove the joint lets current flow in one direction only", "To discharge the busbar, which builds up a charge in the test"], "a": 0, "why": "Where different metals meet, a tiny thermoelectric voltage appears, and it can be a large part of a reading of a few millivolts. Reversing the current reverses the test voltage but not this small voltage, so the average of the two readings cancels it." },
+    { "id": "P-10", "c": "c3", "q": "At full load these joints carry 800 A. About how much heat does the 36 µΩ joint give off, compared with a 20 µΩ joint?", "o": ["About 29 mW, against about 16 mW", "About 23 kW, against about 13 kW", "About the same, as the current is equal", "About 23 W, against about 13 W"], "a": 3, "why": "Heat = I² × R. 800² = 640,000. 640,000 × 0.000036 = 23 W, and 640,000 × 0.000020 = 12.8 W, so the poor joint makes nearly twice the heat in one small spot. More heat means more oxidation and a higher resistance, which is why it should be remade and retested." },
+    { "id": "P-11", "c": "c4", "q": "The clamp meter shows 0.9 A flowing in the earthing conductor, even though the clinic is isolated. What should Annmarie do?", "o": ["Remove the link quickly, as 0.9 A is far too small to do any harm", "Carry on, since the current will give the tester a steadier reading", "Leave the link in place and find out where the current comes from", "Switch the clinic back on, because the current proves it is live"], "a": 2, "why": "With a neutral earthed at many points, part of the area's neutral current can flow through the clinic's electrode even with the clinic switched off. Opening a conductor that carries current can draw an arc and leave a dangerous voltage across the gap, so she must find the source and get advice before disconnecting." },
+    { "id": "P-12", "c": "c4", "q": "Later, with the link safely removed, her readings at 21 m, 25 m and 29 m are 14.8, 15.1 and 15.4 Ω. What do they tell her?", "o": ["They rise as the spike moves, so the current spike is too close", "They agree within about 4%, so a result of about 15 Ω is sound", "They are so alike that a buried pipe must be joining the spikes", "They add up to about 45 Ω, which is the electrode's resistance"], "a": 1, "why": "The highest reading is (15.4 − 14.8) ÷ 14.8 ≈ 4% above the lowest, within the usual 5%, so the resistance zones of the spikes do not overlap and the 62% reading (about 15 Ω) can be trusted. Readings that changed a lot would mean moving the current spike further out." },
+    { "id": "P-13", "c": "c4", "q": "The electrode measures about 15 Ω against the design value of 10 Ω. What is the right action?", "o": ["Pour salt water round the rod and retest it the same afternoon", "Wait for the rainy season, then retest and record that reading", "Report it, so the designer can add rods or use longer ones", "Record 10 Ω, as the reading will fall once the rains have come"], "a": 2, "why": "A dry-season test is the fair worst case, so the electrode fails the design. The designer decides the remedy: more or longer rods, bonding to other electrodes, or an approved enhancement material. Salt corrodes the rod and washes away, and recording a value that was not measured is dishonest." },
+    { "id": "P-14", "c": "c5", "q": "Using the design's factor, what is circuit 1's Zs at working temperature, and does it pass?", "o": ["About 0.88 Ω, which passes", "About 0.78 Ω, which passes", "About 0.94 Ω, which passes", "About 0.58 Ω, which passes"], "a": 0, "why": "Only the measured R1 + R2 is corrected: 0.48 × 1.2 = 0.58 Ω. Then Zs = Ze + corrected R1 + R2 = 0.30 + 0.58 = 0.88 Ω, below the 1.75 Ω maximum. Forgetting the factor gives 0.78 Ω; correcting Ze as well gives 0.94 Ω; forgetting Ze gives 0.58 Ω." },
+    { "id": "P-15", "c": "c5", "q": "Which value should Clive compare with the breakers' 10 kA breaking capacity?", "o": ["4.1 kA, because earth faults are the faults that happen most often", "6.2 kA, the higher of the two prospective fault currents measured", "About 5.2 kA, the average of the two fault currents at the board", "Neither, since fault current is only compared at the main board"], "a": 1, "why": "A breaker must be able to interrupt the largest fault current that can flow where it is fitted, so the higher of the prospective short-circuit and earth fault currents is recorded and compared at every board. Here 6.2 kA is below 10 kA, so the breakers are suitable." },
+    { "id": "P-16", "c": "c5", "q": "Circuit 2 fails on the generator. A fitter suggests replacing its 20 A breaker with a 32 A one. Why is that wrong?", "o": ["A 32 A breaker would trip too often while the generator is running", "No breaker may be changed on a circuit once its tests have been done", "A larger breaker has a lower maximum Zs, so the circuit fails by more", "A 32 A breaker would raise the voltage the generator gives that circuit"], "a": 2, "why": "A bigger breaker needs more fault current to trip quickly, so its maximum Zs is lower and the 1.95 Ω result would fail by even more. It would also leave a cable sized for 20 A unprotected. The fault belongs with the designer: RCD protection, a different device or larger protective conductors." },
+    { "id": "P-17", "c": "c6", "q": "Why do the strings read about 531 V, not the 574 V that 14 × 41 V gives?", "o": ["The bright midday sun pulls the voltage of every string down", "The meter loads each string, so it always reads about 8% low", "The inverter draws current even though its DC isolator is open", "The cells are hot, and hot cells give less voltage than at STC"], "a": 3, "why": "Module Voc is quoted at 25 °C. At about 50 °C it is about 25 × 0.3% = 7.5% lower: 574 × 0.925 ≈ 531 V. Always correct the expected value for cell temperature before judging a string, and measure identical strings within minutes of each other." },
+    { "id": "P-18", "c": "c6", "q": "The third string reads about 13 V lower than the other two. What is the most likely cause?", "o": ["One module is in the string the wrong way round", "One module has a shorted bypass diode", "One whole module is missing from the string", "A cloud is shading the string more than the others"], "a": 1, "why": "A hot module gives about 41 × 0.925 ≈ 38 V, and each of its three bypass diodes covers about a third of that, about 13 V. A missing module would cost about 38 V, and a reversed one about 76 V. Shade changes the current much more than the open-circuit voltage." },
+    { "id": "P-19", "c": null, "q": "A new three-phase pump runs the right way on the JPS supply but backwards when the building runs on its generator. What is the best correction?", "o": ["Swap two of the pump motor's leads, so it runs right on the generator", "Fit the pump with a second starter, used only when on the generator", "Swap two lines at the generator's connection, so both supplies match", "Adjust the generator's speed until the pump turns the right way"], "a": 2, "why": "The generator's phase rotation does not match the mains. Correcting it at the generator connection, with it isolated, puts every three-phase load right on both supplies. Swapping leads at one motor makes it right on the generator but wrong on the mains, and every other motor is still wrong." },
+    { "id": "P-20", "c": null, "q": "A technician must remove a panel ammeter fed from a 400/5 CT while the feeder carries load. What must be done first?", "o": ["Disconnect the CT's earth, so that its secondary is left floating", "Nothing, as the secondary of a CT can only carry up to 5 A at most", "Open the CT secondary first, so no current flows in the ammeter", "Close the shorting link at the test block, so the CT is shorted"], "a": 3, "why": "A CT secondary must never be opened while primary current flows: with nothing to drive current into, it can produce thousands of volts, which can kill and destroys the CT's insulation. Shorting the secondary at the test block first lets the meter be removed safely." }
+  ]
+}

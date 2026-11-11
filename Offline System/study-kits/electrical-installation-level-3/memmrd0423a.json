@@ -1,0 +1,603 @@
+{
+  "format": "cestis-study-kit",
+  "version": 1,
+  "status": "to-check",
+  "written": "2026-11-07",
+  "programme": "Electrical Installation",
+  "qualification": { "id": "QUAL-EIM-L3", "title": "ELECTRICAL INSTALLATION AND MAINTENANCE LEVEL 3", "code": "MEM32507" },
+  "level": 3,
+  "unit": { "code": "MEMMRD0423A", "title": "Diagnose and repair faults in electrical and electronic systems" },
+  "summary": "This unit teaches you to find and put right faults in electrical and electronic systems: installation circuits, motor control circuits, sensors and drives, and the power supplies and boards inside control equipment. You will plan a logical search, use drawings and instruments to find the fault and its root cause, repair it with the right parts, prove the repair and report to the client. At Level 3 you also lead the job and check the work of others.",
+  "sections": [
+    {
+      "title": "Unit overview",
+      "blocks": [
+        { "p": "This unit is about **systems**: the circuits, controls and electronics that make lights, pumps, conveyors, gates, alarms and drives work together. A fault in a system often shows up far from its cause. A breaker trips because of water in an outdoor sign; a pump will not start because a float switch has failed; a gate controller resets because a diode in its power supply has gone open. Your job is to trace the symptom back to the cause, repair it properly and prove the system works. (Faults inside individual pieces of equipment, such as transformers, generators, motors and power tools, are the subject of MEMMRD0443A.)" },
+        { "h": "What you must be able to do" },
+        { "table": { "head": ["Task", "What it looks like on the job"], "rows": [
+          ["Plan the fault-finding job", "Get the fault report, the job history, the drawings and the manuals; agree the shutdown, access and timing with the client before you start."],
+          ["Work safely on systems", "Isolate every source of supply, make stored energy safe, keep live testing for competent authorised people, and protect electronic parts from static."],
+          ["Use a logical method", "Confirm the symptom, list the likely causes, test in a planned order (half-split, input to output, most likely first) and record every reading."],
+          ["Use instruments correctly", "Choose the right instrument, range and category rating; read the results correctly and spot false readings."],
+          ["Find faults in installation circuits", "Trace trips, earth faults, loose connections, voltage problems, a lost neutral and intermittent faults."],
+          ["Find faults in control circuits and drives", "Follow a schematic through starters, relays, sensors and variable speed drives, and find faults in the motors they control."],
+          ["Find and replace faulty electronic parts", "Test power supplies, diodes, capacitors, regulators, resistors and transistors; desolder and solder to a good standard."],
+          ["Repair the root cause with the right parts", "Match every rating, decide between repair and replacement, and fix the real cause rather than the symptom."],
+          ["Prove the repair", "Carry out dead tests, then have a competent person energise and function-test the system; watch it run."],
+          ["Report and lead", "Write a clear fault report, explain it to the client in plain words, and brief, supervise and check junior workers."]
+        ] } },
+        { "h": "Systems in Jamaica: what you will meet" },
+        { "ul": [
+          "JPS supplies homes and most businesses at **110/220 V, single-phase, 50 Hz**, using two lines and a shared neutral. Larger buildings, hotels and factories also have three-phase supplies.",
+          "The electrical code used in Jamaica is based on the US **National Electrical Code (NEC)**, so you will hear US terms (grounding, GFCI, equipment grounding conductor) and British terms (earthing, RCD, protective conductor). This kit gives both.",
+          "Many buildings have **more than one source of supply**: standby generators with automatic transfer switches, solar PV with battery inverters, and UPS units. Every one of them must be found and isolated before you work.",
+          "Much equipment is imported from the US and some of it is built for **60 Hz**. Check nameplates: equipment rated only for 60 Hz may run slow or hot on Jamaica's 50 Hz supply.",
+          "Heat, humidity and salt air near the coast corrode terminals and boards; rats and insects get into panels; lightning and storms damage electronics."
+        ] },
+        { "note": "Many faults in Jamaica start after lightning, a storm, flooding or a power cut. Always ask the client whether the fault began after one of these. It points you towards surge damage to power supplies, boards and drives, or towards water in outdoor equipment.", "label": "Jamaica" },
+        { "h": "Your role at Level 3" },
+        { "p": "At Level 2 you followed instructions. At Level 3 you plan the fault-finding, decide the order of tests, choose the instruments, judge the readings, decide whether to repair or replace, lead a small team and write the report. You must also know when to stop and refer the job to a specialist or to a person with more authority. Read the sections in order: they follow a real job from the first phone call to the handover." }
+      ]
+    },
+    {
+      "title": "Safety when fault-finding on systems",
+      "blocks": [
+        { "p": "Fault-finding is one of the most dangerous jobs an electrician does. Covers are off, the equipment is not behaving as designed, and the client wants it running again. Plan the safety before you plan the tests." },
+        { "h": "Work dead whenever you can" },
+        { "p": "Nearly every test that finds a fault can be done with the circuit isolated: continuity, resistance, insulation resistance, the diode test and capacitance. Use them first. Seeing the symptom, and the few measurements that can only be made with power on, are done under strict control." },
+        { "table": { "head": ["Activity", "Who does it, and how"], "rows": [
+          ["Seeing the symptom with the power on", "A competent person energises the equipment while you watch from a safe place behind the marked line, with covers on where possible. At the Centre only the instructor or assessor energises anything."],
+          ["Live measurements (voltage, running current, thermal imaging)", ["Only a competent, authorised person, and only when the test cannot be done dead", "A risk assessment, and a second person present", "A meter rated for the job (CAT III or CAT IV), and probes with finger guards and short exposed tips", "Insulated tools, barriers, and the PPE the risk assessment sets, such as insulating gloves and an arc-rated face shield"]],
+          ["Dead tests", "After safe isolation and proving dead. This is where you, as a trainee, do your testing."]
+        ] } },
+        { "h": "Safe isolation on a system" },
+        { "flow": [
+          "Find every source of supply from the drawings and on site",
+          "Tell the people affected and agree the shutdown",
+          "Switch off at the isolator for the equipment",
+          "Lock off with personal padlocks, on a multi-lock hasp for a team",
+          "Fit a danger tag",
+          "Prove the tester on a proving unit",
+          "Test dead between every pair of conductors at the point of work",
+          "Prove the tester again",
+          "Make stored energy safe: capacitors, drives, batteries and moving parts"
+        ] },
+        { "note": "At Level 3 you are responsible for the people working with you. Check each junior's lock, tag and dead test yourself before they start. 'I switched it off' is not proof.", "label": "Remember" },
+        { "h": "Sources that catch people out" },
+        { "table": { "head": ["Source", "Why it is dangerous", "What to do"], "rows": [
+          ["A control supply from somewhere else", "Some panels take their control or alarm supply from another board or a UPS. The main isolator is off, but control wiring is still live.", "Check the drawings for supplies from outside the panel; some panels mark these wires in orange or with a warning label. Isolate them too, and test every terminal you will touch."],
+          ["Standby generator with an automatic transfer switch", "Switching off the JPS supply can make the generator start and re-energise the panel.", "Lock the generator's controls off so it cannot start, as well as isolating."],
+          ["Solar PV and battery inverters", "PV panels make DC whenever there is daylight; batteries keep circuits live in an outage.", "Follow the system's shutdown procedure and isolate both the AC and DC sides."],
+          ["UPS units", "The output stays live from the batteries when the input is off.", "Shut down as the maker says; treat battery terminals as always live."],
+          ["Shared or borrowed neutrals", "A neutral shared with another circuit can carry that circuit's current while yours is off.", "Isolate every circuit that shares the neutral, and test before you disconnect any neutral."]
+        ] } },
+        { "h": "Stored energy" },
+        { "table": { "head": ["Where", "The danger", "Safe practice"], "rows": [
+          ["Motor start and run capacitors", "Can hold a charge up to the peak of the supply voltage (about 310 V on a 220 V supply) after the supply is off.", "Discharge through a suitable resistor or discharge tool, as the maker or instructor shows, then check with a meter."],
+          ["Power supply smoothing capacitors", "A switch-mode supply on 220 V charges its main capacitor to about 310 V DC. Large low-voltage capacitors can give a big spark.", "Discharge and measure before touching or testing."],
+          ["Variable speed drives", "The DC bus capacitors stay charged at several hundred volts for minutes after isolation.", "Wait at least the time on the drive's label, then measure the DC bus at the terminals the maker gives."],
+          ["Power factor correction capacitors", "Large capacitors at full supply voltage.", "Their discharge resistors need time to work: wait the time on the label, then prove dead."],
+          ["Moving parts", "Fans, belts and pumps can keep turning after switch-off, or be turned by air or water flow.", "Wait for them to stop; block or brake them where needed."]
+        ] } },
+        { "note": "Never discharge a capacitor by shorting its terminals with a screwdriver. The flash can burn your hands and eyes, and it damages the capacitor and the tool.", "label": "Safety" },
+        { "h": "Protecting electronics from static" },
+        { "p": "You can carry a static charge of several thousand volts without feeling it, and much less than that can damage a chip or transistor, often without any visible mark, so that it fails later. When you handle boards and components:" },
+        { "ul": [
+          "Wear an earthed **wrist strap**. Its lead has a built-in resistor (usually 1 MΩ) so that it is safe for you.",
+          "Work on an **anti-static mat** connected to the same earth point.",
+          "Keep new parts in their anti-static bags until you fit them, and hold boards by their edges.",
+          "Work on boards only when they are disconnected from every supply. A wrist strap must not be worn near live mains parts, because it gives your body a path to earth."
+        ] },
+        { "note": "A fault means the equipment is not behaving as designed. A welded contact, a shorted button or a wrong connection can start a motor without warning. Keep hands and tools clear of moving parts, and keep guards on until the equipment is isolated.", "label": "Safety" }
+      ]
+    },
+    {
+      "title": "A logical fault-finding method",
+      "blocks": [
+        { "p": "Changing parts until something works wastes the client's money, leaves the real cause in place and can create new faults. A logical method finds the fault faster and gives you evidence for your report." },
+        { "flow": [
+          "Gather information",
+          "Confirm the symptom safely",
+          "List the likely causes",
+          "Plan the tests",
+          "Isolate and test in order, recording each reading",
+          "Find the fault and its root cause",
+          "Repair with the correct parts",
+          "Test, and have the system function-tested",
+          "Report and hand back"
+        ] },
+        { "h": "Gathering information" },
+        { "table": { "head": ["Ask the client", "Why it helps"], "rows": [
+          ["What exactly happens, and what should happen?", "Gives the symptom in their words. Sometimes it is not a fault at all, but a wrong setting or wrong use."],
+          ["When did it start, and did anything change just before?", "A repair, new equipment, an alteration, a storm or a power cut often points straight to the cause."],
+          ["Does it happen all the time, or only sometimes?", "A fault that comes and goes needs a pattern before you can find it."],
+          ["Under what conditions: heat, rain, heavy load, a time of day?", "Heat points to overload or loose joints; rain to water entry; a time of day to timers or other loads switching on."],
+          ["Has it happened before, and what was done?", "A fault that keeps coming back means the root cause was never found."],
+          ["Was there a smell, a noise, smoke or a trip?", "Points to overheating, mechanical failure or a short circuit."]
+        ] } },
+        { "p": "Then read the job history, the maintenance log, the drawings, the maker's manual and the nameplates, and note any fault codes or alarm records. Look for obvious signs: tripped devices, blown fuses, indicator lamps, burn marks, water, corrosion and rodent damage." },
+        { "h": "Types of fault" },
+        { "table": { "head": ["Fault", "What it is", "Typical signs", "Dead test result"], "rows": [
+          ["Open circuit", "A break in the path", "Part or all of the system does nothing", "Very high or OL on continuity"],
+          ["Short circuit", "Line touches neutral or another line", "Fuse blows or breaker trips at once", "Very low resistance between conductors (with loads removed)"],
+          ["Earth fault", "Line touches earthed metal or leaks to earth", "Breaker or RCD/GFCI trips; a tingle from metal", "Low insulation resistance to earth"],
+          ["High-resistance connection", "A loose, corroded or burnt joint", "Heat, discolouring, flicker, low voltage under load", "May read normal on a meter: a meter's tiny test current hides it. Find it by inspection, tightness checks or thermal imaging"],
+          ["Insulation breakdown", "Insulation partly failed by water, heat or age", "RCD trips in wet weather", "Low, but not zero, insulation resistance"],
+          ["Intermittent fault", "A fault that comes and goes", "Works for a while, then fails", "Often normal when you test"],
+          ["Component failure", "A coil, capacitor, diode or sensor has failed", "One function is lost", "Open, shorted or out-of-tolerance reading on that part"],
+          ["Wrong setting", "A timer, overload, thermostat or drive setting is wrong", "Trips, wrong timing, wrong speed", "Parts test good; compare settings with the records"],
+          ["Mechanical cause", "A jammed load, worn bearing or slipping belt", "An electrical symptom such as an overload trip", "Electrical parts test good; the load is stiff or damaged"]
+        ] } },
+        { "h": "Choosing the order of tests" },
+        { "ul": [
+          "**Easiest and most likely first.** Check the fuse and the overload before you strip a motor.",
+          "**Half-split.** In a chain of parts in series, test in the middle. The result tells you which half holds the fault; then split that half, and so on. Each test halves the search.",
+          "**Input to output.** Follow the power or signal from the supply towards the load until it stops; or work back from the output.",
+          "**Compare with a known-good one.** An identical circuit, panel or board that works gives you the readings to expect.",
+          "**Substitute only on evidence.** Swap in a known-good part only when your tests point to it, never as guesswork."
+        ] },
+        { "p": "**Half-split example.** A control circuit has 16 links in series and one is open. Test across links 1 to 8: good, so the break is in 9 to 16. Test across 9 to 12: open, so it is in 9 to 12. Test across 9 and 10: open. Test link 9: good, so link 10 is the open one. **Four tests** instead of up to sixteen." },
+        { "h": "Recording readings" },
+        { "p": "Write every reading on the job sheet as you take it: what you tested, between which points, the instrument and range, the reading with its unit, and the value you expected. The record shows how you found the fault, supports your report and the bill, and gives the next technician values to compare with." },
+        { "note": "Decide what reading you expect before each test. If the result surprises you, stop and think: either you have found the fault, or the test was wrong.", "label": "Tip" },
+        { "h": "Symptom, cause and root cause" },
+        { "p": "The **root cause** is the reason the fault happened. If you fix only the symptom, the fault comes back." },
+        { "table": { "head": ["Symptom", "Immediate cause", "Root cause to fix"], "rows": [
+          ["Control fuse blows", "Shorted capacitor in a power supply", "Supply mounted in a hot enclosure with a blocked cooling fan"],
+          ["Pump overload trips", "Motor drawing too much current", "Impeller blocked by debris from a broken strainer"],
+          ["RCD trips when it rains", "Water in an outdoor junction box", "Box fitted with its cable entries on top and a gland missing"],
+          ["Gate controller dead", "Regulator and diodes burnt", "Lightning surge on a long cable, with no surge protection"],
+          ["Start capacitor fails again and again", "Capacitor overheats", "Starting switch sticking closed, so the capacitor stays in circuit"]
+        ] } }
+      ]
+    },
+    {
+      "title": "Instruments, readings and calculations",
+      "blocks": [
+        { "table": { "head": ["Instrument", "Use it for", "Watch out"], "rows": [
+          ["Two-pole voltage tester with proving unit", "Proving dead", "Prove it before and after every test."],
+          ["Digital multimeter", "Voltage, resistance, continuity, diode test, capacitance, small currents", "Check the function and range before connecting. On the current range it is almost a short circuit: across a supply it can cause an arc flash."],
+          ["Clamp meter", "Running current, measured by a competent person", "Clamp around one conductor only. Around line and neutral together it reads the difference between them, which is the leakage current: useful for finding leakage."],
+          ["Insulation resistance tester", "Insulation between conductors and to earth, at 250, 500 or 1000 V DC", "Disconnect electronics, lamps, drivers and surge devices; warn others; let the circuit discharge after the test."],
+          ["Low-resistance ohmmeter", "Protective conductors, joints and bonding", "Null (zero) the leads first."],
+          ["Capacitance or ESR meter", "Capacitor value and condition", "Discharge the capacitor first."],
+          ["Thermal imaging camera", "Hot spots on loaded equipment, used by a competent person", "Compare like with like: similar parts carrying similar current."],
+          ["Oscilloscope", "Ripple, waveforms and signals on boards", "Used by a competent person; take care with its earth lead on mains equipment."]
+        ] } },
+        { "h": "Measurement category (CAT) ratings" },
+        { "table": { "head": ["Category", "Where it applies"], "rows": [
+          ["CAT II", "Plug-in equipment and outlet circuits"],
+          ["CAT III", "Distribution boards, fixed wiring, motors and starters"],
+          ["CAT IV", "The origin of the installation: service, meter and incoming supply"]
+        ] } },
+        { "p": "Use a meter and leads rated for the highest category and voltage where you will measure. A cheap meter used in a distribution board can explode if a spike hits it." },
+        { "h": "False readings and how to avoid them" },
+        { "ul": [
+          "**Ghost voltages.** A digital multimeter has a very high input resistance, so a disconnected conductor running beside live cables can show tens of volts that have almost no power behind them. A two-pole tester, or the meter's low-impedance (LoZ) setting, shows the true result.",
+          "**Parallel paths.** Measured in circuit, a part's resistance can read low because other parts are connected across it. Lift one leg, or disconnect one end, and test again.",
+          "**Leads not nulled.** Lead resistance is added to every low-resistance reading.",
+          "**Wrong function, range or socket.** A flat battery, a blown meter fuse or leads in the current socket can give a zero reading on a live circuit.",
+          "**Poor contact.** Corrosion, paint or varnish under the probe tip gives a high reading.",
+          "**Temperature.** Copper's resistance rises by about 0.4% for every °C, so a hot winding reads higher than a cold one."
+        ] },
+        { "h": "Calculations you will use" },
+        { "table": { "head": ["Rule", "Use", "Worked example"], "rows": [
+          ["Ohm's law: V = I × R, so I = V ÷ R", "Coil current, fault current, expected readings", "A 24 V DC relay coil of 600 Ω draws 24 ÷ 600 = 0.04 A = 40 mA."],
+          ["Power: P = V × I", "Load current from a rating", "A 220 V, 1 100 W load draws 1 100 ÷ 220 = 5 A."],
+          ["R = V² ÷ P", "Expected resistance of an element", "A 220 V, 3 000 W element should read about 220 × 220 ÷ 3 000 ≈ 16 Ω."],
+          ["P = I² × R", "Heat in a resistor or a bad joint", "A loose joint of 0.1 Ω carrying 30 A makes 30 × 30 × 0.1 = 90 W of heat in one small spot: as much as a soldering iron."],
+          ["P = V² ÷ R", "Power rating of a resistor", "100 Ω with 10 V across it dissipates 10 × 10 ÷ 100 = 1 W; fit at least a 2 W resistor."],
+          ["Voltage drop = I × R", "Volt drop on a cable", "20 A through a cable of 0.25 Ω (out and back) drops 5 V."],
+          ["Tolerance", "Is a part within its marking?", "40 µF ±5% may read from 38 µF to 42 µF."]
+        ] } },
+        { "h": "Prefixes" },
+        { "table": { "head": ["Prefix", "Means", "Example"], "rows": [
+          ["M (mega)", "× 1 000 000", "200 MΩ insulation resistance"],
+          ["k (kilo)", "× 1 000", "4.7 kΩ resistor"],
+          ["m (milli)", "÷ 1 000", "30 mA RCD"],
+          ["µ (micro)", "÷ 1 000 000 (one millionth)", "30 µF capacitor"],
+          ["n (nano)", "÷ 1 000 000 000", "100 nF = 0.1 µF"],
+          ["p (pico)", "÷ 1 000 000 000 000", "22 pF capacitor"]
+        ] } },
+        { "h": "Resistor colour code" },
+        { "table": { "head": ["Colour", "Digit", "Multiplier"], "rows": [
+          ["Black", "0", "× 1"], ["Brown", "1", "× 10"], ["Red", "2", "× 100"], ["Orange", "3", "× 1 000"], ["Yellow", "4", "× 10 000"],
+          ["Green", "5", "× 100 000"], ["Blue", "6", "× 1 000 000"], ["Violet", "7", "-"], ["Grey", "8", "-"], ["White", "9", "-"]
+        ] } },
+        { "p": "Read from the end with the bands closest together: first digit, second digit, multiplier, then tolerance (gold ±5%, silver ±10%, brown ±1%). **Example:** red, red, orange, gold = 2, 2, × 1 000 = 22 000 Ω = 22 kΩ ±5%. Small capacitors use a number code in picofarads: 104 = 10 followed by four zeros = 100 000 pF = 100 nF." }
+      ]
+    },
+    {
+      "title": "Faults in installation circuits",
+      "blocks": [
+        { "h": "When a protective device trips" },
+        { "table": { "head": ["When it trips", "What it points to", "How to find it"], "rows": [
+          ["At once on reset, even with every load unplugged", "Short circuit or earth fault in the fixed wiring", "Isolate; insulation-test line to neutral, line to earth and neutral to earth; split the circuit at junctions."],
+          ["At once when one item is switched on or plugged in", "A fault in that item or its lead", "Test the item and its lead dead."],
+          ["After running for some time", "Overload; a failing motor or bearing; or a loose terminal heating the breaker", "Add up the loads or have the current measured; check terminals for heat marks."],
+          ["The RCD/GFCI trips but the breaker does not", "Leakage to earth: water, a leaky element, or many small leakages added together", "Insulation tests to earth; split the circuit; a leakage clamp used by a competent person."],
+          ["The RCD trips when a load is switched on, but the load tests good", "A neutral touching earth somewhere after the RCD, or a neutral borrowed from another circuit", "Insulation-test neutral to earth; check that each circuit's neutral goes back through its own RCD."],
+          ["Only in wet weather", "Water getting into outdoor fittings, boxes or cables", "Inspect outdoor equipment; insulation-test after rain."],
+          ["During storms, with damage to electronics", "Surges from lightning or switching", "Check surge protection and earthing."]
+        ] } },
+        { "note": "Do not reset a breaker again and again to 'see what happens'. Each reset onto a short circuit puts a large fault current through the wiring and the breaker. Investigate dead first.", "label": "Safety" },
+        { "h": "Finding an earth fault with insulation tests" },
+        { "flow": [
+          "Isolate, lock off and prove dead",
+          "Disconnect lamps, LED drivers, electronic equipment and surge protective devices",
+          "Test line to earth, neutral to earth and line to neutral at the board",
+          "If a reading is low, split the circuit at a junction near its middle",
+          "Test each half; the low half holds the fault",
+          "Keep halving until you reach the faulty cable, box or fitting",
+          "Repair, then retest the whole circuit and reconnect what you removed"
+        ] },
+        { "ul": [
+          "For 110/220 V circuits the usual test voltage is **500 V DC**. Current British guidance asks for at least **1 MΩ**; healthy circuits usually read hundreds of megohms.",
+          "A circuit that passes the minimum but reads far lower than similar circuits deserves a closer look: it is often getting worse.",
+          "Electronic parts can be destroyed by the test voltage, and they make the reading false. Disconnect them, or follow the maker's test instructions.",
+          "Warn others before testing. The tester charges the cable: let it discharge through the tester before you touch the conductors."
+        ] },
+        { "h": "Loose and high-resistance connections" },
+        { "p": "A loose or corroded joint has extra resistance, and the heat it makes is P = I² × R. At a heavily loaded terminal that can be tens of watts in a small spot. The joint heats, oxidises, gets worse and can start a fire. Signs: discoloured terminals and insulation, a burnt smell, flicker, voltage dropping under load and breakers tripping at normal load because their terminal heats the trip element." },
+        { "ul": [
+          "Look for it by inspection, by checking tightness with the circuit isolated, and by thermal imaging under load (by a competent person).",
+          "Remake the joint to the maker's tightening torque. Cut back conductors to clean, undamaged copper.",
+          "Replace any breaker, terminal block or busbar that has been overheated: its metal may have lost its springiness.",
+          "Aluminium conductors need terminals marked for aluminium and a jointing compound, as the maker says."
+        ] },
+        { "h": "Voltage problems" },
+        { "table": { "head": ["Symptom", "Likely cause", "What to check"], "rows": [
+          ["Lights dim each time a large motor starts", "Voltage drop from the motor's starting current (six to eight times its full-load current for a direct-on-line start) on a long or small cable", "Volts at the load during starting (competent person), cable size and length; consider a separate circuit, a larger cable or a soft starter."],
+          ["Low voltage everywhere, all the time", "Supply problem, or an overloaded or undersized sub-main", "Compare the voltage at the origin with the voltage at the load."],
+          ["Very high voltage on one 110 V side and very low on the other", "A broken or loose shared neutral", "See 'Lost neutral' below."],
+          ["Electronics fail after storms", "Surges", "Surge protective devices and earthing."],
+          ["Flicker in many places at once", "A loose connection on a main or sub-main, or a supply fault", "Main terminals, neutral bar and service connections."]
+        ] } },
+        { "h": "Lost neutral on a 110/220 V supply" },
+        { "p": "On a JPS 110/220 V supply each line is about 110 V to neutral and the two lines are 220 V to each other. The shared neutral carries the difference between the currents on the two lines. If that neutral breaks, the 110 V loads on line 1 and line 2 end up **in series across 220 V**, and the 220 V divides between them according to their resistance." },
+        { "p": "**Example.** The loads on line 1 add up to 20 Ω and those on line 2 to 80 Ω. With the neutral broken, line 1's loads get 220 × 20 ÷ 100 = 44 V and line 2's loads get 220 × 80 ÷ 100 = 176 V. The **lightly loaded side** (higher resistance) gets the high voltage, and its electronics burn out. Each time a load switches on or off, the split changes. The line-to-line reading stays a normal 220 V, which shows that the lines themselves are fine." },
+        { "ul": [
+          "Switch off at the main to protect equipment while you trace the neutral.",
+          "Check the neutral terminations at the main panel and any sub-panel, splices on the neutral, the meter base and the service drop connection.",
+          "With the neutral open, current may try to return through bonding and earthing conductors and metal pipes. Do not disconnect them while the supply is on."
+        ] },
+        { "note": "A broken neutral in the service drop, at the meter or anywhere on JPS's side must be repaired by JPS. Report it as an emergency, and keep the main switch off meanwhile.", "label": "Jamaica" },
+        { "h": "Intermittent faults" },
+        { "p": "Faults that come and go are caused by vibration, heat (it works cold and fails hot), moisture, a particular load, or a time of day. Ways to catch them:" },
+        { "ul": [
+          "Get the pattern from the client: when, how often, what else was happening.",
+          "Inspect connections closely; flex cables and move connectors while watching a continuity reading, with the circuit isolated.",
+          "Have a competent person log the voltage or current over a day, or use a meter's minimum and maximum memory.",
+          "On boards, the instructor may gently heat or cool parts to make the fault appear.",
+          "If you cannot find it, say so honestly in the report, record what you tested, and tell the client what to note if it happens again."
+        ] },
+        { "h": "Lighting faults" },
+        { "table": { "head": ["Symptom", "Likely cause", "Check"], "rows": [
+          ["LED fitting flickers", "Failing driver, loose connection, or an unsuitable dimmer", "Swap in a known-good driver or panel; check connections; check the dimmer is listed for the LEDs."],
+          ["LEDs fail early", "Heat in a closed ceiling void; surges", "Ventilation around drivers; surge protection."],
+          ["Outdoor light on all day", "Faulty photocell, or the photocell shaded or bypassed", "Photocell position and wiring."],
+          ["Outdoor light never comes on", "Photocell sees light at night, failed lamp or driver, open circuit", "Cover the photocell (with power on, by a competent person) or test parts dead."]
+        ] } }
+      ]
+    },
+    {
+      "title": "Motor control circuits, sensors and drives",
+      "blocks": [
+        { "h": "Drawings for control systems" },
+        { "table": { "head": ["Drawing", "Shows", "Use it to"], "rows": [
+          ["Schematic (ladder) diagram", "How the circuit works, in rungs between two supply rails, with contacts drawn in their rest state", "Follow the logic step by step and plan your tests."],
+          ["Wiring (connection) diagram", "Actual terminals, wire numbers and where each wire goes", "Find where to put your probes."],
+          ["Panel layout drawing", "Where each part sits in the panel", "Find the parts."],
+          ["Block diagram", "The main sections and how signals flow between them", "Decide which section holds the fault."]
+        ] } },
+        { "h": "Symbols and terminal numbers" },
+        { "ul": [
+          "Contacts are drawn in their **rest** state: not pressed, not energised. A normally open (NO) contact closes when operated; a normally closed (NC) contact opens.",
+          "A coil and its contacts carry the same label, such as K1 or KM1, so you can find every contact the coil works.",
+          "Common terminal numbers: contactor coil **A1–A2**; auxiliary NO contacts 13–14 and 43–44; auxiliary NC contacts 21–22 and 31–32; overload trip contact **95–96** (NC) and alarm contact 97–98 (NO); timer contacts 15–16 (NC) and 15–18 (NO).",
+          "Wire numbers on the drawing match ferrule numbers on the wires."
+        ] },
+        { "h": "How a direct-on-line (DOL) starter's control circuit works" },
+        { "flow": [
+          "Control fuse",
+          "STOP button (NC) and any emergency stops (NC)",
+          "START button (NO), with the hold-in contact 13–14 in parallel",
+          "Overload contact 95–96 (NC)",
+          "Contactor coil A1–A2",
+          "Back to the other side of the control supply"
+        ] },
+        { "p": "Pressing START energises the coil. The contactor closes its main contacts to the motor and its auxiliary **hold-in contact**, which bypasses START so the motor keeps running when START is released. Pressing STOP, an emergency stop or an overload trip breaks the coil circuit and the contactor drops out. After a power cut the contactor also drops out and the motor does not restart by itself: this **no-volt protection** is a safety feature." },
+        { "h": "Symptoms and likely causes" },
+        { "table": { "head": ["Symptom", "Likely causes"], "rows": [
+          ["Nothing happens when START is pressed; no click", ["No control supply: control fuse or control transformer", "STOP or an emergency stop open", "Overload tripped, or its contact faulty", "Open-circuit coil", "Broken wire or loose terminal", "An interlock open: guard switch, float switch, pressure switch"]],
+          ["Contactor pulls in, motor hums but does not turn", ["One main contact burnt or one supply fuse blown (single-phasing)", "Load jammed", "Open motor winding"]],
+          ["Motor runs only while START is held", "Hold-in contact not making, or wired to the wrong terminals"],
+          ["Motor will not stop on STOP", "Main contacts welded; STOP contacts shorted or wired wrongly. Use the isolator."],
+          ["Contactor chatters or buzzes", "Low control voltage, wrong coil voltage, dirty magnet faces, broken shading ring"],
+          ["Overload trips after running a while", "Mechanical overload, low or unbalanced voltage, single-phasing, wrong overload setting"],
+          ["Motor starts by itself", "START button shorted (often water in the push-button station), a wiring fault, or an automatic control calling for it"]
+        ] } },
+        { "h": "Testing control parts dead" },
+        { "table": { "head": ["Part", "Test", "Good result"], "rows": [
+          ["Fuse", "Continuity", "Near 0 Ω"],
+          ["STOP or emergency stop (NC)", "Continuity, released and then operated", "Closed when released or reset; open when pressed"],
+          ["START (NO)", "Continuity, released and then pressed", "Open, then closed"],
+          ["Overload contact 95–96", "Continuity", "Closed when the overload is reset"],
+          ["Contactor or relay coil", "Resistance A1–A2", "Close to the maker's figure or a new spare. OL = broken winding; far too low = shorted turns"],
+          ["Hold-in contact 13–14", "Continuity, with the contactor at rest and then operated as the maker allows", "Open, then closed"],
+          ["Float, pressure or limit switch", "Continuity in each position", "Changes state as the float, pressure or lever moves"],
+          ["Thermistor (NTC)", "Resistance at a known temperature", "Matches the maker's table; falls as it warms"]
+        ] } },
+        { "h": "What the competent person sees with power on" },
+        { "p": "In a live series control circuit, a closed, healthy contact has almost **0 V** across it, and an open contact has nearly the **full control voltage** across it. Measuring from one side of the control supply along the circuit, the competent person finds the point where the voltage stops. You will not take these readings as a trainee, but you must be able to read and use them." },
+        { "h": "Sensors and automatic controls" },
+        { "table": { "head": ["Device", "How it works", "Typical faults"], "rows": [
+          ["Float switch", "A float tilts or slides to open or close a contact at a water level", "Contact burnt open, float stuck, cable damaged"],
+          ["Pressure switch", "Opens or closes at set pressures", "Blocked pipe to the switch, wrong setting, burnt contacts"],
+          ["Limit switch", "A lever or plunger is moved by the machine", "Bent lever, loose mounting, water in the body"],
+          ["Proximity sensor", "Senses metal (inductive) or an object (photoelectric) without touch; usually 24 V DC with an indicator LED", "Wrong distance, dirty lens, damaged cable, wrong wiring (PNP or NPN type)"],
+          ["Photo-eye safety beam (gates, doors)", "Stops or reverses the motor when the beam is broken", "Misaligned, dirty, or sun shining into the receiver"],
+          ["PLC inputs and outputs", "A small controller reads inputs and switches outputs by its program", "Use the input and output LEDs as a half-split point: is the signal reaching the PLC, and is the PLC switching its output?"]
+        ] } },
+        { "h": "Variable speed drives (VSDs)" },
+        { "p": "A VSD rectifies the supply to DC, stores it on large **DC bus capacitors**, and switches it to make a variable-frequency supply for the motor. When it trips, it shows a fault code. Record the code and the conditions before resetting, then look the code up in the maker's manual." },
+        { "table": { "head": ["Fault code type", "Common causes"], "rows": [
+          ["Overcurrent", "Acceleration time too short for the load, a jammed or heavy load, a motor or cable fault"],
+          ["Overvoltage", "Deceleration time too short, so the load drives the motor and pumps energy back into the drive"],
+          ["Undervoltage", "Supply dips or a lost phase"],
+          ["Overtemperature", "Blocked fan or filters, a hot room or enclosure"],
+          ["Earth fault", "Damaged insulation on the motor cable or in the motor"]
+        ] } },
+        { "ul": [
+          "Keep a written or saved copy of the drive's settings. A reset to factory values loses the motor data and the ramp times.",
+          "Wait the time on the drive's label after isolation, then measure the DC bus before touching anything inside.",
+          "**Never insulation-test through a drive.** Disconnect the motor cable at the drive's output terminals and test the cable and motor from there."
+        ] },
+        { "h": "Motors in the system" },
+        { "table": { "head": ["Motor", "How it starts or runs", "Common faults"], "rows": [
+          ["Single-phase capacitor-start (compressors, pumps, workshop machines)", "A start winding and start capacitor give starting torque; a centrifugal switch or start relay cuts them out at about three-quarters of full speed", "Hums but will not start with a free shaft: start capacitor, starting switch or start winding. Capacitor failing again and again: the switch is sticking closed, because a start capacitor is made for only a few seconds' use at each start."],
+          ["Permanent split capacitor (fans, air-conditioning fan motors)", "A run capacitor stays in circuit all the time", "Runs slowly, runs hot or will not start: weak or failed run capacitor, often from heat in outdoor units."],
+          ["Three-phase induction", "Three phases make a rotating field", "Single-phasing (one phase lost): hums and will not start, or runs on and overheats. Wrong rotation: swap any two supply lines, with the motor isolated."]
+        ] } },
+        { "note": "The overload is set to the motor's full-load current. Never turn it up, bridge it or fit a larger one to stop it tripping: find out why the motor is drawing too much current.", "label": "Remember" },
+        { "note": "Never link out an emergency stop, guard switch, interlock or overload 'just to get the line running'. These protect people. A system with a safety device bypassed must not be put back into use.", "label": "Safety" }
+      ]
+    },
+    {
+      "title": "Electronic power supplies and components",
+      "blocks": [
+        { "h": "The linear DC power supply" },
+        { "p": "Many control panels, alarm panels and gate controllers contain a simple linear power supply. Knowing what each stage does tells you what each fault looks like." },
+        { "flow": [
+          "Fuse and transformer: step 220 V AC down, for example to 18 V AC",
+          "Bridge rectifier (four diodes): turn AC into pulsing DC",
+          "Smoothing capacitor: fill the gaps between pulses",
+          "Regulator: give a steady output, such as 12 V or 5 V",
+          "Load: relays, logic, sensors and indicator LEDs"
+        ] },
+        { "p": "**The numbers.** An AC voltage's peak is about 1.41 times its RMS (meter) value. An 18 V AC secondary peaks at about 18 × 1.41 ≈ 25 V. Two diodes conduct at a time, each dropping about 0.6–0.7 V, so the capacitor charges to about 24 V on light load. A regulator needs its input a few volts above its output. With a full-wave bridge on a 50 Hz supply, the capacitor is topped up 100 times a second, so the ripple is at **100 Hz**; a half-wave rectifier tops it up only 50 times a second, so the ripple is larger." },
+        { "table": { "head": ["Faulty part", "Symptom", "Dead test (board disconnected, capacitor discharged)"], "rows": [
+          ["Primary fuse blown", "Nothing works", "Continuity. Find out why it blew, such as a shorted diode or capacitor, before you replace it."],
+          ["Transformer winding open", "No AC on the secondary", "Winding resistance reads OL."],
+          ["One bridge diode open", "Works as a half-wave rectifier: lower DC, much larger ripple, resets and buzzing relays", "Diode test: OL in both directions."],
+          ["One bridge diode shorted", "Fuse blows", "Diode test: near 0 V in both directions."],
+          ["Smoothing capacitor dried out or open", "Large ripple, hum, random resets", "Capacitance or ESR meter; look for a bulged top or leaking."],
+          ["Regulator failed", "Input correct, output 0 V or equal to the input", "Replace; the competent person confirms input and output voltages."],
+          ["Overload on the output", "Regulator very hot, output voltage falls", "Check the load for a short."]
+        ] } },
+        { "h": "Switch-mode power supplies" },
+        { "p": "Most modern equipment uses switch-mode supplies: smaller and lighter, but more complex. On 220 V their main capacitor charges to about 310 V DC and can stay charged after unplugging. Common faults are dried-out or bulged electrolytic capacitors, a shorted switching transistor that blows the fuse, and dry joints. Repairs on the mains side are for trained people only; often the right repair is to replace the whole module with the same type." },
+        { "h": "Identifying and testing components" },
+        { "table": { "head": ["Component", "How to identify it", "Test", "Typical failure"], "rows": [
+          ["Resistor", "Colour bands or a printed code; larger body for higher power", "Ohms range, with one leg lifted if in doubt", "Burnt, open, or drifted high in value. Find out why it overheated."],
+          ["Electrolytic capacitor", "Value in µF, voltage rating; a stripe marks the negative lead", "Capacitance or ESR meter after discharge", "Bulged, leaking, dried out (low value, high ESR)"],
+          ["Film or ceramic capacitor", "Number code in pF, such as 104 = 100 nF", "Capacitance range", "Shorted, open or cracked"],
+          ["Diode", "The band marks the cathode", "Diode test: about 0.6–0.7 V one way, OL the other", "Shorted (near 0 both ways) or open (OL both ways)"],
+          ["LED", "Longer lead is the anode; flat edge marks the cathode", "Diode test; it may glow faintly. Forward voltage about 1.8–3.3 V", "Open, or dim from heat damage"],
+          ["Zener diode", "Like a diode, marked with its zener voltage", "Diode test forward; its zener voltage needs a powered test", "Shorted or open"],
+          ["Bipolar transistor", "Three leads: base, collector, emitter (check the data sheet)", "Diode test: base to collector and base to emitter each behave like a diode", "Collector to emitter shorted"],
+          ["Voltage regulator", "Three leads: input, common, output (check the data sheet)", "Powered test by a competent person", "Output dead or equal to the input"],
+          ["Relay", "Coil terminals and contact terminals on the case", "Coil resistance; contact continuity when operated", "Open coil, burnt or welded contacts"],
+          ["Board fuse", "Marked with current and speed", "Continuity", "Blown: find the cause"]
+        ] } },
+        { "h": "Driving relays from electronics" },
+        { "p": "A transistor often switches a relay coil. When the coil is switched off, its magnetic field collapses and makes a high voltage spike. A **diode fitted across the coil** (reverse-biased, with its band to the positive side) gives that spike a safe path. If the diode is missing, open or fitted the wrong way, the transistor keeps failing; fitted the wrong way, it also shorts the supply." },
+        { "note": "Testing in circuit: parts connected in parallel change your reading. A diode that reads 0.3 V both ways in circuit may be fine, with a low resistance beside it. If a reading looks wrong, lift one leg and test again.", "label": "Tip" }
+      ]
+    },
+    {
+      "title": "Soldering and replacing components",
+      "blocks": [
+        { "h": "Tools and materials" },
+        { "table": { "head": ["Item", "Notes"], "rows": [
+          ["Temperature-controlled soldering iron", "Tip temperature is typically about 320–370 °C for through-hole work; follow the solder maker's figure. Keep the tip clean and tinned."],
+          ["Solder", "Tin-lead solder melts at about 183–190 °C. Lead-free solder melts at about 217–221 °C and needs a hotter tip and a little more time."],
+          ["Flux", "Cleans the metal so the solder wets it. Most solder wire has flux in its core."],
+          ["Desoldering pump and braid (wick)", "Remove old solder without overheating the pad."],
+          ["Heat-sink clip", "Clamped on a lead to protect a heat-sensitive part."],
+          ["Magnifier, side cutters, tweezers", "Inspect joints and trim leads."],
+          ["Fume extractor", "Flux fumes can cause asthma."]
+        ] } },
+        { "h": "Replacing a through-hole part" },
+        { "flow": [
+          "Photograph the board and note the orientation of diodes, capacitors and chips",
+          "Disconnect the board, discharge capacitors, put on the wrist strap",
+          "Heat each joint and remove the solder with the pump or braid",
+          "Lift the part out without forcing it, so the plated holes are not torn",
+          "Clean the pads",
+          "Fit the new part the right way round and bend the leads slightly to hold it",
+          "Heat pad and lead together for two or three seconds and feed solder into the joint, not onto the iron",
+          "Remove the solder, then the iron; do not move the part as it cools",
+          "Trim the leads and inspect each joint with the magnifier",
+          "Clean off flux if the maker requires it"
+        ] },
+        { "h": "Judging a solder joint" },
+        { "table": { "head": ["Joint", "Looks like", "Cause and cure"], "rows": [
+          ["Good joint", "Smooth, concave fillet that wets both pad and lead; the lead's outline shows. Tin-lead is shiny; lead-free is a little duller and satin but the same shape", "-"],
+          ["Dry (cold) joint", "Dull, grainy, cracked, or a ball sitting on the pad without wetting it", "Not hot enough, dirty pad or lead, or moved while cooling. Remove the solder, clean and resolder."],
+          ["Solder bridge", "Solder joining two pads or tracks that should be separate", "Too much solder or a dragged iron. Remove the excess with braid."],
+          ["Too much solder", "A large blob that hides whether the joint has wetted", "Remove some with braid and inspect again."],
+          ["Too little solder", "Hole not filled; pad partly bare", "Add solder with fresh flux."],
+          ["Lifted pad or track", "Copper pad or track peeled off the board", "Overheating or force. Repair only as the instructor shows, for example with a wire link."]
+        ] } },
+        { "p": "Surface-mount parts are tiny and need a fine tip or hot-air tool and tweezers. Many surface-mount repairs are done by replacing the board or module." },
+        { "note": "Use fume extraction and wear safety glasses: clipped leads and solder can fly. Put the iron back in its stand every time, and switch it off when you finish. Solder may contain lead: wash your hands before eating or drinking, and do not eat at the bench.", "label": "Safety" }
+      ]
+    },
+    {
+      "title": "Repairing, testing and reporting",
+      "blocks": [
+        { "h": "Repair or replace?" },
+        { "table": { "head": ["Think about", "Questions to ask"], "rows": [
+          ["Cost", "Does the repair, parts and labour together, come close to the price of a new item?"],
+          ["Parts and time", "Can the parts be bought in Jamaica, or must they be imported? How long will the client be without the system, and what does that cost them?"],
+          ["Age and history", "Is the item old or worn? Has it failed before?"],
+          ["Safety and standards", "Will a repaired item still be safe and meet the current requirements?"],
+          ["Energy use", "Would a new item, such as an LED fitting or an efficient motor, cut the client's electricity bill?"],
+          ["Warranty", "Is it under the maker's warranty? Opening it may cancel the warranty."]
+        ] } },
+        { "p": "Give the client the options with prices in J$ and the time each will take. Let the client decide, and record the decision." },
+        { "h": "Matching replacement parts" },
+        { "table": { "head": ["Part", "Must match"], "rows": [
+          ["Fuse", "Current rating, speed (quick-blow or time-delay), breaking capacity, voltage rating and size"],
+          ["Circuit breaker", "Current rating, trip type or curve, breaking capacity, number of poles"],
+          ["Contactor", "Coil voltage and AC or DC; current or kW rating for the duty (AC-3 for motors); auxiliary contacts; mounting"],
+          ["Overload relay", "A setting range that includes the motor's full-load current"],
+          ["Capacitor", "Capacitance; the same or a higher voltage rating; start or run type; temperature rating; polarity for electrolytics"],
+          ["Resistor", "Value, tolerance and power rating"],
+          ["Semiconductor or regulator", "The same part number, or an equivalent confirmed from the data sheet: voltage, current, pin-out and package"],
+          ["Cable or wire", "Size, type and temperature rating"]
+        ] } },
+        { "note": "A quick-blow fuse in place of a time-delay fuse blows on every motor start. A larger fuse, breaker or overload lets cables and windings overheat without tripping. A lower voltage capacitor can burst. The wrong part is never 'close enough'.", "label": "Safety" },
+        { "h": "Testing after the repair" },
+        { "flow": [
+          "Check your work: terminals tight, no bare copper, covers and guards back, no tools or offcuts left inside",
+          "Dead tests: protective conductor continuity, insulation resistance and polarity, as they apply",
+          "Compare the results with the expected values and record them",
+          "Remove locks in the agreed order; a competent person energises",
+          "Function test: controls, interlocks, emergency stops, direction of rotation, running current against the nameplate",
+          "Watch it run under normal load to be sure the fault does not return",
+          "Clean up and hand back"
+        ] },
+        { "h": "The fault report" },
+        { "table": { "head": ["Section", "What to write", "Why"], "rows": [
+          ["Job details", "Client, address, date, equipment and its number, who did the work", "Identifies the job."],
+          ["Reported problem", "What the client said", "Shows why you were called."],
+          ["Tests and readings", "Each test, the points, the reading and its unit", "Shows how you found the fault; a record for next time."],
+          ["Fault and root cause", "What failed and why", "Helps the client avoid a repeat."],
+          ["Work done and parts", "Parts fitted with their ratings", "Supports the bill and any warranty."],
+          ["Tests after repair", "Dead and function test results", "Shows the system is safe."],
+          ["Recommendations", "Other defects found, worn parts, improvements, with an estimate in J$", "Lets the client plan and protects you."],
+          ["Time and signatures", "Hours, your signature, the client's acknowledgement", "Completes the record."]
+        ] } },
+        { "h": "Planning and leading the job" },
+        { "ul": [
+          "**Agree the shutdown** with the client before you start: when it starts, how long it lasts, who must be told, and what must be protected, such as freezer stock, production or computer data.",
+          "Have likely spare parts on hand before the shutdown, so the system is not off longer than needed.",
+          "Give each team member a clear role, such as tester, recorder and checker, and match tasks to their skill.",
+          "Check juniors' isolation, method and readings. Correct mistakes straight away and explain why.",
+          "Explain the fault and the repair to the client in plain words, and show them the failed part where it helps."
+        ] }
+      ]
+    },
+    {
+      "title": "Revision",
+      "blocks": [
+        { "h": "Checklist" },
+        { "p": "Tick each statement only when you can do it without looking at the notes." },
+        { "ul": [
+          "I can gather information about a fault from the client, the records, the drawings and the manuals.",
+          "I can find every source of supply and stored energy in a system and make it safe before testing.",
+          "I can explain why live testing is kept for competent, authorised people, and read the results they give me.",
+          "I can protect electronic parts from static.",
+          "I can plan a logical test order, use the half-split method and record my readings.",
+          "I can choose the right instrument, range and CAT rating, and spot ghost voltages and other false readings.",
+          "I can use Ohm's law and the power formulas to work out expected readings.",
+          "I can tell an overload, a short circuit and an earth fault apart from when and how a device trips.",
+          "I can locate an earth fault by insulation testing and splitting the circuit.",
+          "I can explain a lost neutral on a 110/220 V supply and what to do about it.",
+          "I can read a ladder schematic and find faults in a DOL starter by dead tests.",
+          "I can find faults in sensors, float switches and capacitor-start motors.",
+          "I can work safely on a variable speed drive and test its motor without damaging it.",
+          "I can test the parts of a DC power supply and identify an open or shorted diode, a failed capacitor and a failed regulator.",
+          "I can desolder and solder a component and judge the joint.",
+          "I can find the root cause of a fault rather than treating the symptom.",
+          "I can choose replacement parts with the correct ratings and advise on repair or replacement.",
+          "I can test after repair and arrange a function test by a competent person.",
+          "I can write a clear fault report and explain it to the client.",
+          "I can lead a small team on a fault-finding job and check their work."
+        ] },
+        { "h": "Numbers to remember" },
+        { "table": { "head": ["Figure", "What it is"], "rows": [
+          ["110/220 V, 50 Hz", "The JPS supply to homes and most businesses"],
+          ["About 0.6–0.7 V", "Forward reading of a silicon diode on the diode test"],
+          ["× 1.41", "Peak of an AC voltage from its meter (RMS) reading"],
+          ["About 310 V DC", "Charge on a capacitor fed from 220 V AC"],
+          ["100 Hz / 50 Hz", "Ripple frequency of full-wave / half-wave rectifiers on a 50 Hz supply"],
+          ["500 V DC, at least 1 MΩ", "Insulation test voltage and current British minimum for 110/220 V circuits"],
+          ["6 to 8 × full-load current", "Typical direct-on-line starting current of a motor"],
+          ["About 0.4% per °C", "Rise in copper's resistance with temperature"],
+          ["1 MΩ", "Safety resistor in an anti-static wrist strap lead"],
+          ["183–190 °C / 217–221 °C", "Melting range of tin-lead / lead-free solder"],
+          ["About 320–370 °C", "Typical soldering iron tip temperature"],
+          ["30 mA / about 5 mA", "Trip level of an RCD / a GFCI for protecting people"]
+        ] } },
+        { "h": "Key terms" },
+        { "terms": [
+          ["Bridge rectifier", "Four diodes that turn AC into pulsing DC, using both halves of each cycle."],
+          ["CAT rating", "A meter's measurement category (II, III or IV), showing where it can be used safely."],
+          ["Dry (cold) joint", "A poor solder joint that is dull, grainy or cracked and does not make reliable contact."],
+          ["Earth fault", "A fault in which current flows from a line conductor to earthed metal or the ground."],
+          ["Electrostatic discharge (ESD)", "A static spark that can damage electronic parts without being felt."],
+          ["ESR", "Equivalent series resistance: rises as an electrolytic capacitor dries out."],
+          ["Ghost voltage", "A voltage shown by a high-impedance meter on a disconnected conductor, coupled from nearby live cables, with almost no power behind it."],
+          ["Half-split method", "Testing in the middle of a chain of parts, so that each test halves the area left to search."],
+          ["High-resistance joint", "A loose or corroded connection that heats up under load."],
+          ["Hold-in contact", "The auxiliary contact that keeps a contactor energised after START is released; also called the holding or latching contact."],
+          ["Intermittent fault", "A fault that comes and goes."],
+          ["Ladder (schematic) diagram", "A drawing that shows how a control circuit works, in rungs between two supply rails."],
+          ["Lost neutral", "A broken shared neutral on a 110/220 V supply, which gives high voltage on one side and low voltage on the other."],
+          ["No-volt protection", "The way a contactor drops out after a power cut, so the motor does not restart by itself."],
+          ["Overload", "More current than a circuit or motor is designed to carry; also the relay that protects a motor against it."],
+          ["Ripple", "The AC wobble left on a DC supply after rectifying and smoothing."],
+          ["Root cause", "The underlying reason for a fault, which must be fixed so the fault does not return."],
+          ["Short circuit", "A fault in which line touches neutral or another line, so a very large current flows."],
+          ["Single-phasing", "Loss of one phase of a three-phase supply to a motor."],
+          ["Smoothing capacitor", "The large capacitor that fills the gaps between rectified pulses."],
+          ["Solder bridge", "Solder that wrongly joins two pads or tracks."],
+          ["Variable speed drive (VSD)", "Equipment that controls a motor's speed by changing the frequency of its supply."],
+          ["Voltage regulator", "A component that keeps a DC output steady, such as 12 V or 5 V."]
+        ] }
+      ]
+    }
+  ],
+  "cases": {
+    "c1": { "title": "A packing-line conveyor in Hayes", "text": "Kerry-Ann, a Level 3 trainee, leads two Level 2 trainees on a breakdown at a citrus packing house in Hayes, Clarendon. A conveyor's direct-on-line starter has a 220/24 V control transformer, a STOP button, a latching emergency stop at the far end of the line, a START button, an overload relay and a contactor with a 24 V AC coil. When the maintenance supervisor energises the panel and presses START, the 'control on' lamp is lit but nothing happens: no click. With the panel isolated, locked off and proved dead, the team reads: control fuse 0.1 Ω; STOP closed; START closes when pressed; overload contact 95–96 closed; coil 41 Ω, the same as a new coil in stores." },
+    "c2": { "title": "A gate controller in Stony Hill", "text": "Mr Wright's maintenance team looks after the electric gate at a townhouse complex in Stony Hill, St Andrew. The gate controller's logic board has its own power supply: a transformer with an 18 V AC secondary, a bridge rectifier of four diodes, a 2200 µF 35 V electrolytic smoothing capacitor and a 12 V regulator. Since a thunderstorm last week the controller resets at random and its relay buzzes. With the board disconnected and the capacitor discharged, one bridge diode reads OL in both directions on the diode test range; the other three read about 0.6 V one way and OL the other." },
+    "c3": { "title": "Bright and dim rooms at a Port Antonio guest house", "text": "Miss Bryan owns a six-room guest house in Port Antonio, Portland, supplied by JPS at 110/220 V. This morning the lamps in rooms 1 to 3, on line 1, are very bright and a television there has failed, while the lamps in rooms 4 to 6, on line 2, are dim and their fans run slowly. The pattern changes when the kitchen kettle or microwave is switched on. The team's competent person measures at the main panel: line 1 to neutral 158 V, line 2 to neutral 62 V, line 1 to line 2 220 V." },
+    "c4": { "title": "A kitchen extract drive at a Runaway Bay hotel", "text": "The kitchen extract fan at a hotel in Runaway Bay, St Ann, is a 5.5 kW three-phase motor run by a variable speed drive (VSD) in a panel on the roof. Last week a contractor reset the drive to its factory settings after a power cut. Since then the drive trips with an 'overcurrent' code each time the fan speeds up, although the fan and motor turn freely by hand when isolated. The drive's label says 'Wait 10 minutes after disconnecting power'. Ricardo, a Level 3 technician, leads the job." },
+    "c5": { "title": "An ice plant compressor in Yallahs", "text": "An ice plant in Yallahs, St Thomas, has a belt-driven compressor with a single-phase 220 V capacitor-start motor, fitted with a start capacitor and a centrifugal switch. This morning it hummed and would not start, and its breaker tripped after a few seconds. With the motor isolated, the shaft turns freely, the start capacitor's case is bulged and it reads 0 µF. The job history shows the start capacitor was replaced twice in the last four months. The capacitor is marked 189–227 µF, 250 V AC; the run winding reads 1.8 Ω and the start winding 4.1 Ω." }
+  },
+  "questions": [
+    { "id": "P-01", "c": "c1", "q": "Which part of the control circuit should the team test next?", "o": ["The motor windings, at the starter's output terminals", "The contactor's main contacts, with the low-resistance ohmmeter", "The emergency stop and its cable out along the line", "The panel's incoming supply fuses, on the main side"], "a": 2, "why": "The lamp shows the control supply is present, and every part of the coil circuit tested so far is good. The only part of that circuit not yet tested is the emergency stop and its long cable. The main contacts, the motor and the incoming fuses cannot stop the contactor from clicking." },
+    { "id": "P-02", "c": "c1", "q": "The emergency stop reads open even when it is reset. A trainee suggests a wire link across it so the line can run until a new one arrives. What should Kerry-Ann decide?", "o": ["Allow the link for one shift if someone stands by the panel", "Allow the link, as the STOP button at the panel still works", "Move the stop into the panel, so the long cable is not needed", "Refuse the link and keep the line off until the stop works"], "a": 3, "why": "An emergency stop lets someone at the far end of the line stop it when a person is caught. Linking it out removes that protection, and the STOP button at the panel may be too far away. Have it repaired or replaced, and tell the supervisor and the client why the line stays off." },
+    { "id": "P-03", "c": "c1", "q": "Stores has no 24 V contactor, only one of the same size with a 220 V AC coil. What would happen if it were fitted in this panel unchanged?", "o": ["Its coil would get far too little voltage to pull in", "It would pull in harder, so its contacts would last longer", "Its coil would burn out at once from too much current", "It would work normally, as only the main contacts matter"], "a": 0, "why": "A coil must match the control supply. With 24 V on a 220 V coil it gets about a ninth of its rated voltage, so it will not pull in, or will chatter. The opposite mistake, 220 V on a 24 V coil, burns the coil out. Match the coil voltage, the current rating and the duty." },
+    { "id": "P-04", "c": "c1", "q": "Suppose the open circuit had been somewhere among 16 links in series in this coil circuit. Using the half-split method, about how many continuity tests would find the open link?", "o": ["About 8", "About 4", "About 16", "About 2"], "a": 1, "why": "Each test halves the part left to search: 16 links, then 8, then 4, then 2, then 1, which is four tests. Testing link by link from one end could take up to sixteen." },
+    { "id": "P-05", "c": "c2", "q": "What does the reading on the odd diode tell the team?", "o": ["It is open, so only half of each cycle is rectified", "It is fine, since a good diode blocks current both ways", "It has failed short, and will soon blow the board's fuse", "It is fitted backwards, so the output polarity is reversed"], "a": 0, "why": "A good silicon diode reads about 0.6–0.7 V one way and OL the other. OL both ways means it is open. A bridge with one open diode works as a half-wave rectifier: the capacitor is topped up only 50 times a second instead of 100, so the ripple grows and the output dips, which explains the resets and the buzzing relay. A shorted diode reads near zero both ways." },
+    { "id": "P-06", "c": "c2", "q": "If the smoothing capacitor is replaced as well, which of these is suitable?", "o": ["2200 µF 16 V, fitted either way round, as the value matches", "1000 µF 35 V, as a smaller one charges up more quickly", "4700 µF 10 V, as a bigger value always smooths better", "2200 µF 50 V, fitted with its stripe to the negative side"], "a": 3, "why": "The capacitor charges to about the peak of 18 V AC (18 × 1.41 ≈ 25 V) less about 1.4 V for the two conducting diodes: about 24 V. A 16 V or 10 V capacitor would fail, and may burst. Fit the same capacitance with the same or a higher voltage rating, with the stripe (negative lead) on the negative side: an electrolytic fitted backwards overheats." },
+    { "id": "P-07", "c": "c2", "q": "The diode failed just after a thunderstorm. What should the repair report recommend to stop it happening again?", "o": ["A larger fuse on the primary side of the small transformer", "Surge protection for the controller, with its earthing checked", "A larger smoothing capacitor, to keep the ripple small in future", "No action, since diodes simply wear out after a few years"], "a": 1, "why": "Lightning and switching surges come in on the supply and on the long cables to the gate motor, sensors and keypad. The likely root cause is a surge, so recommend a surge protective device and a check of the earthing. A bigger fuse or capacitor would not stop a surge, and diodes do not normally wear out." },
+    { "id": "P-08", "c": "c2", "q": "After a new diode is fitted, one of its joints looks dull and grainy, with a crack round the lead. What should be done?", "o": ["Add more solder on top, so that the joint looks shiny again", "Leave it, as lead-free solder always gives a dull joint", "Remove the solder, clean the pad and make the joint again", "Put a drop of glue on the lead so that it cannot move"], "a": 2, "why": "Dull, grainy and cracked is a dry joint: the solder has not wetted pad and lead, often because the joint was not hot enough or moved as it cooled. Lead-free joints are a little duller than tin-lead ones, but a good one is still smooth and wets both pad and lead. Adding solder on top only hides the fault." },
+    { "id": "P-09", "c": "c3", "q": "Which reading shows that both of JPS's lines are still reaching the panel normally?", "o": ["Line 1 to neutral, which reads above 110 V", "Line 1 to line 2, which still reads 220 V", "Line 2 to neutral, which reads below 110 V", "None of them, since all three readings are wrong"], "a": 1, "why": "The line-to-line reading does not use the neutral at all, and it is a normal 220 V, so both lines are present. The faulty part is the shared neutral: with it broken, the two 110 V halves are in series across 220 V and share it unequally." },
+    { "id": "P-10", "c": "c3", "q": "Why do rooms 1 to 3, on line 1, get the high voltage?", "o": ["Line 1 has the lighter load, so it takes more of the 220 V", "Line 1 has the heavier load, so it draws more voltage to it", "JPS has raised line 1 to make up for the low voltage on line 2", "The breakers on line 1 are larger, so more voltage gets through"], "a": 0, "why": "With the neutral broken, the loads on the two lines are in series across 220 V and the voltage divides in proportion to their resistance. A lighter load has a higher resistance, so it takes the bigger share, here 158 V. Electronics on that side burn out, and the split changes each time a load switches on or off." },
+    { "id": "P-11", "c": "c3", "q": "What should be done first, while the fault is traced?", "o": ["Unplug the television and leave everything else on till evening", "Fit a larger main breaker so that the voltages even out again", "Disconnect the main bonding conductor to stop stray current", "Switch off at the main until the neutral is found"], "a": 3, "why": "Every minute with the neutral open can damage more equipment, so switch off. Then trace the neutral: the panel's neutral bar and terminations, the meter base and the service drop; a break on JPS's side is reported to JPS. Never disconnect bonding or earthing now: with the neutral open they may be carrying current and can give a shock." },
+    { "id": "P-12", "c": "c4", "q": "Given what changed last week, what is the most likely cause of the trips?", "o": ["The speed-up time is now too short for the heavy fan", "The fan blades are now too light for the drive's power", "The motor's bearings have failed and seized up solid", "The drive's display has begun showing the wrong code"], "a": 0, "why": "A large fan has a lot of inertia. Factory settings often give a short acceleration ramp, so the drive must push a high current to speed the fan up, and it trips on overcurrent. Compare the settings with the commissioning record and the manual, set the ramp and motor data again, and keep a copy of the settings. The fan turns freely, so the bearings are not seized." },
+    { "id": "P-13", "c": "c4", "q": "Ricardo wants to insulation-test the motor and its cable. How should this be done?", "o": ["Test at the drive's input terminals, so the whole system is covered", "Leave the drive connected, but raise the test voltage to 1000 V", "Read the insulation value from the drive's display while it runs", "Disconnect the motor leads at the drive's output, then test"], "a": 3, "why": "An insulation tester's high DC voltage applied through the drive can destroy its electronics, and the drive makes the reading meaningless. After isolating and waiting, disconnect the motor cable at the drive's output terminals and test the cable and motor from there, then reconnect it to the maker's torque." },
+    { "id": "P-14", "c": "c4", "q": "The drive has been isolated, locked off and tagged for 3 minutes. Before anyone touches its DC terminals, what must happen?", "o": ["Nothing more, as the supply was proved dead at its isolator", "Short the DC terminals with a screwdriver to drain them", "Switch off the drive's keypad, which drains the capacitors", "Wait the label's 10 minutes, then prove the DC bus dead"], "a": 3, "why": "The DC bus capacitors stay charged at several hundred volts after the supply is removed; their discharge resistors need the time on the label. Then measure the DC bus with a suitable meter at the terminals the maker gives. Shorting them with a screwdriver causes a dangerous flash." },
+    { "id": "P-15", "c": "c5", "q": "What is the most likely root cause of the repeated capacitor failures?", "o": ["The run winding is open, so the start capacitor does all the work", "The capacitors are too large in µF for this motor's start winding", "The centrifugal switch is not opening, so the capacitor stays in", "The breaker is rated too low and damages the capacitor as it trips"], "a": 2, "why": "A start capacitor is made for a few seconds' use at each start. If the centrifugal switch sticks closed, the capacitor stays in circuit, overheats, bulges and fails, and the start winding overheats too. Check the switch's contacts and mechanism. The run winding reads 1.8 Ω, so it is not open." },
+    { "id": "P-16", "c": "c5", "q": "Which replacement capacitor should be fitted?", "o": ["A start capacitor marked 88–108 µF, 250 V AC", "A start capacitor marked 189–227 µF, 330 V AC", "A run capacitor marked 200 µF, 250 V AC, as it lasts longer", "A start capacitor marked 189–227 µF, 125 V AC"], "a": 1, "why": "Fit the same capacitance range, of the start type, with the same or a higher AC voltage rating. A 330 V AC rating is fine on a 250 V AC duty. A smaller value gives poor starting torque, a 125 V rating would fail at once, and a run capacitor is the wrong type for this duty." },
+    { "id": "P-17", "c": "c5", "q": "Which entry for the fault report will help the next technician most?", "o": ["Motor would not start; repaired it and it now runs well again, all good", "Cap read 0 µF and bulged; switch stuck closed; cap and switch renewed", "Third capacitor this year, so the client should buy a new motor soon", "Capacitor looked bad so it was replaced; the switch seemed fine"], "a": 1, "why": "A useful entry gives the evidence (the readings), the fault, its root cause and the parts fitted, so the next technician knows what happened and what to check. The readings after the repair also go on the report. Vague notes and unsupported advice do not help." },
+    { "id": "P-18", "c": null, "q": "A replacement 47 Ω resistor will have 9 V across it. Which power rating should it have, at least?", "o": ["0.25 W, as small resistors suit low voltages", "At least 5 W, since it will dissipate about 423 W", "At least 2 W, since it will dissipate about 1.7 W", "0.5 W, since it will dissipate about 0.19 W"], "a": 2, "why": "Power = V² ÷ R = 9 × 9 ÷ 47 ≈ 1.7 W. A resistor run close to its rating gets very hot, so choose a higher rating: at least 2 W here. If the old one burnt, find out why before fitting the new one." },
+    { "id": "P-19", "c": null, "q": "A disconnected line conductor in an isolated circuit shows 38 V AC to earth on a digital multimeter, but nothing on a two-pole tester proved before and after. What is the most likely explanation?", "o": ["A ghost voltage picked up from live cables beside it", "The circuit is fed from a generator that the team missed", "The multimeter's battery is flat, so its readings are random", "The two-pole tester has reached the end of its working life"], "a": 0, "why": "A digital multimeter has a very high input resistance, so it can show a voltage coupled from nearby live cables with almost no power behind it. A two-pole tester, or a meter's low-impedance (LoZ) setting, loads the conductor and shows the true result. The tester was proved before and after, so its result stands." },
+    { "id": "P-20", "c": null, "q": "A thermal camera survey of a loaded board shows one breaker terminal at 78 °C, while similar breakers carrying similar current are at 38 °C. What should the report recommend?", "o": ["Fit a small fan inside the board to cool that terminal down", "Swap that breaker for one with a higher current rating", "Isolate, remake the joint, replace any heat damage, rescan", "Scan the board again next year to see if it gets hotter"], "a": 2, "why": "A terminal much hotter than similar ones carrying the same current points to a loose or high-resistance connection, which gets worse and can start a fire. Plan a shutdown, isolate, remake the connection to the maker's torque, replace any heat-damaged breaker or conductor, and scan again under load." }
+  ]
+}

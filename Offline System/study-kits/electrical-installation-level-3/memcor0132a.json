@@ -1,0 +1,500 @@
+{
+  "format": "cestis-study-kit",
+  "version": 1,
+  "status": "to-check",
+  "written": "2026-11-07",
+  "programme": "Electrical Installation",
+  "qualification": { "id": "QUAL-EIM-L3", "title": "ELECTRICAL INSTALLATION AND MAINTENANCE LEVEL 3", "code": "MEM32507" },
+  "level": 3,
+  "unit": { "code": "MEMCOR0132A", "title": "Use Industrial Instrumentation measuring devices" },
+  "summary": "This unit teaches you to plan and lead work on the instruments that measure pressure, level, temperature and flow in a plant. You will read tags, loop drawings and data sheets, work out 4–20 mA signals, choose the right instrument and reference, isolate instruments safely from the process, carry out a five-point calibration, find loop faults and write calibration records that can be trusted.",
+  "sections": [
+    {
+      "title": "Unit overview",
+      "blocks": [
+        { "p": "Water treatment works, pumping stations, food and drink plants, distilleries, hotels' boiler and chiller rooms, bauxite plants and power stations all run on measurements. A controller can only keep a tank from overflowing, or a boiler at the right pressure, if the instrument that measures it is right. At Level 3 you do more than read instruments: you plan the work, choose the reference, isolate the instrument safely, calibrate it, find faults in its loop, check your team's readings and sign the record." },
+        { "h": "What you must be able to do" },
+        { "table": { "head": ["Task", "What it looks like on the job"], "rows": [
+          ["Read instrument documents", "Find an instrument from its tag on the P&ID and loop drawing, and read its range, span, limits and tolerance from the data sheet."],
+          ["Plan the job", "Get the permit, tell the control room operator, list the test points and references, and brief the team."],
+          ["Work safely on process instruments", "Isolate, vent and drain, prove zero pressure, deal with hot or corrosive fluids, and follow the rules for hazardous areas."],
+          ["Work out signals", "Convert between a measured value and its 4–20 mA signal, in either direction, and recognise a fault signal."],
+          ["Choose the right instrument", "Choose a pressure, level, temperature or flow instrument, and its range, to suit the fluid and the job."],
+          ["Use test equipment", "Use a hand pump and reference gauge, a loop calibrator, a multimeter and a dry-block calibrator correctly."],
+          ["Calibrate", "Take as-found readings up and down the range, work out errors as a percentage of span, adjust zero and span, and take as-left readings."],
+          ["Find loop faults", "Use the loop drawing to trace a lost or wrong signal to the supply, the cable, the panel input or the transmitter."],
+          ["Record and report", "Complete calibration records, tag and report failed instruments, and tell the supervisor what an out-of-tolerance result may mean."],
+          ["Lead the team", "Prepare the work, check that readings are sensible, and make sure every record is accurate, complete and signed."]
+        ] } },
+        { "h": "Instruments in Jamaican plants" },
+        { "ul": [
+          "Pressures are marked in **kPa** or **bar** on newer and European equipment and in **psi** on US-made equipment. You must be able to convert between them.",
+          "Instrument loops run on **24 V DC**; the panels they connect to are fed at 110 V or 220 V, 50 Hz.",
+          "Heat, humidity, salt air near the coast and dust all shorten the life of instruments and make them drift. They are reasons for regular calibration, sealed cable entries and sun shades over field transmitters.",
+          "Much of the island is well above sea level. Air pressure in Mandeville or Christiana is lower than in Kingston, which changes the readings of absolute pressure instruments and the boiling point of water."
+        ] },
+        { "note": "Figures such as tolerances, straight pipe lengths and wait times vary between makers and plants. Where this kit gives a typical figure, the maker's manual, the plant's procedure and your instructor have the final word.", "label": "Remember" }
+      ]
+    },
+    {
+      "title": "Loops, tags, drawings and data sheets",
+      "blocks": [
+        { "h": "The measurement loop" },
+        { "flow": ["Sensor (primary element) feels the process: pressure, level, temperature or flow", "Transmitter turns it into a standard signal, usually 4–20 mA", "Signal cable carries it to the panel", "Indicator, recorder, PLC or control system receives it", "Controller compares it with the set point", "Final element (a control valve, pump or heater) acts on the process"] },
+        { "h": "Tags" },
+        { "p": "Every instrument has a **tag**: letters for what it does and a number for its loop. The first letter is the thing measured; the letters after it say what the instrument does with it." },
+        { "table": { "head": ["Tag", "Meaning", "Tag", "Meaning"], "rows": [
+          ["PT", "Pressure transmitter", "PI", "Pressure indicator (gauge)"],
+          ["LT", "Level transmitter", "LSH", "Level switch, high"],
+          ["TT", "Temperature transmitter", "TE", "Temperature element (sensor)"],
+          ["FT", "Flow transmitter", "FE", "Flow element (such as an orifice plate)"],
+          ["PDT", "Differential pressure transmitter", "LIC", "Level indicating controller"],
+          ["FIC", "Flow indicating controller", "TIC", "Temperature indicating controller"]
+        ] } },
+        { "p": "So FT-205 is the flow transmitter in loop 205, and LT-301 is the level transmitter in loop 301." },
+        { "h": "Documents" },
+        { "table": { "head": ["Document", "What it gives you"], "rows": [
+          ["**P&ID** (piping and instrumentation diagram)", "The pipes, vessels, valves and tagged instruments of a process, and how the loops control it."],
+          ["**Loop drawing**", "One loop from end to end: transmitter terminals, junction boxes, cable and core numbers, fuse, power supply, barrier and panel input."],
+          ["**Data sheet**", "The instrument's maker, model, sensor limits, calibrated range, output, accuracy, materials and process connection."],
+          ["Maker's manual", "Installation, wiring, adjustment and safety instructions."],
+          ["Calibration record", "The last as-found and as-left readings, the tolerance and the next due date."],
+          ["Area classification drawing", "Which parts of the plant are hazardous areas, where only certified equipment may be used."]
+        ] } },
+        { "h": "Range words" },
+        { "table": { "head": ["Term", "Meaning", "Example"], "rows": [
+          ["Sensor limits", "The lowest and highest values the sensor can measure without damage", "0–1,600 kPa"],
+          ["**LRV** (lower range value)", "The value at which the output is 4 mA", "0 kPa"],
+          ["**URV** (upper range value)", "The value at which the output is 20 mA", "1,000 kPa"],
+          ["Calibrated range", "LRV to URV, as set for this job", "0–1,000 kPa"],
+          ["**Span**", "URV minus LRV", "1,000 kPa"],
+          ["Tolerance", "The largest error allowed, usually as a percentage of span", "±0.5% of span = ±5 kPa"]
+        ] } },
+        { "p": "A range need not start at zero. A transmitter ranged −50 °C to 150 °C has a span of 150 − (−50) = **200 °C**." },
+        { "h": "Units and conversions" },
+        { "table": { "head": ["Quantity", "Conversion"], "rows": [
+          ["Pressure", "1 bar = 100 kPa; 1 psi ≈ 6.895 kPa; 100 kPa ≈ 14.5 psi"],
+          ["Head of water", "1 m of water ≈ 9.81 kPa"],
+          ["Atmospheric pressure", "About 101.3 kPa at sea level"],
+          ["Temperature", "°F = °C × 1.8 + 32; °C = (°F − 32) ÷ 1.8"],
+          ["Flow", "1 L/s = 3.6 m³/h; 1 US gallon ≈ 3.785 L"]
+        ] } }
+      ]
+    },
+    {
+      "title": "Planning the job and working safely",
+      "blocks": [
+        { "h": "Before you touch an instrument" },
+        { "flow": [
+          "Read the data sheet, loop drawing and last calibration record: tag, range, tolerance, test points",
+          "Choose the reference instruments and check that each has an in-date calibration label",
+          "Get a permit to work, signed by the person in charge of the plant",
+          "Tell the control room operator which instrument you will work on, and when",
+          "The operator puts the loop in manual, or bypasses a trip, and expects odd readings",
+          "Brief the team: tasks, hazards, isolation, PPE, how you will talk to the control room",
+          "Isolate the instrument from the process, and the loop from its supply where the permit says so",
+          "Do the work, return the instrument to service, check the live reading with the operator",
+          "Hand back the permit and complete the record"
+        ] },
+        { "p": "A **permit to work** records who may work on what, under which controls. Telling the **operator** matters as much: a signal that suddenly drops or jumps during a test can start pumps, open valves or trip the plant if the loop is still in automatic." },
+        { "h": "Hazards and controls" },
+        { "table": { "head": ["Hazard", "What can happen", "Control"], "rows": [
+          ["Stored pressure", "A fitting opened under pressure blows out with force", "Isolate at the block valves, vent and drain to a safe place, and **prove zero** before loosening any fitting"],
+          ["Hot fluids (steam, hot water, hot oil)", "Scalds and burns", "Let the line cool; gloves and face shield; never loosen a fitting 'to let it hiss'"],
+          ["Chemicals (caustic soda, acids, chlorine)", "Burns to skin and eyes; toxic gas", "Read the safety data sheet; chemical gloves, goggles and face shield; flush the impulse lines; know where the eye wash is"],
+          ["Electricity", "Shock from 110 V or 220 V supplies in panels and to four-wire instruments", "Isolate, lock, tag and prove dead as the permit requires"],
+          ["The process itself", "A wrong or lost signal trips or upsets the plant", "Operator's agreement; loop in manual; trips bypassed under the permit"],
+          ["Hazardous (flammable) areas", "A spark from a meter or tool ignites vapour or dust", "Only equipment certified for the area, under a permit, by authorised people"],
+          ["Height and access", "Falls from tanks, pipe racks and ladders", "Proper platforms, towers or harness as the job needs"]
+        ] } },
+        { "note": "A 24 V DC loop will not normally shock you, but that does not make it harmless. A short circuit or an open loop can trip plant, upset control or blow a fuse that feeds other loops. Disconnect a transmitter only with the operator's agreement and the loop isolated as the permit says.", "label": "Safety" },
+        { "h": "Taking a pressure instrument out of service" },
+        { "flow": ["Close the block (isolation) valve between the process and the instrument", "Open the vent or drain slowly, to a safe place, away from your face", "Watch the gauge or reading fall to zero", "Check for zero, and for any leak past the block valve", "Only then loosen the fitting"] },
+        { "h": "The three-valve manifold" },
+        { "p": "A differential pressure (DP) transmitter has a high-pressure (H) side and a low-pressure (L) side, each with a block valve, and an **equalising valve** between them. If full line pressure is ever put on one side alone, the sensor can be damaged or pushed out of calibration. The equalising valve is opened so that both sides see the same pressure while the block valves are being worked." },
+        { "table": { "head": ["Taking out of service", "Returning to service (vent closed, equaliser open)"], "rows": [
+          ["1. Close the low-side block valve", "1. Open the high-side block valve slowly"],
+          ["2. Open the equalising valve", "2. Close the equalising valve"],
+          ["3. Close the high-side block valve", "3. Open the low-side block valve"],
+          ["4. Vent the transmitter safely", "4. Check the reading with the operator"]
+        ] } },
+        { "p": "Plants write their own manifold procedures, and five-valve manifolds add vent valves: follow the plant's procedure. The rule that never changes is that the transmitter must not be left with line pressure on one side only, and both block valves must never be open with the equaliser open on a line that is in service." },
+        { "h": "Hazardous areas" },
+        { "p": "Rum and ethanol stores, fuel depots, LPG filling plants, paint stores and some flour and sugar handling areas are shown as hazardous on the plant's **area classification drawing**. In them, only instruments and test equipment **certified for that area** may be used, for example intrinsically safe types, whose energy is too low to ignite the vapour. An ordinary multimeter, phone or radio is not allowed, however new its battery, unless a permit and a gas test say the area is safe." }
+      ]
+    },
+    {
+      "title": "4–20 mA signals and loops",
+      "blocks": [
+        { "h": "Why 4–20 mA" },
+        { "ul": [
+          "The measurement is sent as a **current**. The same current flows everywhere in a series loop, so it is not changed by the length or resistance of the cable (within the loop's limit).",
+          "**4 mA** means 0% of the range (the LRV) and **20 mA** means 100% (the URV). The **16 mA** between them is the signal's span.",
+          "The **live zero** at 4 mA does two jobs. A two-wire transmitter always has at least 4 mA to power itself. And a reading near 0 mA can only mean a fault, such as a broken wire or no supply, because a healthy transmitter never sends less than 4 mA.",
+          "Many transmitters signal their own failure by driving the current below about 3.6 mA or above about 21 mA. A control system shows this as a fault, or 'bad' value, instead of a measurement."
+        ] },
+        { "h": "The two formulas" },
+        { "p": "**Value to current:** I = 4 + 16 × (value − LRV) ÷ span." },
+        { "p": "**Current to value:** value = LRV + (I − 4) ÷ 16 × span." },
+        { "table": { "head": ["Percentage of range", "Current"], "rows": [["0%", "4 mA"], ["25%", "8 mA"], ["50%", "12 mA"], ["75%", "16 mA"], ["100%", "20 mA"]] } },
+        { "p": "**Example 1.** A transmitter ranged 0–250 kPa measures 100 kPa. Fraction of span = 100 ÷ 250 = 0.4. I = 4 + 16 × 0.4 = **10.4 mA**." },
+        { "p": "**Example 2.** A transmitter ranged 20–120 °C sends 14 mA. (14 − 4) ÷ 16 = 0.625. Span = 100 °C. Value = 20 + 0.625 × 100 = **82.5 °C**. Do not forget to add the LRV back." },
+        { "p": "**Example 3.** A level transmitter ranged 0–5 m sends 9.6 mA. (9.6 − 4) ÷ 16 = 0.35, so the level is 0.35 × 5 = **1.75 m**." },
+        { "note": "The two classic mistakes: forgetting to take off the 4 mA (or add it back), and forgetting an LRV that is not zero. Check every answer against the table: 12 mA must come out at mid-range.", "label": "Tip" },
+        { "h": "Reading the signal as a voltage" },
+        { "p": "Many panel inputs and recorders read volts. A **250 Ω** resistor in the loop turns 4–20 mA into **1–5 V** (V = I × R): 0.004 A × 250 Ω = 1 V; 0.020 A × 250 Ω = 5 V. At 17.6 mA the voltage is 0.0176 × 250 = 4.4 V." },
+        { "h": "How loops are powered" },
+        { "table": { "head": ["Type", "Wiring", "Notes"], "rows": [
+          ["**Two-wire** (loop-powered)", "The same two wires carry the 24 V DC supply and the signal", "The most common field transmitter. It takes its power from the loop current itself."],
+          ["Three-wire", "Supply positive, signal, shared negative", "Some sensors that need more power."],
+          ["Four-wire", "Separate supply (often 110 V or 220 V AC) and a separate signal pair", "Magnetic flow meters, analysers. Mains hazards apply."]
+        ] } },
+        { "p": "A two-wire transmitter needs a minimum voltage at its terminals, often about 10 to 12 V. The loop supply must provide that plus the voltage dropped in the cable and any resistor at full current. **Example:** supply 24 V, transmitter needs 12 V, so 12 V is left for the rest of the loop. At 20 mA the most resistance the loop can have is 12 ÷ 0.02 = **600 Ω**. Too much resistance, and the signal cannot reach 20 mA: the reading 'sticks' below full scale." },
+        { "h": "Signal cables" },
+        { "ul": [
+          "Signal loops are run in **twisted-pair, screened cable**. Twisting makes interference affect both wires equally so that it cancels; the screen shields the pair from electrical noise.",
+          "The screen is connected to earth at **one end only, usually the panel end**. Earthing it at both ends lets current flow along the screen (an earth loop) and puts noise onto the signal. At the field end the screen is cut back and insulated.",
+          "Keep signal cables apart from power cables, in separate tray or conduit, and cross them at right angles.",
+          "Observe polarity: a two-wire transmitter connected backwards gives no signal."
+        ] },
+        { "h": "The loop calibrator" },
+        { "table": { "head": ["Mode", "What it does", "Use"], "rows": [
+          ["Measure", "Reads the loop current", "Check what a transmitter is sending"],
+          ["Source", "Sends a chosen current into a panel input, powered by the calibrator", "With the transmitter disconnected, send 4, 12 and 20 mA and check that the panel shows 0, 50 and 100%"],
+          ["Simulate", "Takes the place of a two-wire transmitter and controls the current, using the loop's own supply", "Tests the supply, cable and panel input together"]
+        ] } },
+        { "p": "Sending known currents into the panel proves the **panel and its scaling**, not the transmitter's sensor. The sensor is proved by applying a known pressure or temperature." },
+        { "h": "Finding a loop fault" },
+        { "flow": [
+          "Permit and operator first: loop in manual",
+          "Read the loop drawing: supply, fuse, terminals, junction boxes, panel input",
+          "Measure the loop supply at the panel (usually 24 V DC); check the fuse",
+          "Measure the voltage at each junction box and at the transmitter, to find where it is lost",
+          "Isolate the loop and check the cable for a broken or loose wire",
+          "Source 4, 12 and 20 mA into the panel input to prove the panel",
+          "Check or replace the transmitter",
+          "Repair, test the whole loop and record what you found"
+        ] },
+        { "table": { "head": ["Reading at the panel", "Likely meaning"], "rows": [
+          ["0 mA", "Open circuit: broken wire, loose terminal, blown fuse, no supply"],
+          ["Below 4 mA but not zero (for example 3.5 mA)", "Transmitter in fault, or sensor failure signalled low"],
+          ["Stuck at about 21 mA or more", "Short circuit in the loop, or transmitter signalling a fault high"],
+          ["Noisy or jumping", "Screen earthed at both ends or not at all, cable near power cables, loose terminal, or a pulsing process"],
+          ["Steady but wrong", "Wrong range in the transmitter or the panel; calibration drift; blocked impulse line"]
+        ] } }
+      ]
+    },
+    {
+      "title": "Pressure and level measurement",
+      "blocks": [
+        { "h": "Kinds of pressure" },
+        { "table": { "head": ["Kind", "Measured from", "Marking", "Open to the air it reads"], "rows": [
+          ["**Gauge pressure**", "The air pressure around the instrument", "kPa or kPa(g)", "0"],
+          ["**Absolute pressure**", "A perfect vacuum", "kPa(a) or kPa abs", "About 101 kPa at sea level"],
+          ["**Differential pressure**", "The difference between two points", "kPa on a DP transmitter", "0 with both ports open"],
+          ["Vacuum", "Below the surrounding air pressure", "Negative gauge pressure", "0"]
+        ] } },
+        { "p": "Absolute = gauge + atmospheric. A gauge pressure of 250 kPa is about 351 kPa absolute at sea level. Because air pressure falls with height, an absolute transmitter open to the air reads about 101 kPa in Kingston but only about 94 kPa in Mandeville, roughly 620 m up. That is not a fault." },
+        { "h": "Choosing a pressure gauge or range" },
+        { "ul": [
+          "Choose a range so that the **normal reading sits near the middle** of the scale and the highest likely pressure is no more than about three-quarters of full scale. For a normal 200 kPa and a maximum of 290 kPa, a 0–400 kPa gauge suits; a 0–250 kPa gauge would be overloaded and a 0–2,500 kPa gauge could hardly be read.",
+          "For pulsing pressure from pumps, fit a snubber or a liquid-filled gauge. For steam, fit a siphon (pigtail) so that the gauge sees cooled water, not live steam. For corrosive or sticky fluids, use a diaphragm seal.",
+          "Check that the wetted materials suit the fluid."
+        ] },
+        { "h": "Level from pressure" },
+        { "p": "The weight of liquid above a point makes a pressure that rises with depth. For water, each metre gives about **9.81 kPa**. For another liquid, multiply by its **relative density** (specific gravity, SG):" },
+        { "p": "**Pressure (kPa) = 9.81 × SG × depth (m)**, and depth = pressure ÷ (9.81 × SG)." },
+        { "ul": [
+          "**Example 1.** 4.5 m of water: 9.81 × 1 × 4.5 = **44.1 kPa**.",
+          "**Example 2.** A transmitter under an open water tank reads 24.5 kPa: depth = 24.5 ÷ 9.81 = **2.5 m**.",
+          "**Example 3.** 3 m of diesel, SG 0.85: 9.81 × 0.85 × 3 = **25.0 kPa**. A transmitter set up for water would show 25.0 ÷ 9.81 = 2.55 m: it reads **low**, because a lighter liquid gives less pressure for the same depth.",
+          "A liquid **heavier** than water, such as syrup or brine, does the opposite: a transmitter set up for water reads **high**.",
+          "When the liquid changes, the range is worked out again for the real density."
+        ] },
+        { "p": "An **open (vented) tank** needs only a gauge pressure transmitter at the bottom. A **closed tank** with gas pressure above the liquid needs a **DP transmitter**: the high side sees liquid plus gas, the low side sees the gas alone, and the difference is the level." },
+        { "h": "Level instruments compared" },
+        { "table": { "head": ["Instrument", "How it works", "Good for", "Watch out for"], "rows": [
+          ["Sight glass, dipstick", "You look", "Local checks; proving a transmitter", "No signal; needs a person"],
+          ["Float switch", "A float tips or lifts a switch at one level", "Pump start and stop, high and low alarms", "One point only; fouling"],
+          ["Pressure or DP transmitter", "Pressure of the liquid above it", "Continuous level sent to a panel", "Density changes; blocked impulse lines"],
+          ["**Ultrasonic**", "Times an echo from the surface; nothing touches the liquid", "Water and waste-water tanks, sumps", "Foam, heavy vapour, dust and obstructions give false echoes"],
+          ["Radar", "As ultrasonic, with microwaves", "Vapour, heat and pressure that defeat ultrasonic", "Cost; set-up"],
+          ["Capacitance or conductivity probe", "The liquid changes an electrical value at a probe", "Point or continuous level in small tanks", "Coating of the probe"]
+        ] } },
+        { "p": "For a level that must be measured **all the time and sent to a panel far away**, the answer is a level transmitter with a 4–20 mA output, not a switch or a sight glass." }
+      ]
+    },
+    {
+      "title": "Temperature measurement",
+      "blocks": [
+        { "h": "Resistance temperature detectors (RTDs)" },
+        { "p": "An RTD is a metal element whose resistance rises steadily with temperature. The standard industrial type is the **Pt100**: platinum, **100 Ω at 0 °C**, rising by about **0.385 Ω per °C**." },
+        { "table": { "head": ["Temperature", "Pt100 resistance (approx.)"], "rows": [["0 °C", "100.0 Ω"], ["25 °C", "109.7 Ω"], ["50 °C", "119.4 Ω"], ["80 °C", "130.9 Ω"], ["100 °C", "138.5 Ω"], ["150 °C", "157.3 Ω"], ["200 °C", "175.9 Ω"]] } },
+        { "p": "Quick sums: resistance ≈ 100 + 0.385 × temperature; temperature ≈ (resistance − 100) ÷ 0.385. A reading of 107.7 Ω means about 7.7 ÷ 0.385 = 20 °C." },
+        { "table": { "head": ["Connection", "What it does"], "rows": [
+          ["Two-wire", "The resistance of the two leads is added to the sensor's, so the reading is high. Each 0.385 Ω of lead adds about 1 °C. Only for very short leads."],
+          ["**Three-wire**", "The instrument measures the lead resistance through the third wire and takes it away. The usual industrial connection."],
+          ["Four-wire", "Removes lead resistance completely. Laboratories and reference probes."]
+        ] } },
+        { "h": "Thermocouples" },
+        { "p": "A thermocouple is two different metals joined at the tip (the hot, or measuring, junction). Heat makes a tiny voltage, a few tens of microvolts per °C, that depends on the difference in temperature between the tip and the other end." },
+        { "table": { "head": ["Type", "Metals", "Typical range", "Use"], "rows": [
+          ["K", "Nickel-chromium / nickel-aluminium", "About −200 to 1,250 °C", "General purpose: ovens, furnaces, flues, engines"],
+          ["J", "Iron / constantan", "Up to about 750 °C", "Older plant, plastics machinery"],
+          ["T", "Copper / constantan", "About −200 to 350 °C", "Cold rooms, refrigeration, food"],
+          ["R, S", "Platinum alloys", "Up to about 1,600 °C", "Very high temperatures"]
+        ] } },
+        { "ul": [
+          "**Cold junction compensation:** the instrument can only sense the difference between the tip and its own terminals (the cold junction). It measures the temperature at its terminals and allows for it, so that the display shows the tip's true temperature.",
+          "**Extension and compensating cable:** the run back to the instrument must be in cable made for that thermocouple type. Extension cable uses the same metals as the thermocouple; **compensating cable** uses cheaper alloys that behave the same over normal room temperatures. Ordinary copper cable creates new junctions where it joins the thermocouple wires, and the reading is wrong.",
+          "**Polarity matters.** If the two wires are crossed at one connection, the reading moves the wrong way as the tip heats.",
+          "Colour codes differ between standards. In the US code the negative wire is always red; in the IEC code it is white. Check the cable's standard before you connect."
+        ] },
+        { "h": "RTD or thermocouple?" },
+        { "table": { "head": ["Feature", "RTD (Pt100)", "Thermocouple"], "rows": [
+          ["Accuracy and stability", "Better", "Lower"],
+          ["Temperature range", "Usually up to a few hundred °C", "Far higher"],
+          ["Toughness and speed", "More fragile; slower", "Tough; fast"],
+          ["Wiring", "Copper cable, three or four wires", "Matching extension or compensating cable"],
+          ["Typical choice", "Hot water at 80 °C, chilled water, food processes", "Furnace flue at 700 °C, kilns, engine exhaust"]
+        ] } },
+        { "h": "Thermowells and response" },
+        { "p": "A **thermowell** is a closed metal pocket fixed in the pipe, so that the sensor can be removed without draining the process. The sensor's tip must **touch the bottom** of the well, and the well must reach far enough into the flow. A sensor that is too short, or sits in an air gap, reads slowly and often low. Spring-loaded sensors and a little heat-transfer compound improve the contact." },
+        { "h": "Other temperature devices" },
+        { "ul": [
+          "**Thermistors:** small semiconductor sensors; NTC types fall in resistance as they warm. Used in air-conditioners, chargers and motor protection.",
+          "**Bimetal and filled-system thermometers:** local dial gauges on pipes and tanks.",
+          "**Infrared thermometers and thermal cameras:** read surface temperature without contact; the result depends on the surface (its emissivity), so shiny metal reads low."
+        ] },
+        { "h": "Checking temperature sensors" },
+        { "ul": [
+          "A **dry-block calibrator** heats a metal block to a set temperature. The sensor under test and a calibrated **reference probe** sit side by side in the block, and their readings are compared.",
+          "**Wait for the readings to settle** at each point before recording: the block, the reference and the sensor must all reach the same temperature.",
+          "A well-made **ice bath** (crushed ice and water, stirred) gives 0 °C. Boiling water gives 100 °C only at sea level: at Mandeville's height it boils at about 98 °C, so always read the reference thermometer rather than assume.",
+          "Heat guns, sunshine and the casing of a running motor are not calibration sources."
+        ] }
+      ]
+    },
+    {
+      "title": "Flow measurement",
+      "blocks": [
+        { "p": "Flow is measured as a volume in a given time (m³/h, L/s, US gallons per minute) or as a mass in a given time (kg/h)." },
+        { "h": "Differential pressure flow meters" },
+        { "p": "An **orifice plate** is a plate with a hole, clamped between flanges. The fluid speeds up through the hole and its pressure drops. A DP transmitter measures the drop. The pressure drop rises with the **square** of the flow: twice the flow gives four times the differential pressure. So:" },
+        { "p": "**Flow % = √(DP %) (as fractions)**, and **DP % = (flow %)²**." },
+        { "table": { "head": ["DP (% of maximum)", "Flow (% of maximum)"], "rows": [["1%", "10%"], ["9%", "30%"], ["16%", "40%"], ["36%", "60%"], ["49%", "70%"], ["81%", "90%"], ["100%", "100%"]] } },
+        { "ul": [
+          "**Example.** A DP transmitter ranged 0–40 kPa for 0–200 m³/h reads 14.4 kPa. 14.4 ÷ 40 = 0.36; √0.36 = 0.6; flow = 0.6 × 200 = **120 m³/h**. Reading it straight off as 36% would give 72 m³/h, which is badly wrong.",
+          "The **square root** is taken once, either in the transmitter or in the control system, **never in both**. Taken twice, the display reads too high everywhere between 0 and 100%. Taken not at all, it reads too low.",
+          "At low flow the DP is tiny (10% flow gives only 1% DP), so readings near zero are unreliable. Many systems cut the display off below a set low flow.",
+          "Orifice plates are cheap and have no moving parts, but they waste pressure, wear, and need a long straight pipe."
+        ] },
+        { "h": "Straight pipe" },
+        { "p": "Bends, valves and pumps swirl and distort the flow. Most flow meters need a length of **straight pipe before and after** them so that the flow reaches the meter smooth and even. The length is given in pipe diameters by the maker: often around 10 diameters upstream and 5 downstream, more for orifice plates after a bend or valve, and less for magnetic meters. Follow the manual." },
+        { "h": "Flow meters compared" },
+        { "table": { "head": ["Meter", "How it works", "Suits", "Does not suit"], "rows": [
+          ["Orifice plate with DP transmitter", "Pressure drop across a restriction", "Clean liquids, gases and steam", "Dirty fluids; wide flow ranges"],
+          ["**Magnetic**", "A conductive liquid moving through a magnetic field makes a small voltage", "Dirty water, slurry, sewage, pulp: no moving parts and almost no pressure loss", "Oils, fuels and gases, which do not conduct; pipes that run part-full"],
+          ["Turbine", "The flow spins a rotor", "Clean, thin liquids; accurate", "Grit and fibres, which wear the bearings"],
+          ["Vortex", "Counts the eddies shed by a bar in the flow", "Steam, gases, clean liquids", "Very low flows"],
+          ["**Clamp-on ultrasonic**", "Sensors strapped to the outside of the pipe time sound pulses through the liquid", "A pipe that cannot be cut or shut down; temporary surveys", "Badly scaled pipes; needs correct pipe data"],
+          ["Coriolis", "The flow twists vibrating tubes", "Mass flow and density, very accurately", "Tight budgets; large pipes"],
+          ["Variable-area (rotameter)", "A float rises in a tapered tube", "A cheap local reading", "Remote signals; it must be upright"]
+        ] } },
+        { "note": "A magnetic or ultrasonic meter must have a **full pipe**. Fit it where the pipe cannot drain or trap air: in a rising section, not at a high point or on a downhill outlet.", "label": "Tip" }
+      ]
+    },
+    {
+      "title": "Calibration",
+      "blocks": [
+        { "p": "**Calibration** is comparing an instrument with a more accurate reference, recording the difference, and adjusting the instrument if needed. A calibration without a record is only an adjustment." },
+        { "h": "Terms" },
+        { "table": { "head": ["Term", "Meaning"], "rows": [
+          ["Error", "The instrument's reading minus the true (reference) value."],
+          ["**Error as a percentage of span**", "Error ÷ span × 100. For the output: (measured mA − expected mA) ÷ 16 × 100."],
+          ["Tolerance", "The largest error allowed."],
+          ["Zero error", "The same error at every point: the whole line is shifted."],
+          ["Span error", "An error that grows towards the top of the range: the slope is wrong."],
+          ["**Hysteresis**", "The difference between the reading at a point when approached going up and when approached coming down."],
+          ["Repeatability", "How closely the readings agree when the same input is applied again."],
+          ["Drift", "Slow change with time."],
+          ["**Damping**", "A setting that averages the output over a short time, to steady a signal that jumps with every pump pulse. More damping gives a steadier but slower signal."],
+          ["As-found / as-left", "The readings before any adjustment / after the final adjustment."]
+        ] } },
+        { "h": "The reference" },
+        { "ul": [
+          "The reference should be several times more accurate than the instrument being checked: **at least four times** is the usual rule. Then its own small error has little effect on whether the instrument passes or fails.",
+          "Its calibration must be **traceable**: checked against a better standard, which was checked against a better one, in an unbroken chain of certificates back to national measurement standards.",
+          "Check its **calibration label** before use. A reference that is out of date is not a reference: get another, and report the overdue one.",
+          "Look after it: carry it in its case, keep it out of a hot vehicle, and report any knock or drop."
+        ] },
+        { "h": "The five-point calibration" },
+        { "flow": [
+          "Connect the pressure source, the reference and the mA meter; check for leaks",
+          "Apply 0, 25, 50, 75 and 100% of range going up, and record the output at each point",
+          "Come back down through 75, 50, 25 and 0%, and record again",
+          "These are the as-found readings: write them down before touching any adjustment",
+          "Work out the error at each point as a percentage of span and compare with the tolerance",
+          "If it is outside tolerance: adjust zero, then span, then check zero again",
+          "Repeat the five points up and down: the as-left readings",
+          "Complete and sign the record; fit a calibration label; return the instrument to service"
+        ] },
+        { "p": "Five points up and down find errors **across the range**, not just at the ends, and show any **hysteresis**. Approach each point from the right direction without overshooting, and never exceed the instrument's range." },
+        { "h": "Worked example" },
+        { "p": "Transmitter PT-104, range 0–250 kPa, tolerance ±0.5% of span (±0.08 mA)." },
+        { "table": { "head": ["Applied", "Expected", "As-found, up", "Error, up", "As-found, down", "As-left"], "rows": [
+          ["0 kPa (0%)", "4.00 mA", "4.05 mA", "+0.31%", "4.06 mA", "4.00 mA"],
+          ["62.5 kPa (25%)", "8.00 mA", "8.09 mA", "+0.56%", "8.12 mA", "8.01 mA"],
+          ["125 kPa (50%)", "12.00 mA", "12.13 mA", "+0.81%", "12.17 mA", "12.01 mA"],
+          ["187.5 kPa (75%)", "16.00 mA", "16.16 mA", "+1.00%", "16.20 mA", "16.00 mA"],
+          ["250 kPa (100%)", "20.00 mA", "20.20 mA", "+1.25%", "20.20 mA", "20.01 mA"]
+        ] } },
+        { "ul": [
+          "Error at 50% going up: (12.13 − 12.00) ÷ 16 × 100 = **+0.81% of span**, which is 0.81% × 250 = about 2 kPa.",
+          "The error grows from +0.31% to +1.25% up the range: mostly a **span error**, with a small zero error.",
+          "Hysteresis at 50%: 12.17 − 12.13 = 0.04 mA, or 0.25% of span.",
+          "As-found result: **fail** (outside ±0.5% from 25% upwards). After adjusting zero, then span, then zero again, the as-left readings are all within ±0.06%: **pass**."
+        ] },
+        { "h": "Zero first, then span" },
+        { "p": "Where a transmitter has separate zero and span adjustments, set **zero first** with the LRV applied, then **span** with the URV applied, then go back and **check zero again**, because on many instruments the two adjustments affect each other. On a smart (digital) transmitter, do not confuse **re-ranging** (changing the LRV and URV) with a **sensor trim** (correcting the sensor against a reference): re-ranging does not correct a sensor error." },
+        { "h": "When an instrument is found out of tolerance" },
+        { "ul": [
+          "Record the as-found readings **before** adjusting. They are the evidence of how far it had drifted.",
+          "Adjust it and record the as-left readings; or, if it cannot be brought into tolerance, tag it out of use.",
+          "**Report it to the supervisor.** Every reading it gave since its last good calibration is now in doubt, and product, dosing or billing that relied on it may need to be reviewed.",
+          "The time to its next calibration may need to be shortened, not lengthened.",
+          "Never adjust at one point until it 'passes' there and sign the record as a pass."
+        ] },
+        { "h": "If there is no spare" },
+        { "p": "If a transmitter fails and no spare is in the store, **tag it, report it and agree a temporary plan with the supervisor**: for example, operators read a local gauge at set times until the spare arrives. Leaving it in service without telling anyone, or removing it and blanking the line on your own decision, are both wrong." }
+      ]
+    },
+    {
+      "title": "Records, reporting and leading the team",
+      "blocks": [
+        { "h": "The calibration record" },
+        { "table": { "head": ["Item", "Why it is there"], "rows": [
+          ["Tag number, maker, model, serial number", "No doubt about which instrument was checked"],
+          ["Range and tolerance", "So that the results can be judged"],
+          ["Reference instruments, with serial numbers and calibration due dates", "Shows the check is traceable"],
+          ["As-found readings, up and down, with the error at each point", "Shows how far it had drifted"],
+          ["Adjustment made", "Shows what was done"],
+          ["As-left readings", "Shows the state it was returned in"],
+          ["Pass or fail, clearly stated", "The result"],
+          ["Date, technician's name and signature, next due date", "Who, when, and when again"],
+          ["Remarks: blocked impulse line, damaged cable, follow-up needed", "So that problems are not lost"]
+        ] } },
+        { "p": "Records are used to plan maintenance, to set calibration intervals, and to prove during an audit that the plant's measurements are right. File them where the plant keeps them, the same day." },
+        { "h": "Preparing a team for a shutdown" },
+        { "ul": [
+          "First prepare a **list of every instrument**: tag, location, range, test points, tolerance and the reference needed.",
+          "Check that every reference has an in-date label, and that there are enough hand pumps, fittings, leads and record sheets.",
+          "Brief the method: as-found first; five points up and down; correct units; no adjustment until the as-found readings are written.",
+          "Watch each person do at least one check, and look at their sheets as they go, so that mistakes are caught early.",
+          "At the end, check that every sheet is complete, signed and dated, and that every failure is tagged and reported."
+        ] },
+        { "h": "Readings that cannot be right" },
+        { "p": "A tank level logged as 120%, a pressure above the pump's maximum or a temperature of 0.0 °C on a hot line cannot be accepted and cannot simply be 'corrected'. **Ask how it was read, check the instrument and correct the record** with the true reading, a note and initials. Do not cross it out and write what looks sensible, and do not punish the person: find out whether it was a misread scale, the wrong units or a faulty instrument." },
+        { "h": "Care of test equipment" },
+        { "ul": [
+          "Keep calibrators, reference gauges and probes in their cases, dry and clean.",
+          "Do not leave them in a closed vehicle in the sun: heat ruins batteries, displays and calibration.",
+          "Check leads, hoses and fittings before each use; release pressure before disconnecting hoses.",
+          "Send each reference for calibration before its due date."
+        ] }
+      ]
+    },
+    {
+      "title": "Revision",
+      "blocks": [
+        { "h": "Checklist" },
+        { "p": "Tick each statement only when you can do it without looking at the notes." },
+        { "ul": [
+          "I can read instrument tags and find an instrument on a P&ID and a loop drawing.",
+          "I can explain LRV, URV, span, sensor limits and tolerance.",
+          "I can plan a calibration: permit, operator, references, test points and briefing.",
+          "I can isolate, vent, drain and prove zero on a pressure instrument, and work a three-valve manifold.",
+          "I can state the rule for test equipment in a hazardous area.",
+          "I can convert a value to its 4–20 mA signal and back, and to volts across 250 Ω.",
+          "I can explain the live zero and recognise a fault signal.",
+          "I can explain two-wire loops, loop resistance, twisted screened cable and where the screen is earthed.",
+          "I can use a loop calibrator to measure, source and simulate.",
+          "I can tell gauge, absolute and differential pressure apart and choose a gauge range.",
+          "I can work out level from pressure and allow for the liquid's density.",
+          "I can compare RTDs and thermocouples, and explain three-wire connection, cold junction compensation and compensating cable.",
+          "I can work out flow from differential pressure and explain where the square root is taken.",
+          "I can choose a flow meter and place it correctly in the pipe.",
+          "I can carry out a five-point calibration and work out error and hysteresis as a percentage of span.",
+          "I can say what must be done when an instrument is out of tolerance.",
+          "I can complete a calibration record and check my team's readings."
+        ] },
+        { "h": "Numbers to remember" },
+        { "table": { "head": ["Figure", "What it is"], "rows": [
+          ["4, 8, 12, 16, 20 mA", "0, 25, 50, 75 and 100% of range"],
+          ["16 mA", "The span of a 4–20 mA signal"],
+          ["250 Ω", "Turns 4–20 mA into 1–5 V"],
+          ["24 V DC", "Usual loop supply"],
+          ["9.81 kPa", "Pressure of each metre of water"],
+          ["About 101.3 kPa", "Atmospheric pressure at sea level"],
+          ["1 bar = 100 kPa; 1 psi ≈ 6.9 kPa", "Pressure conversions"],
+          ["100 Ω, 138.5 Ω", "Pt100 at 0 °C and at 100 °C"],
+          ["About 0.385 Ω per °C", "Pt100 slope"],
+          ["At least 4 to 1", "Usual accuracy ratio of reference to instrument"],
+          ["DP 25% → flow 50%", "Square-root law for orifice plates"]
+        ] } },
+        { "h": "Key terms" },
+        { "terms": [
+          ["Absolute pressure", "Pressure measured from a perfect vacuum."],
+          ["As-found readings", "Calibration readings taken before any adjustment."],
+          ["As-left readings", "Calibration readings taken after the final adjustment."],
+          ["Cold junction", "The thermocouple junction at the instrument end, whose temperature the instrument allows for."],
+          ["Compensating cable", "Cable of matched alloys used to extend a thermocouple back to its instrument."],
+          ["Damping", "A setting that steadies a jumpy output by averaging it over a short time."],
+          ["Differential pressure", "The difference in pressure between two points."],
+          ["Equalising valve", "The manifold valve that connects the high and low sides of a DP transmitter."],
+          ["Gauge pressure", "Pressure measured from the surrounding air pressure."],
+          ["Hysteresis", "The difference between up-scale and down-scale readings at the same point."],
+          ["Live zero", "The 4 mA that represents 0%, so that 0 mA can only mean a fault."],
+          ["Loop calibrator", "A hand-held instrument that measures, sources and simulates 4–20 mA."],
+          ["LRV / URV", "Lower and upper range values: the measurements at 4 mA and 20 mA."],
+          ["Orifice plate", "A plate with a hole that creates a pressure drop from which flow is found."],
+          ["P&ID", "Piping and instrumentation diagram."],
+          ["Pt100", "A platinum RTD with a resistance of 100 Ω at 0 °C."],
+          ["Span", "The upper range value minus the lower range value."],
+          ["Thermowell", "A closed pocket in a pipe or vessel that holds a temperature sensor."],
+          ["Traceable", "Linked by an unbroken chain of calibrations to national standards."],
+          ["Two-wire transmitter", "A transmitter powered through the same two wires that carry its signal."]
+        ] }
+      ]
+    }
+  ],
+  "cases": {
+    "c1": { "title": "Calibrating PT-104 at an Ewarton water plant", "text": "On 10 November 2026 instrument technician Tashana Dixon leads a calibration of pressure transmitter PT-104 on a working pump line at a water treatment plant in Ewarton, St Catherine. Its range is 0–250 kPa with a 4–20 mA output, and its tolerance is ±0.5% of span. The label on the reference gauge in the workshop reads 'Cal due 12 Oct 2026'." },
+    "c2": { "title": "A syrup tank at a Bushy Park food plant", "text": "At a food plant in Bushy Park, St Catherine, an open tank has a pressure transmitter, LT-301, at its base. It was set up for water: 0–5 m of water, 0–49.05 kPa, 4–20 mA. The tank is now used for a syrup with a relative density of 1.3, which foams when the tank is filled. Take 9.81 kPa for each metre of water." },
+    "c3": { "title": "Oven and hot-water temperatures at a Cross Roads bakery", "text": "At a bakery in Cross Roads, Kingston, technician Devon Marshall looks after two temperature loops. The oven, at about 220 °C, has a type K thermocouple that was repaired last week. A Pt100 on the hot-water line was connected with only two wires, and each core of its cable has a resistance of about 0.4 Ω. Take 0.385 Ω per °C for a Pt100." },
+    "c4": { "title": "Flow metering at a Gordon Town pumping station", "text": "At a water pumping station near Gordon Town, St Andrew, orifice-plate meter FT-210 has a DP transmitter ranged 0–25 kPa for 0–120 m³/h. The square root is taken in the PLC. A magnetic flow meter is to be added on a raw-water line that carries silt; the planned position is 1 m after a bend, on a 200 mm pipe." },
+    "c5": { "title": "A dead level loop at a Spanish Town beverage plant", "text": "At a beverage plant in Spanish Town, the control room shows the level of tank T-5 as a fault, and the input reads 0.0 mA. The loop drawing shows a 24 V DC supply through fuse F12 in the panel, a cable to junction box JB-3, and a second cable to two-wire transmitter LT-505, which needs at least 12 V at its terminals. Technician Andre Powell has the permit and the operator's agreement." }
+  },
+  "questions": [
+    { "id": "P-01", "c": "c1", "q": "What should Tashana do about the reference gauge?", "o": ["Use it, since good gauges rarely drift much", "Use it, but note the overdue date on the record", "Use it only for the as-left readings afterwards", "Not use it; get a reference that is in date"], "a": 3, "why": "A reference past its calibration due date is no longer traceable, so nothing checked against it can be trusted. She gets an in-date reference and reports the overdue gauge so that it is sent for calibration." },
+    { "id": "P-02", "c": "c1", "q": "With 150 kPa applied, what output should a perfect PT-104 give?", "o": ["13.6 mA", "9.6 mA", "12.0 mA", "16.0 mA"], "a": 0, "why": "150 ÷ 250 = 0.6 of span. I = 4 + 16 × 0.6 = 13.6 mA. 9.6 mA forgets the 4 mA live zero, and 12.0 and 16.0 mA come from using 20 instead of 16 for the signal span." },
+    { "id": "P-03", "c": "c1", "q": "At 187.5 kPa (75%) the as-found output is 16.16 mA. What is the error, and is it within tolerance?", "o": ["+0.16% of span: within tolerance", "+1.0% of span: outside tolerance", "+1.0% of span: within tolerance", "−1.0% of span: outside tolerance"], "a": 1, "why": "Expected output is 16.00 mA. Error = (16.16 − 16.00) ÷ 16 × 100 = +1.0% of span, which is twice the ±0.5% allowed. 0.16 is the error in mA, not in per cent." },
+    { "id": "P-04", "c": "c1", "q": "At 50% she reads 12.13 mA going up and 12.17 mA coming down. What is the hysteresis as a percentage of span?", "o": ["0.04%", "4%", "0.25%", "0.33%"], "a": 2, "why": "Hysteresis is the difference between the two readings at the same point: 0.04 mA. As a percentage of the 16 mA span, 0.04 ÷ 16 × 100 = 0.25%." },
+    { "id": "P-05", "c": "c2", "q": "With 2.4 m of syrup in the tank, what level will LT-301 show while it is still set up for water?", "o": ["About 2.4 m: density has no effect", "About 1.8 m: it reads low", "About 5.0 m: it reads full scale", "About 3.1 m: it reads high"], "a": 3, "why": "Pressure = 9.81 × 1.3 × 2.4 = 30.6 kPa. A transmitter set for water turns that into 30.6 ÷ 9.81 = 3.12 m. A heavier liquid gives more pressure for the same depth, so the reading is high." },
+    { "id": "P-06", "c": "c2", "q": "What new upper range value should LT-301 have so that 20 mA means 5 m of syrup?", "o": ["About 63.8 kPa", "About 49.1 kPa", "About 37.7 kPa", "About 6.5 kPa"], "a": 0, "why": "Pressure at 5 m of syrup = 9.81 × 1.3 × 5 = 63.8 kPa. 49.1 kPa is the old value for water, and 37.7 kPa comes from dividing by the density instead of multiplying." },
+    { "id": "P-07", "c": "c2", "q": "The manager suggests replacing LT-301 with an ultrasonic level sensor above the tank. What is the main concern here?", "o": ["Syrup is too dense for sound to reach it", "The foam can give false or lost echoes", "Ultrasonic sensors work only on closed tanks", "It would need the syrup to be conductive"], "a": 1, "why": "An ultrasonic sensor times an echo from the surface. Foam absorbs or scatters the sound, so the echo is lost or comes from the top of the foam. Radar, or the re-ranged pressure transmitter, would suit this tank better." },
+    { "id": "P-08", "c": "c3", "q": "The hot-water Pt100 reads about 2 °C higher than a reference thermometer beside it. What is the most likely cause?", "o": ["New Pt100 sensors always read a little high at first", "The cable's screen is earthed at the panel end", "The two-wire connection adds the lead resistance", "The cold junction compensation is set wrongly"], "a": 2, "why": "With two wires, the instrument measures the sensor plus both leads: 0.8 Ω extra, and 0.8 ÷ 0.385 = about 2 °C. A three-wire connection lets the instrument cancel the lead resistance. Cold junction compensation belongs to thermocouples, not RTDs." },
+    { "id": "P-09", "c": "c3", "q": "Since the repair, the oven display falls as the oven heats up. What is the likely fault?", "o": ["The oven is too hot for a type K thermocouple", "The transmitter's damping is set too high", "The thermowell is too long for the oven wall", "The thermocouple wires are crossed at a joint"], "a": 3, "why": "A thermocouple's voltage has a polarity. If the two wires are swapped at one connection, the signal is reversed and the reading moves the wrong way. Type K is good to well over 1,000 °C, and damping only slows a reading." },
+    { "id": "P-10", "c": "c3", "q": "A Pt100 in the proving room measures 113.5 Ω. About what temperature is it at?", "o": ["About 35 °C", "About 13.5 °C", "About 5 °C", "About 113.5 °C"], "a": 0, "why": "Take off the 100 Ω at 0 °C, then divide by the slope: 13.5 ÷ 0.385 = about 35 °C. 13.5 is the extra resistance, not the temperature, and 5 comes from multiplying instead of dividing." },
+    { "id": "P-11", "c": "c3", "q": "Devon checks the oven thermocouple in a dry-block calibrator set to 200 °C. What must he do before he records the reading?", "o": ["Record it at once, before the block starts to cool", "Wait for both probes to settle at the set point", "Remove the reference probe to save its life", "Turn the block up to 250 °C to speed it up"], "a": 1, "why": "The block, the reference probe and the sensor under test must all reach the same steady temperature, or the comparison means nothing. He waits until both readings stop changing, then records them together." },
+    { "id": "P-12", "c": "c4", "q": "The DP transmitter of FT-210 reads 9 kPa. What flow should the PLC show?", "o": ["About 43 m³/h", "About 93 m³/h", "About 72 m³/h", "About 16 m³/h"], "a": 2, "why": "9 ÷ 25 = 0.36 of maximum DP. √0.36 = 0.6, and 0.6 × 120 = 72 m³/h. 43 m³/h treats the signal as a straight line, and 93 m³/h takes the square root twice." },
+    { "id": "P-13", "c": "c4", "q": "A new transmitter is fitted with its own square-root output switched on, while the PLC still takes the square root as well. What will the flow display do?", "o": ["Read correctly, as the two roots cancel out", "Read low across the whole of the range", "Read zero until the flow reaches maximum", "Read high, except at 0% and 100%"], "a": 3, "why": "The square root of a fraction is bigger than the fraction, so taking it twice pushes every reading between 0 and 100% too high: a true 60% shows as about 77%. The square root must be set in one place only." },
+    { "id": "P-14", "c": "c4", "q": "Where is the best place for the new magnetic flow meter?", "o": ["Further on, after straight pipe, in a full section", "One metre after the bend, exactly as first planned", "At the highest point of the line, for easy access", "On the downhill outlet, where the flow is fastest"], "a": 0, "why": "A magnetic meter needs a full pipe and an even flow. One metre is only 5 pipe diameters after a bend on a 200 mm pipe, air collects at high points, and a downhill outlet can run part-full, all of which give wrong readings." },
+    { "id": "P-15", "c": "c5", "q": "What should Andre measure first?", "o": ["The insulation resistance of transmitter LT-505", "The 24 V DC supply and fuse F12 at the panel", "The level in tank T-5, using a dipstick", "The resistance of the screen to earth"], "a": 1, "why": "0.0 mA means no current at all: an open circuit or no supply. Fault finding starts at the source, with the loop supply and its fuse, and works outwards along the loop drawing. An insulation tester could destroy the transmitter's electronics." },
+    { "id": "P-16", "c": "c5", "q": "He finds 24 V after fuse F12 at the panel, but 0 V on the loop's terminals in JB-3. Where is the fault most likely to be?", "o": ["In the transmitter itself, which has failed", "In the tank, which must have run completely empty", "In the cable or terminals between panel and JB-3", "In the cable from JB-3 out to the tank"], "a": 2, "why": "The supply is present at the panel and missing at the next point, so the break lies between them: a broken core or a loose terminal on that cable. Faults further out cannot remove the voltage at JB-3." },
+    { "id": "P-17", "c": "c5", "q": "With a 24 V supply, what is the largest total resistance the rest of the loop may have for LT-505 to reach 20 mA?", "o": ["1,200 Ω", "250 Ω", "60 Ω", "600 Ω"], "a": 3, "why": "The transmitter needs 12 V, leaving 24 − 12 = 12 V for the cable and any resistor. At 20 mA, R = 12 ÷ 0.02 = 600 Ω. 1,200 Ω ignores the voltage the transmitter itself needs." },
+    { "id": "P-18", "c": null, "q": "A technician in Mandeville uses boiling water to check a temperature probe and sets it to read exactly 100 °C there. What has gone wrong?", "o": ["Nothing: boiling water is always exactly 100 °C", "Water boils below 100 °C at that height, so the probe now reads high", "Boiling water is too hot for any probe to be checked in it", "Probes must be checked only at 0 °C, in an ice bath"], "a": 1, "why": "Boiling point falls as air pressure falls, and at Mandeville's height water boils at about 98 °C. Setting the probe to 100 °C there puts in an error of about 2 °C. Always read a calibrated reference thermometer rather than assume a value." },
+    { "id": "P-19", "c": null, "q": "A US-made gauge on a compressor reads 60 psi. About what is that in kPa?", "o": ["About 41 kPa", "About 8.7 kPa", "About 414 kPa", "About 4,140 kPa"], "a": 2, "why": "1 psi is about 6.895 kPa, so 60 × 6.895 = 414 kPa, or about 4.1 bar. 8.7 comes from dividing instead of multiplying, and the others are decimal-point slips." },
+    { "id": "P-20", "c": null, "q": "A transmitter must be checked to ±0.5% of span. Which reference is accurate enough by the usual rule?", "o": ["One accurate to ±0.5% of the same span", "One accurate to ±0.1% of the same span", "One accurate to ±0.25% of the same span", "One accurate to ±1% of the same span"], "a": 1, "why": "The usual rule is a reference at least four times more accurate than the instrument: ±0.125% or better for a ±0.5% transmitter, so ±0.1% qualifies. With a ±0.5% or ±0.25% reference, its own error could decide whether the transmitter passes." }
+  ]
+}
