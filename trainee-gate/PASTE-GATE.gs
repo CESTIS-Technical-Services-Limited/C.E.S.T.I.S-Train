@@ -5602,8 +5602,9 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
        device checking a collected inbox again) only ownership and shape are
        checked. opts: { papers: { examId: paper } (or paper), ownUploads:
        [fileId], lane: true when the item came out of a gatekeeper-written
-       inbox }. Every refused item says why: 'not-yours', 'malformed',
-       'too-large', 'not-open', 'unknown-exam', 'unknown-question',
+       inbox, now: the gatekeeper's own clock (ms) — stamped on a request
+       withdrawal instead of trusting hers }. Every refused item says why:
+       'not-yours', 'malformed', 'too-large', 'not-open', 'unknown-exam', 'unknown-question',
        'bad-order', 'unknown-assignment', 'not-own-file', 'not-pending',
        'unknown-room', 'unknown-record', 'inline-file'. */
     var ITEM_MAX_BYTES = 500 * 1024, TEXT_MAX_BYTES = 4 * 1024, PHOTO_MAX_CHARS = 300 * 1024;
@@ -5730,7 +5731,10 @@ var Promise = (typeof Utilities !== 'undefined' && Utilities.computeDigest ? (fu
           if (rec.status !== 'cancelled' && rec.status !== 'pending') return verdict(item, false, { reason: 'not-pending' });
           out = copy(known);
           out.status = rec.status;
-          out.updatedAt = str(rec.updatedAt) || out.updatedAt;
+          // The gate's own clock, never hers: a forged future updatedAt
+          // would let a withdrawal outrun a later, real decision in every
+          // merge that follows (mergeRequestLists picks the newer stamp).
+          out.updatedAt = iso(typeof opts.now === 'number' ? opts.now : Date.now());
         } else {
           if (rec.status !== 'pending') return verdict(item, false, { reason: 'not-pending' });
           ['handledBy', 'handledAt', 'adminNote'].forEach(function (f) { out[f] = ''; });
@@ -8452,7 +8456,7 @@ function gateDeliverSession(G, acct, sid, items, suffix) {
     if (exam && !papers[exam] && gateAccessHas(slice, 'papers', exam)) { var p = gatePaperFile(G, exam); if (p) papers[exam] = p; }
     if (it.kind === 'rec' && (it.key === 'voctrain_submissions' || it.key === 'voctrain_chatMessages' || it.key === 'voctrain_assessmentWork')) needFiles = true;
   });
-  var opts = { papers: papers };
+  var opts = { papers: papers, now: G.now };
   if (needFiles) opts.ownUploads = gateOwnUploads(G, { me: me, folder: place.folder }).ids;
   var laneId = 'L-' + sid + (suffix ? '~' + suffix : '');
   var laneFile = gateNewest(place.folder.getFilesByName(GATE_NAMES.inbox + '.' + laneId + '.json'));

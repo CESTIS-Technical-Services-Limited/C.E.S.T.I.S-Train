@@ -1520,7 +1520,7 @@ function gateDeliverSession(G, acct, sid, items, suffix) {
     if (exam && !papers[exam] && gateAccessHas(slice, 'papers', exam)) { var p = gatePaperFile(G, exam); if (p) papers[exam] = p; }
     if (it.kind === 'rec' && (it.key === 'voctrain_submissions' || it.key === 'voctrain_chatMessages' || it.key === 'voctrain_assessmentWork')) needFiles = true;
   });
-  var opts = { papers: papers };
+  var opts = { papers: papers, now: G.now };
   if (needFiles) opts.ownUploads = gateOwnUploads(G, { me: me, folder: place.folder }).ids;
   var laneId = 'L-' + sid + (suffix ? '~' + suffix : '');
   var laneFile = gateNewest(place.folder.getFilesByName(GATE_NAMES.inbox + '.' + laneId + '.json'));

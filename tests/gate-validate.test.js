@@ -136,6 +136,12 @@ console.log('A certificate or transcript request: theirs; new ones wait; only a 
   const mine = slice.data.voctrain_certTranscriptRequests[0];
   const cancel = check(item('rec', { key: 'voctrain_certTranscriptRequests', rec: Object.assign({}, mine, { status: 'cancelled', note: 'changed', updatedAt: new Date(NOW).toISOString() }) }));
   assert(cancel.ok && cancel.rec.status === 'cancelled' && cancel.rec.note === mine.note, 'their waiting request can be withdrawn — and nothing else about it changed');
+  // A forged future updatedAt must never let her withdrawal outrun the
+  // office's later, real decision in a merge: the gatekeeper's own clock
+  // is what gets stamped, not whatever she sent.
+  const FUTURE = new Date(NOW + 365 * 86400000).toISOString();
+  const forged = check(item('rec', { key: 'voctrain_certTranscriptRequests', rec: Object.assign({}, mine, { status: 'cancelled', updatedAt: FUTURE }) }), { papers, ownUploads: ['UP-1'], now: NOW });
+  assertEq(forged.rec.updatedAt, new Date(NOW).toISOString(), 'a withdrawal is stamped with the gatekeeper\'s clock, never a forged future one');
   const decided = J(slice); decided.data.voctrain_certTranscriptRequests[0].status = 'ready';
   assertEq(reason(item('rec', { key: 'voctrain_certTranscriptRequests', rec: Object.assign({}, mine, { status: 'cancelled' }) }), opts, decided),
     'not-pending', 'a request the office has acted on cannot be');
