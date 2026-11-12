@@ -17,3 +17,15 @@ While writing the kits, each writer read the unit's exam bank closely. These are
 - Exam-quality note: B040 EEMMRD0663A uses British (BS 7671) test method and EEMMRD0683A BS 5266 emergency lighting; Jamaica uses NEC-based code - instructor to confirm (checks/B040.md).
 - Exam bank: PSSAPM0065B assumes negotiation with a preferred bidder is routine; Jamaican public procurement rules may not allow this (checks/B071.md).
 - Safety first: MEMFAB0051B T1-40 says water is the usual pressure-test medium; refrigeration and air-conditioning lines are tested with dry nitrogen, never water.
+
+## Done (this pass)
+
+Fixed in `assessments/` (every copy of a shared unit): MEMFAB0051B T1-40 (now asks for the test medium for refrigeration lines: dry nitrogen); the questions with no correct option or a wrong key: MEMCOR0023C T1-33, MEMCOR0103C T1-11 and T1-37, MEMFAB0062B T1-39; CRIMAT0012B T2-S14 (220 V, 2 200 W, still 10 A); CSAPQA0012A T2-S05 (unit name "micrometre" no longer accepted); ITICOR0011B T2-S04, S10, S13 (loose accepted answers removed); MEMCOR0042A T1-01 (Government Electrical Regulator); MEMCOR0141B T1-21 and T1-23 (wording; plate width given); MEMPRG0012A T2-E03 and E04; CSBCOS0031C T2-E04 (friction now for a normal or dry scalp, light on an oily one, matching T2-E10); "parish council" is now "municipal corporation" in every bank and kit. PSSAPM0065B was already worded "only as the rules and documents allow", so it was left.
+
+## Still for instructors to decide
+
+- Electrical Level 3 MEMMRD0663A (BS 7671 style test method) and MEMMRD0683A (BS 5266): confirm the code the Centre teaches.
+
+Done: the 3.2 mm filter shade now follows the pilot (shade 11 for 80–175 A) in MEMFAB0042C's kit; no exam bank states a conflicting shade.
+
+Done: leftward gas welding up to about 6 mm and rightward over about 6 mm, in MEMFAB0121B, MEMFAB0122B and the Level 2 MEMFAB0121C kit. Questions and practicals that used 6 mm plate for the rightward method now use 8 mm, so they are clearly on the rightward side of the line.

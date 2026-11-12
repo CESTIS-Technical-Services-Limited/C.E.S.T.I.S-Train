@@ -5,303 +5,983 @@
   "written": "2026-10-31",
   "note": "Prepared from the unit title and the trade's usual practice. An instructor must read and correct it, and mark it Ready, before it is opened for an intake.",
   "programme": "Welding & Fabrication",
-  "qualification": { "id": "QUAL-WEL-L2", "title": "WELDING LEVEL 2", "code": "MEM22423" },
+  "qualification": {
+    "id": "QUAL-WEL-L2",
+    "title": "WELDING LEVEL 2",
+    "code": "MEM22423"
+  },
   "level": 2,
-  "unit": { "code": "MEMPRG0012A", "title": "Apply introductory machine programming techniques" },
-
+  "unit": {
+    "code": "MEMPRG0012A",
+    "title": "Apply introductory machine programming techniques"
+  },
   "theory1": {
     "minutes": 150,
     "instructions": "Answer all 45 questions. Each question has one best answer: choose it. Each question is worth 1 mark. Time allowed: 2 hours 30 minutes. Your answers are saved as you go. The G-codes and M-codes in this test are those used on most machines; your machine's manual has the final say.",
     "questions": [
-      { "id": "T1-01", "topic": "CNC basics",
+      {
+        "id": "T1-01",
+        "topic": "CNC basics",
         "stem": "What does a CNC machine follow to make its moves?",
-        "options": ["A stored program of coded instructions", "The operator turning the handwheels by hand", "A paper template traced by a pen", "The sound of the motor as it runs"],
-        "answer": 0 },
-      { "id": "T1-02", "topic": "Axes",
+        "options": [
+          "A stored program of coded instructions",
+          "The operator turning the handwheels by hand",
+          "A paper template traced by a pen",
+          "The sound of the motor as it runs"
+        ],
+        "answer": 0
+      },
+      {
+        "id": "T1-02",
+        "topic": "Axes",
         "stem": "On a CNC plasma cutting table, which two axes move the torch across the flat plate?",
-        "options": ["Y and Z", "X and Y", "A and B", "X and Z"],
-        "answer": 1 },
-      { "id": "T1-03", "topic": "Axes",
+        "options": [
+          "Y and Z",
+          "X and Y",
+          "A and B",
+          "X and Z"
+        ],
+        "answer": 1
+      },
+      {
+        "id": "T1-03",
+        "topic": "Axes",
         "stem": "On a CNC milling machine, which axis runs along the spindle, up and down?",
-        "options": ["X", "Y", "Z", "W"],
-        "answer": 2 },
-      { "id": "T1-04", "topic": "Axes",
+        "options": [
+          "X",
+          "Y",
+          "Z",
+          "W"
+        ],
+        "answer": 2
+      },
+      {
+        "id": "T1-04",
+        "topic": "Axes",
         "stem": "On most CNC machines, which direction of the Z axis moves the tool away from the work?",
-        "options": ["Negative (−Z)", "Either way, as it does not matter", "Neither, as Z never moves", "Positive (+Z)"],
-        "answer": 3 },
-      { "id": "T1-05", "topic": "Coordinates",
+        "options": [
+          "Negative (−Z)",
+          "Either way, as it does not matter",
+          "Neither, as Z never moves",
+          "Positive (+Z)"
+        ],
+        "answer": 3
+      },
+      {
+        "id": "T1-05",
+        "topic": "Coordinates",
         "stem": "The work zero is at the bottom-left corner of a plate. A hole is 40 mm to the right and 25 mm up from it. What are the hole's X and Y values?",
-        "options": ["X40 Y25", "X25 Y40", "X−40 Y−25", "X65 Y0"],
-        "answer": 0 },
-      { "id": "T1-06", "topic": "Absolute and incremental",
+        "options": [
+          "X40 Y25",
+          "X25 Y40",
+          "X−40 Y−25",
+          "X65 Y0"
+        ],
+        "answer": 0
+      },
+      {
+        "id": "T1-06",
+        "topic": "Absolute and incremental",
         "stem": "In absolute programming (G90), each X and Y value is measured from where?",
-        "options": ["The last point the tool stopped at", "The work zero of the program", "The machine's home switch only", "The centre of the machine table"],
-        "answer": 1 },
-      { "id": "T1-07", "topic": "Absolute and incremental",
+        "options": [
+          "The last point the tool stopped at",
+          "The work zero of the program",
+          "The machine's home switch only",
+          "The centre of the machine table"
+        ],
+        "answer": 1
+      },
+      {
+        "id": "T1-07",
+        "topic": "Absolute and incremental",
         "stem": "In incremental programming (G91), what does X20 mean?",
-        "options": ["Move to the point 20 mm from work zero", "Use tool number 20 from the magazine", "Move 20 mm further in +X from here", "Feed at 20 mm per minute in X"],
-        "answer": 2 },
-      { "id": "T1-08", "topic": "Absolute and incremental",
+        "options": [
+          "Move to the point 20 mm from work zero",
+          "Use tool number 20 from the magazine",
+          "Move 20 mm further in +X from here",
+          "Feed at 20 mm per minute in X"
+        ],
+        "answer": 2
+      },
+      {
+        "id": "T1-08",
+        "topic": "Absolute and incremental",
         "stem": "The tool is at X30 Y10. In incremental mode the next line is G01 X15 Y−5. Where does the tool end up, measured from work zero?",
-        "options": ["X15 Y−5", "X45 Y5", "X45 Y15", "X15 Y5"],
-        "answer": 1 },
-      { "id": "T1-09", "topic": "Absolute and incremental",
+        "options": [
+          "X15 Y−5",
+          "X45 Y5",
+          "X45 Y15",
+          "X15 Y5"
+        ],
+        "answer": 1
+      },
+      {
+        "id": "T1-09",
+        "topic": "Absolute and incremental",
         "stem": "In absolute mode the tool is at X50 Y20. The next line is G01 X80 Y20. How far does the tool move?",
-        "options": ["20 mm", "50 mm", "80 mm", "30 mm"],
-        "answer": 3 },
-      { "id": "T1-10", "topic": "G-codes",
+        "options": [
+          "20 mm",
+          "50 mm",
+          "80 mm",
+          "30 mm"
+        ],
+        "answer": 3
+      },
+      {
+        "id": "T1-10",
+        "topic": "G-codes",
         "stem": "On most CNC controls, what does G00 do?",
-        "options": ["A rapid move to a new point, not cutting", "A straight cutting move at the set feed", "A clockwise arc cut at the feed rate set", "The end of the program, with a rewind"],
-        "answer": 0 },
-      { "id": "T1-11", "topic": "G-codes",
+        "options": [
+          "A rapid move to a new point, not cutting",
+          "A straight cutting move at the set feed",
+          "A clockwise arc cut at the feed rate set",
+          "The end of the program, with a rewind"
+        ],
+        "answer": 0
+      },
+      {
+        "id": "T1-11",
+        "topic": "G-codes",
         "stem": "Which code gives a straight-line cutting move at the set feed rate on most controls?",
-        "options": ["G00", "G01", "G02", "G03"],
-        "answer": 1 },
-      { "id": "T1-12", "topic": "G-codes",
+        "options": [
+          "G00",
+          "G01",
+          "G02",
+          "G03"
+        ],
+        "answer": 1
+      },
+      {
+        "id": "T1-12",
+        "topic": "G-codes",
         "stem": "On most controls, what is the difference between G02 and G03?",
-        "options": ["G02 is in mm; G03 is in inches", "G02 is a rapid; G03 is a feed move", "G02 is a clockwise arc; G03 is anticlockwise", "G02 is absolute; G03 is incremental"],
-        "answer": 2 },
-      { "id": "T1-13", "topic": "G-codes",
+        "options": [
+          "G02 is in mm; G03 is in inches",
+          "G02 is a rapid; G03 is a feed move",
+          "G02 is a clockwise arc; G03 is anticlockwise",
+          "G02 is absolute; G03 is incremental"
+        ],
+        "answer": 2
+      },
+      {
+        "id": "T1-13",
+        "topic": "G-codes",
         "stem": "Which code sets a program to work in millimetres on most controls?",
-        "options": ["G20", "G90", "G91", "G21"],
-        "answer": 3 },
-      { "id": "T1-14", "topic": "M-codes",
+        "options": [
+          "G20",
+          "G90",
+          "G91",
+          "G21"
+        ],
+        "answer": 3
+      },
+      {
+        "id": "T1-14",
+        "topic": "M-codes",
         "stem": "On a CNC mill, what does M03 usually do?",
-        "options": ["Stops the spindle turning", "Starts the spindle clockwise", "Turns the coolant on", "Ends the program and rewinds it"],
-        "answer": 1 },
-      { "id": "T1-15", "topic": "M-codes",
+        "options": [
+          "Stops the spindle turning",
+          "Starts the spindle clockwise",
+          "Turns the coolant on",
+          "Ends the program and rewinds it"
+        ],
+        "answer": 1
+      },
+      {
+        "id": "T1-15",
+        "topic": "M-codes",
         "stem": "Which M-code usually stops the spindle?",
-        "options": ["M03", "M04", "M05", "M08"],
-        "answer": 2 },
-      { "id": "T1-16", "topic": "M-codes",
+        "options": [
+          "M03",
+          "M04",
+          "M05",
+          "M08"
+        ],
+        "answer": 2
+      },
+      {
+        "id": "T1-16",
+        "topic": "M-codes",
         "stem": "What does M30 usually do?",
-        "options": ["Turns on the flood coolant", "Calls up tool number 30", "Pauses for the operator", "Ends the program and rewinds"],
-        "answer": 3 },
-      { "id": "T1-17", "topic": "Program words",
+        "options": [
+          "Turns on the flood coolant",
+          "Calls up tool number 30",
+          "Pauses for the operator",
+          "Ends the program and rewinds"
+        ],
+        "answer": 3
+      },
+      {
+        "id": "T1-17",
+        "topic": "Program words",
         "stem": "In the block N40 G01 X60 Y35 F300, what does F300 set?",
-        "options": ["The feed rate (300 mm/min)", "The spindle speed (300 rpm)", "The tool number (tool 300)", "The block number (line 300)"],
-        "answer": 0 },
-      { "id": "T1-18", "topic": "Program words",
+        "options": [
+          "The feed rate (300 mm/min)",
+          "The spindle speed (300 rpm)",
+          "The tool number (tool 300)",
+          "The block number (line 300)"
+        ],
+        "answer": 0
+      },
+      {
+        "id": "T1-18",
+        "topic": "Program words",
         "stem": "In the same block, N40 G01 X60 Y35 F300, what is N40?",
-        "options": ["The feed rate", "A tool length offset", "The block (line) number", "The spindle speed"],
-        "answer": 2 },
-      { "id": "T1-19", "topic": "Program words",
+        "options": [
+          "The feed rate",
+          "A tool length offset",
+          "The block (line) number",
+          "The spindle speed"
+        ],
+        "answer": 2
+      },
+      {
+        "id": "T1-19",
+        "topic": "Program words",
         "stem": "Which letter address sets the spindle speed in a CNC program?",
-        "options": ["F", "S", "T", "N"],
-        "answer": 1 },
-      { "id": "T1-20", "topic": "Program words",
+        "options": [
+          "F",
+          "S",
+          "T",
+          "N"
+        ],
+        "answer": 1
+      },
+      {
+        "id": "T1-20",
+        "topic": "Program words",
         "stem": "What is one complete line of a CNC program usually called?",
-        "options": ["A page", "A cycle", "A loop", "A block"],
-        "answer": 3 },
-      { "id": "T1-21", "topic": "Setting up",
+        "options": [
+          "A page",
+          "A cycle",
+          "A loop",
+          "A block"
+        ],
+        "answer": 3
+      },
+      {
+        "id": "T1-21",
+        "topic": "Setting up",
         "stem": "What is the work zero (also called part zero or datum) in a CNC program?",
-        "options": ["The home position the machine maker sets", "The point on the part the program measures from", "The point where the operator must stand", "The lowest feed rate the machine can run"],
-        "answer": 1 },
-      { "id": "T1-22", "topic": "Setting up",
+        "options": [
+          "The home position the machine maker sets",
+          "The point on the part the program measures from",
+          "The point where the operator must stand",
+          "The lowest feed rate the machine can run"
+        ],
+        "answer": 1
+      },
+      {
+        "id": "T1-22",
+        "topic": "Setting up",
         "stem": "Before a new program is run, why is the work zero set on the actual plate?",
-        "options": ["So that the torch runs much cooler while cutting", "So the program runs at a faster feed rate", "So the cuts land in the right place on the plate", "So that the program has fewer lines in it"],
-        "answer": 2 },
-      { "id": "T1-23", "topic": "Plasma cutting programs",
+        "options": [
+          "So that the torch runs much cooler while cutting",
+          "So the program runs at a faster feed rate",
+          "So the cuts land in the right place on the plate",
+          "So that the program has fewer lines in it"
+        ],
+        "answer": 2
+      },
+      {
+        "id": "T1-23",
+        "topic": "Plasma cutting programs",
         "stem": "On many CNC plasma tables, what is a pierce delay?",
-        "options": ["The time the machine takes to warm up each morning", "The gap between one job and the next on the table", "A pause for the operator to read the screen", "A short pause so the arc cuts through before moving"],
-        "answer": 3 },
-      { "id": "T1-24", "topic": "Plasma cutting programs",
+        "options": [
+          "The time the machine takes to warm up each morning",
+          "The gap between one job and the next on the table",
+          "A pause for the operator to read the screen",
+          "A short pause so the arc cuts through before moving"
+        ],
+        "answer": 3
+      },
+      {
+        "id": "T1-24",
+        "topic": "Plasma cutting programs",
         "stem": "What is kerf in plasma or oxy-fuel cutting?",
-        "options": ["The width of metal removed by the cut", "The height of the torch above the plate", "The speed of the torch along the cut", "The angle of the bevel on the edge"],
-        "answer": 0 },
-      { "id": "T1-25", "topic": "Plasma cutting programs",
+        "options": [
+          "The width of metal removed by the cut",
+          "The height of the torch above the plate",
+          "The speed of the torch along the cut",
+          "The angle of the bevel on the edge"
+        ],
+        "answer": 0
+      },
+      {
+        "id": "T1-25",
+        "topic": "Plasma cutting programs",
         "stem": "Why is kerf compensation used when a part is cut on a CNC table?",
-        "options": ["So the machine uses less gas and air", "So the part comes out at drawing size", "So the torch can travel much faster", "So the cut line is marked on the plate"],
-        "answer": 1 },
-      { "id": "T1-26", "topic": "Plasma cutting programs",
+        "options": [
+          "So the machine uses less gas and air",
+          "So the part comes out at drawing size",
+          "So the torch can travel much faster",
+          "So the cut line is marked on the plate"
+        ],
+        "answer": 1
+      },
+      {
+        "id": "T1-26",
+        "topic": "Plasma cutting programs",
         "stem": "Why does a CNC plasma program often start each cut with a lead-in, off the part line?",
-        "options": ["So the program finishes a little sooner", "So the torch can cool before cutting", "So the pierce mark falls in the scrap", "So the arc can be tested on the table"],
-        "answer": 2 },
-      { "id": "T1-27", "topic": "Plasma cutting programs",
+        "options": [
+          "So the program finishes a little sooner",
+          "So the torch can cool before cutting",
+          "So the pierce mark falls in the scrap",
+          "So the arc can be tested on the table"
+        ],
+        "answer": 2
+      },
+      {
+        "id": "T1-27",
+        "topic": "Plasma cutting programs",
         "stem": "When a hole is cut in a part, which side of the line should the torch travel on?",
-        "options": ["Inside the line, in the scrap disc", "Outside the line, in the part", "Right on the centre of the line", "Either side, as it makes no difference"],
-        "answer": 0 },
-      { "id": "T1-28", "topic": "CAD and CAM",
+        "options": [
+          "Inside the line, in the scrap disc",
+          "Outside the line, in the part",
+          "Right on the centre of the line",
+          "Either side, as it makes no difference"
+        ],
+        "answer": 0
+      },
+      {
+        "id": "T1-28",
+        "topic": "CAD and CAM",
         "stem": "What is the usual order of work for making a CNC program with software?",
-        "options": ["Load to the machine, cut, then draw the part", "Write the G-code, then draw it in CAD after", "Cut a test part, then make the CAD drawing", "CAD drawing, CAM toolpath, post-process, load"],
-        "answer": 3 },
-      { "id": "T1-29", "topic": "CAD and CAM",
+        "options": [
+          "Load to the machine, cut, then draw the part",
+          "Write the G-code, then draw it in CAD after",
+          "Cut a test part, then make the CAD drawing",
+          "CAD drawing, CAM toolpath, post-process, load"
+        ],
+        "answer": 3
+      },
+      {
+        "id": "T1-29",
+        "topic": "CAD and CAM",
         "stem": "What does a post-processor do in CAM software?",
-        "options": ["Cleans the slag tray after the program runs", "Writes the toolpath as code for that machine", "Prints the drawing for the operator to read", "Measures the part once it has been cut"],
-        "answer": 1 },
-      { "id": "T1-30", "topic": "Checking the program",
+        "options": [
+          "Cleans the slag tray after the program runs",
+          "Writes the toolpath as code for that machine",
+          "Prints the drawing for the operator to read",
+          "Measures the part once it has been cut"
+        ],
+        "answer": 1
+      },
+      {
+        "id": "T1-30",
+        "topic": "Checking the program",
         "stem": "Before cutting, how can you check a new program without cutting any metal?",
-        "options": ["Run it once at full speed and watch", "Delete the first and last blocks", "Simulate it, or run it with the torch off", "Turn the screen off and listen"],
-        "answer": 2 },
-      { "id": "T1-31", "topic": "Checking the program",
+        "options": [
+          "Run it once at full speed and watch",
+          "Delete the first and last blocks",
+          "Simulate it, or run it with the torch off",
+          "Turn the screen off and listen"
+        ],
+        "answer": 2
+      },
+      {
+        "id": "T1-31",
+        "topic": "Checking the program",
         "stem": "What does single block mode do?",
-        "options": ["Runs one line each time you press start", "Runs the whole program without stopping", "Runs the program backwards to the start", "Deletes one line from the program"],
-        "answer": 0 },
-      { "id": "T1-32", "topic": "Checking the program",
+        "options": [
+          "Runs one line each time you press start",
+          "Runs the whole program without stopping",
+          "Runs the program backwards to the start",
+          "Deletes one line from the program"
+        ],
+        "answer": 0
+      },
+      {
+        "id": "T1-32",
+        "topic": "Checking the program",
         "stem": "During the first run of a new program, why is the feed override turned down?",
-        "options": ["To save electricity during the run", "So you can stop in time if a move is wrong", "So that the tool cuts deeper into the part", "To change the units from inches to mm"],
-        "answer": 1 },
-      { "id": "T1-33", "topic": "Safety",
+        "options": [
+          "To save electricity during the run",
+          "So you can stop in time if a move is wrong",
+          "So that the tool cuts deeper into the part",
+          "To change the units from inches to mm"
+        ],
+        "answer": 1
+      },
+      {
+        "id": "T1-33",
+        "topic": "Safety",
         "stem": "At the Centre, what must happen before any CNC machine runs a program?",
-        "options": ["The program is printed out for the file", "The workshop lights are turned off", "Everyone else leaves the workshop", "The assessor checks the set-up first"],
-        "answer": 3 },
-      { "id": "T1-34", "topic": "Safety",
+        "options": [
+          "The program is printed out for the file",
+          "The workshop lights are turned off",
+          "Everyone else leaves the workshop",
+          "The assessor checks the set-up first"
+        ],
+        "answer": 3
+      },
+      {
+        "id": "T1-34",
+        "topic": "Safety",
         "stem": "Where should your hands be while a CNC machine is running a program?",
-        "options": ["Clear of moving parts, near the emergency stop", "On the work, holding it still for the cut", "On the torch, guiding it along the line", "Inside the guard, clearing chips as they form"],
-        "answer": 0 },
-      { "id": "T1-35", "topic": "Safety",
+        "options": [
+          "Clear of moving parts, near the emergency stop",
+          "On the work, holding it still for the cut",
+          "On the torch, guiding it along the line",
+          "Inside the guard, clearing chips as they form"
+        ],
+        "answer": 0
+      },
+      {
+        "id": "T1-35",
+        "topic": "Safety",
         "stem": "Why must gloves not be worn near the rotating spindle of a CNC mill?",
-        "options": ["Gloves make the program run more slowly", "Gloves scratch the control's touch screen", "A glove can catch and pull your hand in", "Gloves make the plate spark when cut"],
-        "answer": 2 },
-      { "id": "T1-36", "topic": "Safety",
+        "options": [
+          "Gloves make the program run more slowly",
+          "Gloves scratch the control's touch screen",
+          "A glove can catch and pull your hand in",
+          "Gloves make the plate spark when cut"
+        ],
+        "answer": 2
+      },
+      {
+        "id": "T1-36",
+        "topic": "Safety",
         "stem": "What should you do if a CNC machine moves in a direction you did not expect?",
-        "options": ["Reach in and hold the part still", "Press the emergency stop at once", "Wait to see where it goes", "Switch off the screen"],
-        "answer": 1 },
-      { "id": "T1-37", "topic": "Safety",
+        "options": [
+          "Reach in and hold the part still",
+          "Press the emergency stop at once",
+          "Wait to see where it goes",
+          "Switch off the screen"
+        ],
+        "answer": 1
+      },
+      {
+        "id": "T1-37",
+        "topic": "Safety",
         "stem": "Which eye protection is needed when watching a CNC plasma cut?",
-        "options": ["Clear safety glasses are enough", "Dark sunglasses from a shop", "None, if you stand a few metres back", "A filter lens of the shade the maker gives"],
-        "answer": 3 },
-      { "id": "T1-38", "topic": "Safety",
+        "options": [
+          "Clear safety glasses are enough",
+          "Dark sunglasses from a shop",
+          "None, if you stand a few metres back",
+          "A filter lens of the shade the maker gives"
+        ],
+        "answer": 3
+      },
+      {
+        "id": "T1-38",
+        "topic": "Safety",
         "stem": "Why does a CNC plasma table have a water table or downdraft extraction?",
-        "options": ["To catch the fumes and dust from cutting", "To keep the plate cool so it can be held", "To wash slag off the torch tip each cut", "To weigh the plate before the cut starts"],
-        "answer": 0 },
-      { "id": "T1-39", "topic": "Saving programs",
+        "options": [
+          "To catch the fumes and dust from cutting",
+          "To keep the plate cool so it can be held",
+          "To wash slag off the torch tip each cut",
+          "To weigh the plate before the cut starts"
+        ],
+        "answer": 0
+      },
+      {
+        "id": "T1-39",
+        "topic": "Saving programs",
         "stem": "Why should each program be saved with a clear name in a set folder?",
-        "options": ["So that the program runs a lot faster", "So the machine needs less memory to work", "So it can be found again and not overwritten", "So that nobody can ever change it again"],
-        "answer": 2 },
-      { "id": "T1-40", "topic": "Program words",
+        "options": [
+          "So that the program runs a lot faster",
+          "So the machine needs less memory to work",
+          "So it can be found again and not overwritten",
+          "So that nobody can ever change it again"
+        ],
+        "answer": 2
+      },
+      {
+        "id": "T1-40",
+        "topic": "Program words",
         "stem": "Why are comments, in brackets, written into a CNC program?",
-        "options": ["To make the machine run the job faster", "To explain steps to people reading it", "To set the spindle speed for each tool", "To turn on the coolant for that block"],
-        "answer": 1 },
-      { "id": "T1-41", "topic": "Tools",
+        "options": [
+          "To make the machine run the job faster",
+          "To explain steps to people reading it",
+          "To set the spindle speed for each tool",
+          "To turn on the coolant for that block"
+        ],
+        "answer": 1
+      },
+      {
+        "id": "T1-41",
+        "topic": "Tools",
         "stem": "On a CNC mill, what does T02 M06 usually mean?",
-        "options": ["Wait for 2 seconds", "Move 2 mm in X", "Change to tool number 2", "Run the spindle at speed 2"],
-        "answer": 2 },
-      { "id": "T1-42", "topic": "Tools",
+        "options": [
+          "Wait for 2 seconds",
+          "Move 2 mm in X",
+          "Change to tool number 2",
+          "Run the spindle at speed 2"
+        ],
+        "answer": 2
+      },
+      {
+        "id": "T1-42",
+        "topic": "Tools",
         "stem": "Why is a tool length offset entered for each tool on a CNC mill?",
-        "options": ["So it knows what colour each tool is", "So each tool runs at a faster speed", "So the tools are marked for the store", "So it knows how long each tool is"],
-        "answer": 3 },
-      { "id": "T1-43", "topic": "Finding errors",
+        "options": [
+          "So it knows what colour each tool is",
+          "So each tool runs at a faster speed",
+          "So the tools are marked for the store",
+          "So it knows how long each tool is"
+        ],
+        "answer": 3
+      },
+      {
+        "id": "T1-43",
+        "topic": "Finding errors",
         "stem": "The control shows an alarm when a new program is loaded. What should you do first?",
-        "options": ["Read the alarm and check the line it names", "Switch off and on until it goes away", "Ignore it and press cycle start", "Delete the whole program and start it again"],
-        "answer": 0 },
-      { "id": "T1-44", "topic": "G-codes",
+        "options": [
+          "Read the alarm and check the line it names",
+          "Switch off and on until it goes away",
+          "Ignore it and press cycle start",
+          "Delete the whole program and start it again"
+        ],
+        "answer": 0
+      },
+      {
+        "id": "T1-44",
+        "topic": "G-codes",
         "stem": "To cut an arc with G02 or G03, what must the program give as well as the end point?",
-        "options": ["The colour of the tool holder used", "The arc centre (I, J) or radius (R)", "The weight of the plate being cut today", "The name of the operator"],
-        "answer": 1 },
-      { "id": "T1-45", "topic": "Finishing",
+        "options": [
+          "The colour of the tool holder used",
+          "The arc centre (I, J) or radius (R)",
+          "The weight of the plate being cut today",
+          "The name of the operator"
+        ],
+        "answer": 1
+      },
+      {
+        "id": "T1-45",
+        "topic": "Finishing",
         "stem": "Once the last CNC part is cut and checked, what should the group do?",
-        "options": ["Leave the machine switched on and running for the next group", "Leave the cut parts and scrap on the table", "Save the program, clean up and report problems", "Delete the program so nobody copies it"],
-        "answer": 2 }
+        "options": [
+          "Leave the machine switched on and running for the next group",
+          "Leave the cut parts and scrap on the table",
+          "Save the program, clean up and report problems",
+          "Delete the program so nobody copies it"
+        ],
+        "answer": 2
+      }
     ]
   },
-
   "theory2": {
     "minutes": 215,
     "instructions": "Section A has 15 short answers (2 marks each). Section B has 10 essay questions (5 marks each): answer each in full sentences. Time allowed: 3 hours 35 minutes. Your answers are saved as you go. The G-codes and M-codes are those used on most machines; your machine's manual has the final say.",
     "shortAnswers": [
-      { "id": "T2-S01", "topic": "CNC basics", "stem": "What do the letters CNC stand for?",
-        "accepted": ["computer numerical control", "computer numerically controlled", "computerised numerical control", "computerized numerical control", "computer numeric control", "computer numerical controlled"], "marks": 2 },
-      { "id": "T2-S02", "topic": "Absolute and incremental", "stem": "Which G-code, on most controls, sets absolute programming?",
-        "accepted": ["G90", "G 90", "G-90"], "marks": 2 },
-      { "id": "T2-S03", "topic": "Absolute and incremental", "stem": "Which G-code makes each move measured from where the tool is now, on most controls?",
-        "accepted": ["G91", "G 91", "G-91"], "marks": 2 },
-      { "id": "T2-S04", "topic": "M-codes", "stem": "Which M-code usually turns the coolant on?",
-        "accepted": ["M08", "M8", "M 08", "M 8", "M-08"], "marks": 2 },
-      { "id": "T2-S05", "topic": "Absolute and incremental", "stem": "In incremental mode (G91) the tool is at X20 Y20, and the next line is G01 X0 Y45. What is the new Y value, measured from work zero?",
-        "accepted": ["65", "Y65", "Y 65", "65 mm", "65mm", "sixty-five", "sixty five"], "marks": 2 },
-      { "id": "T2-S06", "topic": "CAD and CAM", "stem": "What does CAM stand for in CAD/CAM?",
-        "accepted": ["computer aided manufacturing", "computer-aided manufacturing", "computer aided manufacture", "computer-aided manufacture", "computer aided machining", "computer-aided machining"], "marks": 2 },
-      { "id": "T2-S07", "topic": "G-codes", "stem": "Which letter address gives the radius of an arc in many CNC programs?",
-        "accepted": ["R", "r", "the letter R", "R word"], "marks": 2 },
-      { "id": "T2-S08", "topic": "CNC basics", "stem": "What is the common name for the code language that most CNC machines read?",
-        "accepted": ["G-code", "G code", "Gcode", "G-codes", "G codes", "ISO code", "ISO G-code"], "marks": 2 },
-      { "id": "T2-S09", "topic": "Program words", "stem": "Which letter address gives the tool number in a CNC program?",
-        "accepted": ["T", "t", "the letter T", "T word"], "marks": 2 },
-      { "id": "T2-S10", "topic": "Coordinates", "stem": "A hole is at X70 Y40. The next hole is 25 mm further along X. In absolute mode, what X value is programmed for the next hole?",
-        "accepted": ["95", "X95", "X 95", "95 mm", "95mm", "ninety-five", "ninety five"], "marks": 2 },
-      { "id": "T2-S11", "topic": "Checking the program", "stem": "What do we call running a program with the torch or spindle off, to check the moves?",
-        "accepted": ["dry run", "a dry run", "dry-run", "dry running", "dry cycle"], "marks": 2 },
-      { "id": "T2-S12", "topic": "Setting up", "stem": "What is the fixed point that a CNC machine goes to when it is first switched on and referenced?",
-        "accepted": ["machine home", "home", "home position", "the home position", "machine zero", "machine reference point", "reference point", "machine origin", "home point"], "marks": 2 },
-      { "id": "T2-S13", "topic": "Plasma cutting programs", "stem": "On a CNC plasma table, which device keeps the torch at the right height above a wavy plate by sensing the arc voltage?",
-        "accepted": ["torch height control", "torch height controller", "a torch height control", "a torch height controller", "THC", "height control", "height controller", "arc voltage height control", "automatic torch height control"], "marks": 2 },
-      { "id": "T2-S14", "topic": "G-codes", "stem": "Which G-code, on most controls, selects the XY plane for arcs?",
-        "accepted": ["G17", "G 17", "G-17"], "marks": 2 },
-      { "id": "T2-S15", "topic": "G-codes", "stem": "In the line N50 G02 X40 Y0 R20, is the arc clockwise or anticlockwise?",
-        "accepted": ["clockwise", "clock wise", "clock-wise", "CW", "a clockwise arc"], "marks": 2 }
+      {
+        "id": "T2-S01",
+        "topic": "CNC basics",
+        "stem": "What do the letters CNC stand for?",
+        "accepted": [
+          "computer numerical control",
+          "computer numerically controlled",
+          "computerised numerical control",
+          "computerized numerical control",
+          "computer numeric control",
+          "computer numerical controlled"
+        ],
+        "marks": 2
+      },
+      {
+        "id": "T2-S02",
+        "topic": "Absolute and incremental",
+        "stem": "Which G-code, on most controls, sets absolute programming?",
+        "accepted": [
+          "G90",
+          "G 90",
+          "G-90"
+        ],
+        "marks": 2
+      },
+      {
+        "id": "T2-S03",
+        "topic": "Absolute and incremental",
+        "stem": "Which G-code makes each move measured from where the tool is now, on most controls?",
+        "accepted": [
+          "G91",
+          "G 91",
+          "G-91"
+        ],
+        "marks": 2
+      },
+      {
+        "id": "T2-S04",
+        "topic": "M-codes",
+        "stem": "Which M-code usually turns the coolant on?",
+        "accepted": [
+          "M08",
+          "M8",
+          "M 08",
+          "M 8",
+          "M-08"
+        ],
+        "marks": 2
+      },
+      {
+        "id": "T2-S05",
+        "topic": "Absolute and incremental",
+        "stem": "In incremental mode (G91) the tool is at X20 Y20, and the next line is G01 X0 Y45. What is the new Y value, measured from work zero?",
+        "accepted": [
+          "65",
+          "Y65",
+          "Y 65",
+          "65 mm",
+          "65mm",
+          "sixty-five",
+          "sixty five"
+        ],
+        "marks": 2
+      },
+      {
+        "id": "T2-S06",
+        "topic": "CAD and CAM",
+        "stem": "What does CAM stand for in CAD/CAM?",
+        "accepted": [
+          "computer aided manufacturing",
+          "computer-aided manufacturing",
+          "computer aided manufacture",
+          "computer-aided manufacture",
+          "computer aided machining",
+          "computer-aided machining"
+        ],
+        "marks": 2
+      },
+      {
+        "id": "T2-S07",
+        "topic": "G-codes",
+        "stem": "Which letter address gives the radius of an arc in many CNC programs?",
+        "accepted": [
+          "R",
+          "r",
+          "the letter R",
+          "R word"
+        ],
+        "marks": 2
+      },
+      {
+        "id": "T2-S08",
+        "topic": "CNC basics",
+        "stem": "What is the common name for the code language that most CNC machines read?",
+        "accepted": [
+          "G-code",
+          "G code",
+          "Gcode",
+          "G-codes",
+          "G codes",
+          "ISO code",
+          "ISO G-code"
+        ],
+        "marks": 2
+      },
+      {
+        "id": "T2-S09",
+        "topic": "Program words",
+        "stem": "Which letter address gives the tool number in a CNC program?",
+        "accepted": [
+          "T",
+          "t",
+          "the letter T",
+          "T word"
+        ],
+        "marks": 2
+      },
+      {
+        "id": "T2-S10",
+        "topic": "Coordinates",
+        "stem": "A hole is at X70 Y40. The next hole is 25 mm further along X. In absolute mode, what X value is programmed for the next hole?",
+        "accepted": [
+          "95",
+          "X95",
+          "X 95",
+          "95 mm",
+          "95mm",
+          "ninety-five",
+          "ninety five"
+        ],
+        "marks": 2
+      },
+      {
+        "id": "T2-S11",
+        "topic": "Checking the program",
+        "stem": "What do we call running a program with the torch or spindle off, to check the moves?",
+        "accepted": [
+          "dry run",
+          "a dry run",
+          "dry-run",
+          "dry running",
+          "dry cycle"
+        ],
+        "marks": 2
+      },
+      {
+        "id": "T2-S12",
+        "topic": "Setting up",
+        "stem": "What is the fixed point that a CNC machine goes to when it is first switched on and referenced?",
+        "accepted": [
+          "machine home",
+          "home",
+          "home position",
+          "the home position",
+          "machine zero",
+          "machine reference point",
+          "reference point",
+          "machine origin",
+          "home point"
+        ],
+        "marks": 2
+      },
+      {
+        "id": "T2-S13",
+        "topic": "Plasma cutting programs",
+        "stem": "On a CNC plasma table, which device keeps the torch at the right height above a wavy plate by sensing the arc voltage?",
+        "accepted": [
+          "torch height control",
+          "torch height controller",
+          "a torch height control",
+          "a torch height controller",
+          "THC",
+          "height control",
+          "height controller",
+          "arc voltage height control",
+          "automatic torch height control"
+        ],
+        "marks": 2
+      },
+      {
+        "id": "T2-S14",
+        "topic": "G-codes",
+        "stem": "Which G-code, on most controls, selects the XY plane for arcs?",
+        "accepted": [
+          "G17",
+          "G 17",
+          "G-17"
+        ],
+        "marks": 2
+      },
+      {
+        "id": "T2-S15",
+        "topic": "G-codes",
+        "stem": "In the line N50 G02 X40 Y0 R20, is the arc clockwise or anticlockwise?",
+        "accepted": [
+          "clockwise",
+          "clock wise",
+          "clock-wise",
+          "CW",
+          "a clockwise arc"
+        ],
+        "marks": 2
+      }
     ],
     "essays": [
-      { "id": "T2-E01", "topic": "Axes",
+      {
+        "id": "T2-E01",
+        "topic": "Axes",
         "stem": "Explain the X, Y and Z axes of a CNC machine, and the difference between machine home and work zero.",
         "modelAnswer": "A CNC machine moves its tool or torch along straight axes. On a plasma table or a vertical mill, X is usually the long left-to-right direction, Y is the front-to-back direction, and Z is up and down, along the spindle or torch. Plus Z moves the tool up and away from the work. Machine home, or machine zero, is a fixed point set by the maker. The machine finds it with its home switches when it is switched on, so it knows where its slides are. It does not change from job to job. Work zero is a point the operator chooses on the part or plate, such as its bottom-left corner or top surface, and all the positions in the program are measured from it. It is set for each job by moving the tool to that point and storing it as the work offset, so the program cuts in the right place on the plate.",
-        "markingPoints": ["X and Y across the table, Z along the spindle or torch", "+Z moves the tool away from the work", "Machine home is fixed by the maker and found by the home switches", "Work zero is chosen on the part; program positions are measured from it", "Work zero is set for each job (work offset)"],
-        "marks": 5 },
-      { "id": "T2-E02", "topic": "Absolute and incremental",
+        "markingPoints": [
+          "X and Y across the table, Z along the spindle or torch",
+          "+Z moves the tool away from the work",
+          "Machine home is fixed by the maker and found by the home switches",
+          "Work zero is chosen on the part; program positions are measured from it",
+          "Work zero is set for each job (work offset)"
+        ],
+        "marks": 5
+      },
+      {
+        "id": "T2-E02",
+        "topic": "Absolute and incremental",
         "stem": "Compare absolute (G90) and incremental (G91) programming. Use an example to show the difference.",
         "modelAnswer": "In absolute programming (G90), every X, Y and Z value is measured from the work zero. In incremental programming (G91), every value is measured from where the tool is now, so it says how far to move, not where to go. Example: three holes are on a line at X20, X50 and X80, all at Y30. In absolute mode the program says X20 Y30, then X50 Y30, then X80 Y30. In incremental mode, after going to the first hole, it says X30 Y0, then X30 Y0, because each hole is 30 mm further on. Absolute programming is easier to check against a drawing dimensioned from one datum, and one mistake does not carry on to the following moves. Incremental is handy for repeated patterns, but a mistake in one move shifts every move after it. Most beginners write in absolute and switch to incremental only where it helps.",
-        "markingPoints": ["G90 measures every position from the work zero", "G91 measures each move from the current position", "A correct worked example in both modes", "Absolute is easier to check and errors do not build up", "Incremental is useful for repeated patterns but errors carry on"],
-        "marks": 5 },
-      { "id": "T2-E03", "topic": "G-codes",
+        "markingPoints": [
+          "G90 measures every position from the work zero",
+          "G91 measures each move from the current position",
+          "A correct worked example in both modes",
+          "Absolute is easier to check and errors do not build up",
+          "Incremental is useful for repeated patterns but errors carry on"
+        ],
+        "marks": 5
+      },
+      {
+        "id": "T2-E03",
+        "topic": "G-codes",
         "stem": "Explain what G00, G01, G02 and G03 do, and when each one is used in a program.",
-        "modelAnswer": "G00 is a rapid move. The machine moves as fast as it can to a new position, not cutting, and the path may not be a straight line. It is used to move to the start of a cut or away from the part, and must only be used where the tool is clear of the work and any clamps. G01 is a straight-line move at the feed rate set by the F word. It is used for cutting straight edges, slots and sides of a part. G02 cuts an arc in a clockwise direction at the feed rate, and G03 cuts an arc anticlockwise. For both, the program gives the end point and either the radius with R or the centre with I and J. They are used for round corners, holes and curved edges. On a plasma table, the arc must be cut in the right direction so the kerf falls on the scrap side.",
-        "markingPoints": ["G00 rapid, non-cutting move to position, only where clear of the work", "G01 straight cutting move at the feed rate F", "G02 clockwise arc; G03 anticlockwise arc", "Arcs need the end point and R or I and J", "Sensible example of use for each"],
-        "marks": 5 },
-      { "id": "T2-E04", "topic": "Writing a program",
+        "modelAnswer": "G00 is a rapid move. The machine moves as fast as it can to a new position, not cutting, and the path may not be a straight line. It is used to move to the start of a cut or away from the part, and must only be used where the tool is clear of the work and any clamps. G01 is a straight-line move at the feed rate set by the F word. It is used for cutting straight edges, slots and sides of a part. G02 cuts an arc in a clockwise direction at the feed rate, and G03 cuts an arc anticlockwise. For both, the program gives the end point and either the radius with R or the centre with I and J. They are used for round corners, holes and curved edges. On a plasma table the cut direction matters, because the cleaner, squarer edge is usually on one side of the cut (often the right-hand side in the direction of travel), so the direction is chosen to put that edge on the part; the machine manual says which side.",
+        "markingPoints": [
+          "G00 rapid, non-cutting move to position, only where clear of the work",
+          "G01 straight cutting move at the feed rate F",
+          "G02 clockwise arc; G03 anticlockwise arc",
+          "Arcs need the end point and R or I and J",
+          "Sensible example of use for each"
+        ],
+        "marks": 5
+      },
+      {
+        "id": "T2-E04",
+        "topic": "Writing a program",
         "stem": "Write a short program to cut a 100 mm × 50 mm rectangle on a CNC plasma table, with work zero at the bottom-left corner, and explain each line.",
-        "modelAnswer": "(RECTANGLE 100 X 50) is a comment that names the job. G21 G90 sets millimetres and absolute mode. G00 X0 Y0 makes a rapid move to the bottom-left corner, the work zero. M03 switches the torch on; many plasma controls use M03 and M05 for the torch, but the machine manual must be checked. G01 X100 Y0 F2000 cuts along the bottom edge at a feed of 2000 mm per minute, or the feed the cut chart gives for the plate. G01 X100 Y50 cuts up the right side. G01 X0 Y50 cuts along the top. G01 X0 Y0 cuts down the left side back to the start. M05 switches the torch off. G00 X0 Y0 is a safe move home, and M30 ends the program and rewinds it. In real work I would add a lead-in in the scrap and kerf compensation so the part is cut to size.",
-        "markingPoints": ["Sets units and absolute mode (G21 G90)", "Rapid to start, torch on (M03 or the machine's code)", "Four correct G01 moves with a feed rate", "Torch off and program end (M05, M30)", "Explains each line; mentions lead-in or kerf compensation"],
-        "marks": 5 },
-      { "id": "T2-E05", "topic": "Running a program",
+        "modelAnswer": "(RECTANGLE 100 X 50) is a comment that names the job. G21 G90 sets millimetres and absolute mode. G00 X0 Y0 makes a rapid move to the bottom-left corner, the work zero. M03 switches the torch on; many plasma controls use M03 and M05 for the torch, but the machine manual must be checked. G01 X100 Y0 F2000 cuts along the bottom edge at a feed of 2000 mm per minute, or the feed the cut chart gives for the plate. G01 X100 Y50 cuts up the right side. G01 X0 Y50 cuts along the top. G01 X0 Y0 cuts down the left side back to the start. M05 switches the torch off. G00 X0 Y0 is a safe move home, and M30 ends the program and rewinds it. Many controls also need G17 (the XY plane), a pierce delay and torch height control, with values from the cut chart. In real work I would add a lead-in in the scrap and kerf compensation so the part is cut to size.",
+        "markingPoints": [
+          "Sets units and absolute mode (G21 G90)",
+          "Rapid to start, torch on (M03 or the machine's code)",
+          "Four correct G01 moves with a feed rate",
+          "Torch off and program end (M05, M30)",
+          "Explains each line; mentions lead-in or kerf compensation"
+        ],
+        "marks": 5
+      },
+      {
+        "id": "T2-E05",
+        "topic": "Running a program",
         "stem": "Describe the steps to set up and run a new program safely on a CNC machine at the Centre.",
         "modelAnswer": "First check the program on the computer with the simulation, comparing the shape and sizes with the drawing. Load it into the control and check that it is the right file. Home the machine. Clamp or place the plate or part firmly, square to the axes, and clear the table of tools and off-cuts. Set the work zero on the part and enter any tool or torch offsets. Check that all guards and screens are in place, the extraction or water table is working and the emergency stop works. Then do a dry run with the torch or spindle off, or well above the work, in single block mode at a low feed override, watching that every move is where it should be. The assessor checks the set-up before the machine cuts. Run the first cut at a low override, with your hand near the emergency stop, and stay at the machine. Check the first part against the drawing.",
-        "markingPoints": ["Checks the program by simulation against the drawing; loads the right file", "Homes the machine, holds the work firmly, clears the table", "Sets work zero and offsets; guards, extraction and e-stop checked", "Dry run in single block at low override", "Assessor checks set-up; first run supervised with hand near e-stop; first part checked"],
-        "marks": 5 },
-      { "id": "T2-E06", "topic": "CAD and CAM",
+        "markingPoints": [
+          "Checks the program by simulation against the drawing; loads the right file",
+          "Homes the machine, holds the work firmly, clears the table",
+          "Sets work zero and offsets; guards, extraction and e-stop checked",
+          "Dry run in single block at low override",
+          "Assessor checks set-up; first run supervised with hand near e-stop; first part checked"
+        ],
+        "marks": 5
+      },
+      {
+        "id": "T2-E06",
+        "topic": "CAD and CAM",
         "stem": "Explain how a part goes from a drawing to a cut part using CAD/CAM software and a CNC machine.",
         "modelAnswer": "First the part is drawn to full size in CAD (computer-aided design) software, using the drawing's dimensions, and saved. The drawing is then opened in CAM (computer-aided manufacturing) software. Here the programmer chooses the material and thickness, the tool or the plasma cut settings, and the feed rate. The CAM software works out the toolpaths: where the tool or torch will go, with lead-ins, kerf compensation and the order of cuts, such as holes before the outside edge. Several parts can be nested on one plate to save steel. The toolpath is shown on screen and checked. Then a post-processor turns it into G-code written for that make of machine. The program file is saved with a clear name and sent to the machine by cable, network or memory stick. At the machine the operator sets up, sets work zero, dry runs and then cuts.",
-        "markingPoints": ["Part drawn in CAD to drawing sizes", "CAM: material, tool/cut settings and feeds chosen; toolpaths made", "Lead-ins, kerf compensation, cut order or nesting mentioned", "Post-processor turns toolpath into machine-specific G-code", "File saved and sent to the machine; set-up and dry run before cutting"],
-        "marks": 5 },
-      { "id": "T2-E07", "topic": "Plasma cutting programs",
+        "markingPoints": [
+          "Part drawn in CAD to drawing sizes",
+          "CAM: material, tool/cut settings and feeds chosen; toolpaths made",
+          "Lead-ins, kerf compensation, cut order or nesting mentioned",
+          "Post-processor turns toolpath into machine-specific G-code",
+          "File saved and sent to the machine; set-up and dry run before cutting"
+        ],
+        "marks": 5
+      },
+      {
+        "id": "T2-E07",
+        "topic": "Plasma cutting programs",
         "stem": "Explain kerf, kerf compensation and lead-ins, and why holes are cut before the outside edge of a part on a CNC plasma table.",
         "modelAnswer": "Kerf is the width of metal removed by the cut. If the torch ran along the line on the drawing, half the kerf would come off the part, so the part would be too small and the holes too large. Kerf compensation moves the torch path half a kerf width to the scrap side: outside the line for the outside edge, and inside the line for holes. It is set in the CAM software or with the control's compensation codes. A lead-in is a short cut that starts in the scrap and runs onto the part line. The arc pierces the plate in the scrap, where it leaves a rough mark, and then joins the line smoothly, so the finished edge is clean. A lead-out does the same at the end. Holes are cut first while the part is still held by the plate around it; if the outside were cut first, the part could move or tip and the holes would be in the wrong place.",
-        "markingPoints": ["Kerf is the width of the cut", "Without compensation, parts are too small and holes too big", "Compensation moves the path half a kerf to the scrap side", "Lead-in puts the pierce in the scrap for a clean edge", "Holes first, so the part does not move before they are cut"],
-        "marks": 5 },
-      { "id": "T2-E08", "topic": "Safety",
+        "markingPoints": [
+          "Kerf is the width of the cut",
+          "Without compensation, parts are too small and holes too big",
+          "Compensation moves the path half a kerf to the scrap side",
+          "Lead-in puts the pierce in the scrap for a clean edge",
+          "Holes first, so the part does not move before they are cut"
+        ],
+        "marks": 5
+      },
+      {
+        "id": "T2-E08",
+        "topic": "Safety",
         "stem": "Describe the safety rules to follow when working with CNC cutting and machining equipment.",
         "modelAnswer": "Only use a CNC machine after training and with the instructor's permission. Keep all guards, doors and screens in place, and never bypass a guard or interlock. Know where the emergency stop is and check that it works. The assessor checks the set-up before the machine runs. Keep hands, tools and loose clothing clear of moving parts while the program runs, and stay at the machine. Do not wear gloves, rings or loose sleeves near a rotating spindle or chuck, and tie back long hair. Wear safety glasses and safety boots. For plasma cutting, use a filter lens of the shade the maker gives, keep the extraction or water table working because of fumes, and treat cut parts and slag as hot. Stop the machine and isolate it before clearing chips, changing tools or reaching in. Report any fault at once.",
-        "markingPoints": ["Trained and permitted; guards and interlocks kept in place and never bypassed", "Emergency stop known and checked; assessor checks the set-up", "Hands and clothing clear; no gloves, rings or loose sleeves near rotating parts", "PPE, plasma eye protection, fume extraction and hot parts", "Stop and isolate before reaching in; report faults"],
-        "marks": 5 },
-      { "id": "T2-E09", "topic": "Finding errors",
+        "markingPoints": [
+          "Trained and permitted; guards and interlocks kept in place and never bypassed",
+          "Emergency stop known and checked; assessor checks the set-up",
+          "Hands and clothing clear; no gloves, rings or loose sleeves near rotating parts",
+          "PPE, plasma eye protection, fume extraction and hot parts",
+          "Stop and isolate before reaching in; report faults"
+        ],
+        "marks": 5
+      },
+      {
+        "id": "T2-E09",
+        "topic": "Finding errors",
         "stem": "Explain how you would find and correct mistakes in a new CNC program before it cuts a part.",
         "modelAnswer": "First read the program through line by line against the drawing. Check that it has the right units (G21 for mm) and mode (G90 or G91), that each X and Y value matches a point on the drawing measured from the work zero, and that the signs (plus or minus) are right. Check that the torch or spindle is switched on before cutting moves and off at the end, and that there is a feed rate. Then run a graphic simulation on the computer or the control and compare the shape with the drawing; mistakes such as a wrong number, a missing line or an arc in the wrong direction show up clearly. If the control gives an alarm, read the message and go to the line it names. At the machine, do a dry run in single block mode with the feed override low. Correct each mistake, save the program under a new version name and check it again.",
-        "markingPoints": ["Reads the program against the drawing: units, mode, coordinates, signs", "Checks spindle or torch on/off codes and feed rate", "Uses simulation to compare the toolpath with the drawing", "Reads alarms and goes to the named line", "Dry runs in single block; corrects and saves a new version"],
-        "marks": 5 },
-      { "id": "T2-E10", "topic": "Saving programs",
+        "markingPoints": [
+          "Reads the program against the drawing: units, mode, coordinates, signs",
+          "Checks spindle or torch on/off codes and feed rate",
+          "Uses simulation to compare the toolpath with the drawing",
+          "Reads alarms and goes to the named line",
+          "Dry runs in single block; corrects and saves a new version"
+        ],
+        "marks": 5
+      },
+      {
+        "id": "T2-E10",
+        "topic": "Saving programs",
         "stem": "Explain why CNC programs must be clearly named, commented and stored, and what a set-up sheet should record.",
         "modelAnswer": "A workshop may have hundreds of programs. A clear name, such as the part number, material and version, means the right program is loaded and an old or wrong one is not cut by mistake. Programs are kept in one set folder with a backup, so they are not lost if the computer or control fails, and a good program is not overwritten. Comments in brackets in the program tell the next person what each section does, such as which tool or which hole, so they can check or change it safely. When a program is changed, it is saved under a new version number and the change is noted. A set-up sheet goes with the program. It records the part name and drawing number, the material and thickness, where work zero is, how the work is held, the tools or torch settings, the feeds, and any special points. This lets anyone set up and run the job the same way next time.",
-        "markingPoints": ["Clear names stop the wrong program being run", "Stored in a set folder with backups; not overwritten", "Comments explain sections for the next person", "Changes saved as new versions and noted", "Set-up sheet: part, material, work zero, work holding, tools or cut settings, feeds"],
-        "marks": 5 }
+        "markingPoints": [
+          "Clear names stop the wrong program being run",
+          "Stored in a set folder with backups; not overwritten",
+          "Comments explain sections for the next person",
+          "Changes saved as new versions and noted",
+          "Set-up sheet: part, material, work zero, work holding, tools or cut settings, feeds"
+        ],
+        "marks": 5
+      }
     ]
   },
-
   "practical1": {
     "title": "Write, plot and simulate a CNC program for a flat bracket",
     "brief": "As a group, write a CNC program by hand for a flat steel bracket from the instructor's drawing: a 120 mm × 80 mm plate with two 20 mm holes. Choose and mark the work zero on the drawing, then list the X and Y value of every point. Write the program in absolute mode with comments: units, mode, moves to each hole, the holes cut first (G02 or G03 full circles, or as the instructor directs), then the outside edge, the torch on and off codes your machine uses, and program end. Each member writes and explains one section of the program. Plot the toolpath on graph paper at full size or half size to check it. Then enter the program in the CNC simulation software on a Centre computer (or the machine's own simulator) and run it, comparing the shape with the drawing. Correct any errors and save the program with a clear name. This practical needs no CNC machine. Photograph each stage below and add the photos to the group's practical.",
     "time": "3 hours",
-    "materials": ["The instructor's drawing of the bracket", "Program sheets, graph paper, rule, compass and pencils", "Computer with CNC simulation software (or the machine's simulator)", "List of the G-codes and M-codes the Centre's machine uses", "Calculator"],
-    "photos": ["The drawing with the work zero marked and the table of X and Y values", "The hand-written program with comments", "The toolpath plotted on graph paper", "The program entered in the simulation software", "The simulation running, showing the full toolpath", "The corrected program saved, with its file name on screen"],
-    "checklist": ["Chose a sensible work zero and listed correct X and Y values", "Wrote a section of the program with correct G-codes, M-codes and feed", "Cut the holes before the outside edge", "Explained what each line of their section does", "Plotted or checked the toolpath against the drawing", "Found and corrected at least one error, or confirmed none, using the simulation", "Saved the program with a clear name and version"],
-    "safety": ["Sit correctly at the computer and take short breaks from the screen", "Keep drinks away from computers and keyboards", "Keep cables tidy so no one trips", "Do not load any program to a machine without the assessor's say-so"]
+    "materials": [
+      "The instructor's drawing of the bracket",
+      "Program sheets, graph paper, rule, compass and pencils",
+      "Computer with CNC simulation software (or the machine's simulator)",
+      "List of the G-codes and M-codes the Centre's machine uses",
+      "Calculator"
+    ],
+    "photos": [
+      "The drawing with the work zero marked and the table of X and Y values",
+      "The hand-written program with comments",
+      "The toolpath plotted on graph paper",
+      "The program entered in the simulation software",
+      "The simulation running, showing the full toolpath",
+      "The corrected program saved, with its file name on screen"
+    ],
+    "checklist": [
+      "Chose a sensible work zero and listed correct X and Y values",
+      "Wrote a section of the program with correct G-codes, M-codes and feed",
+      "Cut the holes before the outside edge",
+      "Explained what each line of their section does",
+      "Plotted or checked the toolpath against the drawing",
+      "Found and corrected at least one error, or confirmed none, using the simulation",
+      "Saved the program with a clear name and version"
+    ],
+    "safety": [
+      "Sit correctly at the computer and take short breaks from the screen",
+      "Keep drinks away from computers and keyboards",
+      "Keep cables tidy so no one trips",
+      "Do not load any program to a machine without the assessor's say-so"
+    ]
   },
-
   "practical2": {
     "title": "Set up, dry run and cut a part on a CNC machine",
     "brief": "As a group, set up and run the program from Practical 1 on the Centre's CNC plasma table (or CNC router or mill, using a suitable material). Load the program and check it on the machine's graphics. Home the machine, place and hold the plate, and set the work zero on the plate. Check the guards, screens, extraction and emergency stop. Do a dry run with the torch or spindle off, in single block mode at low feed override. The assessor checks the set-up before the machine cuts anything. Then cut the part at a reduced override, with one member at the emergency stop. Let the part cool, then measure it against the drawing and record the sizes. Each member does one set-up step (loading, work zero, dry run, emergency stop watch, or measuring) and measures one dimension. If the Centre has no CNC machine, do the task in the simulation software instead: set up a virtual work zero, run the program in single block with screenshots at each step, and fill in a set-up sheet for a real machine, and say so on the record. Photograph each stage below and add the photos to the group's practical.",
     "time": "3 hours",
-    "materials": ["Program from Practical 1, checked and saved", "CNC plasma table (or CNC router or mill) with its manual and cut chart", "Steel plate about 3–6 mm thick, or material suited to the machine", "Tape measure, steel rule and vernier caliper", "Plasma eye protection of the maker's shade, safety glasses, boots, leather gloves for handling cut parts away from the machine", "Set-up sheet; computer with simulation software (if there is no CNC machine)"],
-    "photos": ["The program loaded and shown on the machine's graphics", "The plate held on the table and the work zero being set", "The guards, extraction and emergency stop checked", "The dry run in single block with the torch or spindle off", "The cut part, cooled, being measured against the drawing", "The completed set-up sheet and the cleaned machine"],
-    "checklist": ["Loaded the correct program and checked it on the graphics", "Held the plate firmly and set the work zero correctly", "Checked guards, extraction and the emergency stop before running", "Did a dry run in single block at low override", "Waited for the assessor's check before cutting", "Stood clear of moving parts and wore the right PPE; no gloves near rotating parts", "Measured the part and recorded the sizes against the drawing", "Filled in the set-up sheet and cleaned the machine"],
-    "safety": ["All guards and screens on; never bypass an interlock", "The assessor checks the set-up before the machine runs; one member keeps a hand near the emergency stop", "No gloves, rings or loose sleeves near rotating spindles; tie back long hair", "For plasma: correct filter shade, extraction on, and treat cut parts and slag as hot"]
+    "materials": [
+      "Program from Practical 1, checked and saved",
+      "CNC plasma table (or CNC router or mill) with its manual and cut chart",
+      "Steel plate about 3–6 mm thick, or material suited to the machine",
+      "Tape measure, steel rule and vernier caliper",
+      "Plasma eye protection of the maker's shade, safety glasses, boots, leather gloves for handling cut parts away from the machine",
+      "Set-up sheet; computer with simulation software (if there is no CNC machine)"
+    ],
+    "photos": [
+      "The program loaded and shown on the machine's graphics",
+      "The plate held on the table and the work zero being set",
+      "The guards, extraction and emergency stop checked",
+      "The dry run in single block with the torch or spindle off",
+      "The cut part, cooled, being measured against the drawing",
+      "The completed set-up sheet and the cleaned machine"
+    ],
+    "checklist": [
+      "Loaded the correct program and checked it on the graphics",
+      "Held the plate firmly and set the work zero correctly",
+      "Checked guards, extraction and the emergency stop before running",
+      "Did a dry run in single block at low override",
+      "Waited for the assessor's check before cutting",
+      "Stood clear of moving parts and wore the right PPE; no gloves near rotating parts",
+      "Measured the part and recorded the sizes against the drawing",
+      "Filled in the set-up sheet and cleaned the machine"
+    ],
+    "safety": [
+      "All guards and screens on; never bypass an interlock",
+      "The assessor checks the set-up before the machine runs; one member keeps a hand near the emergency stop",
+      "No gloves, rings or loose sleeves near rotating spindles; tie back long hair",
+      "For plasma: correct filter shade, extraction on, and treat cut parts and slag as hot"
+    ]
   }
 }
