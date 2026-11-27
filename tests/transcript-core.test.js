@@ -47,6 +47,7 @@ test('every qualification plan is seeded with its transcribed units', function (
     'QUAL-BAM-L5': 70,  // approved paper transcript
     'QUAL-BT-L2': 31,   // NVQ-J CSB21424
     'QUAL-COS-L2': 50,  // NVQ-J CSB21323
+    'QUAL-CFP-L3': 67,  // NVQ-J THH32424 (64 core + 3 electives)
     'QUAL-EIM-L2': 43,  // NVQ-J EEM20723
     'QUAL-EIM-L3': 67,  // NVQ MEM32507
     'QUAL-HVP-L2': 61,  // NVQ-J THH22522
@@ -210,6 +211,11 @@ test('qualForCourse handles hand-typed course names (level + typo tolerant)', fu
   // A course with no catalogue resolves to null so the Transcript page can
   // clear the previous trainee's skill area instead of keeping it selected.
   assert.strictEqual(T.qualForCourse(cats, 'COMMI CHEF L2'), null);
+  // Commercial Food Preparation Level 3 (THH32424) has its plan; the Level 2
+  // hospitality plan beside it is never picked for a Level 3 trainee.
+  assert.strictEqual(T.qualForCourse(cats, 'Commercial Food Preparation Level 3').id, 'QUAL-CFP-L3');
+  assert.strictEqual(T.qualForCourse(cats, 'COMMERCIAL FOOD PREPARATION L3').id, 'QUAL-CFP-L3');
+  assert.strictEqual(T.qualForCourse(cats, 'HOSPITALITY SERVICES L2').id, 'QUAL-HVP-L2');
 });
 
 /* ---- transcript relink on student-id remap -------------------------------- */
