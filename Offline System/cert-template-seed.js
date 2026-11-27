@@ -764,6 +764,211 @@
       ]
     },
 
+    /* ------------------------------------------------------------------ */
+    {
+      course: 'Commercial Food Preparation',
+      aliases: ['Commercial Food Preparation L3', 'Commercial Food Preparation Level 3', 'Food Preparation L3',
+        'Commercial Cooking', 'Commercial Cooking L3', 'Commercial Cooking Level 3'],
+      planCode: 'THH32424',
+      qualification: 'NVQ-J Level 3 in Commercial Food Preparation',
+      courseType: 'Full-time',
+      coreCredits: 174, totalCredits: 182,
+      industry: 'Tourism and Hospitality', subSector: 'Hospitality',
+      clusters: [
+        { name: 'Comply with the Health Safety and Regulatory Practices', hours: 225, units: [
+          'Transport and store food in a safe and hygienic manner',
+          'Clean kitchen premises and equipment',
+          'Receive and store stock' ] },
+        { name: 'Apply Basic Methods of Cookery to Prepare Food', hours: 330, units: [
+          'Prepare dishes using basic methods of cookery',
+          'Prepare and present appetizers and salads',
+          'Prepare and present sandwiches',
+          'Prepare vegetables, fruits, eggs, and farinaceous dishes' ] },
+        { name: 'Prepare and Present Simple Dishes', hours: 375, units: [
+          'Organize, prepare and present simple dishes',
+          'Prepare and cook poultry dishes',
+          'Prepare and cook meat and seafood',
+          'Prepare stocks, sauces and soups' ] },
+        { name: 'Develop Knowledge on Tourism Industry', hours: 150, units: [
+          'Develop and update hospitality industry/job knowledge',
+          'Apply knowledge of Team Jamaica requirements in the workplace',
+          'Develop an awareness of healthy lifestyle food choices',
+          'Operate in a culturally diverse work environment' ] },
+        { name: 'Apply Food Safety Procedures in Kitchen Environment', hours: 285, units: [
+          'Comply with the occupational health and safety, security and hygiene practices',
+          'Implement and maintain food safety in a kitchen environment',
+          'Contribute to sustainable practices in the kitchens',
+          'Identify hazards, assess and control safety risks',
+          'Provide advance first aid' ] },
+        { name: 'Apply Cutting Techniques and Prepare Meat, Poultry and Seafood dishes', hours: 330, units: [
+          'Identify and prepare meat/poultry',
+          'Prepare portion controlled meat cuts and products',
+          'Develop and apply the principles of knife cutting techniques',
+          'Identify and prepare seafood dishes' ] },
+        { name: 'Prepare Specialized Food Items', hours: 375, units: [
+          'Prepare foods according to specific dietary and cultural needs',
+          'Select, prepare and serve specialized food items',
+          'Cook and finish stocks, soups and sauces',
+          'Plan and prepare for service' ] },
+        { name: 'Prepare Savory and Sweet Items', hours: 375, units: [
+          'Prepare pastry, cakes and breads',
+          'Prepare and present desserts',
+          'Produce petits fours',
+          'Produce chocolate confectionery' ] },
+        { name: 'Comply with Tourism & Hospitality legislation, Monitor Food Safety and Risk', hours: 135, units: [
+          'Comply with the Tourism and Hospitality services legislation industry and professional code of practice',
+          'Develop and monitor the food safety plan',
+          'Maintain food safety in the cooking environment' ] },
+        { name: 'Coordinate the Kitchen Operations', hours: 330, units: [
+          'Develop recipes and plan menu',
+          'Coordinate cooking operations',
+          'Modify dishes to meet specific nutritional needs of individuals',
+          'Produce salads, snacks and appetizers',
+          'Produce pates, terrines and sausages' ] },
+        { name: 'Organize the Catering Services', hours: 210, units: [
+          'Plan catering for events and functions',
+          'Apply principles of quality control to food and catering systems',
+          'Produce cook-chill and cook-freeze foods',
+          'Re-thermalise chilled and frozen foods' ] },
+        { name: 'Explore Entrepreneurial Opportunities', hours: 270, units: [
+          'Explore entrepreneurial ventures and small business planning',
+          'Explore the current trends and influences in food science and innovation',
+          'Package prepared foodstuffs' ] },
+        { name: 'Manage stock and financial activities for Commercial Food Preparation', hours: 285, units: [
+          'Control and order stock',
+          'Monitor catering revenue and costs',
+          'Prepare and manage budgets and forecasts',
+          'Perform advanced mathematical computations' ] },
+        { name: 'Apply Digital Literacy Skills', hours: 195, units: [
+          'Apply digital solutions to work processes',
+          'Use social media to engage customers',
+          'Utilize technology to enhance personal communication' ] },
+        { name: 'Develop Life and Career Skills', hours: 180, units: [
+          'Apply advance language and communication skills',
+          'Apply problem solving and decision-making skills',
+          'Employ report writing skills' ] },
+        { name: 'Manage Own Professional Development', hours: 60, units: [
+          'Develop and use emotional intelligence',
+          'Develop and use critical thinking skills' ] },
+        { name: 'Exercise Effective Team Leadership', hours: 330, units: [
+          'Train colleagues in the workplace',
+          'Develop and apply supervisory skills',
+          'Lead work teams and individuals',
+          'Apply the principles of confidentiality and security',
+          'Network and build professional relationship' ] }
+      ],
+      electives: { name: 'Develop business acumen in the Food Industry', hours: 120, units: [
+        'Maintain financial records',
+        'Coordinate cashiering operations',
+        'Operate a budgetary control system' ] },
+      competencies: [
+        { category: 'Food Safety, Hygiene and Workplace Safety', items: [
+          'Transport, store and handle food safely and hygienically, and keep kitchen premises and equipment clean',
+          'Implement, monitor and maintain the food safety plan in the kitchen and cooking environment',
+          'Comply with occupational health and safety, security and hygiene practices, and with tourism and hospitality legislation and the professional code of practice',
+          'Identify hazards, assess and control safety risks, and provide advanced first aid',
+          'Contribute to sustainable practices in the kitchen' ],
+          fromUnits: [
+            'Transport and store food in a safe and hygienic manner', 'Clean kitchen premises and equipment',
+            'Comply with the occupational health and safety, security and hygiene practices',
+            'Implement and maintain food safety in a kitchen environment',
+            'Contribute to sustainable practices in the kitchens',
+            'Identify hazards, assess and control safety risks', 'Provide advance first aid',
+            'Comply with the Tourism and Hospitality services legislation industry and professional code of practice',
+            'Develop and monitor the food safety plan', 'Maintain food safety in the cooking environment' ] },
+        { category: 'Methods of Cookery and Simple Dishes', items: [
+          'Apply basic methods of cookery to organize, prepare and present simple dishes',
+          'Prepare and present appetizers, salads and sandwiches',
+          'Prepare vegetables, fruits, eggs and farinaceous dishes',
+          'Prepare and cook poultry, meat and seafood, and prepare stocks, sauces and soups' ],
+          fromUnits: [
+            'Prepare dishes using basic methods of cookery', 'Prepare and present appetizers and salads',
+            'Prepare and present sandwiches', 'Prepare vegetables, fruits, eggs, and farinaceous dishes',
+            'Organize, prepare and present simple dishes', 'Prepare and cook poultry dishes',
+            'Prepare and cook meat and seafood', 'Prepare stocks, sauces and soups' ] },
+        { category: 'Butchery, Seafood and Knife Skills', items: [
+          'Apply the principles of knife cutting techniques',
+          'Identify and prepare meat, poultry and seafood',
+          'Prepare portion controlled meat cuts and products' ],
+          fromUnits: [
+            'Identify and prepare meat/poultry', 'Prepare portion controlled meat cuts and products',
+            'Develop and apply the principles of knife cutting techniques', 'Identify and prepare seafood dishes' ] },
+        { category: 'Specialized Cookery and Service', items: [
+          'Select, prepare and serve specialized food items, and cook and finish stocks, soups and sauces',
+          'Prepare and modify dishes to meet dietary, cultural and nutritional needs',
+          'Produce salads, snacks and appetizers, and pates, terrines and sausages',
+          'Plan and prepare the kitchen for service' ],
+          fromUnits: [
+            'Prepare foods according to specific dietary and cultural needs',
+            'Select, prepare and serve specialized food items', 'Cook and finish stocks, soups and sauces',
+            'Plan and prepare for service', 'Modify dishes to meet specific nutritional needs of individuals',
+            'Produce salads, snacks and appetizers', 'Produce pates, terrines and sausages' ] },
+        { category: 'Pastry, Baking and Confectionery', items: [
+          'Prepare pastry, cakes and breads',
+          'Prepare and present desserts and produce petits fours',
+          'Produce chocolate confectionery' ],
+          fromUnits: [
+            'Prepare pastry, cakes and breads', 'Prepare and present desserts', 'Produce petits fours',
+            'Produce chocolate confectionery' ] },
+        { category: 'Kitchen Coordination, Menu Planning and Catering', items: [
+          'Develop recipes, plan menus and coordinate cooking operations',
+          'Plan catering for events and functions',
+          'Apply principles of quality control to food and catering systems',
+          'Produce cook-chill and cook-freeze foods, re-thermalise chilled and frozen foods and package prepared foodstuffs' ],
+          fromUnits: [
+            'Develop recipes and plan menu', 'Coordinate cooking operations',
+            'Plan catering for events and functions',
+            'Apply principles of quality control to food and catering systems',
+            'Produce cook-chill and cook-freeze foods', 'Re-thermalise chilled and frozen foods',
+            'Package prepared foodstuffs' ] },
+        { category: 'Stock, Costing and Financial Control', items: [
+          'Receive, store, control and order stock',
+          'Monitor catering revenue and costs, and prepare and manage budgets and forecasts',
+          'Perform the advanced mathematical computations the job requires' ],
+          fromUnits: [
+            'Receive and store stock', 'Control and order stock', 'Monitor catering revenue and costs',
+            'Prepare and manage budgets and forecasts', 'Perform advanced mathematical computations' ] },
+        { category: 'Industry Knowledge, Innovation and Enterprise', items: [
+          'Develop and update hospitality industry and job knowledge, including Team Jamaica requirements',
+          'Operate in a culturally diverse work environment and promote healthy lifestyle food choices',
+          'Explore current trends and influences in food science and innovation',
+          'Explore entrepreneurial ventures and small business planning' ],
+          fromUnits: [
+            'Develop and update hospitality industry/job knowledge',
+            'Apply knowledge of Team Jamaica requirements in the workplace',
+            'Develop an awareness of healthy lifestyle food choices',
+            'Operate in a culturally diverse work environment',
+            'Explore entrepreneurial ventures and small business planning',
+            'Explore the current trends and influences in food science and innovation' ] },
+        { category: 'Communication and Digital Skills', items: [
+          'Apply advanced language and communication skills and write workplace reports',
+          'Apply digital solutions to work processes and use technology to enhance personal communication',
+          'Use social media to engage customers' ],
+          fromUnits: [
+            'Apply digital solutions to work processes', 'Use social media to engage customers',
+            'Utilize technology to enhance personal communication',
+            'Apply advance language and communication skills', 'Employ report writing skills' ] },
+        { category: 'Supervision, Leadership and Professional Development', items: [
+          'Apply supervisory skills, lead work teams and individuals and train colleagues in the workplace',
+          'Apply problem solving, decision-making and critical thinking skills',
+          'Develop and use emotional intelligence, and network and build professional relationships',
+          'Apply the principles of confidentiality and security' ],
+          fromUnits: [
+            'Apply problem solving and decision-making skills', 'Develop and use emotional intelligence',
+            'Develop and use critical thinking skills', 'Train colleagues in the workplace',
+            'Develop and apply supervisory skills', 'Lead work teams and individuals',
+            'Apply the principles of confidentiality and security',
+            'Network and build professional relationship' ] },
+        { category: 'Financial Records and Cashiering', elective: true, items: [
+          'Maintain financial records',
+          'Coordinate cashiering operations',
+          'Operate a budgetary control system' ],
+          fromUnits: [
+            'Maintain financial records', 'Coordinate cashiering operations',
+            'Operate a budgetary control system' ] }
+      ]
+    },
+
     /* ------------------------------------------------------------------ *
        LEVEL 3 PLANS — these predate clustering. The published plan lists
        Core and Elective units with no "Clustering of Units" table, so the
