@@ -57307,12 +57307,16 @@ function certPageInnerBox(ctx, w, h, x, y, probe) {
       var lx = Math.max(0, Math.min(w - 1, Math.round(probe.leftX))), rx = Math.max(0, Math.min(w - 1, Math.round(probe.rightX)));
       var line = function (i) { return dark(rows[1], i * 4) && near(rows[0], i, w) && near(rows[2], i, w); };
       if (okRows && !line(lx) && !line(rx)) {
-        for (i = rx; i < box.right; i++) { if (line(i)) { box.right = i; break; } }
-        for (i = lx; i >= box.left; i--) { if (line(i)) { box.left = i + 1; break; } }
+        for (i = rx; i < box.right; i++) { if (line(i)) { box.right = i; box.ruledRight = true; break; } }
+        for (i = lx; i >= box.left; i--) { if (line(i)) { box.left = i + 1; box.ruledLeft = true; break; } }
+        // The rule between the two halves of the panel, if it has one.
+        for (i = lx + 1; i < rx; i++) {
+          if (line(i)) { var j = i; while (j + 1 < rx && line(j + 1)) j++; box.divider = { from: i, to: j + 1 }; break; }
+        }
         var cols = [lx, rx].map(function (xx) { return ctx.getImageData(xx, 0, 1, h).data; });
         if (cols.every(function (d) { return d && d.length === h * 4; })) {
           for (i = y + dy; i < box.bottom; i++) {
-            if (dark(cols[0], i * 4) && near(cols[1], i, h)) { box.bottom = i; break; }
+            if (dark(cols[0], i * 4) && near(cols[1], i, h)) { box.bottom = i; box.ruledBottom = true; break; }
           }
         }
       }
@@ -57342,14 +57346,24 @@ function certPage2Lists(ctx, w, h, p) {
   var listsEnd = Math.min.apply(null, obstacles.concat([h]));
   var inner = certPageInnerBox(ctx, w, h, w / 2, (top + listsEnd) / 2,
     { leftX: (p.contentX + p.compHeadX) / 2, rightX: (p.compHeadX + (w - p.contentX)) / 2, dy: (listsEnd - top) / 4 });
-  obstacles.push(inner.bottom - margin);
+  // Beside a ruled line of the panel the text keeps a clear gutter (1.5% of
+  // the page's width): at the plain margin it sat against the rule.
+  var gutter = Math.max(margin, Math.round(w * 0.015));
+  obstacles.push(inner.bottom - (inner.ruledBottom ? gutter : margin));
   var lowest = Math.min.apply(null, obstacles) - Math.max(4, Math.round(size * 0.6));
   // Text runs from 10px inside a column's left edge to 10px inside its right.
-  var leftX = Math.max(p.contentX, inner.left + margin - 10);
-  var rightEdge = Math.min(w - leftX, inner.right - margin + 10);
-  var leftBox = { x: leftX, width: Math.max(40, p.compHeadX - leftX), columns: 2, gap: 10, padRight: 10,
+  var leftX = Math.max(p.contentX, inner.left + (inner.ruledLeft ? gutter : margin) - 10);
+  var rightEdge = Math.min(w - leftX, inner.right - (inner.ruledRight ? gutter : margin) + 10);
+  // The rule between the halves: the units stop a gutter short of it, and the
+  // competencies start a gutter past it.
+  var leftEnd = p.compHeadX, rightStart = p.compHeadX;
+  if (inner.divider) {
+    leftEnd = Math.min(leftEnd, inner.divider.from - gutter + 10);
+    rightStart = Math.max(rightStart, inner.divider.to + gutter - 10);
+  }
+  var leftBox = { x: leftX, width: Math.max(40, leftEnd - leftX), columns: 2, gap: 10, padRight: 10,
     y: p.modHeadY + Math.round(p.modHeadSize * 1.4) + 8 };
-  var rightBox = { x: p.compHeadX, width: Math.max(40, rightEdge - p.compHeadX), columns: 2, gap: 10, padRight: 10,
+  var rightBox = { x: rightStart, width: Math.max(40, rightEdge - rightStart), columns: 2, gap: 10, padRight: 10,
     y: p.compHeadY + Math.round(p.compHeadSize * 1.4) + 8 };
   // The validation QR square (bottom left) is no place for a unit either.
   var qrLowest = lowest;

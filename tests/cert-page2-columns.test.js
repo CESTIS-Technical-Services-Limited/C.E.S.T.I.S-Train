@@ -319,6 +319,14 @@ for (const page of PAGES) {
   assertEq(lists.inner.bottom, PANEL.bottom, w + ': and its bottom rule');
   assert(all.length && all.every(l => l.x >= PANEL.left + 3 && l.x + measure(l.text, l.font) <= PANEL.right), w + ': no list line runs out through the side of the panel');
   assert(all.every(l => l.y < PANEL.bottom), w + ': nor below it');
+  // A clear gutter from every rule of the panel, the one between the halves too.
+  const G = Math.round(W * 0.015);
+  const endOf = l => l.x + measure(l.text, l.font);
+  assert(all.every(l => l.x >= PANEL.left + 3 + G && endOf(l) <= PANEL.right - G), w + ': the text keeps a gutter (' + G + 'px) from the panel\'s sides');
+  assert(all.every(l => l.y <= PANEL.bottom - G), w + ': and from its bottom rule');
+  assert(lists.inner.divider && lists.inner.divider.from === PANEL.mid && lists.inner.divider.to === PANEL.mid + 3, w + ': the rule between the halves is found');
+  assert(lists.units.lines.every(l => endOf(l) <= PANEL.mid - G), w + ': the units stop a gutter short of it');
+  assert(lists.competencies.lines.every(l => l.x >= PANEL.mid + 3 + G), w + ': and the competencies start a gutter past it');
   assert(lists.units.lines.every(l => l.x + measure(l.text, l.font) <= 52 / 100 * W), w + ': the units stay left of the competencies');
   assertEq(lists.hidden, 0, w + ': and the whole of both lists is still on the page (size ' + lists.size + ')');
 }
