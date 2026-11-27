@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
 <script src="cestis-config.js?v=284ebb2a"></script>
-<script src="cestis-core.js?v=96b0c0a7"></script>
+<script src="cestis-core.js?v=dfbd0305"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CESTIS - Student Progress</title>
 
@@ -1202,7 +1202,7 @@ function spBulkApply(to) {
     if(idx === -1) return;
     var s = students[idx];
     if(s.stage === to) return;
-    CESTISCore.certs.applyStage(s, to, { roll: students, approvals: certDownloadApprovals, by: spActorName(), reason: reason });
+    CESTISCore.certs.applyStage(s, to, { roll: students, approvals: certDownloadApprovals, by: spActorName(), reason: reason , courseEnd: typeof spCourseEndOf === 'function' ? spCourseEndOf(s) : '' });
     spMarkStageSetByUser(s);
     moved++;
   });
@@ -1400,6 +1400,16 @@ function spActorName() {
   try { var u = window.top && window.top.currentLoggedInUser; if (u && u.name) return String(u.name); } catch (e) {}
   return 'Admin';
 }
+// The day this trainee's course ended, from Course Duration (their centre's end
+// date), for the date on their certificate (CESTISCore.certs.completionDate).
+function spCourseEndOf(s) {
+  try {
+    var rec = null;
+    if (s.centreId != null) rec = skillAreas.filter(function (a) { return a && a.id === s.centreId; })[0] || null;
+    if (!rec) rec = CESTISCore.enrolment.findCentre(skillAreas, s.centreName || s.course, { nowMs: Date.now() });
+    return (rec && rec.endDate) || '';
+  } catch (e) { return ''; }
+}
 // A person, not the course-end rule, decided this stage: the sweep must not
 // undo it, and it settles this course ending for them (as the dashboard's
 // markStageSetByUser does).
@@ -1449,6 +1459,7 @@ function updateStudentStage(idx) {
   // withdraws the certificate (kept on record, verifiable as revoked, its
   // approval switched off) instead of leaving it to be promoted straight back.
   CESTISCore.certs.applyStage(s, newStage, { roll: students, approvals: certDownloadApprovals, by: spActorName(),
+    courseEnd: typeof spCourseEndOf === 'function' ? spCourseEndOf(s) : '',
     reason: notesEl ? String(notesEl.value || '').trim() : '' });
   spMarkStageSetByUser(s);
   closeModal('updateStageModal');

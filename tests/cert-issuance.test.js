@@ -251,5 +251,31 @@ BUILDS.forEach(function (b) {
   assert(e.items[0].state === 'warn' && e.items[0].detail === 'Two units outstanding', w + ': CESTISCore.transcriptReadiness, when present, answers the assessments line');
 });
 
+/* ---------- The certificate is dated the day the course ended ---------- */
+console.log('Date of completion comes from Course Duration');
+(function () {
+  const Core = require('../cestis-core.js');
+  const now = '2026-11-27T15:00:00.000Z';
+  const mk = extra => Object.assign({ id: 'STU-ce' + Math.random(), name: 'End Date', course: 'Welding', stage: 'testing' }, extra);
+  let s = mk({});
+  Core.certs.applyStage(s, 'certified', { roll: [s], approvals: [], now: now, courseEnd: '2026-07-31' });
+  assertEq(s.certDate, 'July 31, 2026', 'the centre\'s course end date is the certificate date');
+  s = mk({ courseEnd: '2026-06-30' });
+  Core.certs.applyStage(s, 'certified', { roll: [s], approvals: [], now: now });
+  assertEq(s.certDate, 'June 30, 2026', 'with no centre, the end date stamped on the trainee');
+  s = mk({ courseEnd: '2026-06-30' });
+  Core.certs.applyStage(s, 'certified', { roll: [s], approvals: [], now: now, courseEnd: '2026-07-31' });
+  assertEq(s.certDate, 'July 31, 2026', 'the centre\'s date comes before the stamp');
+  s = mk({});
+  Core.certs.applyStage(s, 'certified', { roll: [s], approvals: [], now: now });
+  assertEq(s.certDate, Core.certs.completionDate({}, { now: now }), 'no end date anywhere: the day it was issued');
+  s = mk({});
+  Core.certs.applyStage(s, 'certified', { roll: [s], approvals: [], now: now, courseEnd: '2027-03-31' });
+  assertEq(s.certDate, Core.certs.completionDate({}, { now: now }), 'a course still running: the day it was issued, never a future date');
+  s = mk({ stage: 'certified', certNo: 'WE-2026-0001', certDate: 'March 01, 2026' });
+  Core.certs.applyStage(s, 'collected', { roll: [s], approvals: [], now: now, courseEnd: '2026-07-31' });
+  assertEq(s.certDate, 'March 01, 2026', 'a certificate already issued is not re-dated');
+})();
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);

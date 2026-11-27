@@ -4763,6 +4763,22 @@
       var d = ctx && ctx.now ? new Date(ctx.now) : new Date();
       return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: '2-digit' });
     }
+    /* The date a certificate carries: the day the trainee's course ended, as
+       set under Course Duration — ctx.courseEnd (their centre's end date, when
+       the page has it), else the end date stamped on the trainee at enrolment.
+       Only once that day has come: a course with no end date, or one still
+       running, is dated the day the certificate is issued, as before. */
+    function isoDay(v) { return (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v)) ? v.slice(0, 10) : ''; }
+    function completionDate(student, ctx) {
+      var end = isoDay(ctx && ctx.courseEnd) || isoDay(student && student.courseEnd);
+      var n = ctx && ctx.now ? new Date(ctx.now) : new Date();
+      var pad = function (x) { return (x < 10 ? '0' : '') + x; };
+      var today = n.getFullYear() + '-' + pad(n.getMonth() + 1) + '-' + pad(n.getDate());
+      if (!end || end > today) return longDate(ctx);
+      var p = end.split('-');
+      return new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]))
+        .toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: '2-digit' });
+    }
 
     function numberKey(no) { return String(no == null ? '' : no).toUpperCase().replace(/[^A-Z0-9]/g, ''); }
     // The programme's first two letters, with an intake key such as "02. " out
@@ -4940,7 +4956,7 @@
     }
 
     /* The Update Stage rule, the same on every page.
-       ctx: { roll, approvals, by, reason, now }.
+       ctx: { roll, approvals, by, reason, now, courseEnd }.
        Returns { issued, revoked, number }. */
     function applyStage(student, newStage, ctx) {
       ctx = ctx || {};
@@ -4951,7 +4967,7 @@
       if (ISSUED[newStage]) {
         if (newStage === 'certified') student.progress = 90;
         else { student.progress = 100; student.certCollected = true; }
-        if (!student.certDate) student.certDate = longDate(ctx);
+        if (!student.certDate) student.certDate = completionDate(student, ctx);
         var had = !!student.certNo;
         out.number = ensureNumber(student, ctx);
         out.issued = !had;
@@ -5657,7 +5673,7 @@
       numberKey: numberKey, numberPrefix: numberPrefix, rememberAlias: rememberAlias,
       previousNumber: previousNumber, approvalOf: approvalOf, approvedNumber: approvedNumber,
       hasNumber: hasNumber, numberSeed: numberSeed, generateNumber: generateNumber,
-      ensureNumber: ensureNumber, isRevoked: isRevoked, isIssued: isIssued, revoke: revoke, applyStage: applyStage,
+      ensureNumber: ensureNumber, isRevoked: isRevoked, isIssued: isIssued, revoke: revoke, applyStage: applyStage, completionDate: completionDate,
       mergeState: mergeState, mergeLifecycle: mergeLifecycle, resolve: resolve, status: status,
       decidedAt: decidedAt, mergeApprovals: mergeApprovals, recordDownload: recordDownload,
       eligibility: eligibility, templateKey: templateKey, keepTemplateProvenance: keepTemplateProvenance,

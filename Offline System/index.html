@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <script src="cestis-config.js?v=284ebb2a"></script>
-<script src="cestis-core.js?v=96b0c0a7"></script>
+<script src="cestis-core.js?v=dfbd0305"></script>
 <script src="cestis-form-modal.js?v=74020c38" defer></script>
 <!-- Inert until a page registers: the CMC Board registers as a READ-ONLY reader
      so the operating pages' books reach its dashboards without anyone syncing. -->
@@ -27638,7 +27638,8 @@ function updateStudentStage(idx) {
   // demotion withdraws the certificate — the number stays on record, the
   // approval is switched off with a decision time, and verification then
   // reports it as revoked instead of the reconcile promoting them back.
-  CESTISCore.certs.applyStage(students[idx], newStage, { roll: students, approvals: certDownloadApprovals, by: certActorName() });
+  CESTISCore.certs.applyStage(students[idx], newStage, { roll: students, approvals: certDownloadApprovals, by: certActorName() ,
+    courseEnd: ((typeof studentCentreRecord === 'function' && studentCentreRecord(students[idx])) || {}).endDate || '' });
   // This is the Centre's decision, not the course-end rule's: it is never
   // undone by the sweep, and it settles this course ending for them.
   markStageSetByUser(students[idx]);
@@ -56638,7 +56639,8 @@ function backfillCertificateNumbers() {
     // A withdrawn certificate is not re-issued by a stage some older copy
     // still carried; only the administrator's Update Stage re-certifies.
     if((s.stage === 'certified' || s.stage === 'collected') && !s.certNo && !CESTISCore.certs.isRevoked(s)) {
-      if(!s.certDate) s.certDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: '2-digit' });
+      // Dated the day the course ended (Course Duration), else today.
+      if(!s.certDate) s.certDate = CESTISCore.certs.completionDate(s, { courseEnd: ((typeof studentCentreRecord === 'function' && studentCentreRecord(s)) || {}).endDate || '' });
       // The number this record held before, else the one the Centre approved,
       // else the number every device derives for this trainee — never a
       // random one, and never a prefix that depends on which templates this
