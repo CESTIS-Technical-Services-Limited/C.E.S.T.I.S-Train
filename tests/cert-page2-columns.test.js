@@ -289,6 +289,40 @@ for (const page of PAGES) {
   assert(src.lastIndexOf('certDrawValidationQr(') > src.lastIndexOf('certDrawListLines('), w + ': the QR is still drawn last');
 }
 
+/* ------------- 2b. a panel RULED on a light page (paper carries on beyond it) */
+for (const page of PAGES) {
+  const w = page.where;
+  console.log(w + ': page 2 on a background whose frame is a ruled panel on white paper');
+  const PANEL = { left: 60, right: 1010, top: 170, bottom: 600, mid: 566 };
+  const canvas = fakeCanvas();
+  canvas.ctx.getImageData = function (x, y, ww, hh) {
+    const d = new Uint8ClampedArray(ww * hh * 4);
+    for (let j = 0; j < hh; j++) for (let i = 0; i < ww; i++) {
+      const px = x + i, py = y + j, o = (j * ww + i) * 4;
+      const inY = py >= PANEL.top && py <= PANEL.bottom + 2, inX = px >= PANEL.left && px <= PANEL.right + 2;
+      const rule = (inY && ((px >= PANEL.left && px < PANEL.left + 3) || (px >= PANEL.right && px < PANEL.right + 3) || (px >= PANEL.mid && px < PANEL.mid + 3))) ||
+        (inX && ((py >= PANEL.top && py < PANEL.top + 3) || (py >= PANEL.bottom && py < PANEL.bottom + 3)));
+      d[o] = d[o + 1] = d[o + 2] = rule ? 10 : 255; d[o + 3] = 255;
+    }
+    return { data: d };
+  };
+  const sb = sandbox(page, canvas);
+  const food = Seed.templateContentFor('Commercial Food Preparation');
+  const lists = vm.runInContext('certPage2Lists', sb)(canvas.ctx, W, H, {
+    modules: food.modules, competencies: food.competencies, contentX: 8 / 100 * W, contentSize: 11,
+    modHeadY: 25 / 100 * H, modHeadSize: 16, compHeadX: 52 / 100 * W, compHeadY: 25 / 100 * H, compHeadSize: 16,
+    specsY: 79 / 100 * H, specsSize: 10, footerY: 89 / 100 * H, footerSize: 9, tpl: { textPositions: POS }
+  });
+  const all = lists.units.lines.concat(lists.competencies.lines);
+  assertEq(lists.inner.right, PANEL.right, w + ': the panel\'s right rule is found');
+  assertEq(lists.inner.left, PANEL.left + 3, w + ': and its left rule');
+  assertEq(lists.inner.bottom, PANEL.bottom, w + ': and its bottom rule');
+  assert(all.length && all.every(l => l.x >= PANEL.left + 3 && l.x + measure(l.text, l.font) <= PANEL.right), w + ': no list line runs out through the side of the panel');
+  assert(all.every(l => l.y < PANEL.bottom), w + ': nor below it');
+  assert(lists.units.lines.every(l => l.x + measure(l.text, l.font) <= 52 / 100 * W), w + ': the units stay left of the competencies');
+  assertEq(lists.hidden, 0, w + ': and the whole of both lists is still on the page (size ' + lists.size + ')');
+}
+
 /* ------------------------------------- 3. the template editor shows the same */
 for (const page of PAGES) {
   const w = page.where;

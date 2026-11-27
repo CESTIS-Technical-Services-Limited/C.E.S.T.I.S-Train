@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <script src="cestis-config.js?v=284ebb2a"></script>
-<script src="cestis-core.js?v=dfbd0305"></script>
+<script src="cestis-core.js?v=d8ee0de6"></script>
 <script src="cestis-form-modal.js?v=74020c38" defer></script>
 <!-- Inert until a page registers: the CMC Board registers as a READ-ONLY reader
      so the operating pages' books reach its dashboards without anyone syncing. -->
@@ -57278,7 +57278,7 @@ function wrapText(ctx, text, maxWidth) {
 // one column, the first light pixel in from each edge (the frame and the
 // page beyond it are dark; the paper is light). The whole page when the
 // canvas cannot be read or the background has no frame.
-function certPageInnerBox(ctx, w, h, x, y) {
+function certPageInnerBox(ctx, w, h, x, y, probe) {
   var box = { left: 0, right: w, top: 0, bottom: h };
   try {
     x = Math.max(0, Math.min(w - 1, Math.round(x))); y = Math.max(0, Math.min(h - 1, Math.round(y)));
@@ -57290,6 +57290,33 @@ function certPageInnerBox(ctx, w, h, x, y) {
     for (i = w - 1; i >= 0; i--) { if (light(row, i * 4)) { box.right = i + 1; break; } }
     for (i = 0; i < h; i++) { if (light(col, i * 4)) { box.top = i; break; } }
     for (i = h - 1; i >= 0; i--) { if (light(col, i * 4)) { box.bottom = i + 1; break; } }
+  } catch (e) {}
+  // A frame DRAWN ON a light page (a ruled panel, the paper carrying on beyond
+  // it) is not found from the edges: every edge pixel is already light, and
+  // the lists then ran out through the panel's right side. So walk outwards
+  // from inside each half of the panel to the first ruled line — one that is
+  // there on three rows (or three columns), so a seal or a watermark is not
+  // taken for it. probe: { leftX, rightX, dy }.
+  try {
+    if (probe) {
+      var dark = function (d, i) { return d[i + 3] > 0 && (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) < 120; };
+      var near = function (d, i, n) { for (var k = -2; k <= 2; k++) { var j = i + k; if (j >= 0 && j < n && dark(d, j * 4)) return true; } return false; };
+      var dy = Math.max(2, Math.round(probe.dy || h * 0.05));
+      var rows = [y - dy, y, y + dy].map(function (yy) { return ctx.getImageData(0, Math.max(0, Math.min(h - 1, yy)), w, 1).data; });
+      var okRows = rows.every(function (d) { return d && d.length === w * 4; });
+      var lx = Math.max(0, Math.min(w - 1, Math.round(probe.leftX))), rx = Math.max(0, Math.min(w - 1, Math.round(probe.rightX)));
+      var line = function (i) { return dark(rows[1], i * 4) && near(rows[0], i, w) && near(rows[2], i, w); };
+      if (okRows && !line(lx) && !line(rx)) {
+        for (i = rx; i < box.right; i++) { if (line(i)) { box.right = i; break; } }
+        for (i = lx; i >= box.left; i--) { if (line(i)) { box.left = i + 1; break; } }
+        var cols = [lx, rx].map(function (xx) { return ctx.getImageData(xx, 0, 1, h).data; });
+        if (cols.every(function (d) { return d && d.length === h * 4; })) {
+          for (i = y + dy; i < box.bottom; i++) {
+            if (dark(cols[0], i * 4) && near(cols[1], i, h)) { box.bottom = i; break; }
+          }
+        }
+      }
+    }
   } catch (e) {}
   return box;
 }
@@ -57312,7 +57339,9 @@ function certPage2Lists(ctx, w, h, p) {
   var obstacles = [];
   if (under(p.specsY - p.specsSize)) obstacles.push(p.specsY - p.specsSize);
   if (under(p.footerY - p.footerSize)) obstacles.push(p.footerY - p.footerSize);
-  var inner = certPageInnerBox(ctx, w, h, w / 2, (top + Math.min.apply(null, obstacles.concat([h]))) / 2);
+  var listsEnd = Math.min.apply(null, obstacles.concat([h]));
+  var inner = certPageInnerBox(ctx, w, h, w / 2, (top + listsEnd) / 2,
+    { leftX: (p.contentX + p.compHeadX) / 2, rightX: (p.compHeadX + (w - p.contentX)) / 2, dy: (listsEnd - top) / 4 });
   obstacles.push(inner.bottom - margin);
   var lowest = Math.min.apply(null, obstacles) - Math.max(4, Math.round(size * 0.6));
   // Text runs from 10px inside a column's left edge to 10px inside its right.
@@ -57350,12 +57379,22 @@ function certPage2Lists(ctx, w, h, p) {
   };
   var minSize = CESTISCore.certs.listMinSize(size, w, h);
   var item = { color: p.color || '#333' };
-  var out = CESTISCore.certs.layoutColumnsShared([
-    { entries: units, box: leftBox, opts: { size: size, minSize: minSize, mode: 'balance', keepGroups: true, groupGap: 4,
-      styles: { head: { color: p.color || '#2A7B88' }, item: item } } },
-    { entries: comps, box: rightBox, opts: { size: size, minSize: minSize, mode: 'fill', groupGap: 6,
-      styles: { head: { color: p.color || '#1B2A4A' }, item: item } } }
-  ], measure);
+  var layAt = function (floor) {
+    return CESTISCore.certs.layoutColumnsShared([
+      { entries: units, box: leftBox, opts: { size: size, minSize: floor, mode: 'balance', keepGroups: true, groupGap: 4,
+        styles: { head: { color: p.color || '#2A7B88' }, item: item } } },
+      { entries: comps, box: rightBox, opts: { size: size, minSize: floor, mode: 'fill', groupGap: 6,
+        styles: { head: { color: p.color || '#1B2A4A' }, item: item } } }
+    ], measure);
+  };
+  var out = layAt(minSize);
+  // A long programme in a small panel: at small print some units would be left
+  // off the certificate altogether. A certificate missing units is worse than
+  // one in finer print, so the lists come down further — and only then.
+  if (out[0].hidden + out[1].hidden) {
+    var finer = layAt(Math.min(minSize, Math.max(4, Math.round(minSize * 0.6 * 2) / 2)));
+    if (finer[0].hidden + finer[1].hidden < out[0].hidden + out[1].hidden) out = finer;
+  }
   return { units: out[0], competencies: out[1], leftBox: leftBox, rightBox: rightBox, inner: inner,
     size: out[0].size, hidden: out[0].hidden + out[1].hidden };
 }
@@ -57934,6 +57973,34 @@ function seedCertTemplatesFromPlans() {
   try { populateCertTemplateSkillSelect(); loadCertTemplateForEdit(); renderCertSeedStatus(); } catch(e) {}
   showToast('Seeded ' + seeded + ' certificate template(s) from the qualification plans' +
     (kept ? ' — hand-entered competencies kept on ' + kept : ''));
+}
+
+// One-time correction: certificates already issued are re-dated to the day
+// their course ended (Course Duration). The administrator sees the list first.
+// Numbers never change; the old date is kept in each certificate's history.
+function certCorrectDatesToCourseEnd() {
+  if(typeof currentRole !== 'undefined' && currentRole !== 'admin') { showToast('Only an administrator can correct certificate dates.'); return; }
+  var endOf = function(s) { return ((typeof studentCentreRecord === 'function' && studentCentreRecord(s)) || {}).endDate || ''; };
+  var plan = [];
+  _certRoll().forEach(function(s) {
+    if(!s) return;
+    var probe = JSON.parse(JSON.stringify(s));
+    var r = CESTISCore.certs.redateToCourseEnd(probe, { courseEnd: endOf(s), approvals: [] });
+    if(r) plan.push({ s: s, from: r.from, to: r.to });
+  });
+  if(!plan.length) { showToast('Every issued certificate already carries its course end date (or its course has no end date set).'); return; }
+  var lines = plan.slice(0, 15).map(function(p) { return '  • ' + p.s.name + ' — ' + (p.from || 'no date') + '  →  ' + p.to; }).join('\n');
+  if(!confirm('Correct the date on ' + plan.length + ' issued certificate(s) to the course end date?\n\n' + lines +
+    (plan.length > 15 ? '\n  … and ' + (plan.length - 15) + ' more' : '') +
+    '\n\nCertificate numbers do not change. Copies already printed or downloaded keep the old date, and signed certificates must be signed again (Certificate Signing → Sign approved certificates).')) return;
+  var done = 0;
+  plan.forEach(function(p) {
+    if(CESTISCore.certs.redateToCourseEnd(p.s, { courseEnd: endOf(p.s), approvals: _certApprovalList(), by: certActorName() })) done++;
+  });
+  saveState();
+  try { renderCertSeedStatus(); } catch(e) {}
+  try { if(typeof renderCertApprovals === 'function') renderCertApprovals(); } catch(e) {}
+  showToast('Corrected the date on ' + done + ' certificate(s) to the course end date');
 }
 
 // Panel on the Cert Downloads page showing which skill areas the plans cover.

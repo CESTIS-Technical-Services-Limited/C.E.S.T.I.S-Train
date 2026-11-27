@@ -4955,6 +4955,37 @@
       pushHistory(student, { event: 'reinstated', certNo: student.certNo || null, certDate: student.certDate || null, at: at, by: opts.by || '' });
     }
 
+    /* Correct an ISSUED certificate's date to the day its course ended (the
+       Centre's one-time correction, asked for by an administrator — nothing
+       else ever re-dates a certificate). Only a certificate that stands
+       (Certified/Collected, not withdrawn), whose course end is known and has
+       come, and whose date is a different day. The number is never changed.
+       The old date is kept in the history, and the download approval's copy
+       follows. A signature made over the old date no longer matches, so the
+       certificate needs signing again. ctx: { courseEnd, approvals, by, now }.
+       Returns { from, to } or null when nothing changed. */
+    function redateToCourseEnd(student, ctx) {
+      ctx = ctx || {};
+      if (!student || !student.certNo || !ISSUED[student.stage] || isRevoked(student)) return null;
+      var end = isoDay(ctx.courseEnd) || isoDay(student.courseEnd);
+      if (!end) return null;
+      var to = completionDate(student, ctx);
+      var p = end.split('-');
+      var want = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]))
+        .toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: '2-digit' });
+      if (to !== want) return null;                       // the course has not ended yet
+      var cur = Date.parse(student.certDate || ''), tgt = Date.parse(to);
+      var sameDay = !isNaN(cur) && !isNaN(tgt) && new Date(cur).toDateString() === new Date(tgt).toDateString();
+      if (sameDay) return null;
+      var from = student.certDate || null, at = nowIso(ctx);
+      pushHistory(student, { event: 'redated', certNo: student.certNo, from: from, to: to, at: at, by: ctx.by || '' });
+      student.certDate = to;
+      student.lastModified = at;
+      var a = approvalOf(student, ctx.approvals);
+      if (a) a.certDate = to;
+      return { from: from, to: to };
+    }
+
     /* The Update Stage rule, the same on every page.
        ctx: { roll, approvals, by, reason, now, courseEnd }.
        Returns { issued, revoked, number }. */
@@ -5673,7 +5704,7 @@
       numberKey: numberKey, numberPrefix: numberPrefix, rememberAlias: rememberAlias,
       previousNumber: previousNumber, approvalOf: approvalOf, approvedNumber: approvedNumber,
       hasNumber: hasNumber, numberSeed: numberSeed, generateNumber: generateNumber,
-      ensureNumber: ensureNumber, isRevoked: isRevoked, isIssued: isIssued, revoke: revoke, applyStage: applyStage, completionDate: completionDate,
+      ensureNumber: ensureNumber, isRevoked: isRevoked, isIssued: isIssued, revoke: revoke, applyStage: applyStage, completionDate: completionDate, redateToCourseEnd: redateToCourseEnd,
       mergeState: mergeState, mergeLifecycle: mergeLifecycle, resolve: resolve, status: status,
       decidedAt: decidedAt, mergeApprovals: mergeApprovals, recordDownload: recordDownload,
       eligibility: eligibility, templateKey: templateKey, keepTemplateProvenance: keepTemplateProvenance,
