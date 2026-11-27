@@ -28,13 +28,14 @@ const PLANS = [
   { course: 'Cosmetology',                           code: 'CSB21323', clusters: 10, units: 47, electives: 3, coreHours: 3270, allHours: 3465, coreCredits: 122, totalCredits: 129 },
   { course: 'Electrical Installation and Maintenance', code: 'EEM20723', clusters: 12, units: 40, electives: 0, coreHours: 2520, allHours: 2520, coreCredits: 99,  totalCredits: 99  },
   { course: 'Welding',                               code: 'MEM22423', clusters: 11, units: 43, electives: 3, coreHours: 2670, allHours: 2925, coreCredits: 109, totalCredits: 117 },
-  { course: 'Hospitality Villa/Properties Services', code: 'THH22522', clusters: 16, units: 58, electives: 3, coreHours: 3690, allHours: 3810, coreCredits: 153, totalCredits: 159 }
+  { course: 'Hospitality Villa/Properties Services', code: 'THH22522', clusters: 16, units: 58, electives: 3, coreHours: 3690, allHours: 3810, coreCredits: 153, totalCredits: 159 },
+  { course: 'Commercial Food Preparation',           code: 'THH32424', clusters: 17, units: 64, electives: 3, coreHours: 4440, allHours: 4560, coreCredits: 174, totalCredits: 182 }
 ];
 
 /* ---------- 1. Every skill area the Centre trains has a seed ---------- */
 console.log('Seed coverage');
-assertEq(Seed.CERT_TEMPLATE_SEED.length, 7, 'seven qualification plans seeded');
-assertEq(Seed.seedSummary().length, 7, 'summary covers every programme');
+assertEq(Seed.CERT_TEMPLATE_SEED.length, 8, 'eight qualification plans seeded');
+assertEq(Seed.seedSummary().length, 8, 'summary covers every programme');
 PLANS.forEach(function (p) {
   assert(!!Seed.findSeed(p.course), p.course + ' has a seed entry');
 });
@@ -104,6 +105,7 @@ assertEq(Seed.findSeed('ELECTRICAL L2').planCode, 'EEM20723', 'electrical alias 
 assertEq(Seed.findSeed('Electrical Installation L3').planCode, 'MEM32507', 'electrical L3 alias resolves');
 assertEq(Seed.findSeed('General Beauty Therapy').planCode, 'CSB21424', 'qualification wording resolves');
 assertEq(Seed.findSeed('HOSPITALITY SERVICES L2').planCode, 'THH22522', 'hospitality alias resolves');
+assertEq(Seed.findSeed('COMMERCIAL FOOD PREPARATION L3').planCode, 'THH32424', 'commercial food preparation alias resolves');
 assertEq(Seed.findSeed('Basket Weaving'), null, 'an unknown course has no seed');
 assertEq(Seed.findSeed(''), null, 'blank name has no seed');
 assertEq(Seed.findSeed(null), null, 'null-safe');
