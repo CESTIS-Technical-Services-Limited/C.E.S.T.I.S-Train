@@ -337,8 +337,11 @@ Gate.configure({ outboxBackend: backend, store: null, client: 'test' });
   assert(resJ && resJ.retired && kinds(resJ.retired) === 'start,left,back,submit' && !/Flashback Arrestor/i.test(JSON.stringify(resJ.retired)),
     'the result file\'s retired attempt carries the whole activity, the submission too (' + kinds(resJ && resJ.retired) + ')');
   const coll = G.collect([{ fileId: laneOf.id, version: 1, json: laneJ, folderAcct: T1.acct.id }, { fileId: resFile.id, version: 1, json: resJ, folderAcct: T1.acct.id }],
-    { accounts: C.store.voctrain_users, students: C.store.voctrain_students });
-  const collected = Core.exams.mergeAttemptLists([], (coll.payload && coll.payload.data && coll.payload.data.examAttempts) || []).list.filter(a => a.id === att.id);
+    // nowMs: the test's own clock. Without it the real clock is used, and once
+    // the fixture's date is more than ACTIVITY_KEEP_MS (14 days) behind today the
+    // submitted attempt's activity is rightly shortened to its counts.
+    { accounts: C.store.voctrain_users, students: C.store.voctrain_students, nowMs: WORLD.clock.now });
+  const collected = Core.exams.mergeAttemptLists([], (coll.payload && coll.payload.data && coll.payload.data.examAttempts) || [], { nowMs: WORLD.clock.now }).list.filter(a => a.id === att.id);
   assert(collected.length === 1 && Core.exams.attemptIsRetired(collected[0]) && kinds(collected[0]) === 'start,left,back,submit' && !/Flashback Arrestor/i.test(JSON.stringify(collected[0].activity)),
     'the staff PC\'s collector takes it in: one submitted attempt, its activity whole (' + kinds(collected[0]) + ')');
   DOWN = true;
