@@ -4766,15 +4766,13 @@
     /* The date a certificate carries: the day the trainee's course ended, as
        set under Course Duration — ctx.courseEnd (their centre's end date, when
        the page has it), else the end date stamped on the trainee at enrolment.
-       Only once that day has come: a course with no end date, or one still
-       running, is dated the day the certificate is issued, as before. */
+       Every certificate bears that date, whenever the course has one (the
+       Centre's rule) — only a course with no end date set is dated the day
+       the certificate is issued. */
     function isoDay(v) { return (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v)) ? v.slice(0, 10) : ''; }
     function completionDate(student, ctx) {
       var end = isoDay(ctx && ctx.courseEnd) || isoDay(student && student.courseEnd);
-      var n = ctx && ctx.now ? new Date(ctx.now) : new Date();
-      var pad = function (x) { return (x < 10 ? '0' : '') + x; };
-      var today = n.getFullYear() + '-' + pad(n.getMonth() + 1) + '-' + pad(n.getDate());
-      if (!end || end > today) return longDate(ctx);
+      if (!end) return longDate(ctx);
       var p = end.split('-');
       return new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]))
         .toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: '2-digit' });
@@ -4955,14 +4953,15 @@
       pushHistory(student, { event: 'reinstated', certNo: student.certNo || null, certDate: student.certDate || null, at: at, by: opts.by || '' });
     }
 
-    /* Correct an ISSUED certificate's date to the day its course ended (the
-       Centre's one-time correction, asked for by an administrator — nothing
-       else ever re-dates a certificate). Only a certificate that stands
-       (Certified/Collected, not withdrawn), whose course end is known and has
-       come, and whose date is a different day. The number is never changed.
-       The old date is kept in the history, and the download approval's copy
-       follows. A signature made over the old date no longer matches, so the
-       certificate needs signing again. ctx: { courseEnd, approvals, by, now }.
+    /* Bring an ISSUED certificate's date to the day its course ended. Every
+       certificate bears its programme's end date (the Centre's rule), so the
+       pages run this over the roll whenever they load and whenever a course's
+       dates are saved. Only a certificate that stands (Certified/Collected,
+       not withdrawn), whose course has an end date, and whose date is a
+       different day. The number is never changed. The old date is kept in the
+       history, and the download approval's copy follows. A signature made
+       over the old date no longer matches, so the certificate needs signing
+       again. ctx: { courseEnd, approvals, by, now }.
        Returns { from, to } or null when nothing changed. */
     function redateToCourseEnd(student, ctx) {
       ctx = ctx || {};
@@ -4970,10 +4969,6 @@
       var end = isoDay(ctx.courseEnd) || isoDay(student.courseEnd);
       if (!end) return null;
       var to = completionDate(student, ctx);
-      var p = end.split('-');
-      var want = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]))
-        .toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: '2-digit' });
-      if (to !== want) return null;                       // the course has not ended yet
       var cur = Date.parse(student.certDate || ''), tgt = Date.parse(to);
       var sameDay = !isNaN(cur) && !isNaN(tgt) && new Date(cur).toDateString() === new Date(tgt).toDateString();
       if (sameDay) return null;
