@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <script src="cestis-config.js?v=284ebb2a"></script>
-<script src="cestis-core.js?v=d8ee0de6"></script>
+<script src="cestis-core.js?v=2fa8a3ad"></script>
 <script src="cestis-form-modal.js?v=74020c38" defer></script>
 <!-- Inert until a page registers: the CMC Board registers as a READ-ONLY reader
      so the operating pages' books reach its dashboards without anyone syncing. -->
@@ -29601,6 +29601,7 @@ function cdSaveCentre(id) {
   // without it every device kept its own dates and none of them agreed.
   sk.durationModified = new Date().toISOString();
   recomputeCourseStatuses(false);
+  try { certAlignDatesToCourseEnd(); } catch(e) {}   // certificates follow the new end date
   saveState();
   if (typeof refreshStudentDependentViews === 'function') { try { refreshStudentDependentViews(); } catch(e) {} }
   renderCourseDurationPage();
@@ -29626,6 +29627,7 @@ function cdBulkApply() {
     if (start || end || level || project) sk.durationModified = _stamp;
   });
   recomputeCourseStatuses(false);
+  try { certAlignDatesToCourseEnd(); } catch(e) {}
   saveState();
   if (typeof refreshStudentDependentViews === 'function') { try { refreshStudentDependentViews(); } catch(e) {} }
   renderCourseDurationPage();
@@ -56650,7 +56652,24 @@ function backfillCertificateNumbers() {
       changed = true;
     }
   });
+  if(typeof certAlignDatesToCourseEnd === 'function' && certAlignDatesToCourseEnd()) changed = true;
   return changed;
+}
+// Every certificate bears the end date of its training centre / programme
+// (Course Duration). Run wherever certificates are brought up to date, so a
+// certificate issued before this rule, one synced in from another device, and
+// one whose course dates were changed afterwards all come to carry it.
+// Returns the number of certificates re-dated.
+function certAlignDatesToCourseEnd() {
+  if(!Array.isArray(students)) return 0;
+  var n = 0, by = 'Course Duration';
+  students.forEach(function(s) {
+    if(!s || !s.certNo) return;
+    var end = '';
+    try { end = ((typeof studentCentreRecord === 'function' && studentCentreRecord(s)) || {}).endDate || ''; } catch(e) {}
+    try { if(CESTISCore.certs.redateToCourseEnd(s, { courseEnd: end, approvals: _certApprovalList(), by: by })) n++; } catch(e) {}
+  });
+  return n;
 }
 
 // ============================== CERTIFICATE PDF GENERATION ==============================

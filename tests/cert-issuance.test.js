@@ -271,7 +271,7 @@ console.log('Date of completion comes from Course Duration');
   assertEq(s.certDate, Core.certs.completionDate({}, { now: now }), 'no end date anywhere: the day it was issued');
   s = mk({});
   Core.certs.applyStage(s, 'certified', { roll: [s], approvals: [], now: now, courseEnd: '2027-03-31' });
-  assertEq(s.certDate, Core.certs.completionDate({}, { now: now }), 'a course still running: the day it was issued, never a future date');
+  assertEq(s.certDate, 'March 31, 2027', 'a course still running: its end date all the same — every certificate bears it');
   /* The one-time correction of certificates already issued. */
   const appr = [{ studentId: 'STU-fix', certNo: 'WE-2026-0001', certDate: 'November 20, 2026', approved: true }];
   s = mk({ id: 'STU-fix', stage: 'certified', certNo: 'WE-2026-0001', certDate: 'November 20, 2026' });
@@ -283,7 +283,7 @@ console.log('Date of completion comes from Course Duration');
   assertEq(Core.certs.redateToCourseEnd(s, { courseEnd: '2026-07-31', now: now }), null, '   run again: nothing changes');
   s = mk({ stage: 'certified', certNo: 'WE-2026-0002', certDate: 'November 20, 2026' });
   assertEq(Core.certs.redateToCourseEnd(s, { now: now }), null, 'no course end date: left alone');
-  assertEq(Core.certs.redateToCourseEnd(s, { courseEnd: '2027-03-31', now: now }), null, 'a course still running: left alone');
+  assert(Core.certs.redateToCourseEnd(s, { courseEnd: '2027-03-31', now: now }) && s.certDate === 'March 31, 2027', 'a course still running: its end date all the same');
   s = mk({ stage: 'training', certNo: 'WE-2026-0003', certDate: 'November 20, 2026' });
   assertEq(Core.certs.redateToCourseEnd(s, { courseEnd: '2026-07-31', now: now }), null, 'a trainee not certified: left alone');
   s = mk({ stage: 'certified', certNo: 'WE-2026-0004', certDate: '2026-07-31' });
@@ -291,6 +291,42 @@ console.log('Date of completion comes from Course Duration');
   s = mk({ stage: 'certified', certNo: 'WE-2026-0001', certDate: 'March 01, 2026' });
   Core.certs.applyStage(s, 'collected', { roll: [s], approvals: [], now: now, courseEnd: '2026-07-31' });
   assertEq(s.certDate, 'March 01, 2026', 'a certificate already issued is not re-dated');
+})();
+
+/* ---------- Every certificate on the roll comes to bear its course end date ---------- */
+console.log('The dashboard brings every issued certificate to its course end date');
+(function () {
+  const vm = require('vm'), fs = require('fs'), path = require('path');
+  const src = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const at = src.indexOf('function certAlignDatesToCourseEnd()');
+  assert(at > 0, 'the dashboard has the rule');
+  let depth = 0, end = at;
+  for (let i = src.indexOf('{', at); i < src.length; i++) { if (src[i] === '{') depth++; else if (src[i] === '}' && --depth === 0) { end = i + 1; break; } }
+  const centres = { C1: { id: 'C1', endDate: '2026-07-31' }, C2: { id: 'C2', endDate: '' } };
+  const sb = {
+    CESTISCore: require('../cestis-core.js'),
+    students: [
+      { id: 'A', name: 'A', course: 'Welding', centreId: 'C1', stage: 'certified', certNo: 'WE-2026-0001', certDate: 'November 20, 2026' },
+      { id: 'B', name: 'B', course: 'Welding', centreId: 'C1', stage: 'collected', certNo: 'WE-2026-0002', certDate: 'July 31, 2026' },
+      { id: 'C', name: 'C', course: 'Plumbing', centreId: 'C2', stage: 'certified', certNo: 'PL-2026-0003', certDate: 'November 20, 2026' },
+      { id: 'D', name: 'D', course: 'Welding', centreId: 'C1', stage: 'training' }
+    ],
+    approvals: [{ studentId: 'A', certNo: 'WE-2026-0001', certDate: 'November 20, 2026' }],
+    studentCentreRecord: s => centres[s.centreId] || null
+  };
+  sb._certApprovalList = () => sb.approvals;
+  vm.createContext(sb);
+  vm.runInContext(src.slice(at, end), sb);
+  assertEq(vm.runInContext('certAlignDatesToCourseEnd()', sb), 1, 'one certificate needed its date brought to the course end');
+  assertEq(sb.students[0].certDate, 'July 31, 2026', 'it now bears the centre\'s end date');
+  assertEq(sb.approvals[0].certDate, 'July 31, 2026', 'and so does its download approval');
+  assertEq(sb.students[1].certDate, 'July 31, 2026', 'one already right is untouched');
+  assertEq(sb.students[2].certDate, 'November 20, 2026', 'a programme with no end date keeps its date');
+  assert(!sb.students[3].certDate, 'a trainee with no certificate gets no date');
+  assertEq(vm.runInContext('certAlignDatesToCourseEnd()', sb), 0, 'run again: nothing more to change');
+  centres.C1.endDate = '2026-08-14';
+  assertEq(vm.runInContext('certAlignDatesToCourseEnd()', sb), 2, 'the end date is changed under Course Duration: both certificates follow');
+  assertEq(sb.students[1].certDate, 'August 14, 2026', 'to the new date');
 })();
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
